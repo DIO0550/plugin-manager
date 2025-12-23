@@ -1,0 +1,23 @@
+[package]
+name = "plm"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "=4.0.0", features = ["derive"] }
+tokio = { version = "=1.0.0", features = ["full"] }
+reqwest = { version = "=0.12.0", features = ["json", "stream"] }
+serde = { version = "=1.0.0", features = ["derive"] }
+serde_json = "=1.0.0"
+toml = "=0.8.0"
+serde_yaml = "=0.9.0"
+zip = "=2.0.0"
+dirs = "=5.0.0"
+walkdir = "=2.0.0"
+glob = "=0.3.0"
+colored = "=2.0.0"
+indicatif = "=0.17.0"
+comfy-table = "=7.0.0"
+chrono = { version = "=0.4.0", features = ["serde"] }
+thiserror = "=2.0.0"
+regex = "=1.0.0"
