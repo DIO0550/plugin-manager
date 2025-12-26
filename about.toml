@@ -1,0 +1,27 @@
+accepted = [
+    "Apache-2.0",
+    "MIT",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "Unicode-3.0",
+    "OpenSSL",
+]
+
+# Limit scanning depth to avoid crawling vendored sources which can contain
+# SPDX-like strings (e.g. deprecated 'GPL-2.0') unrelated to crate licensing.
+max-depth = 2
+
+[lzma-sys]
+clarify = { license = "MIT OR Apache-2.0", files = [
+    { path = "LICENSE-MIT", checksum = "69036b033e4bb951821964dbc3d9b1efe6913a6e36d9c1f206de4035a1a85cc4", license = "MIT" },
+    { path = "LICENSE-APACHE", checksum = "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2", license = "Apache-2.0" },
+] }
+
+[zstd-sys]
+clarify = { license = "(MIT OR Apache-2.0) AND BSD-3-Clause", files = [
+    { path = "LICENSE.Apache-2.0", checksum = "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594", license = "Apache-2.0" },
+    { path = "LICENSE.Mit", checksum = "129e8edef29e9abcd2ebabe252f4ef1b1289cdca356bf0040284a2fbccfb96c8", license = "MIT" },
+    { path = "LICENSE.BSD-3-Clause", checksum = "48341f685c87304089aa099b23c386f8bacc519ef555aa7a13e239908907b3fd", license = "BSD-3-Clause" },
+] }

@@ -7,6 +7,8 @@
   "remoteUser": "vscode",
   "containerEnv": {
     "CARGO_REGISTRIES_CRATES_IO_PROTOCOL": "sparse",
+    "CARGO_HOME": "/workspaces/plugin-manager/.cargo-home",
+    "CARGO_TARGET_DIR": "/workspaces/plugin-manager/.target",
     "RUST_BACKTRACE": "1",
     "GITHUB_TOKEN": "${localEnv:GITHUB_PERSONAL_ACCESS_TOKEN}"
   },
@@ -14,8 +16,6 @@
     "vscode": {
       "extensions": [
         "rust-lang.rust-analyzer",
-        "tamasfe.even-better-toml",
-        "serayuzgur.crates"
       ]
     }
   },

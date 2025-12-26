@@ -1,0 +1,35 @@
+# cargo-deny configuration (minimal)
+# - crates.io 以外のレジストリを拒否
+# - git 依存を拒否
+# - yanked を拒否
+# - ライセンス/重複依存/ワイルドカードをチェック
+
+[advisories]
+yanked = "deny"
+# NOTE: cargo-deny 0.18 は unmaintained advisory を warn に落とせず、検出すると失敗します。
+# まずは "none" にして、unmaintained は `cargo audit` の warning で追う運用にします。
+unmaintained = "none"
+ignore = []
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []
+
+[licenses]
+confidence-threshold = 0.8
+allow = [
+  "Apache-2.0",
+  "MIT",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "Zlib",
+  "Unicode-3.0",
+  "OpenSSL",
+]
