@@ -2,10 +2,11 @@ mod cli;
 mod commands;
 
 use clap::Parser;
+use crate::cli::Cli;
 
 #[tokio::main]
 async fn main() {
-    let cli = cli::Cli::parse();
+    let cli = Cli::parse();
 
     if let Err(err) = commands::dispatch(cli).await {
         eprintln!("{err}");

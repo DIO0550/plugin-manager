@@ -1,6 +1,20 @@
-use crate::cli::{Cli, Command};
+use crate::cli::Command;
 
-pub async fn dispatch(cli: Cli) -> Result<(), String> {
+pub mod disable;
+pub mod enable;
+pub mod import;
+pub mod info;
+pub mod init;
+pub mod install;
+pub mod list;
+pub mod marketplace;
+pub mod pack;
+pub mod sync;
+pub mod target;
+pub mod uninstall;
+pub mod update;
+
+pub async fn dispatch(cli: crate::cli::Cli) -> Result<(), String> {
     match cli.command {
         Command::Target(args) => target::run(args).await,
         Command::Install(args) => install::run(args).await,
@@ -17,17 +31,3 @@ pub async fn dispatch(cli: Cli) -> Result<(), String> {
         Command::Marketplace(args) => marketplace::run(args).await,
     }
 }
-
-pub mod target;
-pub mod install;
-pub mod list;
-pub mod info;
-pub mod enable;
-pub mod disable;
-pub mod uninstall;
-pub mod update;
-pub mod init;
-pub mod pack;
-pub mod sync;
-pub mod import;
-pub mod marketplace;

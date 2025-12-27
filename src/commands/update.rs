@@ -1,6 +1,11 @@
-use crate::cli::UpdateArgs;
+use clap::Parser;
 
-pub async fn run(args: UpdateArgs) -> Result<(), String> {
+#[derive(Debug, Parser)]
+pub struct Args {
+    pub name: Option<String>,
+}
+
+pub async fn run(args: Args) -> Result<(), String> {
     println!("update: {:?}", args);
     Err("not implemented".to_string())
 }

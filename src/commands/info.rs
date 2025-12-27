@@ -1,6 +1,11 @@
-use crate::cli::InfoArgs;
+use clap::Parser;
 
-pub async fn run(args: InfoArgs) -> Result<(), String> {
+#[derive(Debug, Parser)]
+pub struct Args {
+    pub name: String,
+}
+
+pub async fn run(args: Args) -> Result<(), String> {
     println!("info: {:?}", args);
     Err("not implemented".to_string())
 }

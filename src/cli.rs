@@ -1,4 +1,9 @@
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{Parser, Subcommand};
+
+use crate::commands::{
+    disable, enable, import, info, init, install, list, marketplace, pack, sync, target,
+    uninstall, update,
+};
 
 #[derive(Debug, Parser)]
 #[command(name = "plm")]
@@ -11,215 +16,41 @@ pub struct Cli {
 #[derive(Debug, Subcommand)]
 pub enum Command {
     /// ターゲット環境の管理
-    Target(TargetArgs),
+    Target(target::Args),
 
     /// マーケットプレイスの管理
-    Marketplace(MarketplaceArgs),
+    Marketplace(marketplace::Args),
 
     /// マーケットプレイスからプラグインをインストール
-    Install(InstallArgs),
+    Install(install::Args),
 
     /// インストール済みのコンポーネント一覧
-    List(ListArgs),
+    List(list::Args),
 
     /// コンポーネントの詳細表示
-    Info(InfoArgs),
+    Info(info::Args),
 
     /// コンポーネントを有効化
-    Enable(EnableArgs),
+    Enable(enable::Args),
 
     /// コンポーネントを無効化
-    Disable(DisableArgs),
+    Disable(disable::Args),
 
     /// コンポーネントを削除
-    Uninstall(UninstallArgs),
+    Uninstall(uninstall::Args),
 
     /// コンポーネントを更新
-    Update(UpdateArgs),
+    Update(update::Args),
 
     /// テンプレート生成
-    Init(InitArgs),
+    Init(init::Args),
 
     /// 配布用パッケージ作成
-    Pack(PackArgs),
+    Pack(pack::Args),
 
     /// 環境間同期
-    Sync(SyncArgs),
+    Sync(sync::Args),
 
     /// Claude Code Plugin からインポート
-    Import(ImportArgs),
-}
-
-#[derive(Debug, Parser)]
-pub struct TargetArgs {
-    #[command(subcommand)]
-    pub command: TargetCommand,
-}
-
-#[derive(Debug, Subcommand)]
-pub enum TargetCommand {
-    /// 現在のターゲット一覧を表示
-    List,
-
-    /// ターゲット環境を追加
-    Add {
-        #[arg(value_enum)]
-        target: TargetKind,
-    },
-
-    /// ターゲット環境を削除
-    Remove {
-        #[arg(value_enum)]
-        target: TargetKind,
-    },
-}
-
-#[derive(Debug, Clone, ValueEnum)]
-pub enum TargetKind {
-    Codex,
-    Copilot,
-}
-
-#[derive(Debug, Parser)]
-pub struct MarketplaceArgs {
-    #[command(subcommand)]
-    pub command: MarketplaceCommand,
-}
-
-#[derive(Debug, Subcommand)]
-pub enum MarketplaceCommand {
-    /// 登録済みマーケットプレイス一覧を表示
-    List,
-
-    /// マーケットプレイスを追加
-    Add {
-        /// GitHubリポジトリ (owner/repo) またはURL
-        source: String,
-
-        /// マーケットプレイス名（未指定ならリポジトリ名から自動設定）
-        #[arg(long)]
-        name: Option<String>,
-    },
-
-    /// マーケットプレイスを削除
-    Remove {
-        /// マーケットプレイス名
-        name: String,
-    },
-
-    /// マーケットプレイスのキャッシュを更新
-    Update {
-        /// 特定のマーケットプレイスのみ更新（未指定なら全て）
-        name: Option<String>,
-    },
-}
-
-#[derive(Debug, Clone, ValueEnum)]
-pub enum ComponentType {
-    Skill,
-    Agent,
-    Prompt,
-    Instruction,
-}
-
-#[derive(Debug, Parser)]
-pub struct InstallArgs {
-    /// owner/repo 形式
-    pub repo: String,
-
-    /// コンポーネント種別を指定（未指定なら自動検出の想定）
-    #[arg(long = "type", value_enum)]
-    pub component_type: Option<ComponentType>,
-
-    /// 特定ターゲットにだけ入れる
-    #[arg(long, value_enum)]
-    pub target: Option<TargetKind>,
-
-    /// personal / project
-    #[arg(long)]
-    pub scope: Option<String>,
-
-    /// Claude Code Plugin 形式から抽出してインストール
-    #[arg(long)]
-    pub from_plugin: bool,
-}
-
-#[derive(Debug, Parser)]
-pub struct ListArgs {
-    #[arg(long = "type", value_enum)]
-    pub component_type: Option<ComponentType>,
-
-    #[arg(long, value_enum)]
-    pub target: Option<TargetKind>,
-}
-
-#[derive(Debug, Parser)]
-pub struct InfoArgs {
-    pub name: String,
-}
-
-#[derive(Debug, Parser)]
-pub struct EnableArgs {
-    pub name: String,
-
-    #[arg(long, value_enum)]
-    pub target: Option<TargetKind>,
-}
-
-#[derive(Debug, Parser)]
-pub struct DisableArgs {
-    pub name: String,
-
-    #[arg(long, value_enum)]
-    pub target: Option<TargetKind>,
-}
-
-#[derive(Debug, Parser)]
-pub struct UninstallArgs {
-    pub name: String,
-
-    #[arg(long, value_enum)]
-    pub target: Option<TargetKind>,
-}
-
-#[derive(Debug, Parser)]
-pub struct UpdateArgs {
-    pub name: Option<String>,
-}
-
-#[derive(Debug, Parser)]
-pub struct InitArgs {
-    pub name: String,
-
-    #[arg(long = "type", value_enum)]
-    pub component_type: ComponentType,
-}
-
-#[derive(Debug, Parser)]
-pub struct PackArgs {
-    pub path: String,
-}
-
-#[derive(Debug, Parser)]
-pub struct SyncArgs {
-    #[arg(long, value_enum)]
-    pub from: TargetKind,
-
-    #[arg(long, value_enum)]
-    pub to: TargetKind,
-
-    #[arg(long = "type", value_enum)]
-    pub component_type: Option<ComponentType>,
-}
-
-#[derive(Debug, Parser)]
-pub struct ImportArgs {
-    /// owner/repo 形式
-    pub repo: String,
-
-    #[arg(long = "type", value_enum)]
-    pub component_type: Option<ComponentType>,
-
-    #[arg(long)]
-    pub component: Option<String>,
+    Import(import::Args),
 }
