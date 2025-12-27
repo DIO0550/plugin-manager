@@ -20,7 +20,8 @@
     }
   },
   "mounts": [
-    "source=${localEnv:HOME}/.gitconfig,target=/home/node/.gitconfig,type=bind,readonly",
+    "source=${localEnv:HOME}/.gitconfig,target=/home/vscode/.gitconfig,type=bind,readonly",
+    "source=${localEnv:HOME}/.codex,target=/home/vscode/.codex,type=bind",
     "source=plm-cargo-registry,target=/usr/local/cargo/registry,type=volume",
     "source=plm-cargo-git,target=/usr/local/cargo/git,type=volume",
     "source=plm-target,target=/workspaces/plugin-manager/target,type=volume"
