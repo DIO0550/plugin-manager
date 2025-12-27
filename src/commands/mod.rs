@@ -14,6 +14,7 @@ pub async fn dispatch(cli: Cli) -> Result<(), String> {
         Command::Pack(args) => pack::run(args).await,
         Command::Sync(args) => sync::run(args).await,
         Command::Import(args) => import::run(args).await,
+        Command::Marketplace(args) => marketplace::run(args).await,
     }
 }
 
@@ -29,3 +30,4 @@ pub mod init;
 pub mod pack;
 pub mod sync;
 pub mod import;
+pub mod marketplace;

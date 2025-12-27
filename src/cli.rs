@@ -13,7 +13,10 @@ pub enum Command {
     /// ターゲット環境の管理
     Target(TargetArgs),
 
-    /// GitHub などからコンポーネントをインストール
+    /// マーケットプレイスの管理
+    Marketplace(MarketplaceArgs),
+
+    /// マーケットプレイスからプラグインをインストール
     Install(InstallArgs),
 
     /// インストール済みのコンポーネント一覧
@@ -75,6 +78,40 @@ pub enum TargetCommand {
 pub enum TargetKind {
     Codex,
     Copilot,
+}
+
+#[derive(Debug, Parser)]
+pub struct MarketplaceArgs {
+    #[command(subcommand)]
+    pub command: MarketplaceCommand,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum MarketplaceCommand {
+    /// 登録済みマーケットプレイス一覧を表示
+    List,
+
+    /// マーケットプレイスを追加
+    Add {
+        /// GitHubリポジトリ (owner/repo) またはURL
+        source: String,
+
+        /// マーケットプレイス名（未指定ならリポジトリ名から自動設定）
+        #[arg(long)]
+        name: Option<String>,
+    },
+
+    /// マーケットプレイスを削除
+    Remove {
+        /// マーケットプレイス名
+        name: String,
+    },
+
+    /// マーケットプレイスのキャッシュを更新
+    Update {
+        /// 特定のマーケットプレイスのみ更新（未指定なら全て）
+        name: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone, ValueEnum)]
