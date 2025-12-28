@@ -1,5 +1,9 @@
 mod cli;
 mod commands;
+mod error;
+mod github;
+mod marketplace;
+mod plugin;
 
 use clap::Parser;
 use crate::cli::Cli;
