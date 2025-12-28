@@ -1,5 +1,5 @@
 use crate::error::{PlmError, Result};
-use crate::github::{GitHubClient, RepoRef};
+use crate::github::{GitHubClient, GitRepo};
 use crate::marketplace::{MarketplaceCache, MarketplaceManifest};
 use chrono::Utc;
 
@@ -19,7 +19,7 @@ impl MarketplaceFetcher {
     /// GitHubリポジトリから marketplace.json を取得
     pub async fn fetch(
         &self,
-        repo: &RepoRef,
+        repo: &GitRepo,
         subdir: Option<&str>,
     ) -> Result<MarketplaceManifest> {
         let path = match subdir {
@@ -37,7 +37,7 @@ impl MarketplaceFetcher {
     /// マーケットプレイスを取得してキャッシュ形式に変換
     pub async fn fetch_as_cache(
         &self,
-        repo: &RepoRef,
+        repo: &GitRepo,
         name: &str,
         subdir: Option<&str>,
     ) -> Result<MarketplaceCache> {

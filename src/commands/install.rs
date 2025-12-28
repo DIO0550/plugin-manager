@@ -1,5 +1,5 @@
 use crate::error::{PlmError, Result};
-use crate::github::{GitHubClient, RepoRef};
+use crate::github::{GitHubClient, GitRepo};
 use crate::marketplace::{MarketplaceRegistry, PluginSource as MpPluginSource};
 use crate::plugin::{CachedPlugin, PluginCache, PluginManifest};
 use clap::{Parser, ValueEnum};
@@ -44,7 +44,7 @@ pub struct Args {
 #[derive(Debug, Clone)]
 pub enum InstallSource {
     /// GitHub直接: owner/repo[@ref]
-    GitHub(RepoRef),
+    GitHub(GitRepo),
     /// Marketplace経由: plugin@marketplace
     Marketplace { plugin: String, marketplace: String },
     /// Marketplace検索: plugin
@@ -58,7 +58,7 @@ impl InstallSource {
         if let Some((left, right)) = input.split_once('@') {
             // "owner/repo@ref" の場合（GitHubリポジトリ）
             if left.contains('/') {
-                let repo = RepoRef::parse(input)?;
+                let repo = GitRepo::parse(input)?;
                 return Ok(InstallSource::GitHub(repo));
             }
 
@@ -71,7 +71,7 @@ impl InstallSource {
 
         // "/" を含む場合はGitHubリポジトリ
         if input.contains('/') {
-            let repo = RepoRef::parse(input)?;
+            let repo = GitRepo::parse(input)?;
             return Ok(InstallSource::GitHub(repo));
         }
 
@@ -163,14 +163,14 @@ async fn download_plugin_inner(source: &InstallSource, force: bool) -> Result<Ca
 
                     // サブディレクトリ付きでダウンロード
                     // TODO: サブディレクトリのみダウンロードするには追加実装が必要
-                    RepoRef {
+                    GitRepo {
                         owner: parts[0].to_string(),
                         repo: parts[1].to_string(),
                         git_ref: None,
                     }
                 }
                 MpPluginSource::External { repo, .. } => {
-                    RepoRef::parse(repo)?
+                    GitRepo::parse(repo)?
                 }
             };
 
