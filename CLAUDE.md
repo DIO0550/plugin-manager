@@ -50,7 +50,7 @@ cargo deny check
 - `sync.rs` - 環境間同期
 - `import.rs` - Claude Code Pluginsからインポート
 
-### 計画中のモジュール構成（docs/plm-plan-v2.md参照）
+### 計画中のモジュール構成（docs/plm-plan-v3.md参照）
 - `targets/` - Target traitを実装する環境アダプター
 - `components/` - Component traitを実装するコンポーネントタイプハンドラー
 - `registry/` - `components.json`による状態管理
@@ -80,9 +80,12 @@ cargo deny check
 - `reqwest` - GitHub API用HTTPクライアント
 - `serde`, `serde_json`, `toml`, `serde_yaml` - シリアライゼーション
 - `owo-colors`, `indicatif`, `comfy-table` - ターミナルUI
+- `ratatui`, `crossterm` - TUI（管理画面用）
 
 ## 仕様ドキュメント
 
 詳細な仕様・実装計画は `docs/` フォルダを参照：
-- `docs/plm-plan-v2.md` - 最新の実装計画（設定・レジストリのデータ構造、コンポーネントファイル形式、フェーズ別実装内訳）
+- `docs/plm-plan-v3.md` - 最新の実装計画（TUI管理画面、GitRepo設計、キャッシュアーキテクチャ）
 - `docs/old/` - 過去のドキュメント
+
+※ 仕様ドキュメントのバージョンを上げる際は、古いバージョンを `docs/old/` に移動すること
