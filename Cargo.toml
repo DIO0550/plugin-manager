@@ -21,3 +21,5 @@ comfy-table = "7"
 chrono = { version = "0.4", features = ["serde"] }
 thiserror = "2"
 regex = "1"
+ratatui = "0.29"
+crossterm = "0.28"
