@@ -89,3 +89,34 @@ cargo deny check
 - `docs/old/` - 過去のドキュメント
 
 ※ 仕様ドキュメントのバージョンを上げる際は、古いバージョンを `docs/old/` に移動すること
+
+## コミットメッセージ規約
+
+Conventional Commits に従い、絵文字プレフィックスを使用する：
+
+```
+<emoji> <type>(<scope>): <description>
+```
+
+### Type 一覧
+
+| 絵文字 | type | 説明 |
+|--------|------|------|
+| ✨ | `feat` | 新機能 |
+| 🐛 | `fix` | バグ修正 |
+| 📚 | `docs` | ドキュメントのみの変更 |
+| 🎨 | `style` | フォーマット変更（動作に影響しない） |
+| ♻️ | `refactor` | リファクタリング（機能追加・バグ修正なし） |
+| 🧪 | `test` | テストの追加・修正 |
+| 🔧 | `chore` | ビルドプロセス・補助ツールの変更 |
+| ⚡ | `perf` | パフォーマンス改善 |
+| 👷 | `ci` | CI設定の変更 |
+
+### 例
+
+```
+✨ feat(install): add GitHub repository caching
+🐛 fix(parser): handle empty YAML frontmatter
+📚 docs: update README with new commands
+♻️ refactor(targets): migrate to trait-based design
+```
