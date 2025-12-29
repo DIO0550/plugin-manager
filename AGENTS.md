@@ -1,5 +1,8 @@
 # Repository Guidelines
 
+## コミュニケーション
+- 応答は日本語で行います。
+
 ## プロジェクト構成とモジュール配置
 - `src/main.rs` がCLIの入口、`src/cli.rs` がClapの引数定義です。
 - サブコマンドは `src/commands/` 配下に配置します（例: `install.rs`, `list.rs`, `update.rs`）。
