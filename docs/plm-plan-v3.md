@@ -320,6 +320,104 @@ impl CachedPlugin {
 
 ---
 
+## ターゲット環境の設定読み込み仕様
+
+各AI開発環境が実際にどのパスから設定ファイルを読み込むかの仕様。
+
+### OpenAI Codex CLI
+
+公式ドキュメント: [Custom instructions with AGENTS.md](https://developers.openai.com/codex/guides/agents-md/)
+
+#### 読み込みパスと優先順位
+
+| スコープ | パス | 自動読み込み | 備考 |
+|---------|------|--------------|------|
+| Global (override) | `~/.codex/AGENTS.override.md` | ✅ | 最優先 |
+| Global | `~/.codex/AGENTS.md` | ✅ | Personal対応 |
+| Project | `./AGENTS.override.md` | ✅ | ディレクトリ毎 |
+| Project | `./AGENTS.md` | ✅ | ディレクトリ毎 |
+| Skills (Global) | `~/.codex/skills/` | ✅ | Personal |
+| Skills (Project) | `./.codex/skills/` | ✅ | Project |
+
+#### 読み込み順序
+
+1. **Global scope**: `~/.codex/` (または `$CODEX_HOME`) をチェック
+   - `AGENTS.override.md` があればそれを使用、なければ `AGENTS.md`
+2. **Project scope**: リポジトリルートから現在ディレクトリまで走査
+   - 各ディレクトリで `AGENTS.override.md` → `AGENTS.md` → fallback の順
+3. **マージ**: ルートから現在ディレクトリに向かって連結（上限: `project_doc_max_bytes` = 32KiB）
+
+#### 設定オプション
+
+```toml
+# ~/.codex/config.toml
+project_doc_fallback_filenames = ["TEAM_GUIDE.md", ".agents.md"]
+project_doc_max_bytes = 65536
+```
+
+### VSCode GitHub Copilot
+
+公式ドキュメント: [Use custom instructions in VS Code](https://code.visualstudio.com/docs/copilot/customization/custom-instructions)
+
+#### 読み込みパスと優先順位
+
+| スコープ | パス | 自動読み込み | 備考 |
+|---------|------|--------------|------|
+| Project | `.github/copilot-instructions.md` | ✅ | メインの指示ファイル |
+| Project | `.github/instructions/*.instructions.md` | ❌ | 手動指定が必要 |
+| User | VSCode設定の `file` プロパティ | ✅ | 設定で外部ファイル参照 |
+| Prompts | `.github/prompts/*.prompt.md` | ❌ | 手動呼び出し |
+
+#### 重要な制約
+
+- **Copilotはグローバルファイル（`~/.copilot/`等）を直接読み込まない**
+- Personal スコープは VSCode 設定経由で外部ファイルを参照する形式
+- Issue: [Global files outside workspace の要望](https://github.com/microsoft/vscode-copilot-release/issues/3129)
+
+#### VSCode設定での外部ファイル参照
+
+```json
+// settings.json (User または Workspace)
+{
+  "github.copilot.chat.codeGeneration.instructions": [
+    {
+      "file": "/path/to/personal-instructions.md"
+    }
+  ]
+}
+```
+
+#### 必要な設定
+
+```json
+{
+  "github.copilot.chat.codeGeneration.useInstructionFiles": true
+}
+```
+
+### PLMでの対応方針
+
+| ターゲット | Personal インストール | 追加アクション |
+|-----------|----------------------|----------------|
+| Codex | `~/.codex/` に配置 | 不要（自動読み込み） |
+| Copilot | ファイル配置 + VSCode設定追記 | `settings.json` への参照追加が必要 |
+
+#### インストールフロー（案）
+
+```
+$ plm install some-skill --target copilot
+
+? インストール先を選択:
+  > Project (.github/)           ← 追加設定なし
+    Personal (~/.plm/copilot/)   ← VSCode設定に自動追記
+
+# Personal選択時の追加処理
+1. ~/.plm/copilot/skills/some-skill.md に配置
+2. ~/.config/Code/User/settings.json に参照を追加
+```
+
+---
+
 ## 処理フロー
 
 ### インストールフロー
