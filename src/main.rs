@@ -5,6 +5,7 @@ mod error;
 mod github;
 mod marketplace;
 mod plugin;
+mod source;
 
 use clap::Parser;
 use crate::cli::Cli;
