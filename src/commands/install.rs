@@ -163,11 +163,7 @@ async fn download_plugin_inner(source: &InstallSource, force: bool) -> Result<Ca
 
                     // サブディレクトリ付きでダウンロード
                     // TODO: サブディレクトリのみダウンロードするには追加実装が必要
-                    GitRepo {
-                        owner: parts[0].to_string(),
-                        repo: parts[1].to_string(),
-                        git_ref: None,
-                    }
+                    GitRepo::new(parts[0], parts[1])
                 }
                 MpPluginSource::External { repo, .. } => {
                     GitRepo::parse(repo)?

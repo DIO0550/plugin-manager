@@ -7,7 +7,6 @@ use reqwest::Client;
 /// GitHub APIクライアント
 pub struct GitHubClient {
     client: Client,
-    base_url: String,
 }
 
 impl GitHubClient {
@@ -15,7 +14,6 @@ impl GitHubClient {
     pub fn new() -> Self {
         Self {
             client: Client::new(),
-            base_url: "https://api.github.com".to_string(),
         }
     }
 
@@ -26,10 +24,7 @@ impl GitHubClient {
 
     /// リポジトリのデフォルトブランチを取得
     pub async fn get_default_branch(&self, repo: &GitRepo) -> Result<String> {
-        let url = format!(
-            "{}/repos/{}/{}",
-            self.base_url, repo.owner, repo.repo
-        );
+        let url = repo.github_repo_url();
 
         let mut req = self.client.get(&url).header("User-Agent", "plm-cli");
 
@@ -64,10 +59,7 @@ impl GitHubClient {
         };
 
         // GitHub API経由でzipballを取得（プライベートリポジトリ対応）
-        let url = format!(
-            "{}/repos/{}/{}/zipball/{}",
-            self.base_url, repo.owner, repo.repo, git_ref
-        );
+        let url = repo.github_zipball_url(&git_ref);
 
         self.download_with_progress(&url).await
     }
@@ -76,20 +68,14 @@ impl GitHubClient {
     /// GitHub API経由でダウンロードするため、プライベートリポジトリにも対応
     pub async fn download_archive_by_tag(&self, repo: &GitRepo, tag: &str) -> Result<Vec<u8>> {
         // GitHub API経由でzipballを取得（プライベートリポジトリ対応）
-        let url = format!(
-            "{}/repos/{}/{}/zipball/{}",
-            self.base_url, repo.owner, repo.repo, tag
-        );
+        let url = repo.github_zipball_url(tag);
 
         self.download_with_progress(&url).await
     }
 
     /// ブランチまたはrefの最新コミットSHAを取得
     pub async fn get_commit_sha(&self, repo: &GitRepo, git_ref: &str) -> Result<String> {
-        let url = format!(
-            "{}/repos/{}/{}/commits/{}",
-            self.base_url, repo.owner, repo.repo, git_ref
-        );
+        let url = repo.github_commit_url(git_ref);
 
         let mut req = self
             .client
@@ -182,10 +168,7 @@ impl GitHubClient {
         };
 
         // GitHub API経由でファイルコンテンツを取得（プライベートリポジトリ対応）
-        let url = format!(
-            "{}/repos/{}/{}/contents/{}?ref={}",
-            self.base_url, repo.owner, repo.repo, path, git_ref
-        );
+        let url = repo.github_contents_url(path, &git_ref);
 
         let mut req = self.client
             .get(&url)
