@@ -49,25 +49,25 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
 
     println!("\nPlugin downloaded successfully!");
     println!("  Name: {}", cached_plugin.name);
-    println!("  Version: {}", cached_plugin.manifest.version);
+    println!("  Version: {}", cached_plugin.version());
     println!("  Path: {}", cached_plugin.path.display());
     println!("  Ref: {}", cached_plugin.git_ref);
     println!("  SHA: {}", cached_plugin.commit_sha);
 
-    if let Some(desc) = &cached_plugin.manifest.description {
+    if let Some(desc) = cached_plugin.description() {
         println!("  Description: {}", desc);
     }
 
     // コンポーネント情報
     println!("\nComponents:");
-    if cached_plugin.manifest.has_skills() {
-        println!("  - Skills: {}", cached_plugin.manifest.skills.as_ref().unwrap());
+    if let Some(skills) = cached_plugin.skills() {
+        println!("  - Skills: {}", skills);
     }
-    if cached_plugin.manifest.has_agents() {
-        println!("  - Agents: {}", cached_plugin.manifest.agents.as_ref().unwrap());
+    if let Some(agents) = cached_plugin.agents() {
+        println!("  - Agents: {}", agents);
     }
-    if cached_plugin.manifest.has_commands() {
-        println!("  - Commands: {}", cached_plugin.manifest.commands.as_ref().unwrap());
+    if let Some(commands) = cached_plugin.commands() {
+        println!("  - Commands: {}", commands);
     }
 
     // TODO: ターゲットへのデプロイ処理を実装
