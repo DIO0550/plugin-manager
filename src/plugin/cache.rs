@@ -57,6 +57,16 @@ impl CachedPlugin {
         self.manifest.commands.as_deref()
     }
 
+    /// インストラクションが含まれているか
+    pub fn has_instructions(&self) -> bool {
+        self.manifest.has_instructions()
+    }
+
+    /// インストラクションのパスを取得
+    pub fn instructions(&self) -> Option<&str> {
+        self.manifest.instructions.as_deref()
+    }
+
     /// プラグイン内のコンポーネントをスキャン
     pub fn components(&self) -> Vec<Component> {
         let mut components = Vec::new();
@@ -144,6 +154,23 @@ impl CachedPlugin {
                         }
                     }
                 }
+            }
+        }
+
+        // Instructions (single file: AGENTS.md, copilot-instructions.md, etc.)
+        if let Some(instructions_path) = self.instructions() {
+            let path = self.path.join(instructions_path);
+            if path.exists() && path.is_file() {
+                let name = path
+                    .file_name()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("instructions")
+                    .to_string();
+                components.push(Component {
+                    kind: ComponentKind::Instruction,
+                    name,
+                    path,
+                });
             }
         }
 

@@ -38,6 +38,8 @@ pub struct PluginManifest {
     #[serde(default)]
     pub skills: Option<String>,
     #[serde(default)]
+    pub instructions: Option<String>,
+    #[serde(default)]
     pub hooks: Option<String>,
     #[serde(default, rename = "mcpServers")]
     pub mcp_servers: Option<String>,
@@ -72,6 +74,11 @@ impl PluginManifest {
     /// コマンドが含まれているか
     pub fn has_commands(&self) -> bool {
         self.commands.is_some()
+    }
+
+    /// インストラクションが含まれているか
+    pub fn has_instructions(&self) -> bool {
+        self.instructions.is_some()
     }
 }
 
