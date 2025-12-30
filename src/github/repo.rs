@@ -42,13 +42,23 @@ impl GitRepo {
         }
     }
 
-    /// "owner/repo" または "owner/repo@ref" 形式をパース
+    /// "owner/repo", "owner/repo@ref", または GitHub URL 形式をパース
+    ///
+    /// 対応フォーマット:
+    /// - `owner/repo` - 基本形式
+    /// - `owner/repo@ref` - ref指定
+    /// - `https://github.com/owner/repo` - フルURL
+    /// - `https://github.com/owner/repo@ref` - フルURL + ref
+    /// - `github.com/owner/repo` - プロトコルなしURL
     pub fn parse(input: &str) -> Result<Self> {
         let raw = input.to_string();
 
-        let (repo_part, git_ref) = match input.split_once('@') {
+        // GitHub URLからowner/repo部分を抽出
+        let normalized = Self::to_repo_path(input);
+
+        let (repo_part, git_ref) = match normalized.split_once('@') {
             Some((repo, ref_part)) => (repo, Some(ref_part.to_string())),
-            None => (input, None),
+            None => (normalized.as_str(), None),
         };
 
         let (owner, repo) = repo_part
@@ -68,6 +78,35 @@ impl GitRepo {
             git_ref,
             raw,
         })
+    }
+
+    /// 入力文字列を "owner/repo" 形式に変換
+    ///
+    /// - `https://github.com/owner/repo` → `owner/repo`
+    /// - `https://github.com/owner/repo.git` → `owner/repo`
+    /// - `github.com/owner/repo` → `owner/repo`
+    /// - `owner/repo` → `owner/repo` (そのまま)
+    fn to_repo_path(input: &str) -> String {
+        let input = input.trim();
+
+        // GitHub URLのプレフィックスを削除
+        let without_prefix = input
+            .strip_prefix("https://github.com/")
+            .or_else(|| input.strip_prefix("http://github.com/"))
+            .or_else(|| input.strip_prefix("github.com/"))
+            .unwrap_or(input);
+
+        // .git サフィックスを削除
+        let without_suffix = without_prefix.strip_suffix(".git").unwrap_or(without_prefix);
+
+        // /tree/branch や /blob/branch などのパスを削除（owner/repo部分のみ抽出）
+        let parts: Vec<&str> = without_suffix.split('/').collect();
+        if parts.len() >= 2 {
+            // 最初の2つ（owner/repo）のみ取得
+            format!("{}/{}", parts[0], parts[1])
+        } else {
+            without_suffix.to_string()
+        }
     }
 
     /// デフォルトブランチまたは指定されたrefを返す
@@ -167,6 +206,49 @@ mod tests {
         assert!(GitRepo::parse("").is_err());
         assert!(GitRepo::parse("/repo").is_err());
         assert!(GitRepo::parse("owner/").is_err());
+    }
+
+    #[test]
+    fn test_parse_github_url() {
+        // フルURL
+        let repo = GitRepo::parse("https://github.com/DIO0550/cc-plugin").unwrap();
+        assert_eq!(repo.owner, "DIO0550");
+        assert_eq!(repo.repo, "cc-plugin");
+        assert!(repo.git_ref.is_none());
+
+        // httpプロトコル
+        let repo = GitRepo::parse("http://github.com/owner/repo").unwrap();
+        assert_eq!(repo.owner, "owner");
+        assert_eq!(repo.repo, "repo");
+
+        // プロトコルなし
+        let repo = GitRepo::parse("github.com/owner/repo").unwrap();
+        assert_eq!(repo.owner, "owner");
+        assert_eq!(repo.repo, "repo");
+
+        // .git サフィックス付き
+        let repo = GitRepo::parse("https://github.com/owner/repo.git").unwrap();
+        assert_eq!(repo.owner, "owner");
+        assert_eq!(repo.repo, "repo");
+
+        // URL + ref指定
+        let repo = GitRepo::parse("https://github.com/owner/repo@v1.0.0").unwrap();
+        assert_eq!(repo.owner, "owner");
+        assert_eq!(repo.repo, "repo");
+        assert_eq!(repo.git_ref, Some("v1.0.0".to_string()));
+    }
+
+    #[test]
+    fn test_parse_github_url_with_path() {
+        // /tree/branch 形式のパスがある場合
+        let repo = GitRepo::parse("https://github.com/owner/repo/tree/main").unwrap();
+        assert_eq!(repo.owner, "owner");
+        assert_eq!(repo.repo, "repo");
+
+        // /blob/branch/file 形式のパスがある場合
+        let repo = GitRepo::parse("https://github.com/owner/repo/blob/main/README.md").unwrap();
+        assert_eq!(repo.owner, "owner");
+        assert_eq!(repo.repo, "repo");
     }
 
     #[test]
