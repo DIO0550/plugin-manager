@@ -32,6 +32,21 @@ pub enum PlmError {
 
     #[error("Cache error: {0}")]
     Cache(String),
+
+    #[error("Deployment error: {0}")]
+    Deployment(String),
+
+    #[error("Target not found: {0}")]
+    TargetNotFound(String),
+
+    #[error("TUI error: {0}")]
+    Tui(String),
+
+    #[error("Operation cancelled")]
+    Cancelled,
+
+    #[error("Validation error: {0}")]
+    Validation(String),
 }
 
 pub type Result<T> = std::result::Result<T, PlmError>;

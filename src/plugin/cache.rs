@@ -1,8 +1,9 @@
+use crate::component::{Component, ComponentKind};
 use crate::error::{PlmError, Result};
 use crate::plugin::PluginManifest;
 use std::fs;
 use std::io::{Cursor, Read};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use zip::ZipArchive;
 
 /// キャッシュされたプラグイン情報
@@ -54,6 +55,99 @@ impl CachedPlugin {
     /// コマンドのパスを取得
     pub fn commands(&self) -> Option<&str> {
         self.manifest.commands.as_deref()
+    }
+
+    /// プラグイン内のコンポーネントをスキャン
+    pub fn components(&self) -> Vec<Component> {
+        let mut components = Vec::new();
+
+        // Skills
+        if let Some(skills_path) = self.skills() {
+            let skills_dir = self.path.join(skills_path);
+            if skills_dir.exists() && skills_dir.is_dir() {
+                if let Ok(entries) = std::fs::read_dir(&skills_dir) {
+                    for entry in entries.flatten() {
+                        let path = entry.path();
+                        if path.is_dir() && path.join("SKILL.md").exists() {
+                            let name = path
+                                .file_name()
+                                .and_then(|s| s.to_str())
+                                .unwrap_or("skill")
+                                .to_string();
+                            components.push(Component {
+                                kind: ComponentKind::Skill,
+                                name,
+                                path,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        // Agents
+        if let Some(agents_path) = self.agents() {
+            let agents_dir = self.path.join(agents_path);
+            if agents_dir.exists() {
+                if agents_dir.is_dir() {
+                    if let Ok(entries) = std::fs::read_dir(&agents_dir) {
+                        for entry in entries.flatten() {
+                            let path = entry.path();
+                            if path.is_file() {
+                                let file_name =
+                                    path.file_name().and_then(|s| s.to_str()).unwrap_or("");
+                                if file_name.ends_with(".agent.md") {
+                                    let name = file_name.trim_end_matches(".agent.md").to_string();
+                                    components.push(Component {
+                                        kind: ComponentKind::Agent,
+                                        name,
+                                        path,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                } else if agents_dir.is_file() {
+                    // 単一ファイルの場合
+                    let name = agents_dir
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("agent")
+                        .to_string();
+                    components.push(Component {
+                        kind: ComponentKind::Agent,
+                        name,
+                        path: agents_dir,
+                    });
+                }
+            }
+        }
+
+        // Commands (as prompts)
+        if let Some(commands_path) = self.commands() {
+            let commands_dir = self.path.join(commands_path);
+            if commands_dir.exists() && commands_dir.is_dir() {
+                if let Ok(entries) = std::fs::read_dir(&commands_dir) {
+                    for entry in entries.flatten() {
+                        let path = entry.path();
+                        if path.is_file() {
+                            let file_name =
+                                path.file_name().and_then(|s| s.to_str()).unwrap_or("");
+                            if file_name.ends_with(".prompt.md") {
+                                let name = file_name.trim_end_matches(".prompt.md").to_string();
+                                components.push(Component {
+                                    kind: ComponentKind::Prompt,
+                                    name,
+                                    path,
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        components
     }
 }
 

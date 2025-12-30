@@ -1,11 +1,14 @@
 mod cli;
 mod commands;
+mod component;
 mod env;
 mod error;
 mod github;
 mod marketplace;
 mod plugin;
 mod source;
+mod target;
+mod tui;
 
 use clap::Parser;
 use crate::cli::Cli;
