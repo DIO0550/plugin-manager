@@ -6,8 +6,12 @@ pub enum PlmError {
     #[error("Network error: {0}")]
     Network(#[from] reqwest::Error),
 
-    #[error("GitHub API error: {message} (status: {status})")]
-    GitHubApi { status: u16, message: String },
+    #[error("{host} API error: {message} (status: {status})")]
+    RepoApi {
+        host: String,
+        status: u16,
+        message: String,
+    },
 
     #[error("Invalid repository format: {0}. Expected 'owner/repo' or 'owner/repo@ref'")]
     InvalidRepoFormat(String),
@@ -56,7 +60,7 @@ impl PlmError {
     pub fn is_retryable(&self) -> bool {
         match self {
             PlmError::Network(_) => true,
-            PlmError::GitHubApi { status, .. } => {
+            PlmError::RepoApi { status, .. } => {
                 // 5xx エラーはリトライ可能
                 *status >= 500 && *status < 600
             }

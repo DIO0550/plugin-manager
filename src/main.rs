@@ -1,11 +1,14 @@
 mod cli;
 mod commands;
 mod component;
+mod config;
 mod env;
 mod error;
-mod github;
+mod host;
+mod http;
 mod marketplace;
 mod plugin;
+mod repo;
 mod source;
 mod target;
 mod tui;

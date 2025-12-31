@@ -16,8 +16,8 @@ pub use marketplace_source::MarketplaceSource;
 pub use search_source::SearchSource;
 
 use crate::error::Result;
-use crate::github::GitRepo;
 use crate::plugin::CachedPlugin;
+use crate::repo;
 use std::future::Future;
 use std::pin::Pin;
 
@@ -34,9 +34,9 @@ pub trait PluginSource: Send + Sync {
 pub fn parse_source(input: &str) -> Result<Box<dyn PluginSource>> {
     // "@" を含む場合
     if let Some((left, right)) = input.split_once('@') {
-        // "owner/repo@ref" の場合（GitHubリポジトリ）
+        // "owner/repo@ref" の場合（Gitリポジトリ）
         if left.contains('/') {
-            let repo = GitRepo::parse(input)?;
+            let repo = repo::from_url(input)?;
             return Ok(Box::new(GitHubSource::new(repo)));
         }
 
@@ -44,9 +44,9 @@ pub fn parse_source(input: &str) -> Result<Box<dyn PluginSource>> {
         return Ok(Box::new(MarketplaceSource::new(left, right)));
     }
 
-    // "/" を含む場合はGitHubリポジトリ
+    // "/" を含む場合はGitリポジトリ
     if input.contains('/') {
-        let repo = GitRepo::parse(input)?;
+        let repo = repo::from_url(input)?;
         return Ok(Box::new(GitHubSource::new(repo)));
     }
 
@@ -71,6 +71,12 @@ mod tests {
     #[test]
     fn test_parse_github_repo_with_ref() {
         let source = parse_source("owner/repo@v1.0.0");
+        assert!(source.is_ok());
+    }
+
+    #[test]
+    fn test_parse_github_full_url() {
+        let source = parse_source("https://github.com/owner/repo");
         assert!(source.is_ok());
     }
 

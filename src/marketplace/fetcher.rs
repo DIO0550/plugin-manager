@@ -1,33 +1,31 @@
 use crate::error::{PlmError, Result};
-use crate::github::{GitHubClient, GitRepo};
+use crate::host::HostClientFactory;
 use crate::marketplace::{MarketplaceCache, MarketplaceManifest};
+use crate::repo::Repo;
 use chrono::Utc;
 
 /// マーケットプレイス取得クライアント
 pub struct MarketplaceFetcher {
-    github: GitHubClient,
+    factory: HostClientFactory,
 }
 
 impl MarketplaceFetcher {
     /// 新しいフェッチャーを作成
     pub fn new() -> Self {
         Self {
-            github: GitHubClient::new(),
+            factory: HostClientFactory::with_defaults(),
         }
     }
 
     /// GitHubリポジトリから marketplace.json を取得
-    pub async fn fetch(
-        &self,
-        repo: &GitRepo,
-        subdir: Option<&str>,
-    ) -> Result<MarketplaceManifest> {
+    pub async fn fetch(&self, repo: &Repo, subdir: Option<&str>) -> Result<MarketplaceManifest> {
         let path = match subdir {
             Some(dir) => format!("{}/.claude-plugin/marketplace.json", dir),
             None => ".claude-plugin/marketplace.json".to_string(),
         };
 
-        let content = self.github.fetch_file(repo, &path).await?;
+        let client = self.factory.create(repo.host());
+        let content = client.fetch_file(repo, &path).await?;
 
         serde_json::from_str(&content).map_err(|e| {
             PlmError::InvalidManifest(format!("Failed to parse marketplace.json: {}", e))
@@ -37,7 +35,7 @@ impl MarketplaceFetcher {
     /// マーケットプレイスを取得してキャッシュ形式に変換
     pub async fn fetch_as_cache(
         &self,
-        repo: &GitRepo,
+        repo: &Repo,
         name: &str,
         subdir: Option<&str>,
     ) -> Result<MarketplaceCache> {
@@ -46,7 +44,7 @@ impl MarketplaceFetcher {
         Ok(MarketplaceCache {
             name: name.to_string(),
             fetched_at: Utc::now(),
-            source: format!("github:{}/{}", repo.owner, repo.repo),
+            source: format!("github:{}/{}", repo.owner(), repo.name()),
             owner: manifest.owner,
             plugins: manifest.plugins,
         })

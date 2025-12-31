@@ -1,9 +1,9 @@
 //! Marketplace 経由のダウンロード
 
 use crate::error::{PlmError, Result};
-use crate::github::GitRepo;
 use crate::marketplace::{MarketplaceRegistry, PluginSource as MpPluginSource};
 use crate::plugin::CachedPlugin;
+use crate::repo;
 use std::future::Future;
 use std::pin::Pin;
 
@@ -25,7 +25,10 @@ impl MarketplaceSource {
 }
 
 impl PluginSource for MarketplaceSource {
-    fn download(&self, force: bool) -> Pin<Box<dyn Future<Output = Result<CachedPlugin>> + Send + '_>> {
+    fn download(
+        &self,
+        force: bool,
+    ) -> Pin<Box<dyn Future<Output = Result<CachedPlugin>> + Send + '_>> {
         Box::pin(async move {
             let registry = MarketplaceRegistry::new()?;
 
@@ -40,7 +43,7 @@ impl PluginSource for MarketplaceSource {
                 .find(|p| p.name == self.plugin)
                 .ok_or_else(|| PlmError::PluginNotFound(self.plugin.clone()))?;
 
-            // プラグインソースをGitRepoに変換
+            // プラグインソースをRepoに変換
             let repo = match &plugin_entry.source {
                 MpPluginSource::Local(_path) => {
                     let parts: Vec<&str> = mp_cache
@@ -54,12 +57,12 @@ impl PluginSource for MarketplaceSource {
                         return Err(PlmError::InvalidRepoFormat(mp_cache.source.clone()));
                     }
 
-                    GitRepo::new(parts[0], parts[1])
+                    repo::from_url(&format!("{}/{}", parts[0], parts[1]))?
                 }
-                MpPluginSource::External { repo, .. } => GitRepo::parse(repo)?,
+                MpPluginSource::External { repo, .. } => repo::from_url(repo)?,
             };
 
-            // GitHub ソースに委譲
+            // Git ソースに委譲
             GitHubSource::new(repo).download(force).await
         })
     }
