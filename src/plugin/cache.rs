@@ -3,8 +3,23 @@ use crate::error::{PlmError, Result};
 use crate::plugin::PluginManifest;
 use std::fs;
 use std::io::{Cursor, Read};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use zip::ZipArchive;
+
+/// コンポーネント検出用のファイル名パターン
+const SKILL_MANIFEST: &str = "SKILL.md";
+const AGENT_SUFFIX: &str = ".agent.md";
+const PROMPT_SUFFIX: &str = ".prompt.md";
+
+/// ディレクトリのエントリを読み取り、パスのリストを返す
+fn read_dir_entries(dir: &Path) -> Vec<PathBuf> {
+    fs::read_dir(dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .map(|e| e.path())
+        .collect()
+}
 
 /// キャッシュされたプラグイン情報
 #[derive(Debug, Clone)]
@@ -70,111 +85,137 @@ impl CachedPlugin {
     /// プラグイン内のコンポーネントをスキャン
     pub fn components(&self) -> Vec<Component> {
         let mut components = Vec::new();
+        components.extend(self.scan_skills());
+        components.extend(self.scan_agents());
+        components.extend(self.scan_prompts());
+        components.extend(self.scan_instructions());
+        components
+    }
 
-        // Skills
-        if let Some(skills_path) = self.skills() {
-            let skills_dir = self.path.join(skills_path);
-            if skills_dir.exists() && skills_dir.is_dir() {
-                if let Ok(entries) = std::fs::read_dir(&skills_dir) {
-                    for entry in entries.flatten() {
-                        let path = entry.path();
-                        if path.is_dir() && path.join("SKILL.md").exists() {
-                            let name = path
-                                .file_name()
-                                .and_then(|s| s.to_str())
-                                .unwrap_or("skill")
-                                .to_string();
-                            components.push(Component {
-                                kind: ComponentKind::Skill,
-                                name,
-                                path,
-                            });
-                        }
-                    }
-                }
-            }
+    /// Skills をスキャン
+    /// skills ディレクトリ配下で SKILL.md を持つディレクトリを検出
+    fn scan_skills(&self) -> Vec<Component> {
+        let Some(skills_path) = self.skills() else {
+            return Vec::new();
+        };
+
+        let skills_dir = self.path.join(skills_path);
+        if !skills_dir.is_dir() {
+            return Vec::new();
         }
 
-        // Agents
-        if let Some(agents_path) = self.agents() {
-            let agents_dir = self.path.join(agents_path);
-            if agents_dir.exists() {
-                if agents_dir.is_dir() {
-                    if let Ok(entries) = std::fs::read_dir(&agents_dir) {
-                        for entry in entries.flatten() {
-                            let path = entry.path();
-                            if path.is_file() {
-                                let file_name =
-                                    path.file_name().and_then(|s| s.to_str()).unwrap_or("");
-                                if file_name.ends_with(".agent.md") {
-                                    let name = file_name.trim_end_matches(".agent.md").to_string();
-                                    components.push(Component {
-                                        kind: ComponentKind::Agent,
-                                        name,
-                                        path,
-                                    });
-                                }
-                            }
-                        }
-                    }
-                } else if agents_dir.is_file() {
-                    // 単一ファイルの場合
-                    let name = agents_dir
-                        .file_stem()
-                        .and_then(|s| s.to_str())
-                        .unwrap_or("agent")
-                        .to_string();
-                    components.push(Component {
-                        kind: ComponentKind::Agent,
-                        name,
-                        path: agents_dir,
-                    });
-                }
-            }
-        }
-
-        // Commands (as prompts)
-        if let Some(commands_path) = self.commands() {
-            let commands_dir = self.path.join(commands_path);
-            if commands_dir.exists() && commands_dir.is_dir() {
-                if let Ok(entries) = std::fs::read_dir(&commands_dir) {
-                    for entry in entries.flatten() {
-                        let path = entry.path();
-                        if path.is_file() {
-                            let file_name =
-                                path.file_name().and_then(|s| s.to_str()).unwrap_or("");
-                            if file_name.ends_with(".prompt.md") {
-                                let name = file_name.trim_end_matches(".prompt.md").to_string();
-                                components.push(Component {
-                                    kind: ComponentKind::Prompt,
-                                    name,
-                                    path,
-                                });
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Instructions (single file: AGENTS.md, copilot-instructions.md, etc.)
-        if let Some(instructions_path) = self.instructions() {
-            let path = self.path.join(instructions_path);
-            if path.exists() && path.is_file() {
-                let name = path
-                    .file_name()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or("instructions")
-                    .to_string();
-                components.push(Component {
-                    kind: ComponentKind::Instruction,
+        read_dir_entries(&skills_dir)
+            .into_iter()
+            .filter(|path| path.is_dir() && path.join(SKILL_MANIFEST).exists())
+            .filter_map(|path| {
+                let name = path.file_name()?.to_str()?.to_string();
+                Some(Component {
+                    kind: ComponentKind::Skill,
                     name,
                     path,
-                });
-            }
+                })
+            })
+            .collect()
+    }
+
+    /// Agents をスキャン
+    /// ディレクトリなら .agent.md ファイルを検出、単一ファイルならそれを1件として扱う
+    fn scan_agents(&self) -> Vec<Component> {
+        let Some(agents_path) = self.agents() else {
+            return Vec::new();
+        };
+
+        let agents_dir = self.path.join(agents_path);
+        if !agents_dir.exists() {
+            return Vec::new();
         }
 
-        components
+        // 単一ファイルの場合
+        if agents_dir.is_file() {
+            let name = agents_dir
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("agent")
+                .to_string();
+            return vec![Component {
+                kind: ComponentKind::Agent,
+                name,
+                path: agents_dir,
+            }];
+        }
+
+        // ディレクトリの場合
+        read_dir_entries(&agents_dir)
+            .into_iter()
+            .filter(|path| path.is_file())
+            .filter_map(|path| {
+                let file_name = path.file_name()?.to_str()?;
+                if !file_name.ends_with(AGENT_SUFFIX) {
+                    return None;
+                }
+                let name = file_name.trim_end_matches(AGENT_SUFFIX).to_string();
+                Some(Component {
+                    kind: ComponentKind::Agent,
+                    name,
+                    path,
+                })
+            })
+            .collect()
+    }
+
+    /// Prompts (Commands) をスキャン
+    /// commands ディレクトリ配下の .prompt.md ファイルを検出
+    fn scan_prompts(&self) -> Vec<Component> {
+        let Some(commands_path) = self.commands() else {
+            return Vec::new();
+        };
+
+        let commands_dir = self.path.join(commands_path);
+        if !commands_dir.is_dir() {
+            return Vec::new();
+        }
+
+        read_dir_entries(&commands_dir)
+            .into_iter()
+            .filter(|path| path.is_file())
+            .filter_map(|path| {
+                let file_name = path.file_name()?.to_str()?;
+                if !file_name.ends_with(PROMPT_SUFFIX) {
+                    return None;
+                }
+                let name = file_name.trim_end_matches(PROMPT_SUFFIX).to_string();
+                Some(Component {
+                    kind: ComponentKind::Prompt,
+                    name,
+                    path,
+                })
+            })
+            .collect()
+    }
+
+    /// Instructions をスキャン
+    /// 単一ファイルのみ検出
+    fn scan_instructions(&self) -> Vec<Component> {
+        let Some(instructions_path) = self.instructions() else {
+            return Vec::new();
+        };
+
+        let path = self.path.join(instructions_path);
+        if !path.is_file() {
+            return Vec::new();
+        }
+
+        let name = path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("instructions")
+            .to_string();
+
+        vec![Component {
+            kind: ComponentKind::Instruction,
+            name,
+            path,
+        }]
     }
 }
 
