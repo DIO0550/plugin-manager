@@ -11,6 +11,12 @@ const SKILL_MANIFEST: &str = "SKILL.md";
 const AGENT_SUFFIX: &str = ".agent.md";
 const PROMPT_SUFFIX: &str = ".prompt.md";
 
+/// デフォルトのコンポーネントディレクトリパス
+const DEFAULT_SKILLS_DIR: &str = "skills";
+const DEFAULT_AGENTS_DIR: &str = "agents";
+const DEFAULT_COMMANDS_DIR: &str = "commands";
+const DEFAULT_INSTRUCTIONS_FILE: &str = "instructions.md";
+
 /// ディレクトリのエントリを読み取り、パスのリストを返す
 fn read_dir_entries(dir: &Path) -> Vec<PathBuf> {
     fs::read_dir(dir)
@@ -95,11 +101,12 @@ impl CachedPlugin {
     /// Skills をスキャン
     /// skills ディレクトリ配下で SKILL.md を持つディレクトリを検出
     fn scan_skills(&self) -> Vec<Component> {
-        let Some(skills_path) = self.skills() else {
-            return Vec::new();
+        // マニフェストで指定されたパス、またはデフォルトディレクトリを使用
+        let skills_dir = match self.skills() {
+            Some(path) => self.path.join(path),
+            None => self.path.join(DEFAULT_SKILLS_DIR),
         };
 
-        let skills_dir = self.path.join(skills_path);
         if !skills_dir.is_dir() {
             return Vec::new();
         }
@@ -119,13 +126,14 @@ impl CachedPlugin {
     }
 
     /// Agents をスキャン
-    /// ディレクトリなら .agent.md ファイルを検出、単一ファイルならそれを1件として扱う
+    /// ディレクトリなら .agent.md または .md ファイルを検出、単一ファイルならそれを1件として扱う
     fn scan_agents(&self) -> Vec<Component> {
-        let Some(agents_path) = self.agents() else {
-            return Vec::new();
+        // マニフェストで指定されたパス、またはデフォルトディレクトリを使用
+        let agents_dir = match self.agents() {
+            Some(path) => self.path.join(path),
+            None => self.path.join(DEFAULT_AGENTS_DIR),
         };
 
-        let agents_dir = self.path.join(agents_path);
         if !agents_dir.exists() {
             return Vec::new();
         }
@@ -144,16 +152,20 @@ impl CachedPlugin {
             }];
         }
 
-        // ディレクトリの場合
+        // ディレクトリの場合: .agent.md または .md ファイルを検出
         read_dir_entries(&agents_dir)
             .into_iter()
             .filter(|path| path.is_file())
             .filter_map(|path| {
                 let file_name = path.file_name()?.to_str()?;
-                if !file_name.ends_with(AGENT_SUFFIX) {
+                // .agent.md サフィックスを優先、なければ .md として処理
+                let name = if file_name.ends_with(AGENT_SUFFIX) {
+                    file_name.trim_end_matches(AGENT_SUFFIX).to_string()
+                } else if file_name.ends_with(".md") {
+                    file_name.trim_end_matches(".md").to_string()
+                } else {
                     return None;
-                }
-                let name = file_name.trim_end_matches(AGENT_SUFFIX).to_string();
+                };
                 Some(Component {
                     kind: ComponentKind::Agent,
                     name,
@@ -164,13 +176,14 @@ impl CachedPlugin {
     }
 
     /// Prompts (Commands) をスキャン
-    /// commands ディレクトリ配下の .prompt.md ファイルを検出
+    /// commands ディレクトリ配下の .prompt.md または .md ファイルを検出
     fn scan_prompts(&self) -> Vec<Component> {
-        let Some(commands_path) = self.commands() else {
-            return Vec::new();
+        // マニフェストで指定されたパス、またはデフォルトディレクトリを使用
+        let commands_dir = match self.commands() {
+            Some(path) => self.path.join(path),
+            None => self.path.join(DEFAULT_COMMANDS_DIR),
         };
 
-        let commands_dir = self.path.join(commands_path);
         if !commands_dir.is_dir() {
             return Vec::new();
         }
@@ -180,10 +193,14 @@ impl CachedPlugin {
             .filter(|path| path.is_file())
             .filter_map(|path| {
                 let file_name = path.file_name()?.to_str()?;
-                if !file_name.ends_with(PROMPT_SUFFIX) {
+                // .prompt.md サフィックスを優先、なければ .md として処理
+                let name = if file_name.ends_with(PROMPT_SUFFIX) {
+                    file_name.trim_end_matches(PROMPT_SUFFIX).to_string()
+                } else if file_name.ends_with(".md") {
+                    file_name.trim_end_matches(".md").to_string()
+                } else {
                     return None;
-                }
-                let name = file_name.trim_end_matches(PROMPT_SUFFIX).to_string();
+                };
                 Some(Component {
                     kind: ComponentKind::Prompt,
                     name,
@@ -196,11 +213,12 @@ impl CachedPlugin {
     /// Instructions をスキャン
     /// 単一ファイルのみ検出
     fn scan_instructions(&self) -> Vec<Component> {
-        let Some(instructions_path) = self.instructions() else {
-            return Vec::new();
+        // マニフェストで指定されたパス、またはデフォルトファイルを使用
+        let path = match self.instructions() {
+            Some(instructions_path) => self.path.join(instructions_path),
+            None => self.path.join(DEFAULT_INSTRUCTIONS_FILE),
         };
 
-        let path = self.path.join(instructions_path);
         if !path.is_file() {
             return Vec::new();
         }
