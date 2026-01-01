@@ -31,6 +31,9 @@ fn read_dir_entries(dir: &Path) -> Vec<PathBuf> {
 #[derive(Debug, Clone)]
 pub struct CachedPlugin {
     pub name: String,
+    /// マーケットプレイス名（marketplace経由の場合）
+    /// None の場合は直接GitHubからインストール
+    pub marketplace: Option<String>,
     pub path: PathBuf,
     pub manifest: PluginManifest,
     pub git_ref: String,
@@ -261,20 +264,35 @@ impl PluginCache {
         Ok(Self { cache_dir })
     }
 
-    /// プラグインのキャッシュパスを取得
-    pub fn plugin_path(&self, name: &str) -> PathBuf {
-        self.cache_dir.join(name)
+    /// プラグインのキャッシュパスを取得（階層型: marketplace/plugin）
+    ///
+    /// # Arguments
+    /// * `marketplace` - マーケットプレイス名（None の場合は "github" を使用）
+    /// * `name` - プラグイン名またはリポジトリ識別子（owner--repo 形式）
+    pub fn plugin_path(&self, marketplace: Option<&str>, name: &str) -> PathBuf {
+        let marketplace_dir = marketplace.unwrap_or("github");
+        self.cache_dir.join(marketplace_dir).join(name)
     }
 
     /// キャッシュ済みかチェック
-    pub fn is_cached(&self, name: &str) -> bool {
-        self.plugin_path(name).exists()
+    pub fn is_cached(&self, marketplace: Option<&str>, name: &str) -> bool {
+        self.plugin_path(marketplace, name).exists()
     }
 
     /// zipアーカイブを展開してキャッシュに保存
     /// GitHubのzipballは `{repo}-{ref}/` というプレフィックスが付くため、それを除去する
-    pub fn store_from_archive(&self, name: &str, archive: &[u8]) -> Result<PathBuf> {
-        let plugin_dir = self.plugin_path(name);
+    ///
+    /// # Arguments
+    /// * `marketplace` - マーケットプレイス名（None の場合は "github" を使用）
+    /// * `name` - プラグイン名またはリポジトリ識別子
+    /// * `archive` - zipアーカイブのバイト列
+    pub fn store_from_archive(
+        &self,
+        marketplace: Option<&str>,
+        name: &str,
+        archive: &[u8],
+    ) -> Result<PathBuf> {
+        let plugin_dir = self.plugin_path(marketplace, name);
 
         // 既存のキャッシュがあれば削除
         if plugin_dir.exists() {
@@ -337,8 +355,11 @@ impl PluginCache {
     }
 
     /// キャッシュからマニフェストを読み込み
-    pub fn load_manifest(&self, name: &str) -> Result<PluginManifest> {
-        let manifest_path = self.plugin_path(name).join(".claude-plugin").join("plugin.json");
+    pub fn load_manifest(&self, marketplace: Option<&str>, name: &str) -> Result<PluginManifest> {
+        let manifest_path = self
+            .plugin_path(marketplace, name)
+            .join(".claude-plugin")
+            .join("plugin.json");
 
         if !manifest_path.exists() {
             return Err(PlmError::InvalidManifest(format!(
@@ -351,8 +372,8 @@ impl PluginCache {
     }
 
     /// キャッシュから削除
-    pub fn remove(&self, name: &str) -> Result<()> {
-        let plugin_dir = self.plugin_path(name);
+    pub fn remove(&self, marketplace: Option<&str>, name: &str) -> Result<()> {
+        let plugin_dir = self.plugin_path(marketplace, name);
         if plugin_dir.exists() {
             fs::remove_dir_all(&plugin_dir)?;
         }
@@ -374,16 +395,40 @@ impl PluginCache {
     }
 
     /// キャッシュされているプラグイン一覧を取得
-    pub fn list(&self) -> Result<Vec<String>> {
+    /// 階層構造を走査し、(marketplace, plugin_name) のタプルを返す
+    pub fn list(&self) -> Result<Vec<(Option<String>, String)>> {
         let mut plugins = Vec::new();
 
-        if self.cache_dir.exists() {
-            for entry in fs::read_dir(&self.cache_dir)? {
-                let entry = entry?;
-                let path = entry.path();
-                if path.is_dir() {
-                    if let Some(name) = path.file_name() {
-                        plugins.push(name.to_string_lossy().to_string());
+        if !self.cache_dir.exists() {
+            return Ok(plugins);
+        }
+
+        // marketplace ディレクトリを走査
+        for mp_entry in fs::read_dir(&self.cache_dir)? {
+            let mp_entry = mp_entry?;
+            let mp_path = mp_entry.path();
+
+            if !mp_path.is_dir() {
+                continue;
+            }
+
+            let marketplace_name = mp_path.file_name().and_then(|n| n.to_str()).map(String::from);
+
+            // marketplace 内のプラグインを走査
+            for plugin_entry in fs::read_dir(&mp_path)? {
+                let plugin_entry = plugin_entry?;
+                let plugin_path = plugin_entry.path();
+
+                if plugin_path.is_dir() {
+                    if let Some(plugin_name) = plugin_path.file_name() {
+                        let plugin_name = plugin_name.to_string_lossy().to_string();
+                        // "github" marketplace は None として扱う
+                        let mp = if marketplace_name.as_deref() == Some("github") {
+                            None
+                        } else {
+                            marketplace_name.clone()
+                        };
+                        plugins.push((mp, plugin_name));
                     }
                 }
             }

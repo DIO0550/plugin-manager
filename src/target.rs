@@ -7,7 +7,8 @@
 //!
 //! ```ignore
 //! let target = parse_target("codex")?;
-//! target.place(ComponentKind::Skill, Scope::Project, &source, "my-skill", &project_root)?;
+//! let origin = PluginOrigin::from_marketplace("official", "my-plugin");
+//! target.place(ComponentKind::Skill, Scope::Project, &source, "my-skill", &origin, &project_root)?;
 //! ```
 
 mod codex;
@@ -15,6 +16,7 @@ mod copilot;
 
 pub use codex::CodexTarget;
 pub use copilot::CopilotTarget;
+// PluginOrigin はモジュール内で定義されているのでここでは再エクスポート不要
 
 use crate::component::ComponentKind;
 // componentモジュールから再エクスポート
@@ -23,6 +25,44 @@ use crate::error::{PlmError, Result};
 use clap::ValueEnum;
 use std::fs;
 use std::path::Path;
+
+/// プラグインの出自情報
+///
+/// コンポーネントがどのマーケットプレイス・プラグインから来たかを追跡する。
+/// デプロイ時に `<marketplace>/<plugin>/<component>` 階層を構築するために使用。
+#[derive(Debug, Clone)]
+pub struct PluginOrigin {
+    /// マーケットプレイス名（直接GitHubの場合は "github"）
+    pub marketplace: String,
+    /// プラグイン名（直接GitHubの場合は "owner--repo" 形式）
+    pub plugin: String,
+}
+
+impl PluginOrigin {
+    /// マーケットプレイス経由のプラグイン
+    pub fn from_marketplace(marketplace: &str, plugin: &str) -> Self {
+        Self {
+            marketplace: marketplace.to_string(),
+            plugin: plugin.to_string(),
+        }
+    }
+
+    /// 直接GitHub経由のプラグイン
+    pub fn from_github(owner: &str, repo: &str) -> Self {
+        Self {
+            marketplace: "github".to_string(),
+            plugin: format!("{}--{}", owner, repo),
+        }
+    }
+
+    /// CachedPlugin から PluginOrigin を生成
+    pub fn from_cached_plugin(marketplace: Option<&str>, plugin_name: &str) -> Self {
+        Self {
+            marketplace: marketplace.unwrap_or("github").to_string(),
+            plugin: plugin_name.to_string(),
+        }
+    }
+}
 
 /// ターゲット種別（CLIオプション用）
 #[derive(Debug, Clone, ValueEnum)]
@@ -62,7 +102,8 @@ pub trait Target: Send + Sync {
 
     /// 指定コンポーネント・スコープの組み合わせをサポートするか
     fn supports_scope(&self, kind: ComponentKind, scope: Scope) -> bool {
-        self.placement_path(kind, scope, "test", Path::new("."))
+        let dummy_origin = PluginOrigin::from_marketplace("test", "test");
+        self.placement_path(kind, scope, "test", &dummy_origin, Path::new("."))
             .is_some()
     }
 
@@ -71,11 +112,14 @@ pub trait Target: Send + Sync {
     /// サポートしていない組み合わせの場合は `None` を返す。
     /// Agent/Promptの場合はディレクトリを返す。完全なファイルパスが必要な場合は
     /// `full_placement_path` を使用する。
+    ///
+    /// 階層構造: `<base>/<kind>/<marketplace>/<plugin>/<component>`
     fn placement_path(
         &self,
         kind: ComponentKind,
         scope: Scope,
         component_name: &str,
+        origin: &PluginOrigin,
         project_root: &Path,
     ) -> Option<std::path::PathBuf>;
 
@@ -87,9 +131,10 @@ pub trait Target: Send + Sync {
         kind: ComponentKind,
         scope: Scope,
         component_name: &str,
+        origin: &PluginOrigin,
         project_root: &Path,
     ) -> Option<std::path::PathBuf> {
-        let base = self.placement_path(kind, scope, component_name, project_root)?;
+        let base = self.placement_path(kind, scope, component_name, origin, project_root)?;
         Some(match kind {
             ComponentKind::Agent => base.join(format!("{}.agent.md", component_name)),
             ComponentKind::Prompt => base.join(format!("{}.prompt.md", component_name)),
@@ -103,10 +148,11 @@ pub trait Target: Send + Sync {
         kind: ComponentKind,
         scope: Scope,
         component_name: &str,
+        origin: &PluginOrigin,
         project_root: &Path,
     ) -> Result<()> {
         let path = self
-            .full_placement_path(kind, scope, component_name, project_root)
+            .full_placement_path(kind, scope, component_name, origin, project_root)
             .ok_or_else(|| {
                 PlmError::Deployment(format!(
                     "{} is not supported on {} with {} scope",

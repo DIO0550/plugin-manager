@@ -2,7 +2,7 @@
 
 use crate::component::ComponentKind;
 use crate::error::Result;
-use crate::target::{Scope, Target};
+use crate::target::{PluginOrigin, Scope, Target};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -62,6 +62,7 @@ impl Target for CodexTarget {
         kind: ComponentKind,
         scope: Scope,
         component_name: &str,
+        origin: &PluginOrigin,
         project_root: &Path,
     ) -> Option<PathBuf> {
         if !Self::can_place(kind) {
@@ -71,8 +72,17 @@ impl Target for CodexTarget {
         let base = Self::base_dir(scope, project_root);
 
         Some(match kind {
-            ComponentKind::Skill => base.join("skills").join(component_name),
-            ComponentKind::Agent => base.join("agents"),
+            // 階層構造: skills/<marketplace>/<plugin>/<skill>
+            ComponentKind::Skill => base
+                .join("skills")
+                .join(&origin.marketplace)
+                .join(&origin.plugin)
+                .join(component_name),
+            // 階層構造: agents/<marketplace>/<plugin>/
+            ComponentKind::Agent => base
+                .join("agents")
+                .join(&origin.marketplace)
+                .join(&origin.plugin),
             ComponentKind::Instruction => match scope {
                 // Project scope: AGENTS.md is at project root, not in .codex
                 Scope::Project => project_root.join("AGENTS.md"),
@@ -94,7 +104,10 @@ impl Target for CodexTarget {
 
         // Instruction は単一ファイル
         if kind == ComponentKind::Instruction {
-            let path = self.placement_path(kind, scope, "", project_root).unwrap();
+            let dummy_origin = PluginOrigin::from_marketplace("", "");
+            let path = self
+                .placement_path(kind, scope, "", &dummy_origin, project_root)
+                .unwrap();
             return if path.exists() {
                 Ok(vec!["AGENTS.md".to_string()])
             } else {
@@ -113,19 +126,38 @@ impl Target for CodexTarget {
             return Ok(vec![]);
         }
 
+        // 階層構造を走査: <kind>/<marketplace>/<plugin>/<component>
         let mut names = Vec::new();
-        for entry in fs::read_dir(&dir_path)? {
-            let entry = entry?;
-            let name = entry.file_name().to_string_lossy().to_string();
+        for mp_entry in fs::read_dir(&dir_path)? {
+            let mp_entry = mp_entry?;
+            if !mp_entry.path().is_dir() {
+                continue;
+            }
+            let marketplace = mp_entry.file_name().to_string_lossy().to_string();
 
-            match kind {
-                ComponentKind::Skill if entry.path().is_dir() => {
-                    names.push(name);
+            for plugin_entry in fs::read_dir(mp_entry.path())? {
+                let plugin_entry = plugin_entry?;
+                if !plugin_entry.path().is_dir() {
+                    continue;
                 }
-                ComponentKind::Agent if name.ends_with(".agent.md") => {
-                    names.push(name.trim_end_matches(".agent.md").to_string());
+                let plugin = plugin_entry.file_name().to_string_lossy().to_string();
+
+                for component_entry in fs::read_dir(plugin_entry.path())? {
+                    let component_entry = component_entry?;
+                    let name = component_entry.file_name().to_string_lossy().to_string();
+
+                    match kind {
+                        ComponentKind::Skill if component_entry.path().is_dir() => {
+                            // 完全修飾名: marketplace/plugin/component
+                            names.push(format!("{}/{}/{}", marketplace, plugin, name));
+                        }
+                        ComponentKind::Agent if name.ends_with(".agent.md") => {
+                            let agent_name = name.trim_end_matches(".agent.md").to_string();
+                            names.push(format!("{}/{}/{}", marketplace, plugin, agent_name));
+                        }
+                        _ => {}
+                    }
                 }
-                _ => {}
             }
         }
 
@@ -154,24 +186,61 @@ mod tests {
     }
 
     #[test]
-    fn test_codex_placement_path_skill() {
+    fn test_codex_placement_path_skill_with_hierarchy() {
         let target = CodexTarget::new();
         let project_root = Path::new("/project");
+        let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
-        // Project scope
+        // Project scope with hierarchy
         let path = target
-            .placement_path(ComponentKind::Skill, Scope::Project, "my-skill", project_root)
+            .placement_path(
+                ComponentKind::Skill,
+                Scope::Project,
+                "my-skill",
+                &origin,
+                project_root,
+            )
             .unwrap();
-        assert_eq!(path, PathBuf::from("/project/.codex/skills/my-skill"));
+        assert_eq!(
+            path,
+            PathBuf::from("/project/.codex/skills/official/my-plugin/my-skill")
+        );
+    }
+
+    #[test]
+    fn test_codex_placement_path_skill_github_direct() {
+        let target = CodexTarget::new();
+        let project_root = Path::new("/project");
+        let origin = PluginOrigin::from_github("owner", "repo");
+
+        let path = target
+            .placement_path(
+                ComponentKind::Skill,
+                Scope::Project,
+                "my-skill",
+                &origin,
+                project_root,
+            )
+            .unwrap();
+        assert_eq!(
+            path,
+            PathBuf::from("/project/.codex/skills/github/owner--repo/my-skill")
+        );
     }
 
     #[test]
     fn test_codex_prompt_not_supported() {
         let target = CodexTarget::new();
         let project_root = Path::new("/project");
+        let origin = PluginOrigin::from_marketplace("test", "test");
 
-        let path =
-            target.placement_path(ComponentKind::Prompt, Scope::Project, "test", project_root);
+        let path = target.placement_path(
+            ComponentKind::Prompt,
+            Scope::Project,
+            "test",
+            &origin,
+            project_root,
+        );
         assert!(path.is_none());
     }
 }

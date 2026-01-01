@@ -62,8 +62,10 @@ impl PluginSource for MarketplaceSource {
                 MpPluginSource::External { repo, .. } => repo::from_url(repo)?,
             };
 
-            // Git ソースに委譲
-            GitHubSource::new(repo).download(force).await
+            // Git ソースに委譲（marketplace 情報を渡す）
+            GitHubSource::with_marketplace(repo, self.marketplace.clone())
+                .download(force)
+                .await
         })
     }
 }

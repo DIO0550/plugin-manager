@@ -14,11 +14,24 @@ use super::PluginSource;
 /// GitHub, GitLab, Bitbucket 等のホスティングサービスに対応。
 pub struct GitHubSource {
     repo: Repo,
+    /// マーケットプレイス経由の場合はその名前
+    marketplace: Option<String>,
 }
 
 impl GitHubSource {
     pub fn new(repo: Repo) -> Self {
-        Self { repo }
+        Self {
+            repo,
+            marketplace: None,
+        }
+    }
+
+    /// マーケットプレイス経由でのソースを作成
+    pub fn with_marketplace(repo: Repo, marketplace: String) -> Self {
+        Self {
+            repo,
+            marketplace: Some(marketplace),
+        }
     }
 }
 
@@ -32,14 +45,23 @@ impl PluginSource for GitHubSource {
             let client = factory.create(self.repo.host());
             let cache = PluginCache::new()?;
             let plugin_name = self.repo.name();
+            let marketplace = self.marketplace.as_deref();
+
+            // 直接GitHubインストールの場合は owner--repo 形式にする
+            let cache_name = if self.marketplace.is_none() {
+                format!("{}--{}", self.repo.owner(), self.repo.name())
+            } else {
+                plugin_name.to_string()
+            };
 
             // キャッシュチェック
-            if !force && cache.is_cached(plugin_name) {
+            if !force && cache.is_cached(marketplace, &cache_name) {
                 println!("Using cached plugin: {}", plugin_name);
-                let manifest = cache.load_manifest(plugin_name)?;
+                let manifest = cache.load_manifest(marketplace, &cache_name)?;
                 return Ok(CachedPlugin {
                     name: plugin_name.to_string(),
-                    path: cache.plugin_path(plugin_name),
+                    marketplace: self.marketplace.clone(),
+                    path: cache.plugin_path(marketplace, &cache_name),
                     manifest,
                     git_ref: self
                         .repo
@@ -61,14 +83,15 @@ impl PluginSource for GitHubSource {
 
             // キャッシュに保存
             println!("Extracting to cache...");
-            cache.store_from_archive(plugin_name, &archive)?;
+            cache.store_from_archive(marketplace, &cache_name, &archive)?;
 
             // マニフェスト読み込み
-            let manifest = cache.load_manifest(plugin_name)?;
+            let manifest = cache.load_manifest(marketplace, &cache_name)?;
 
             Ok(CachedPlugin {
                 name: manifest.name.clone(),
-                path: cache.plugin_path(plugin_name),
+                marketplace: self.marketplace.clone(),
+                path: cache.plugin_path(marketplace, &cache_name),
                 manifest,
                 git_ref,
                 commit_sha,

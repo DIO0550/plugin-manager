@@ -33,6 +33,13 @@ pub struct MarketplacePluginEntry {
     pub version: Option<String>,
 }
 
+/// プラグイン検索結果（marketplace + plugin のペア）
+#[derive(Debug, Clone)]
+pub struct PluginMatch {
+    pub marketplace: String,
+    pub plugin: MarketplacePluginEntry,
+}
+
 /// marketplace.json のスキーマ
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MarketplaceManifest {
@@ -133,7 +140,9 @@ impl MarketplaceRegistry {
         Ok(marketplaces)
     }
 
-    /// 全マーケットプレイスからプラグインを検索
+    /// 全マーケットプレイスからプラグインを検索（最初の1件のみ）
+    ///
+    /// 注意: 競合検出には find_plugins() を使用してください
     pub fn find_plugin(
         &self,
         plugin_name: &str,
@@ -148,6 +157,33 @@ impl MarketplaceRegistry {
             }
         }
         Ok(None)
+    }
+
+    /// 全マーケットプレイスからプラグインを検索（全マッチを返す）
+    ///
+    /// 同名プラグインが複数のマーケットプレイスに存在する場合、全てを返す
+    pub fn find_plugins(&self, plugin_name: &str) -> Result<Vec<PluginMatch>> {
+        let mut matches = Vec::new();
+
+        for marketplace_name in self.list()? {
+            if let Some(cache) = self.get(&marketplace_name)? {
+                for plugin in cache.plugins {
+                    if plugin.name == plugin_name {
+                        matches.push(PluginMatch {
+                            marketplace: marketplace_name.clone(),
+                            plugin,
+                        });
+                    }
+                }
+            }
+        }
+
+        Ok(matches)
+    }
+
+    /// 同名プラグインが複数マーケットプレイスに存在するか確認
+    pub fn has_conflict(&self, plugin_name: &str) -> Result<bool> {
+        Ok(self.find_plugins(plugin_name)?.len() > 1)
     }
 }
 

@@ -10,7 +10,7 @@
 
 use crate::component::{ComponentKind, ComponentPlacement};
 use crate::source::parse_source;
-use crate::target::{all_targets, parse_target, Scope, Target, TargetKind};
+use crate::target::{all_targets, parse_target, PluginOrigin, Scope, Target, TargetKind};
 use crate::tui;
 use clap::Parser;
 use std::env;
@@ -114,6 +114,12 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
 
     let project_root = env::current_dir().map_err(|e| e.to_string())?;
 
+    // プラグインの出自情報を作成
+    let origin = PluginOrigin::from_cached_plugin(
+        cached_plugin.marketplace.as_deref(),
+        &cached_plugin.name,
+    );
+
     let mut total_success = 0;
     let mut total_failure = 0;
 
@@ -134,11 +140,12 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
                 continue;
             }
 
-            // 配置先パスを計算
+            // 配置先パスを計算（階層構造: marketplace/plugin/component）
             let target_path = match target.full_placement_path(
                 component.kind,
                 scope,
                 &component.name,
+                &origin,
                 &project_root,
             ) {
                 Some(path) => path,
