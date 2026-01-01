@@ -6,9 +6,17 @@
 //! ## 使い方
 //!
 //! ```ignore
+//! use crate::domain::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
+//!
 //! let target = parse_target("codex")?;
 //! let origin = PluginOrigin::from_marketplace("official", "my-plugin");
-//! target.place(ComponentKind::Skill, Scope::Project, &source, "my-skill", &origin, &project_root)?;
+//! let ctx = PlacementContext {
+//!     component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
+//!     origin: &origin,
+//!     scope: PlacementScope(Scope::Project),
+//!     project: ProjectContext::new(&project_root),
+//! };
+//! let location = target.placement_location(&ctx);
 //! ```
 
 mod codex;
@@ -20,7 +28,8 @@ pub use copilot::CopilotTarget;
 
 use crate::component::ComponentKind;
 // componentモジュールから再エクスポート
-pub use crate::component::{ComponentPlacement, Scope};
+pub use crate::component::Scope;
+use crate::domain::{ComponentRef, PlacementContext, PlacementLocation, PlacementScope, ProjectContext};
 use crate::error::{PlmError, Result};
 use clap::ValueEnum;
 use std::fs;
@@ -103,70 +112,38 @@ pub trait Target: Send + Sync {
     /// 指定コンポーネント・スコープの組み合わせをサポートするか
     fn supports_scope(&self, kind: ComponentKind, scope: Scope) -> bool {
         let dummy_origin = PluginOrigin::from_marketplace("test", "test");
-        self.placement_path(kind, scope, "test", &dummy_origin, Path::new("."))
-            .is_some()
+        let ctx = PlacementContext {
+            component: ComponentRef::new(kind, "test"),
+            origin: &dummy_origin,
+            scope: PlacementScope(scope),
+            project: ProjectContext::new(Path::new(".")),
+        };
+        self.placement_location(&ctx).is_some()
     }
 
-    /// コンポーネントの配置先ベースパスを取得
+    /// 配置先ロケーションを取得
     ///
+    /// `PlacementContext` を受け取り、`PlacementLocation` を返す。
     /// サポートしていない組み合わせの場合は `None` を返す。
-    /// Agent/Promptの場合はディレクトリを返す。完全なファイルパスが必要な場合は
-    /// `full_placement_path` を使用する。
-    ///
-    /// 階層構造: `<base>/<kind>/<marketplace>/<plugin>/<component>`
-    fn placement_path(
-        &self,
-        kind: ComponentKind,
-        scope: Scope,
-        component_name: &str,
-        origin: &PluginOrigin,
-        project_root: &Path,
-    ) -> Option<std::path::PathBuf>;
-
-    /// コンポーネントの完全な配置先パスを取得
-    ///
-    /// Agent/Promptの場合はファイル名を含めた完全なパスを返す。
-    fn full_placement_path(
-        &self,
-        kind: ComponentKind,
-        scope: Scope,
-        component_name: &str,
-        origin: &PluginOrigin,
-        project_root: &Path,
-    ) -> Option<std::path::PathBuf> {
-        let base = self.placement_path(kind, scope, component_name, origin, project_root)?;
-        Some(match kind {
-            ComponentKind::Agent => base.join(format!("{}.agent.md", component_name)),
-            ComponentKind::Prompt => base.join(format!("{}.prompt.md", component_name)),
-            _ => base,
-        })
-    }
+    fn placement_location(&self, context: &PlacementContext) -> Option<PlacementLocation>;
 
     /// コンポーネントを削除
-    fn remove(
-        &self,
-        kind: ComponentKind,
-        scope: Scope,
-        component_name: &str,
-        origin: &PluginOrigin,
-        project_root: &Path,
-    ) -> Result<()> {
-        let path = self
-            .full_placement_path(kind, scope, component_name, origin, project_root)
-            .ok_or_else(|| {
-                PlmError::Deployment(format!(
-                    "{} is not supported on {} with {} scope",
-                    kind,
-                    self.display_name(),
-                    scope.as_str()
-                ))
-            })?;
+    fn remove(&self, context: &PlacementContext) -> Result<()> {
+        let location = self.placement_location(context).ok_or_else(|| {
+            PlmError::Deployment(format!(
+                "{} is not supported on {} with {} scope",
+                context.kind(),
+                self.display_name(),
+                context.scope().as_str()
+            ))
+        })?;
 
+        let path = location.as_path();
         if path.exists() {
-            if path.is_dir() {
-                fs::remove_dir_all(&path)?;
+            if location.is_dir() {
+                fs::remove_dir_all(path)?;
             } else {
-                fs::remove_file(&path)?;
+                fs::remove_file(path)?;
             }
         }
 

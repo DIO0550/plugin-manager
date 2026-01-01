@@ -1,8 +1,9 @@
 //! GitHub Copilot ターゲット実装
 
-use crate::component::ComponentKind;
+use crate::component::{ComponentKind, Scope};
+use crate::domain::{ComponentRef, PlacementContext, PlacementLocation, PlacementScope, ProjectContext};
 use crate::error::Result;
-use crate::target::{PluginOrigin, Scope, Target};
+use crate::target::{PluginOrigin, Target};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -62,38 +63,41 @@ impl Target for CopilotTarget {
         ]
     }
 
-    fn placement_path(
-        &self,
-        kind: ComponentKind,
-        scope: Scope,
-        component_name: &str,
-        origin: &PluginOrigin,
-        project_root: &Path,
-    ) -> Option<PathBuf> {
+    fn placement_location(&self, context: &PlacementContext) -> Option<PlacementLocation> {
+        let kind = context.kind();
+        let scope = context.scope();
         if !Self::can_place(kind, scope) {
             return None;
         }
 
+        let project_root = context.project_root();
         let base = Self::base_dir(scope, project_root);
+        let origin = context.origin;
+        let name = context.name();
 
         Some(match kind {
-            // 階層構造: skills/<marketplace>/<plugin>/<skill>
-            ComponentKind::Skill => base
-                .join("skills")
-                .join(&origin.marketplace)
-                .join(&origin.plugin)
-                .join(component_name),
-            // 階層構造: agents/<marketplace>/<plugin>/
-            ComponentKind::Agent => base
-                .join("agents")
-                .join(&origin.marketplace)
-                .join(&origin.plugin),
-            // 階層構造: prompts/<marketplace>/<plugin>/
-            ComponentKind::Prompt => base
-                .join("prompts")
-                .join(&origin.marketplace)
-                .join(&origin.plugin),
-            ComponentKind::Instruction => base.join("copilot-instructions.md"),
+            // 階層構造: skills/<marketplace>/<plugin>/<skill> (ディレクトリ)
+            ComponentKind::Skill => PlacementLocation::dir(
+                base.join("skills")
+                    .join(&origin.marketplace)
+                    .join(&origin.plugin)
+                    .join(name),
+            ),
+            // 階層構造: agents/<marketplace>/<plugin>/<name>.agent.md (ファイル)
+            ComponentKind::Agent => PlacementLocation::file(
+                base.join("agents")
+                    .join(&origin.marketplace)
+                    .join(&origin.plugin)
+                    .join(format!("{}.agent.md", name)),
+            ),
+            // 階層構造: prompts/<marketplace>/<plugin>/<name>.prompt.md (ファイル)
+            ComponentKind::Prompt => PlacementLocation::file(
+                base.join("prompts")
+                    .join(&origin.marketplace)
+                    .join(&origin.plugin)
+                    .join(format!("{}.prompt.md", name)),
+            ),
+            ComponentKind::Instruction => PlacementLocation::file(base.join("copilot-instructions.md")),
         })
     }
 
@@ -110,10 +114,14 @@ impl Target for CopilotTarget {
         // Instruction は単一ファイル
         if kind == ComponentKind::Instruction {
             let dummy_origin = PluginOrigin::from_marketplace("", "");
-            let path = self
-                .placement_path(kind, scope, "", &dummy_origin, project_root)
-                .unwrap();
-            return if path.exists() {
+            let ctx = PlacementContext {
+                component: ComponentRef::new(kind, ""),
+                origin: &dummy_origin,
+                scope: PlacementScope(scope),
+                project: ProjectContext::new(project_root),
+            };
+            let location = self.placement_location(&ctx).unwrap();
+            return if location.as_path().exists() {
                 Ok(vec!["copilot-instructions.md".to_string()])
             } else {
                 Ok(vec![])
@@ -201,71 +209,119 @@ mod tests {
         let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
         // Personal scope for skills is not supported
-        let path = target.placement_path(
-            ComponentKind::Skill,
-            Scope::Personal,
-            "my-skill",
-            &origin,
-            project_root,
-        );
-        assert!(path.is_none());
+        let ctx = PlacementContext {
+            component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
+            origin: &origin,
+            scope: PlacementScope(Scope::Personal),
+            project: ProjectContext::new(project_root),
+        };
+        assert!(target.placement_location(&ctx).is_none());
     }
 
     #[test]
-    fn test_copilot_skill_project_with_hierarchy() {
+    fn test_copilot_placement_location_skill_project() {
         let target = CopilotTarget::new();
         let project_root = Path::new("/project");
         let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
-        // Project scope for skills with hierarchy
-        let path = target
-            .placement_path(
-                ComponentKind::Skill,
-                Scope::Project,
-                "my-skill",
-                &origin,
-                project_root,
-            )
-            .unwrap();
+        let ctx = PlacementContext {
+            component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
+            origin: &origin,
+            scope: PlacementScope(Scope::Project),
+            project: ProjectContext::new(project_root),
+        };
+        let location = target.placement_location(&ctx).unwrap();
+
+        assert!(location.is_dir());
         assert_eq!(
-            path,
-            PathBuf::from("/project/.github/skills/official/my-plugin/my-skill")
+            location.as_path(),
+            Path::new("/project/.github/skills/official/my-plugin/my-skill")
         );
     }
 
     #[test]
-    fn test_copilot_agent_paths_with_hierarchy() {
+    fn test_copilot_placement_location_agent() {
         let target = CopilotTarget::new();
         let project_root = Path::new("/project");
         let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
         // Personal scope
-        let personal_path = target
-            .placement_path(
-                ComponentKind::Agent,
-                Scope::Personal,
-                "test",
-                &origin,
-                project_root,
-            )
-            .unwrap();
-        assert!(personal_path
+        let ctx_personal = PlacementContext {
+            component: ComponentRef::new(ComponentKind::Agent, "test"),
+            origin: &origin,
+            scope: PlacementScope(Scope::Personal),
+            project: ProjectContext::new(project_root),
+        };
+        let location_personal = target.placement_location(&ctx_personal).unwrap();
+        assert!(location_personal.is_file());
+        assert!(location_personal
+            .as_path()
             .to_string_lossy()
-            .contains(".copilot/agents/official/my-plugin"));
+            .contains(".copilot/agents/official/my-plugin/test.agent.md"));
 
         // Project scope
-        let project_path = target
-            .placement_path(
-                ComponentKind::Agent,
-                Scope::Project,
-                "test",
-                &origin,
-                project_root,
-            )
-            .unwrap();
+        let ctx_project = PlacementContext {
+            component: ComponentRef::new(ComponentKind::Agent, "test"),
+            origin: &origin,
+            scope: PlacementScope(Scope::Project),
+            project: ProjectContext::new(project_root),
+        };
+        let location_project = target.placement_location(&ctx_project).unwrap();
+        assert!(location_project.is_file());
         assert_eq!(
-            project_path,
-            PathBuf::from("/project/.github/agents/official/my-plugin")
+            location_project.as_path(),
+            Path::new("/project/.github/agents/official/my-plugin/test.agent.md")
+        );
+    }
+
+    #[test]
+    fn test_copilot_placement_location_prompt() {
+        let target = CopilotTarget::new();
+        let project_root = Path::new("/project");
+        let origin = PluginOrigin::from_marketplace("official", "my-plugin");
+
+        // Personal scope for prompts is not supported
+        let ctx_personal = PlacementContext {
+            component: ComponentRef::new(ComponentKind::Prompt, "my-prompt"),
+            origin: &origin,
+            scope: PlacementScope(Scope::Personal),
+            project: ProjectContext::new(project_root),
+        };
+        assert!(target.placement_location(&ctx_personal).is_none());
+
+        // Project scope
+        let ctx_project = PlacementContext {
+            component: ComponentRef::new(ComponentKind::Prompt, "my-prompt"),
+            origin: &origin,
+            scope: PlacementScope(Scope::Project),
+            project: ProjectContext::new(project_root),
+        };
+        let location = target.placement_location(&ctx_project).unwrap();
+        assert!(location.is_file());
+        assert_eq!(
+            location.as_path(),
+            Path::new("/project/.github/prompts/official/my-plugin/my-prompt.prompt.md")
+        );
+    }
+
+    #[test]
+    fn test_copilot_placement_location_instruction() {
+        let target = CopilotTarget::new();
+        let project_root = Path::new("/project");
+        let origin = PluginOrigin::from_marketplace("official", "my-plugin");
+
+        let ctx = PlacementContext {
+            component: ComponentRef::new(ComponentKind::Instruction, "test"),
+            origin: &origin,
+            scope: PlacementScope(Scope::Project),
+            project: ProjectContext::new(project_root),
+        };
+        let location = target.placement_location(&ctx).unwrap();
+
+        assert!(location.is_file());
+        assert_eq!(
+            location.as_path(),
+            Path::new("/project/.github/copilot-instructions.md")
         );
     }
 }

@@ -117,9 +117,12 @@ impl std::fmt::Display for Scope {
     }
 }
 
-/// コンポーネントの配置情報
+/// コンポーネントのデプロイ情報
+///
+/// 配置の実行（コピー/削除など）を担当する。
+/// 配置先の決定は `PlacementLocation` が担当する。
 #[derive(Debug, Clone)]
-pub struct ComponentPlacement {
+pub struct ComponentDeployment {
     pub kind: ComponentKind,
     pub name: String,
     pub scope: Scope,
@@ -127,10 +130,10 @@ pub struct ComponentPlacement {
     target_path: PathBuf,
 }
 
-impl ComponentPlacement {
+impl ComponentDeployment {
     /// Builderを生成
-    pub fn builder() -> ComponentPlacementBuilder {
-        ComponentPlacementBuilder::new()
+    pub fn builder() -> ComponentDeploymentBuilder {
+        ComponentDeploymentBuilder::new()
     }
 
     /// 配置先パスを取得
@@ -159,9 +162,9 @@ impl ComponentPlacement {
     }
 }
 
-/// ComponentPlacement のビルダー
+/// ComponentDeployment のビルダー
 #[derive(Debug, Default)]
-pub struct ComponentPlacementBuilder {
+pub struct ComponentDeploymentBuilder {
     kind: Option<ComponentKind>,
     name: Option<String>,
     scope: Option<Scope>,
@@ -169,7 +172,7 @@ pub struct ComponentPlacementBuilder {
     target_path: Option<PathBuf>,
 }
 
-impl ComponentPlacementBuilder {
+impl ComponentDeploymentBuilder {
     /// 新しいビルダーを生成
     pub fn new() -> Self {
         Self::default()
@@ -213,8 +216,8 @@ impl ComponentPlacementBuilder {
         self
     }
 
-    /// ComponentPlacement を構築
-    pub fn build(self) -> Result<ComponentPlacement> {
+    /// ComponentDeployment を構築
+    pub fn build(self) -> Result<ComponentDeployment> {
         let kind = self
             .kind
             .ok_or_else(|| PlmError::Validation("kind is required".to_string()))?;
@@ -231,7 +234,7 @@ impl ComponentPlacementBuilder {
             .target_path
             .ok_or_else(|| PlmError::Validation("target_path is required".to_string()))?;
 
-        Ok(ComponentPlacement {
+        Ok(ComponentDeployment {
             kind,
             name,
             scope,

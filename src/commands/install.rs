@@ -8,7 +8,8 @@
 //! 2. ダウンロード
 //! 3. 配置
 
-use crate::component::{ComponentKind, ComponentPlacement};
+use crate::component::{ComponentDeployment, ComponentKind};
+use crate::domain::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
 use crate::output::CommandSummary;
 use crate::source::parse_source;
 use crate::target::{all_targets, parse_target, PluginOrigin, Scope, Target, TargetKind};
@@ -136,34 +137,28 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
                 continue;
             }
 
-            // このスコープでサポートしているか確認
-            if !target.supports_scope(component.kind, scope) {
-                continue;
-            }
-
-            // 配置先パスを計算（階層構造: marketplace/plugin/component）
-            let target_path = match target.full_placement_path(
-                component.kind,
-                scope,
-                &component.name,
-                &origin,
-                &project_root,
-            ) {
-                Some(path) => path,
-                None => {
-                    // supports_scope で確認済みなのでここには来ないはず
-                    continue;
-                }
+            // 配置コンテキストを構築
+            let ctx = PlacementContext {
+                component: ComponentRef::new(component.kind, &component.name),
+                origin: &origin,
+                scope: PlacementScope(scope),
+                project: ProjectContext::new(&project_root),
             };
 
-            // 配置情報を構築
-            let placement = match ComponentPlacement::builder()
+            // 配置先を取得（サポートしていない場合は None）
+            let target_path = match target.placement_location(&ctx) {
+                Some(location) => location.into_path(),
+                None => continue,
+            };
+
+            // デプロイ情報を構築
+            let deployment = match ComponentDeployment::builder()
                 .component(component)
                 .scope(scope)
                 .target_path(target_path)
                 .build()
             {
-                Ok(p) => p,
+                Ok(d) => d,
                 Err(e) => {
                     println!(
                         "  x {} {}: {} - {}",
@@ -178,15 +173,15 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
                 }
             };
 
-            // 配置実行
-            match placement.execute() {
+            // デプロイ実行
+            match deployment.execute() {
                 Ok(()) => {
                     println!(
                         "  + {} {}: {} -> {}",
                         target.name(),
                         component.kind,
                         component.name,
-                        placement.path().display()
+                        deployment.path().display()
                     );
                     total_success += 1;
                 }
