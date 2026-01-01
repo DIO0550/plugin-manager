@@ -7,6 +7,7 @@ mod error;
 mod host;
 mod http;
 mod marketplace;
+mod output;
 mod plugin;
 mod repo;
 mod source;

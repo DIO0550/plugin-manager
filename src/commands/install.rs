@@ -9,6 +9,7 @@
 //! 3. 配置
 
 use crate::component::{ComponentKind, ComponentPlacement};
+use crate::output::CommandSummary;
 use crate::source::parse_source;
 use crate::target::{all_targets, parse_target, PluginOrigin, Scope, Target, TargetKind};
 use crate::tui;
@@ -209,19 +210,8 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
     }
 
     // 結果サマリー
-    if total_failure > 0 {
-        println!(
-            "\nPlacement completed with errors: {} succeeded, {} failed",
-            total_success, total_failure
-        );
-    } else if total_success > 0 {
-        println!(
-            "\nPlacement completed successfully: {} component(s) placed",
-            total_success
-        );
-    } else {
-        println!("\nNo components were placed (no matching components found)");
-    }
+    let summary = CommandSummary::format(total_success, total_failure);
+    println!("\n{} {}", summary.prefix, summary.message);
 
     Ok(())
 }
