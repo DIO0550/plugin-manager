@@ -2,8 +2,8 @@
 //!
 //! `plm managed` でインタラクティブなプラグイン管理画面を起動する。
 
-use crate::tui::plugin_manager;
+use crate::tui::manager;
 
 pub async fn run() -> Result<(), String> {
-    plugin_manager::run().map_err(|e| e.to_string())
+    manager::run().map_err(|e| e.to_string())
 }
