@@ -7,6 +7,7 @@ pub mod info;
 pub mod init;
 pub mod install;
 pub mod list;
+pub mod managed;
 pub mod marketplace;
 pub mod pack;
 pub mod sync;
@@ -29,5 +30,6 @@ pub async fn dispatch(cli: crate::cli::Cli) -> Result<(), String> {
         Command::Sync(args) => sync::run(args).await,
         Command::Import(args) => import::run(args).await,
         Command::Marketplace(args) => marketplace::run(args).await,
+        Command::Managed => managed::run().await,
     }
 }

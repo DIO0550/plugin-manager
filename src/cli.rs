@@ -53,4 +53,7 @@ pub enum Command {
 
     /// Claude Code Plugin からインポート
     Import(import::Args),
+
+    /// プラグイン管理（TUI）
+    Managed,
 }

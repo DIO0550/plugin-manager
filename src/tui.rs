@@ -3,6 +3,7 @@
 //! ratatui/crossterm を使用した選択ダイアログを提供する。
 
 mod dialog;
+pub mod plugin_manager;
 mod scope_select;
 mod target_select;
 
