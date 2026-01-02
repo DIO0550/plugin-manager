@@ -31,7 +31,7 @@ impl CodexTarget {
 
     /// この組み合わせで配置できるか
     fn can_place(kind: ComponentKind) -> bool {
-        kind != ComponentKind::Prompt
+        kind != ComponentKind::Command && kind != ComponentKind::Hook
     }
 }
 
@@ -90,7 +90,7 @@ impl Target for CodexTarget {
                 Scope::Project => PlacementLocation::file(project_root.join("AGENTS.md")),
                 Scope::Personal => PlacementLocation::file(base.join("AGENTS.md")),
             },
-            ComponentKind::Prompt => return None,
+            ComponentKind::Command | ComponentKind::Hook => return None,
         })
     }
 
@@ -188,7 +188,8 @@ mod tests {
         assert!(target.supports(ComponentKind::Skill));
         assert!(target.supports(ComponentKind::Agent));
         assert!(target.supports(ComponentKind::Instruction));
-        assert!(!target.supports(ComponentKind::Prompt));
+        assert!(!target.supports(ComponentKind::Command));
+        assert!(!target.supports(ComponentKind::Hook));
     }
 
     #[test]
@@ -274,13 +275,13 @@ mod tests {
     }
 
     #[test]
-    fn test_codex_prompt_not_supported() {
+    fn test_codex_command_not_supported() {
         let target = CodexTarget::new();
         let project_root = Path::new("/project");
         let origin = PluginOrigin::from_marketplace("test", "test");
 
         let ctx = PlacementContext {
-            component: ComponentRef::new(ComponentKind::Prompt, "test"),
+            component: ComponentRef::new(ComponentKind::Command, "test"),
             origin: &origin,
             scope: PlacementScope(Scope::Project),
             project: ProjectContext::new(project_root),

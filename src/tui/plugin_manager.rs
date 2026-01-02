@@ -2,7 +2,7 @@
 //!
 //! インストール済みプラグインの一覧表示と管理を行う TUI。
 
-use crate::plugin::PluginCache;
+use crate::application::{list_installed_plugins, PluginSummary};
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use crossterm::terminal::{self, EnterAlternateScreen, LeaveAlternateScreen};
 use crossterm::ExecutableCommand;
@@ -58,6 +58,7 @@ pub enum ComponentType {
     Skills,
     Agents,
     Commands,
+    Instructions,
     Hooks,
 }
 
@@ -67,6 +68,7 @@ impl ComponentType {
             ComponentType::Skills,
             ComponentType::Agents,
             ComponentType::Commands,
+            ComponentType::Instructions,
             ComponentType::Hooks,
         ]
     }
@@ -76,6 +78,7 @@ impl ComponentType {
             ComponentType::Skills => "Skills",
             ComponentType::Agents => "Agents",
             ComponentType::Commands => "Commands",
+            ComponentType::Instructions => "Instructions",
             ComponentType::Hooks => "Hooks",
         }
     }
@@ -92,23 +95,11 @@ pub enum Screen {
     ComponentList(usize, usize),
 }
 
-/// プラグイン一覧の表示アイテム
-#[derive(Debug, Clone)]
-pub struct PluginListItem {
-    pub name: String,
-    pub marketplace: Option<String>,
-    pub version: String,
-    pub skills: Vec<String>,
-    pub agents: Vec<String>,
-    pub commands: Vec<String>,
-    pub hooks: Vec<String>,
-}
-
 /// アプリケーション状態
 pub struct App {
     current_tab: Tab,
     screen: Screen,
-    plugins: Vec<PluginListItem>,
+    plugins: Vec<PluginSummary>,
     list_state: ListState,
     type_state: ListState,
     component_state: ListState,
@@ -118,7 +109,8 @@ pub struct App {
 impl App {
     /// 新しいアプリケーション状態を作成
     pub fn new() -> io::Result<Self> {
-        let plugins = load_plugins()?;
+        let plugins = list_installed_plugins()
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
         let mut list_state = ListState::default();
         if !plugins.is_empty() {
             list_state.select(Some(0));
@@ -179,7 +171,7 @@ impl App {
     }
 
     /// プラグインの空でないコンポーネント種別を取得
-    fn available_types(&self, plugin: &PluginListItem) -> Vec<ComponentType> {
+    fn available_types(&self, plugin: &PluginSummary) -> Vec<ComponentType> {
         let mut types = Vec::new();
         if !plugin.skills.is_empty() {
             types.push(ComponentType::Skills);
@@ -190,6 +182,9 @@ impl App {
         if !plugin.commands.is_empty() {
             types.push(ComponentType::Commands);
         }
+        if !plugin.instructions.is_empty() {
+            types.push(ComponentType::Instructions);
+        }
         if !plugin.hooks.is_empty() {
             types.push(ComponentType::Hooks);
         }
@@ -197,11 +192,12 @@ impl App {
     }
 
     /// コンポーネント種別に応じたリストを取得
-    fn get_components<'a>(&self, plugin: &'a PluginListItem, comp_type: ComponentType) -> &'a Vec<String> {
+    fn get_components<'a>(&self, plugin: &'a PluginSummary, comp_type: ComponentType) -> &'a Vec<String> {
         match comp_type {
             ComponentType::Skills => &plugin.skills,
             ComponentType::Agents => &plugin.agents,
             ComponentType::Commands => &plugin.commands,
+            ComponentType::Instructions => &plugin.instructions,
             ComponentType::Hooks => &plugin.hooks,
         }
     }
@@ -304,185 +300,6 @@ impl App {
             KeyCode::Enter => self.enter(),
             _ => {}
         }
-    }
-}
-
-/// キャッシュからプラグイン一覧を読み込み
-fn load_plugins() -> io::Result<Vec<PluginListItem>> {
-    let cache = match PluginCache::new() {
-        Ok(c) => c,
-        Err(e) => {
-            return Err(io::Error::new(io::ErrorKind::Other, e.to_string()));
-        }
-    };
-
-    let plugin_list = match cache.list() {
-        Ok(list) => list,
-        Err(e) => {
-            return Err(io::Error::new(io::ErrorKind::Other, e.to_string()));
-        }
-    };
-
-    let mut plugins = Vec::new();
-    let mut seen_marketplaces = std::collections::HashSet::new();
-
-    for (marketplace, name) in plugin_list {
-        // 隠しディレクトリやメタデータディレクトリは除外
-        if name.starts_with('.') {
-            // ただし、マーケットプレイスディレクトリ自体がプラグインの場合をチェック
-            if let Some(mp) = &marketplace {
-                if !seen_marketplaces.contains(mp) {
-                    seen_marketplaces.insert(mp.clone());
-                    // マーケットプレイスルートが直接プラグインかチェック
-                    let mp_path = cache.plugin_path(Some(mp), "").parent().unwrap().to_path_buf();
-                    if mp_path.join(".claude-plugin/plugin.json").exists() {
-                        let manifest = cache.load_manifest(Some(mp), "").ok();
-                        let version = manifest
-                            .as_ref()
-                            .map(|m| m.version.clone())
-                            .unwrap_or_else(|| "unknown".to_string());
-                        let scan = scan_components(&mp_path);
-                        plugins.push(PluginListItem {
-                            name: mp.clone(),
-                            marketplace: Some(mp.clone()),
-                            version,
-                            skills: scan.skills,
-                            agents: scan.agents,
-                            commands: scan.commands,
-                            hooks: scan.hooks,
-                        });
-                    }
-                }
-            }
-            continue;
-        }
-
-        let plugin_path = cache.plugin_path(marketplace.as_deref(), &name);
-
-        // plugin.json が存在するもののみをプラグインとして扱う
-        // .claude-plugin/plugin.json または plugin.json をチェック
-        let has_manifest = plugin_path.join(".claude-plugin/plugin.json").exists()
-            || plugin_path.join("plugin.json").exists();
-        if !has_manifest {
-            continue;
-        }
-
-        let manifest = cache.load_manifest(marketplace.as_deref(), &name).ok();
-        let version = manifest
-            .as_ref()
-            .map(|m| m.version.clone())
-            .unwrap_or_else(|| "unknown".to_string());
-
-        // コンポーネント情報を取得
-        let scan = scan_components(&plugin_path);
-
-        plugins.push(PluginListItem {
-            name,
-            marketplace,
-            version,
-            skills: scan.skills,
-            agents: scan.agents,
-            commands: scan.commands,
-            hooks: scan.hooks,
-        });
-    }
-
-    Ok(plugins)
-}
-
-/// スキャン結果
-struct ScanResult {
-    skills: Vec<String>,
-    agents: Vec<String>,
-    commands: Vec<String>,
-    hooks: Vec<String>,
-}
-
-/// プラグインディレクトリからコンポーネントをスキャン
-fn scan_components(plugin_path: &std::path::Path) -> ScanResult {
-    let mut skills = Vec::new();
-    let mut agents = Vec::new();
-    let mut commands = Vec::new();
-    let mut hooks = Vec::new();
-
-    // Skills: skills/ ディレクトリ内の SKILL.md を持つディレクトリ
-    let skills_dir = plugin_path.join("skills");
-    if skills_dir.is_dir() {
-        if let Ok(entries) = std::fs::read_dir(&skills_dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.is_dir() && path.join("SKILL.md").exists() {
-                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                        skills.push(name.to_string());
-                    }
-                }
-            }
-        }
-    }
-
-    // Agents: agents/ ディレクトリ内の .agent.md または .md ファイル
-    let agents_dir = plugin_path.join("agents");
-    if agents_dir.is_dir() {
-        if let Ok(entries) = std::fs::read_dir(&agents_dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.is_file() {
-                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                        if name.ends_with(".agent.md") {
-                            agents.push(name.trim_end_matches(".agent.md").to_string());
-                        } else if name.ends_with(".md") {
-                            agents.push(name.trim_end_matches(".md").to_string());
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Commands: commands/ ディレクトリ内の .prompt.md または .md ファイル
-    let commands_dir = plugin_path.join("commands");
-    if commands_dir.is_dir() {
-        if let Ok(entries) = std::fs::read_dir(&commands_dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.is_file() {
-                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                        if name.ends_with(".prompt.md") {
-                            commands.push(name.trim_end_matches(".prompt.md").to_string());
-                        } else if name.ends_with(".md") {
-                            commands.push(name.trim_end_matches(".md").to_string());
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Hooks: hooks/ ディレクトリ内のファイル
-    let hooks_dir = plugin_path.join("hooks");
-    if hooks_dir.is_dir() {
-        if let Ok(entries) = std::fs::read_dir(&hooks_dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.is_file() {
-                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                        // 拡張子を除いた名前を取得
-                        let hook_name = name
-                            .rsplit_once('.')
-                            .map(|(n, _)| n.to_string())
-                            .unwrap_or_else(|| name.to_string());
-                        hooks.push(hook_name);
-                    }
-                }
-            }
-        }
-    }
-
-    ScanResult {
-        skills,
-        agents,
-        commands,
-        hooks,
     }
 }
 
@@ -626,6 +443,7 @@ fn render_component_types_screen(f: &mut Frame, app: &mut App, plugin_idx: usize
                 ComponentType::Skills => plugin.skills.len(),
                 ComponentType::Agents => plugin.agents.len(),
                 ComponentType::Commands => plugin.commands.len(),
+                ComponentType::Instructions => plugin.instructions.len(),
                 ComponentType::Hooks => plugin.hooks.len(),
             };
             lines.push(format!("    {} ({})", t.title(), count));
@@ -662,6 +480,7 @@ fn render_component_types_screen(f: &mut Frame, app: &mut App, plugin_idx: usize
                     ComponentType::Skills => plugin.skills.len(),
                     ComponentType::Agents => plugin.agents.len(),
                     ComponentType::Commands => plugin.commands.len(),
+                    ComponentType::Instructions => plugin.instructions.len(),
                     ComponentType::Hooks => plugin.hooks.len(),
                 };
                 let text = format!("  {} ({})", t.title(), count);

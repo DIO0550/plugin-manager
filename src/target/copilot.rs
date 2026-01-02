@@ -58,7 +58,7 @@ impl Target for CopilotTarget {
         &[
             ComponentKind::Skill,
             ComponentKind::Agent,
-            ComponentKind::Prompt,
+            ComponentKind::Command,
             ComponentKind::Instruction,
         ]
     }
@@ -91,13 +91,14 @@ impl Target for CopilotTarget {
                     .join(format!("{}.agent.md", name)),
             ),
             // 階層構造: prompts/<marketplace>/<plugin>/<name>.prompt.md (ファイル)
-            ComponentKind::Prompt => PlacementLocation::file(
+            ComponentKind::Command => PlacementLocation::file(
                 base.join("prompts")
                     .join(&origin.marketplace)
                     .join(&origin.plugin)
                     .join(format!("{}.prompt.md", name)),
             ),
             ComponentKind::Instruction => PlacementLocation::file(base.join("copilot-instructions.md")),
+            ComponentKind::Hook => return None,
         })
     }
 
@@ -132,7 +133,7 @@ impl Target for CopilotTarget {
         let dir_path = match kind {
             ComponentKind::Skill => base.join("skills"),
             ComponentKind::Agent => base.join("agents"),
-            ComponentKind::Prompt => base.join("prompts"),
+            ComponentKind::Command => base.join("prompts"),
             _ => return Ok(vec![]),
         };
 
@@ -168,9 +169,9 @@ impl Target for CopilotTarget {
                             let agent_name = name.trim_end_matches(".agent.md").to_string();
                             names.push(format!("{}/{}/{}", marketplace, plugin, agent_name));
                         }
-                        ComponentKind::Prompt if name.ends_with(".prompt.md") => {
-                            let prompt_name = name.trim_end_matches(".prompt.md").to_string();
-                            names.push(format!("{}/{}/{}", marketplace, plugin, prompt_name));
+                        ComponentKind::Command if name.ends_with(".prompt.md") => {
+                            let command_name = name.trim_end_matches(".prompt.md").to_string();
+                            names.push(format!("{}/{}/{}", marketplace, plugin, command_name));
                         }
                         _ => {}
                     }
@@ -198,8 +199,9 @@ mod tests {
         let target = CopilotTarget::new();
         assert!(target.supports(ComponentKind::Skill));
         assert!(target.supports(ComponentKind::Agent));
-        assert!(target.supports(ComponentKind::Prompt));
+        assert!(target.supports(ComponentKind::Command));
         assert!(target.supports(ComponentKind::Instruction));
+        assert!(!target.supports(ComponentKind::Hook));
     }
 
     #[test]
@@ -275,14 +277,14 @@ mod tests {
     }
 
     #[test]
-    fn test_copilot_placement_location_prompt() {
+    fn test_copilot_placement_location_command() {
         let target = CopilotTarget::new();
         let project_root = Path::new("/project");
         let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
-        // Personal scope for prompts is not supported
+        // Personal scope for commands is not supported
         let ctx_personal = PlacementContext {
-            component: ComponentRef::new(ComponentKind::Prompt, "my-prompt"),
+            component: ComponentRef::new(ComponentKind::Command, "my-command"),
             origin: &origin,
             scope: PlacementScope(Scope::Personal),
             project: ProjectContext::new(project_root),
@@ -291,7 +293,7 @@ mod tests {
 
         // Project scope
         let ctx_project = PlacementContext {
-            component: ComponentRef::new(ComponentKind::Prompt, "my-prompt"),
+            component: ComponentRef::new(ComponentKind::Command, "my-command"),
             origin: &origin,
             scope: PlacementScope(Scope::Project),
             project: ProjectContext::new(project_root),
@@ -300,7 +302,7 @@ mod tests {
         assert!(location.is_file());
         assert_eq!(
             location.as_path(),
-            Path::new("/project/.github/prompts/official/my-plugin/my-prompt.prompt.md")
+            Path::new("/project/.github/prompts/official/my-plugin/my-command.prompt.md")
         );
     }
 

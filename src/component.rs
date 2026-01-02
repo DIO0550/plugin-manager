@@ -14,10 +14,12 @@ pub enum ComponentKind {
     Skill,
     /// エージェント（.agent.md形式）
     Agent,
-    /// プロンプト（.prompt.md形式）
-    Prompt,
+    /// コマンド（.prompt.md形式）
+    Command,
     /// インストラクション（AGENTS.md, copilot-instructions.md形式）
     Instruction,
+    /// フック（任意のスクリプト）
+    Hook,
 }
 
 impl ComponentKind {
@@ -26,8 +28,9 @@ impl ComponentKind {
         match self {
             ComponentKind::Skill => "skill",
             ComponentKind::Agent => "agent",
-            ComponentKind::Prompt => "prompt",
+            ComponentKind::Command => "command",
             ComponentKind::Instruction => "instruction",
+            ComponentKind::Hook => "hook",
         }
     }
 
@@ -36,8 +39,9 @@ impl ComponentKind {
         match self {
             ComponentKind::Skill => "skills",
             ComponentKind::Agent => "agents",
-            ComponentKind::Prompt => "prompts",
+            ComponentKind::Command => "commands",
             ComponentKind::Instruction => "instructions",
+            ComponentKind::Hook => "hooks",
         }
     }
 
@@ -46,8 +50,9 @@ impl ComponentKind {
         match self {
             ComponentKind::Skill => "Skill",
             ComponentKind::Agent => "Agent",
-            ComponentKind::Prompt => "Prompt",
+            ComponentKind::Command => "Command",
             ComponentKind::Instruction => "Instruction",
+            ComponentKind::Hook => "Hook",
         }
     }
 
@@ -56,8 +61,9 @@ impl ComponentKind {
         &[
             ComponentKind::Skill,
             ComponentKind::Agent,
-            ComponentKind::Prompt,
+            ComponentKind::Command,
             ComponentKind::Instruction,
+            ComponentKind::Hook,
         ]
     }
 }
@@ -153,7 +159,10 @@ impl ComponentDeployment {
                 // Skills are directories
                 copy_directory(&self.source_path, &self.target_path)?;
             }
-            ComponentKind::Agent | ComponentKind::Prompt | ComponentKind::Instruction => {
+            ComponentKind::Agent
+            | ComponentKind::Command
+            | ComponentKind::Instruction
+            | ComponentKind::Hook => {
                 // These are files
                 copy_file(&self.source_path, &self.target_path)?;
             }
@@ -283,8 +292,9 @@ mod tests {
     fn test_component_kind_as_str() {
         assert_eq!(ComponentKind::Skill.as_str(), "skill");
         assert_eq!(ComponentKind::Agent.as_str(), "agent");
-        assert_eq!(ComponentKind::Prompt.as_str(), "prompt");
+        assert_eq!(ComponentKind::Command.as_str(), "command");
         assert_eq!(ComponentKind::Instruction.as_str(), "instruction");
+        assert_eq!(ComponentKind::Hook.as_str(), "hook");
     }
 
     #[test]
@@ -295,7 +305,7 @@ mod tests {
 
     #[test]
     fn test_component_kind_all() {
-        assert_eq!(ComponentKind::all().len(), 4);
+        assert_eq!(ComponentKind::all().len(), 5);
     }
 
     #[test]

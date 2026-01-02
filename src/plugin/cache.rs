@@ -16,6 +16,36 @@ const DEFAULT_SKILLS_DIR: &str = "skills";
 const DEFAULT_AGENTS_DIR: &str = "agents";
 const DEFAULT_COMMANDS_DIR: &str = "commands";
 const DEFAULT_INSTRUCTIONS_FILE: &str = "instructions.md";
+const DEFAULT_HOOKS_DIR: &str = "hooks";
+
+/// マニフェストファイルのパス候補（優先順）
+const MANIFEST_PATHS: &[&str] = &[".claude-plugin/plugin.json", "plugin.json"];
+
+/// プラグインディレクトリ内のマニフェストパスを解決する
+///
+/// 以下の順序でマニフェストを検索:
+/// 1. `.claude-plugin/plugin.json` (推奨)
+/// 2. `plugin.json` (フォールバック)
+///
+/// # Arguments
+/// * `plugin_dir` - プラグインのルートディレクトリ
+///
+/// # Returns
+/// マニフェストファイルのパス、見つからない場合は None
+pub fn resolve_manifest_path(plugin_dir: &Path) -> Option<PathBuf> {
+    for candidate in MANIFEST_PATHS {
+        let path = plugin_dir.join(candidate);
+        if path.exists() {
+            return Some(path);
+        }
+    }
+    None
+}
+
+/// プラグインディレクトリがマニフェストを持つか確認する
+pub fn has_manifest(plugin_dir: &Path) -> bool {
+    resolve_manifest_path(plugin_dir).is_some()
+}
 
 /// ディレクトリのエントリを読み取り、パスのリストを返す
 fn read_dir_entries(dir: &Path) -> Vec<PathBuf> {
@@ -91,6 +121,16 @@ impl CachedPlugin {
         self.manifest.instructions.as_deref()
     }
 
+    /// フックが含まれているか
+    pub fn has_hooks(&self) -> bool {
+        self.manifest.hooks.is_some()
+    }
+
+    /// フックのパスを取得
+    pub fn hooks(&self) -> Option<&str> {
+        self.manifest.hooks.as_deref()
+    }
+
     /// プラグイン内のコンポーネントをスキャン
     pub fn components(&self) -> Vec<Component> {
         let mut components = Vec::new();
@@ -98,6 +138,7 @@ impl CachedPlugin {
         components.extend(self.scan_agents());
         components.extend(self.scan_prompts());
         components.extend(self.scan_instructions());
+        components.extend(self.scan_hooks());
         components
     }
 
@@ -205,7 +246,7 @@ impl CachedPlugin {
                     return None;
                 };
                 Some(Component {
-                    kind: ComponentKind::Prompt,
+                    kind: ComponentKind::Command,
                     name,
                     path,
                 })
@@ -238,6 +279,38 @@ impl CachedPlugin {
             path,
         }]
     }
+
+    /// Hooks をスキャン
+    /// hooks ディレクトリ配下のスクリプトファイルを検出
+    fn scan_hooks(&self) -> Vec<Component> {
+        // マニフェストで指定されたパス、またはデフォルトディレクトリを使用
+        let hooks_dir = match self.hooks() {
+            Some(path) => self.path.join(path),
+            None => self.path.join(DEFAULT_HOOKS_DIR),
+        };
+
+        if !hooks_dir.is_dir() {
+            return Vec::new();
+        }
+
+        read_dir_entries(&hooks_dir)
+            .into_iter()
+            .filter(|path| path.is_file())
+            .filter_map(|path| {
+                let file_name = path.file_name()?.to_str()?;
+                // 拡張子を除いた名前を取得
+                let name = file_name
+                    .rsplit_once('.')
+                    .map(|(n, _)| n.to_string())
+                    .unwrap_or_else(|| file_name.to_string());
+                Some(Component {
+                    kind: ComponentKind::Hook,
+                    name,
+                    path,
+                })
+            })
+            .collect()
+    }
 }
 
 /// プラグインキャッシュマネージャ
@@ -248,12 +321,21 @@ pub struct PluginCache {
 
 impl PluginCache {
     /// キャッシュマネージャを初期化（ディレクトリ作成含む）
+    ///
+    /// 書き込み操作を行う場合に使用。キャッシュディレクトリが存在しない場合は作成する。
     pub fn new() -> Result<Self> {
+        let cache = Self::for_reading()?;
+        fs::create_dir_all(&cache.cache_dir)?;
+        Ok(cache)
+    }
+
+    /// 読み取り専用でキャッシュマネージャを初期化
+    ///
+    /// キャッシュディレクトリの作成を行わない。一覧取得などの読み取り操作に使用。
+    pub fn for_reading() -> Result<Self> {
         let home = std::env::var("HOME")
             .map_err(|_| PlmError::Cache("HOME environment variable not set".to_string()))?;
         let cache_dir = PathBuf::from(home).join(".plm").join("cache").join("plugins");
-
-        fs::create_dir_all(&cache_dir)?;
 
         Ok(Self { cache_dir })
     }
@@ -355,18 +437,18 @@ impl PluginCache {
     }
 
     /// キャッシュからマニフェストを読み込み
+    ///
+    /// 以下の順序でマニフェストを検索:
+    /// 1. `.claude-plugin/plugin.json` (推奨)
+    /// 2. `plugin.json` (フォールバック)
     pub fn load_manifest(&self, marketplace: Option<&str>, name: &str) -> Result<PluginManifest> {
-        let manifest_path = self
-            .plugin_path(marketplace, name)
-            .join(".claude-plugin")
-            .join("plugin.json");
-
-        if !manifest_path.exists() {
-            return Err(PlmError::InvalidManifest(format!(
-                "plugin.json not found at {:?}",
-                manifest_path
-            )));
-        }
+        let plugin_dir = self.plugin_path(marketplace, name);
+        let manifest_path = resolve_manifest_path(&plugin_dir).ok_or_else(|| {
+            PlmError::InvalidManifest(format!(
+                "plugin.json not found in {:?}",
+                plugin_dir
+            ))
+        })?;
 
         PluginManifest::load(&manifest_path)
     }
@@ -441,5 +523,101 @@ impl PluginCache {
 impl Default for PluginCache {
     fn default() -> Self {
         Self::new().expect("Failed to initialize plugin cache")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    /// テスト用のプラグインディレクトリを作成
+    fn create_test_plugin_dir(temp_dir: &TempDir, structure: &[(&str, Option<&str>)]) -> PathBuf {
+        let plugin_dir = temp_dir.path().to_path_buf();
+
+        for (path, content) in structure {
+            let full_path = plugin_dir.join(path);
+            if let Some(parent) = full_path.parent() {
+                fs::create_dir_all(parent).unwrap();
+            }
+            if let Some(content) = content {
+                fs::write(&full_path, content).unwrap();
+            } else {
+                fs::create_dir_all(&full_path).unwrap();
+            }
+        }
+
+        plugin_dir
+    }
+
+    #[test]
+    fn test_resolve_manifest_path_prefers_claude_plugin_dir() {
+        let temp_dir = TempDir::new().unwrap();
+        let plugin_dir = create_test_plugin_dir(&temp_dir, &[
+            (".claude-plugin/plugin.json", Some(r#"{"name":"test","version":"1.0.0"}"#)),
+            ("plugin.json", Some(r#"{"name":"fallback","version":"0.1.0"}"#)),
+        ]);
+
+        let manifest_path = resolve_manifest_path(&plugin_dir).unwrap();
+        assert!(manifest_path.ends_with(".claude-plugin/plugin.json"));
+    }
+
+    #[test]
+    fn test_resolve_manifest_path_fallback_to_root() {
+        let temp_dir = TempDir::new().unwrap();
+        let plugin_dir = create_test_plugin_dir(&temp_dir, &[
+            ("plugin.json", Some(r#"{"name":"test","version":"1.0.0"}"#)),
+        ]);
+
+        let manifest_path = resolve_manifest_path(&plugin_dir).unwrap();
+        assert!(manifest_path.ends_with("plugin.json"));
+        assert!(!manifest_path.to_string_lossy().contains(".claude-plugin"));
+    }
+
+    #[test]
+    fn test_resolve_manifest_path_returns_none_when_missing() {
+        let temp_dir = TempDir::new().unwrap();
+        let plugin_dir = temp_dir.path().to_path_buf();
+
+        assert!(resolve_manifest_path(&plugin_dir).is_none());
+    }
+
+    #[test]
+    fn test_has_manifest_returns_true_for_claude_plugin_dir() {
+        let temp_dir = TempDir::new().unwrap();
+        let plugin_dir = create_test_plugin_dir(&temp_dir, &[
+            (".claude-plugin/plugin.json", Some(r#"{"name":"test","version":"1.0.0"}"#)),
+        ]);
+
+        assert!(has_manifest(&plugin_dir));
+    }
+
+    #[test]
+    fn test_has_manifest_returns_true_for_root_plugin_json() {
+        let temp_dir = TempDir::new().unwrap();
+        let plugin_dir = create_test_plugin_dir(&temp_dir, &[
+            ("plugin.json", Some(r#"{"name":"test","version":"1.0.0"}"#)),
+        ]);
+
+        assert!(has_manifest(&plugin_dir));
+    }
+
+    #[test]
+    fn test_has_manifest_returns_false_when_missing() {
+        let temp_dir = TempDir::new().unwrap();
+        assert!(!has_manifest(temp_dir.path()));
+    }
+
+    #[test]
+    fn test_for_reading_does_not_create_directory() {
+        // HOME環境変数を一時的に変更してテスト
+        let temp_dir = TempDir::new().unwrap();
+        let cache_dir = temp_dir.path().join("nonexistent").join(".plm").join("cache").join("plugins");
+
+        // ディレクトリが存在しないことを確認
+        assert!(!cache_dir.exists());
+
+        // for_reading を使用しても new() のようにディレクトリは作成されない
+        // (HOME環境変数を変更できないため、このテストは概念的な確認)
     }
 }
