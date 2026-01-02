@@ -6,6 +6,35 @@ use crate::application::{list_installed_plugins, PluginSummary};
 use ratatui::widgets::ListState;
 use std::io;
 
+// ============================================================================
+// View 用データ型（ドメイン構造を隠蔽）
+// ============================================================================
+
+/// インストール済みプラグインの概要
+pub(super) struct InstalledPluginSummary {
+    pub name: String,
+    pub version: String,
+    pub marketplace: Option<String>,
+}
+
+/// プラグイン詳細（コンポーネント種別画面用）
+pub(super) struct PluginDetail {
+    pub name: String,
+    pub version: String,
+    pub marketplace: Option<String>,
+}
+
+/// コンポーネント種別と件数
+pub(super) struct ComponentTypeCount {
+    pub kind: ManagerComponentType,
+    pub count: usize,
+}
+
+/// コンポーネント名
+pub(super) struct ComponentName {
+    pub name: String,
+}
+
 /// タブ種別
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum ManagerTab {
@@ -150,5 +179,73 @@ impl ManagerApp {
             ManagerComponentType::Instructions => &plugin.instructions,
             ManagerComponentType::Hooks => &plugin.hooks,
         }
+    }
+
+    // ========================================================================
+    // View 用読み取り関数（ドメイン構造を隠蔽）
+    // ========================================================================
+
+    /// インストール済みプラグインの概要一覧を取得
+    pub(super) fn installed_plugin_summaries(&self) -> Vec<InstalledPluginSummary> {
+        self.plugins
+            .iter()
+            .map(|p| InstalledPluginSummary {
+                name: p.name.clone(),
+                version: p.version.clone(),
+                marketplace: p.marketplace.clone(),
+            })
+            .collect()
+    }
+
+    /// インストール済みプラグイン数を取得
+    pub(super) fn installed_plugin_count(&self) -> usize {
+        self.plugins.len()
+    }
+
+    /// プラグイン詳細を取得
+    pub(super) fn plugin_detail(&self, plugin_idx: usize) -> Option<PluginDetail> {
+        self.plugins.get(plugin_idx).map(|p| PluginDetail {
+            name: p.name.clone(),
+            version: p.version.clone(),
+            marketplace: p.marketplace.clone(),
+        })
+    }
+
+    /// コンポーネント種別と件数の一覧を取得
+    pub(super) fn component_type_counts(&self, plugin_idx: usize) -> Vec<ComponentTypeCount> {
+        let Some(plugin) = self.plugins.get(plugin_idx) else {
+            return Vec::new();
+        };
+
+        self.available_types(plugin)
+            .into_iter()
+            .map(|kind| {
+                let count = self.get_components(plugin, kind).len();
+                ComponentTypeCount { kind, count }
+            })
+            .collect()
+    }
+
+    /// type_idx から ManagerComponentType を取得
+    pub(super) fn component_type_at(&self, plugin_idx: usize, type_idx: usize) -> Option<ManagerComponentType> {
+        let plugin = self.plugins.get(plugin_idx)?;
+        let types = self.available_types(plugin);
+        types.get(type_idx).copied()
+    }
+
+    /// コンポーネント名の一覧を取得
+    pub(super) fn component_names(
+        &self,
+        plugin_idx: usize,
+        kind: ManagerComponentType,
+    ) -> Vec<ComponentName> {
+        let Some(plugin) = self.plugins.get(plugin_idx) else {
+            return Vec::new();
+        };
+
+        self.get_components(plugin, kind)
+            .iter()
+            .map(|name| ComponentName { name: name.clone() })
+            .collect()
     }
 }
