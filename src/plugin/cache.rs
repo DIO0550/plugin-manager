@@ -1,22 +1,16 @@
 use crate::component::{Component, ComponentKind};
 use crate::error::{PlmError, Result};
+use crate::path_ext::PathExt;
 use crate::plugin::PluginManifest;
+use crate::scan::list_skill_names;
 use std::fs;
 use std::io::{Cursor, Read};
 use std::path::{Path, PathBuf};
 use zip::ZipArchive;
 
 /// コンポーネント検出用のファイル名パターン
-const SKILL_MANIFEST: &str = "SKILL.md";
 const AGENT_SUFFIX: &str = ".agent.md";
 const PROMPT_SUFFIX: &str = ".prompt.md";
-
-/// デフォルトのコンポーネントディレクトリパス
-const DEFAULT_SKILLS_DIR: &str = "skills";
-const DEFAULT_AGENTS_DIR: &str = "agents";
-const DEFAULT_COMMANDS_DIR: &str = "commands";
-const DEFAULT_INSTRUCTIONS_FILE: &str = "instructions.md";
-const DEFAULT_HOOKS_DIR: &str = "hooks";
 
 /// マニフェストファイルのパス候補（優先順）
 const MANIFEST_PATHS: &[&str] = &[".claude-plugin/plugin.json", "plugin.json"];
@@ -47,15 +41,6 @@ pub fn has_manifest(plugin_dir: &Path) -> bool {
     resolve_manifest_path(plugin_dir).is_some()
 }
 
-/// ディレクトリのエントリを読み取り、パスのリストを返す
-fn read_dir_entries(dir: &Path) -> Vec<PathBuf> {
-    fs::read_dir(dir)
-        .into_iter()
-        .flatten()
-        .flatten()
-        .map(|e| e.path())
-        .collect()
-}
 
 /// キャッシュされたプラグイン情報
 #[derive(Debug, Clone)]
@@ -131,6 +116,39 @@ impl CachedPlugin {
         self.manifest.hooks.as_deref()
     }
 
+    // =========================================================================
+    // パス解決メソッド（デメテルの法則準拠）
+    // =========================================================================
+
+    /// スキルディレクトリのパスを解決
+    pub fn skills_dir(&self) -> PathBuf {
+        self.manifest.skills_dir(&self.path)
+    }
+
+    /// エージェントディレクトリのパスを解決
+    pub fn agents_dir(&self) -> PathBuf {
+        self.manifest.agents_dir(&self.path)
+    }
+
+    /// コマンドディレクトリのパスを解決
+    pub fn commands_dir(&self) -> PathBuf {
+        self.manifest.commands_dir(&self.path)
+    }
+
+    /// インストラクションパスを解決
+    pub fn instructions_path(&self) -> PathBuf {
+        self.manifest.instructions_path(&self.path)
+    }
+
+    /// フックディレクトリのパスを解決
+    pub fn hooks_dir(&self) -> PathBuf {
+        self.manifest.hooks_dir(&self.path)
+    }
+
+    // =========================================================================
+    // スキャンメソッド
+    // =========================================================================
+
     /// プラグイン内のコンポーネントをスキャン
     pub fn components(&self) -> Vec<Component> {
         let mut components = Vec::new();
@@ -145,26 +163,15 @@ impl CachedPlugin {
     /// Skills をスキャン
     /// skills ディレクトリ配下で SKILL.md を持つディレクトリを検出
     fn scan_skills(&self) -> Vec<Component> {
-        // マニフェストで指定されたパス、またはデフォルトディレクトリを使用
-        let skills_dir = match self.skills() {
-            Some(path) => self.path.join(path),
-            None => self.path.join(DEFAULT_SKILLS_DIR),
-        };
+        let skills_dir = self.skills_dir();
 
-        if !skills_dir.is_dir() {
-            return Vec::new();
-        }
-
-        read_dir_entries(&skills_dir)
+        let names = list_skill_names(&skills_dir);
+        names
             .into_iter()
-            .filter(|path| path.is_dir() && path.join(SKILL_MANIFEST).exists())
-            .filter_map(|path| {
-                let name = path.file_name()?.to_str()?.to_string();
-                Some(Component {
-                    kind: ComponentKind::Skill,
-                    name,
-                    path,
-                })
+            .map(|name| Component {
+                kind: ComponentKind::Skill,
+                path: skills_dir.join(&name),
+                name,
             })
             .collect()
     }
@@ -172,11 +179,7 @@ impl CachedPlugin {
     /// Agents をスキャン
     /// ディレクトリなら .agent.md または .md ファイルを検出、単一ファイルならそれを1件として扱う
     fn scan_agents(&self) -> Vec<Component> {
-        // マニフェストで指定されたパス、またはデフォルトディレクトリを使用
-        let agents_dir = match self.agents() {
-            Some(path) => self.path.join(path),
-            None => self.path.join(DEFAULT_AGENTS_DIR),
-        };
+        let agents_dir = self.agents_dir();
 
         if !agents_dir.exists() {
             return Vec::new();
@@ -197,7 +200,8 @@ impl CachedPlugin {
         }
 
         // ディレクトリの場合: .agent.md または .md ファイルを検出
-        read_dir_entries(&agents_dir)
+        agents_dir
+            .read_dir_entries()
             .into_iter()
             .filter(|path| path.is_file())
             .filter_map(|path| {
@@ -222,17 +226,14 @@ impl CachedPlugin {
     /// Prompts (Commands) をスキャン
     /// commands ディレクトリ配下の .prompt.md または .md ファイルを検出
     fn scan_prompts(&self) -> Vec<Component> {
-        // マニフェストで指定されたパス、またはデフォルトディレクトリを使用
-        let commands_dir = match self.commands() {
-            Some(path) => self.path.join(path),
-            None => self.path.join(DEFAULT_COMMANDS_DIR),
-        };
+        let commands_dir = self.commands_dir();
 
         if !commands_dir.is_dir() {
             return Vec::new();
         }
 
-        read_dir_entries(&commands_dir)
+        commands_dir
+            .read_dir_entries()
             .into_iter()
             .filter(|path| path.is_file())
             .filter_map(|path| {
@@ -257,11 +258,7 @@ impl CachedPlugin {
     /// Instructions をスキャン
     /// 単一ファイルのみ検出
     fn scan_instructions(&self) -> Vec<Component> {
-        // マニフェストで指定されたパス、またはデフォルトファイルを使用
-        let path = match self.instructions() {
-            Some(instructions_path) => self.path.join(instructions_path),
-            None => self.path.join(DEFAULT_INSTRUCTIONS_FILE),
-        };
+        let path = self.instructions_path();
 
         if !path.is_file() {
             return Vec::new();
@@ -283,17 +280,14 @@ impl CachedPlugin {
     /// Hooks をスキャン
     /// hooks ディレクトリ配下のスクリプトファイルを検出
     fn scan_hooks(&self) -> Vec<Component> {
-        // マニフェストで指定されたパス、またはデフォルトディレクトリを使用
-        let hooks_dir = match self.hooks() {
-            Some(path) => self.path.join(path),
-            None => self.path.join(DEFAULT_HOOKS_DIR),
-        };
+        let hooks_dir = self.hooks_dir();
 
         if !hooks_dir.is_dir() {
             return Vec::new();
         }
 
-        read_dir_entries(&hooks_dir)
+        hooks_dir
+            .read_dir_entries()
             .into_iter()
             .filter(|path| path.is_file())
             .filter_map(|path| {

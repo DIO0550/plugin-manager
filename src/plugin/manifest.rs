@@ -1,6 +1,11 @@
 use crate::error::{PlmError, Result};
+use crate::path_ext::PathExt;
+use crate::scan::{
+    DEFAULT_AGENTS_DIR, DEFAULT_COMMANDS_DIR, DEFAULT_HOOKS_DIR, DEFAULT_INSTRUCTIONS_DIR,
+    DEFAULT_INSTRUCTIONS_FILE, DEFAULT_SKILLS_DIR,
+};
 use serde::{Deserialize, Serialize};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// プラグイン作者情報
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -79,6 +84,40 @@ impl PluginManifest {
     /// インストラクションが含まれているか
     pub fn has_instructions(&self) -> bool {
         self.instructions.is_some()
+    }
+
+    // =========================================================================
+    // パス解決メソッド
+    // =========================================================================
+
+    /// スキルディレクトリのパスを解決
+    pub fn skills_dir(&self, base: &Path) -> PathBuf {
+        base.join_or(self.skills.as_deref(), DEFAULT_SKILLS_DIR)
+    }
+
+    /// エージェントディレクトリのパスを解決
+    pub fn agents_dir(&self, base: &Path) -> PathBuf {
+        base.join_or(self.agents.as_deref(), DEFAULT_AGENTS_DIR)
+    }
+
+    /// コマンドディレクトリのパスを解決
+    pub fn commands_dir(&self, base: &Path) -> PathBuf {
+        base.join_or(self.commands.as_deref(), DEFAULT_COMMANDS_DIR)
+    }
+
+    /// インストラクションパスを解決（ファイルまたはディレクトリ）
+    pub fn instructions_path(&self, base: &Path) -> PathBuf {
+        base.join_or(self.instructions.as_deref(), DEFAULT_INSTRUCTIONS_FILE)
+    }
+
+    /// インストラクションディレクトリのパスを解決（デフォルトディレクトリ用）
+    pub fn instructions_dir(&self, base: &Path) -> PathBuf {
+        base.join_or(self.instructions.as_deref(), DEFAULT_INSTRUCTIONS_DIR)
+    }
+
+    /// フックディレクトリのパスを解決
+    pub fn hooks_dir(&self, base: &Path) -> PathBuf {
+        base.join_or(self.hooks.as_deref(), DEFAULT_HOOKS_DIR)
     }
 }
 
