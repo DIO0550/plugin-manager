@@ -6,7 +6,6 @@ use crate::error::Result;
 use crate::path_ext::PathExt;
 use crate::plugin::{has_manifest, PluginCache, PluginManifest};
 use crate::scan::list_skill_names;
-use std::collections::HashSet;
 use std::path::Path;
 
 /// プラグイン情報のサマリ（DTO）
@@ -55,35 +54,10 @@ pub fn list_installed_plugins() -> Result<Vec<PluginSummary>> {
     let plugin_list = cache.list()?;
 
     let mut plugins = Vec::new();
-    let mut seen_marketplaces = HashSet::new();
 
     for (marketplace, name) in plugin_list {
         // 隠しディレクトリやメタデータディレクトリは除外
         if name.starts_with('.') {
-            // ただし、マーケットプレイスディレクトリ自体がプラグインの場合をチェック
-            if let Some(mp) = &marketplace {
-                if !seen_marketplaces.contains(mp) {
-                    seen_marketplaces.insert(mp.clone());
-                    // マーケットプレイスルートが直接プラグインかチェック
-                    let mp_path = cache.plugin_path(Some(mp), "").parent().unwrap().to_path_buf();
-                    if has_manifest(&mp_path) {
-                        if let Ok(manifest) = cache.load_manifest(Some(mp), "") {
-                            let version = manifest.version.clone();
-                            let scan = scan_components(&mp_path, &manifest);
-                            plugins.push(PluginSummary {
-                                name: mp.clone(),
-                                marketplace: Some(mp.clone()),
-                                version,
-                                skills: scan.skills,
-                                agents: scan.agents,
-                                commands: scan.commands,
-                                instructions: scan.instructions,
-                                hooks: scan.hooks,
-                            });
-                        }
-                    }
-                }
-            }
             continue;
         }
 
@@ -96,27 +70,34 @@ pub fn list_installed_plugins() -> Result<Vec<PluginSummary>> {
 
         let manifest = match cache.load_manifest(marketplace.as_deref(), &name) {
             Ok(m) => m,
-            Err(_) => continue, // 読み込み失敗はスキップ
+            Err(_) => continue,
         };
 
-        let version = manifest.version.clone();
-
-        // コンポーネント情報を取得（マニフェストのカスタムパスを尊重）
-        let scan = scan_components(&plugin_path, &manifest);
-
-        plugins.push(PluginSummary {
-            name,
-            marketplace,
-            version,
-            skills: scan.skills,
-            agents: scan.agents,
-            commands: scan.commands,
-            instructions: scan.instructions,
-            hooks: scan.hooks,
-        });
+        plugins.push(build_summary(name, marketplace, &plugin_path, &manifest));
     }
 
     Ok(plugins)
+}
+
+/// PluginSummary を構築
+fn build_summary(
+    name: String,
+    marketplace: Option<String>,
+    plugin_path: &Path,
+    manifest: &PluginManifest,
+) -> PluginSummary {
+    let scan = scan_components(plugin_path, manifest);
+
+    PluginSummary {
+        name,
+        marketplace,
+        version: manifest.version.clone(),
+        skills: scan.skills,
+        agents: scan.agents,
+        commands: scan.commands,
+        instructions: scan.instructions,
+        hooks: scan.hooks,
+    }
 }
 
 /// スキャン結果（内部用）
