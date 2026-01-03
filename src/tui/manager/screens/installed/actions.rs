@@ -8,6 +8,7 @@ use crate::domain::placement::{ComponentRef, PlacementContext, PlacementScope, P
 use crate::plugin::PluginCache;
 use crate::target::{all_targets, PluginOrigin, Target};
 use std::env;
+use std::fs;
 use std::path::Path;
 
 /// アクション実行結果
@@ -196,7 +197,69 @@ fn remove_plugin_from_target(
         }
     }
 
+    // プラグインディレクトリを削除（コンポーネント削除後のクリーンアップ）
+    cleanup_plugin_directories(target.name(), origin, project_root);
+
     Ok(())
+}
+
+/// プラグインディレクトリをクリーンアップ
+///
+/// コンポーネント削除後に空になったプラグインディレクトリを削除する。
+fn cleanup_plugin_directories(target_name: &str, origin: &PluginOrigin, project_root: &Path) {
+    // ターゲットごとのディレクトリ構造
+    let dirs_to_check: Vec<(&str, &str)> = match target_name {
+        "codex" => vec![("agents", ".codex"), ("skills", ".codex")],
+        "copilot" => vec![
+            ("agents", ".github"),
+            ("prompts", ".github"),
+            ("skills", ".github"),
+        ],
+        _ => vec![],
+    };
+
+    for (kind_dir, base_dir) in dirs_to_check {
+        // プラグインディレクトリのパス: <base>/<kind>/<marketplace>/<plugin>/
+        let plugin_dir = project_root
+            .join(base_dir)
+            .join(kind_dir)
+            .join(&origin.marketplace)
+            .join(&origin.plugin);
+
+        // ディレクトリが存在して空なら削除
+        if plugin_dir.is_dir() {
+            if let Ok(entries) = fs::read_dir(&plugin_dir) {
+                if entries.count() == 0 {
+                    let _ = fs::remove_dir(&plugin_dir);
+                }
+            }
+        }
+
+        // マーケットプレイスディレクトリも空なら削除
+        let marketplace_dir = project_root
+            .join(base_dir)
+            .join(kind_dir)
+            .join(&origin.marketplace);
+
+        if marketplace_dir.is_dir() {
+            if let Ok(entries) = fs::read_dir(&marketplace_dir) {
+                if entries.count() == 0 {
+                    let _ = fs::remove_dir(&marketplace_dir);
+                }
+            }
+        }
+
+        // kind ディレクトリも空なら削除
+        let kind_dir_path = project_root.join(base_dir).join(kind_dir);
+
+        if kind_dir_path.is_dir() {
+            if let Ok(entries) = fs::read_dir(&kind_dir_path) {
+                if entries.count() == 0 {
+                    let _ = fs::remove_dir(&kind_dir_path);
+                }
+            }
+        }
+    }
 }
 
 /// 単一コンポーネントを削除
