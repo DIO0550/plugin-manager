@@ -316,22 +316,11 @@ pub struct PluginCache {
 
 impl PluginCache {
     /// キャッシュマネージャを初期化（ディレクトリ作成含む）
-    ///
-    /// 書き込み操作を行う場合に使用。キャッシュディレクトリが存在しない場合は作成する。
     pub fn new() -> Result<Self> {
-        let cache = Self::for_reading()?;
-        fs::create_dir_all(&cache.cache_dir)?;
-        Ok(cache)
-    }
-
-    /// 読み取り専用でキャッシュマネージャを初期化
-    ///
-    /// キャッシュディレクトリの作成を行わない。一覧取得などの読み取り操作に使用。
-    pub fn for_reading() -> Result<Self> {
         let home = std::env::var("HOME")
             .map_err(|_| PlmError::Cache("HOME environment variable not set".to_string()))?;
         let cache_dir = PathBuf::from(home).join(".plm").join("cache").join("plugins");
-
+        fs::create_dir_all(&cache_dir)?;
         Ok(Self { cache_dir })
     }
 
@@ -601,18 +590,5 @@ mod tests {
     fn test_has_manifest_returns_false_when_missing() {
         let temp_dir = TempDir::new().unwrap();
         assert!(!has_manifest(temp_dir.path()));
-    }
-
-    #[test]
-    fn test_for_reading_does_not_create_directory() {
-        // HOME環境変数を一時的に変更してテスト
-        let temp_dir = TempDir::new().unwrap();
-        let cache_dir = temp_dir.path().join("nonexistent").join(".plm").join("cache").join("plugins");
-
-        // ディレクトリが存在しないことを確認
-        assert!(!cache_dir.exists());
-
-        // for_reading を使用しても new() のようにディレクトリは作成されない
-        // (HOME環境変数を変更できないため、このテストは概念的な確認)
     }
 }

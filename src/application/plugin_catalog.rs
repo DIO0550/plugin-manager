@@ -50,9 +50,8 @@ impl PluginSummary {
 /// インストール済みプラグインの一覧を取得
 ///
 /// キャッシュディレクトリをスキャンし、有効なプラグインの一覧を返す。
-/// 読み取り専用操作のため、キャッシュディレクトリの作成は行わない。
 pub fn list_installed_plugins() -> Result<Vec<PluginSummary>> {
-    let cache = PluginCache::for_reading()?;
+    let cache = PluginCache::new()?;
     let plugin_list = cache.list()?;
 
     let mut plugins = Vec::new();
