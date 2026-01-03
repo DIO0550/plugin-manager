@@ -2,15 +2,14 @@ use crate::component::{Component, ComponentKind};
 use crate::error::{PlmError, Result};
 use crate::path_ext::PathExt;
 use crate::plugin::PluginManifest;
-use crate::scan::list_skill_names;
+use crate::scan::{
+    list_command_names, list_hook_names, list_skill_names, AGENT_SUFFIX, MARKDOWN_SUFFIX,
+    PROMPT_SUFFIX,
+};
 use std::fs;
 use std::io::{Cursor, Read};
 use std::path::{Path, PathBuf};
 use zip::ZipArchive;
-
-/// コンポーネント検出用のファイル名パターン
-const AGENT_SUFFIX: &str = ".agent.md";
-const PROMPT_SUFFIX: &str = ".prompt.md";
 
 /// マニフェストファイルのパス候補（優先順）
 const MANIFEST_PATHS: &[&str] = &[".claude-plugin/plugin.json", "plugin.json"];
@@ -209,8 +208,8 @@ impl CachedPlugin {
                 // .agent.md サフィックスを優先、なければ .md として処理
                 let name = if file_name.ends_with(AGENT_SUFFIX) {
                     file_name.trim_end_matches(AGENT_SUFFIX).to_string()
-                } else if file_name.ends_with(".md") {
-                    file_name.trim_end_matches(".md").to_string()
+                } else if file_name.ends_with(MARKDOWN_SUFFIX) {
+                    file_name.trim_end_matches(MARKDOWN_SUFFIX).to_string()
                 } else {
                     return None;
                 };
@@ -228,29 +227,23 @@ impl CachedPlugin {
     fn scan_prompts(&self) -> Vec<Component> {
         let commands_dir = self.commands_dir();
 
-        if !commands_dir.is_dir() {
-            return Vec::new();
-        }
-
-        commands_dir
-            .read_dir_entries()
+        list_command_names(&commands_dir)
             .into_iter()
-            .filter(|path| path.is_file())
-            .filter_map(|path| {
-                let file_name = path.file_name()?.to_str()?;
+            .map(|name| {
                 // .prompt.md サフィックスを優先、なければ .md として処理
-                let name = if file_name.ends_with(PROMPT_SUFFIX) {
-                    file_name.trim_end_matches(PROMPT_SUFFIX).to_string()
-                } else if file_name.ends_with(".md") {
-                    file_name.trim_end_matches(".md").to_string()
-                } else {
-                    return None;
+                let path = {
+                    let prompt_path = commands_dir.join(format!("{}{}", name, PROMPT_SUFFIX));
+                    if prompt_path.exists() {
+                        prompt_path
+                    } else {
+                        commands_dir.join(format!("{}{}", name, MARKDOWN_SUFFIX))
+                    }
                 };
-                Some(Component {
+                Component {
                     kind: ComponentKind::Command,
                     name,
                     path,
-                })
+                }
             })
             .collect()
     }
@@ -281,26 +274,34 @@ impl CachedPlugin {
     /// hooks ディレクトリ配下のスクリプトファイルを検出
     fn scan_hooks(&self) -> Vec<Component> {
         let hooks_dir = self.hooks_dir();
+        let names = list_hook_names(&hooks_dir);
 
-        if !hooks_dir.is_dir() {
+        if names.is_empty() {
             return Vec::new();
         }
 
-        hooks_dir
+        // 名前からパスへのマップを構築
+        let name_to_path: std::collections::HashMap<String, PathBuf> = hooks_dir
             .read_dir_entries()
             .into_iter()
-            .filter(|path| path.is_file())
+            .filter(|p| p.is_file())
             .filter_map(|path| {
                 let file_name = path.file_name()?.to_str()?;
-                // 拡張子を除いた名前を取得
                 let name = file_name
                     .rsplit_once('.')
                     .map(|(n, _)| n.to_string())
                     .unwrap_or_else(|| file_name.to_string());
-                Some(Component {
+                Some((name, path))
+            })
+            .collect();
+
+        names
+            .into_iter()
+            .filter_map(|name| {
+                name_to_path.get(&name).map(|path| Component {
                     kind: ComponentKind::Hook,
                     name,
-                    path,
+                    path: path.clone(),
                 })
             })
             .collect()

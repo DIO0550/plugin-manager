@@ -3,9 +3,11 @@
 //! インストール済みプラグインの一覧取得ユースケースを提供する。
 
 use crate::error::Result;
-use crate::path_ext::PathExt;
 use crate::plugin::{has_manifest, PluginCache, PluginManifest};
-use crate::scan::list_skill_names;
+use crate::scan::{
+    file_stem_name, list_agent_names, list_command_names, list_hook_names, list_markdown_names,
+    list_skill_names,
+};
 use std::path::Path;
 
 /// プラグイン情報のサマリ（DTO）
@@ -126,35 +128,7 @@ fn scan_skills(plugin_path: &Path, manifest: &PluginManifest) -> Vec<String> {
 /// 単一ファイルまたはディレクトリ内の .agent.md / .md ファイルを抽出する。
 fn scan_agents(plugin_path: &Path, manifest: &PluginManifest) -> Vec<String> {
     let agents_path = manifest.agents_dir(plugin_path);
-
-    // 単一ファイルの場合
-    if agents_path.is_file() {
-        return agents_path
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .map(|name| vec![name.to_string()])
-            .unwrap_or_default();
-    }
-
-    if !agents_path.is_dir() {
-        return Vec::new();
-    }
-
-    agents_path
-        .read_dir_entries()
-        .into_iter()
-        .filter(|path| path.is_file())
-        .filter_map(|path| {
-            let name = path.file_name()?.to_str()?;
-            if name.ends_with(".agent.md") {
-                Some(name.trim_end_matches(".agent.md").to_string())
-            } else if name.ends_with(".md") {
-                Some(name.trim_end_matches(".md").to_string())
-            } else {
-                None
-            }
-        })
-        .collect()
+    list_agent_names(&agents_path)
 }
 
 /// Commands をスキャン
@@ -162,26 +136,7 @@ fn scan_agents(plugin_path: &Path, manifest: &PluginManifest) -> Vec<String> {
 /// .prompt.md / .md ファイルを抽出する。
 fn scan_commands(plugin_path: &Path, manifest: &PluginManifest) -> Vec<String> {
     let commands_dir = manifest.commands_dir(plugin_path);
-
-    if !commands_dir.is_dir() {
-        return Vec::new();
-    }
-
-    commands_dir
-        .read_dir_entries()
-        .into_iter()
-        .filter(|path| path.is_file())
-        .filter_map(|path| {
-            let name = path.file_name()?.to_str()?;
-            if name.ends_with(".prompt.md") {
-                Some(name.trim_end_matches(".prompt.md").to_string())
-            } else if name.ends_with(".md") {
-                Some(name.trim_end_matches(".md").to_string())
-            } else {
-                None
-            }
-        })
-        .collect()
+    list_command_names(&commands_dir)
 }
 
 /// Instructions をスキャン
@@ -194,52 +149,21 @@ fn scan_instructions(plugin_path: &Path, manifest: &PluginManifest) -> Vec<Strin
         let path = plugin_path.join(path_str);
 
         if path.is_file() {
-            return path
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .map(|name| vec![name.to_string()])
+            return file_stem_name(&path)
+                .map(|name| vec![name])
                 .unwrap_or_default();
         }
 
         if path.is_dir() {
-            return path
-                .read_dir_entries()
-                .into_iter()
-                .filter(|p| p.is_file())
-                .filter_map(|p| {
-                    let name = p.file_name()?.to_str()?;
-                    if name.ends_with(".md") {
-                        Some(name.trim_end_matches(".md").to_string())
-                    } else {
-                        None
-                    }
-                })
-                .collect();
+            return list_markdown_names(&path);
         }
 
         return Vec::new();
     }
 
     // デフォルト: instructions/ ディレクトリ + AGENTS.md
-    let mut instructions = Vec::new();
-
     let instructions_dir = manifest.instructions_dir(plugin_path);
-    if instructions_dir.is_dir() {
-        instructions.extend(
-            instructions_dir
-                .read_dir_entries()
-                .into_iter()
-                .filter(|p| p.is_file())
-                .filter_map(|p| {
-                    let name = p.file_name()?.to_str()?;
-                    if name.ends_with(".md") {
-                        Some(name.trim_end_matches(".md").to_string())
-                    } else {
-                        None
-                    }
-                }),
-        );
-    }
+    let mut instructions = list_markdown_names(&instructions_dir);
 
     // ルートの AGENTS.md もチェック
     if plugin_path.join("AGENTS.md").exists() {
@@ -254,24 +178,7 @@ fn scan_instructions(plugin_path: &Path, manifest: &PluginManifest) -> Vec<Strin
 /// ファイル名から拡張子を除去して抽出する。
 fn scan_hooks(plugin_path: &Path, manifest: &PluginManifest) -> Vec<String> {
     let hooks_dir = manifest.hooks_dir(plugin_path);
-
-    if !hooks_dir.is_dir() {
-        return Vec::new();
-    }
-
-    hooks_dir
-        .read_dir_entries()
-        .into_iter()
-        .filter(|path| path.is_file())
-        .filter_map(|path| {
-            let name = path.file_name()?.to_str()?;
-            let hook_name = name
-                .rsplit_once('.')
-                .map(|(n, _)| n.to_string())
-                .unwrap_or_else(|| name.to_string());
-            Some(hook_name)
-        })
-        .collect()
+    list_hook_names(&hooks_dir)
 }
 
 // ============================================================================
