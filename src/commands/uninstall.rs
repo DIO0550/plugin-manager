@@ -1,20 +1,24 @@
-use clap::{Parser, ValueEnum};
-
-#[derive(Debug, Clone, ValueEnum)]
-pub enum TargetKind {
-    Codex,
-    Copilot,
-}
+use crate::tui::manager::screens::installed::actions::{uninstall_plugin, ActionResult};
+use clap::Parser;
 
 #[derive(Debug, Parser)]
 pub struct Args {
+    /// プラグイン名（キャッシュディレクトリ名、例: "DIO0550--cc-plugin"）
     pub name: String,
 
-    #[arg(long, value_enum)]
-    pub target: Option<TargetKind>,
+    /// マーケットプレイス（未指定なら "github"）
+    #[arg(long)]
+    pub marketplace: Option<String>,
 }
 
 pub async fn run(args: Args) -> Result<(), String> {
-    println!("uninstall: {:?}", args);
-    Err("not implemented".to_string())
+    println!("Uninstalling plugin: {}", args.name);
+
+    match uninstall_plugin(&args.name, args.marketplace.as_deref()) {
+        ActionResult::Success => {
+            println!("Plugin '{}' uninstalled successfully.", args.name);
+            Ok(())
+        }
+        ActionResult::Error(e) => Err(format!("Failed to uninstall: {}", e)),
+    }
 }

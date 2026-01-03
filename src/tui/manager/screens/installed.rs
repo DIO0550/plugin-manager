@@ -2,7 +2,7 @@
 //!
 //! インストール済みプラグインの一覧表示と詳細確認。
 
-mod actions;
+pub mod actions;
 
 use crate::tui::manager::core::{dialog_rect, ComponentKind, DataStore, PluginId, Tab};
 use crossterm::event::KeyCode;

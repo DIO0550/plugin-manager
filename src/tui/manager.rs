@@ -23,7 +23,7 @@
 //!   - `errors`: Errors タブ
 
 mod core;
-mod screens;
+pub mod screens;
 
 use core::{update, view, Model};
 use crossterm::event::{self, Event, KeyEventKind};

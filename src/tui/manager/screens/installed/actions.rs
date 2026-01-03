@@ -6,7 +6,7 @@ use crate::component::ComponentKind;
 use crate::component::Scope;
 use crate::domain::placement::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
 use crate::plugin::PluginCache;
-use crate::target::{CodexTarget, CopilotTarget, PluginOrigin, Target};
+use crate::target::{all_targets, PluginOrigin, Target};
 use std::env;
 use std::path::Path;
 
@@ -38,9 +38,10 @@ pub fn disable_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionRes
     };
 
     // プラグインのオリジン情報を作成
+    // 重要: デプロイ時はマニフェストの name を使うので、削除時も同じ値を使う
     let origin = match marketplace {
-        Some(mp) => PluginOrigin::from_marketplace(mp, plugin_name),
-        None => PluginOrigin::from_marketplace("github", plugin_name),
+        Some(mp) => PluginOrigin::from_marketplace(mp, &manifest.name),
+        None => PluginOrigin::from_marketplace("github", &manifest.name),
     };
 
     // プロジェクトルート（カレントディレクトリ）
@@ -48,10 +49,7 @@ pub fn disable_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionRes
 
     // 各ターゲットに対してコンポーネントを削除
     let mut errors = Vec::new();
-    let targets: Vec<Box<dyn Target>> = vec![
-        Box::new(CodexTarget::new()),
-        Box::new(CopilotTarget::new()),
-    ];
+    let targets = all_targets();
 
     for target in &targets {
         if let Err(e) = remove_plugin_from_target(
@@ -77,9 +75,8 @@ pub fn disable_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionRes
 /// プラグインを Uninstall（デプロイ先 + キャッシュ削除）
 pub fn uninstall_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionResult {
     // まずデプロイ先から削除
-    match disable_plugin(plugin_name, marketplace) {
-        ActionResult::Error(e) => return ActionResult::Error(e),
-        ActionResult::Success => {}
+    if let ActionResult::Error(e) = disable_plugin(plugin_name, marketplace) {
+        return ActionResult::Error(e);
     }
 
     // キャッシュから削除
