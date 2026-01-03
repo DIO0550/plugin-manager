@@ -103,4 +103,9 @@ impl DataStore {
             ComponentKind::Hooks => &plugin.hooks,
         }
     }
+
+    /// プラグインを一覧から削除
+    pub fn remove_plugin(&mut self, plugin_id: &PluginId) {
+        self.plugins.retain(|p| p.name != *plugin_id);
+    }
 }

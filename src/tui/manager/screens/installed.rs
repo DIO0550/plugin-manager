@@ -2,6 +2,8 @@
 //!
 //! インストール済みプラグインの一覧表示と詳細確認。
 
+mod actions;
+
 use crate::tui::manager::core::{dialog_rect, ComponentKind, DataStore, PluginId, Tab};
 use crossterm::event::KeyCode;
 use ratatui::prelude::*;
@@ -187,7 +189,7 @@ pub fn key_to_msg(key: KeyCode) -> Option<Msg> {
 // ============================================================================
 
 /// メッセージに応じて状態を更新
-pub fn update(model: &mut Model, msg: Msg, data: &DataStore) {
+pub fn update(model: &mut Model, msg: Msg, data: &mut DataStore) {
     match msg {
         Msg::Up => select_prev(model, data),
         Msg::Down => select_next(model, data),
@@ -227,7 +229,7 @@ fn select_next(model: &mut Model, data: &DataStore) {
 }
 
 /// 次の階層へ遷移
-fn enter(model: &mut Model, data: &DataStore) {
+fn enter(model: &mut Model, data: &mut DataStore) {
     match model {
         Model::PluginList { selected_id, .. } => {
             // PluginList → PluginDetail へ遷移
@@ -244,9 +246,49 @@ fn enter(model: &mut Model, data: &DataStore) {
         }
         Model::PluginDetail { plugin_id, state } => {
             // アクションに応じて遷移
-            let actions = DetailAction::all();
+            let detail_actions = DetailAction::all();
             let selected = state.selected().unwrap_or(0);
-            match actions.get(selected) {
+
+            // プラグイン情報を取得
+            let plugin = data.find_plugin(plugin_id).cloned();
+            let marketplace = plugin.as_ref().and_then(|p| p.marketplace.clone());
+
+            match detail_actions.get(selected) {
+                Some(DetailAction::DisablePlugin) => {
+                    // Disable: デプロイ先から削除、キャッシュは残す
+                    let result =
+                        actions::disable_plugin(plugin_id, marketplace.as_deref());
+                    match result {
+                        actions::ActionResult::Success => {
+                            // 成功 - ステータス表示を更新（TODO: 実装）
+                        }
+                        actions::ActionResult::Error(e) => {
+                            data.last_error = Some(e);
+                        }
+                    }
+                }
+                Some(DetailAction::Uninstall) => {
+                    // Uninstall: デプロイ先 + キャッシュ削除
+                    let result =
+                        actions::uninstall_plugin(plugin_id, marketplace.as_deref());
+                    match result {
+                        actions::ActionResult::Success => {
+                            // 成功 - プラグインを一覧から削除して PluginList に戻る
+                            data.remove_plugin(plugin_id);
+                            let mut new_state = ListState::default();
+                            if !data.plugins.is_empty() {
+                                new_state.select(Some(0));
+                            }
+                            *model = Model::PluginList {
+                                selected_id: data.plugins.first().map(|p| p.name.clone()),
+                                state: new_state,
+                            };
+                        }
+                        actions::ActionResult::Error(e) => {
+                            data.last_error = Some(e);
+                        }
+                    }
+                }
                 Some(DetailAction::ViewComponents) => {
                     // ComponentTypes に遷移
                     let mut new_state = ListState::default();

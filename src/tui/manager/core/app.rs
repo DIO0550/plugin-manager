@@ -200,7 +200,7 @@ pub fn update(model: &mut Model, msg: Msg) {
         }
         Msg::Installed(msg) => {
             if let Screen::Installed(m) = &mut model.screen {
-                installed::update(m, msg, &model.data);
+                installed::update(m, msg, &mut model.data);
             }
         }
         Msg::Discover(msg) => {
