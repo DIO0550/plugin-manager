@@ -135,4 +135,20 @@ mod tests {
         // GitHubクライアントは生成できる
         let _client = factory.create(HostKind::GitHub);
     }
+
+    // === 境界値テスト ===
+
+    #[test]
+    #[should_panic(expected = "GitLab is not yet supported")]
+    fn test_factory_gitlab_panics() {
+        let factory = HostClientFactory::with_defaults();
+        let _client = factory.create(HostKind::GitLab);
+    }
+
+    #[test]
+    #[should_panic(expected = "Bitbucket is not yet supported")]
+    fn test_factory_bitbucket_panics() {
+        let factory = HostClientFactory::with_defaults();
+        let _client = factory.create(HostKind::Bitbucket);
+    }
 }

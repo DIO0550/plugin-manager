@@ -489,4 +489,408 @@ mod tests {
         let path = Path::new("/path/to/file");
         assert_eq!(file_stem_name(path), Some("file".to_string()));
     }
+
+    // =========================================================================
+    // 境界値テスト: list_skill_names
+    // =========================================================================
+
+    #[test]
+    fn test_list_skill_names_lowercase_skill_md() {
+        // skill.md（小文字）は SKILL.md として認識されない
+        let temp_dir = TempDir::new().unwrap();
+        let skills_dir = temp_dir.path();
+
+        let skill = skills_dir.join("skill1");
+        fs::create_dir(&skill).unwrap();
+        fs::write(skill.join("skill.md"), "# Skill").unwrap(); // 小文字
+
+        let names = list_skill_names(skills_dir);
+        assert!(names.is_empty());
+    }
+
+    #[test]
+    fn test_list_skill_names_mixed_case_skill_md() {
+        // Skill.md（混在）は SKILL.md として認識されない
+        let temp_dir = TempDir::new().unwrap();
+        let skills_dir = temp_dir.path();
+
+        let skill = skills_dir.join("skill1");
+        fs::create_dir(&skill).unwrap();
+        fs::write(skill.join("Skill.md"), "# Skill").unwrap();
+
+        let names = list_skill_names(skills_dir);
+        assert!(names.is_empty());
+    }
+
+    #[test]
+    fn test_list_skill_names_ignores_files() {
+        // ファイルは無視される（ディレクトリのみ）
+        let temp_dir = TempDir::new().unwrap();
+        let skills_dir = temp_dir.path();
+
+        fs::write(skills_dir.join("SKILL.md"), "# Skill").unwrap();
+
+        let names = list_skill_names(skills_dir);
+        assert!(names.is_empty());
+    }
+
+    // =========================================================================
+    // 境界値テスト: list_agent_names
+    // =========================================================================
+
+    #[test]
+    fn test_list_agent_names_duplicate_names() {
+        // .agent.md と .md が同名で共存する場合
+        let temp_dir = TempDir::new().unwrap();
+        let agents_dir = temp_dir.path();
+
+        fs::write(agents_dir.join("test.agent.md"), "# Agent").unwrap();
+        fs::write(agents_dir.join("test.md"), "# Agent").unwrap();
+
+        let mut names = list_agent_names(agents_dir);
+        names.sort();
+
+        // 両方とも "test" として抽出される（重複）
+        assert_eq!(names, vec!["test", "test"]);
+    }
+
+    #[test]
+    fn test_list_agent_names_uppercase_md() {
+        // 拡張子大文字 (.MD) は認識されない
+        let temp_dir = TempDir::new().unwrap();
+        let agents_dir = temp_dir.path();
+
+        fs::write(agents_dir.join("test.agent.MD"), "# Agent").unwrap();
+
+        let names = list_agent_names(agents_dir);
+        assert!(names.is_empty());
+    }
+
+    #[test]
+    fn test_list_agent_names_hidden_file() {
+        // 隠しファイル (.hidden.md) も通常通り処理される
+        let temp_dir = TempDir::new().unwrap();
+        let agents_dir = temp_dir.path();
+
+        fs::write(agents_dir.join(".hidden.md"), "# Hidden Agent").unwrap();
+
+        let names = list_agent_names(agents_dir);
+        assert_eq!(names, vec![".hidden"]);
+    }
+
+    #[test]
+    fn test_list_agent_names_ignores_directories() {
+        // ディレクトリは無視される
+        let temp_dir = TempDir::new().unwrap();
+        let agents_dir = temp_dir.path();
+
+        let subdir = agents_dir.join("subdir.agent.md");
+        fs::create_dir(&subdir).unwrap();
+
+        let names = list_agent_names(agents_dir);
+        assert!(names.is_empty());
+    }
+
+    // =========================================================================
+    // 境界値テスト: list_command_names
+    // =========================================================================
+
+    #[test]
+    fn test_list_command_names_duplicate_names() {
+        // .prompt.md と .md が同名で共存する場合
+        let temp_dir = TempDir::new().unwrap();
+        let commands_dir = temp_dir.path();
+
+        fs::write(commands_dir.join("cmd.prompt.md"), "# Command").unwrap();
+        fs::write(commands_dir.join("cmd.md"), "# Command").unwrap();
+
+        let mut names = list_command_names(commands_dir);
+        names.sort();
+
+        assert_eq!(names, vec!["cmd", "cmd"]);
+    }
+
+    #[test]
+    fn test_list_command_names_uppercase_extension() {
+        // .PROMPT.MD は認識されない
+        let temp_dir = TempDir::new().unwrap();
+        let commands_dir = temp_dir.path();
+
+        fs::write(commands_dir.join("test.PROMPT.MD"), "# Command").unwrap();
+
+        let names = list_command_names(commands_dir);
+        assert!(names.is_empty());
+    }
+
+    // =========================================================================
+    // 境界値テスト: list_hook_names
+    // =========================================================================
+
+    #[test]
+    fn test_list_hook_names_dot_file() {
+        // .env のようなドットファイルは拡張子除去で空名になる
+        let temp_dir = TempDir::new().unwrap();
+        let hooks_dir = temp_dir.path();
+
+        fs::write(hooks_dir.join(".env"), "KEY=VALUE").unwrap();
+
+        let names = list_hook_names(hooks_dir);
+        // rsplit_once('.') で ("", "env") となり、空文字が返る
+        assert_eq!(names, vec![""]);
+    }
+
+    #[test]
+    fn test_list_hook_names_trailing_dot() {
+        // 末尾ドット (file.) の扱い
+        let temp_dir = TempDir::new().unwrap();
+        let hooks_dir = temp_dir.path();
+
+        fs::write(hooks_dir.join("file."), "content").unwrap();
+
+        let names = list_hook_names(hooks_dir);
+        // rsplit_once('.') で ("file", "") となる
+        assert_eq!(names, vec!["file"]);
+    }
+
+    #[test]
+    fn test_list_hook_names_only_extension() {
+        // .gitignore のような純粋なドットファイル
+        let temp_dir = TempDir::new().unwrap();
+        let hooks_dir = temp_dir.path();
+
+        fs::write(hooks_dir.join(".gitignore"), "*.log").unwrap();
+
+        let names = list_hook_names(hooks_dir);
+        assert_eq!(names, vec![""]);
+    }
+
+    #[test]
+    fn test_list_hook_names_hidden_with_extension() {
+        // .hidden.sh のような隠しファイル
+        let temp_dir = TempDir::new().unwrap();
+        let hooks_dir = temp_dir.path();
+
+        fs::write(hooks_dir.join(".hidden.sh"), "#!/bin/bash").unwrap();
+
+        let names = list_hook_names(hooks_dir);
+        assert_eq!(names, vec![".hidden"]);
+    }
+
+    // =========================================================================
+    // 境界値テスト: list_markdown_names
+    // =========================================================================
+
+    #[test]
+    fn test_list_markdown_names_uppercase_md() {
+        // .MD は認識されない
+        let temp_dir = TempDir::new().unwrap();
+        let dir = temp_dir.path();
+
+        fs::write(dir.join("README.MD"), "# Readme").unwrap();
+
+        let names = list_markdown_names(dir);
+        assert!(names.is_empty());
+    }
+
+    #[test]
+    fn test_list_markdown_names_mixed_case() {
+        // .Md は認識されない
+        let temp_dir = TempDir::new().unwrap();
+        let dir = temp_dir.path();
+
+        fs::write(dir.join("readme.Md"), "# Readme").unwrap();
+
+        let names = list_markdown_names(dir);
+        assert!(names.is_empty());
+    }
+
+    #[test]
+    fn test_list_markdown_names_hidden_md() {
+        // 隠しMarkdownファイル
+        let temp_dir = TempDir::new().unwrap();
+        let dir = temp_dir.path();
+
+        fs::write(dir.join(".hidden.md"), "# Hidden").unwrap();
+
+        let names = list_markdown_names(dir);
+        assert_eq!(names, vec![".hidden"]);
+    }
+
+    // =========================================================================
+    // 境界値テスト: file_stem_name
+    // =========================================================================
+
+    #[test]
+    fn test_file_stem_name_dot_file() {
+        // .gitignore の file_stem は ".gitignore"（隠しファイルとして扱われ、拡張子なし）
+        let path = Path::new(".gitignore");
+        // Rust の file_stem は先頭ドット付きのファイルを拡張子なしとして扱う
+        assert_eq!(file_stem_name(path), Some(".gitignore".to_string()));
+    }
+
+    #[test]
+    fn test_file_stem_name_double_extension() {
+        // .tar.gz のような二重拡張子
+        let path = Path::new("archive.tar.gz");
+        // file_stem は "archive.tar" を返す
+        assert_eq!(file_stem_name(path), Some("archive.tar".to_string()));
+    }
+
+    #[test]
+    fn test_file_stem_name_trailing_dot() {
+        // 末尾ドット
+        let path = Path::new("file.");
+        assert_eq!(file_stem_name(path), Some("file".to_string()));
+    }
+}
+
+#[cfg(test)]
+mod proptests {
+    use super::*;
+    use proptest::prelude::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    /// 有効なファイル名に使える文字列（英数字、ハイフン、アンダースコア）
+    fn valid_name_strategy() -> impl Strategy<Value = String> {
+        "[a-zA-Z][a-zA-Z0-9_-]{0,15}".prop_map(|s| s)
+    }
+
+    proptest! {
+        /// list_agent_names は .agent.md サフィックスを除去する
+        #[test]
+        fn prop_list_agent_names_removes_agent_suffix(
+            name in valid_name_strategy()
+        ) {
+            let temp_dir = TempDir::new().unwrap();
+            let agents_dir = temp_dir.path();
+
+            let filename = format!("{}.agent.md", name);
+            fs::write(agents_dir.join(&filename), "# Agent").unwrap();
+
+            let names = list_agent_names(agents_dir);
+
+            prop_assert_eq!(names.len(), 1);
+            prop_assert_eq!(&names[0], &name);
+            // サフィックスが残っていないことを確認
+            prop_assert!(!names[0].ends_with(".agent.md"));
+            prop_assert!(!names[0].ends_with(".md"));
+        }
+
+        /// list_agent_names は .md サフィックスを除去する
+        #[test]
+        fn prop_list_agent_names_removes_md_suffix(
+            name in valid_name_strategy()
+        ) {
+            let temp_dir = TempDir::new().unwrap();
+            let agents_dir = temp_dir.path();
+
+            let filename = format!("{}.md", name);
+            fs::write(agents_dir.join(&filename), "# Agent").unwrap();
+
+            let names = list_agent_names(agents_dir);
+
+            prop_assert_eq!(names.len(), 1);
+            prop_assert_eq!(&names[0], &name);
+            prop_assert!(!names[0].ends_with(".md"));
+        }
+
+        /// list_command_names は .prompt.md サフィックスを除去する
+        #[test]
+        fn prop_list_command_names_removes_prompt_suffix(
+            name in valid_name_strategy()
+        ) {
+            let temp_dir = TempDir::new().unwrap();
+            let commands_dir = temp_dir.path();
+
+            let filename = format!("{}.prompt.md", name);
+            fs::write(commands_dir.join(&filename), "# Command").unwrap();
+
+            let names = list_command_names(commands_dir);
+
+            prop_assert_eq!(names.len(), 1);
+            prop_assert_eq!(&names[0], &name);
+            prop_assert!(!names[0].ends_with(".prompt.md"));
+            prop_assert!(!names[0].ends_with(".md"));
+        }
+
+        /// list_hook_names は最後の拡張子のみを除去する
+        #[test]
+        fn prop_list_hook_names_removes_only_last_extension(
+            name in valid_name_strategy(),
+            ext in "[a-z]{2,4}"
+        ) {
+            let temp_dir = TempDir::new().unwrap();
+            let hooks_dir = temp_dir.path();
+
+            let filename = format!("{}.{}", name, ext);
+            fs::write(hooks_dir.join(&filename), "#!/bin/bash").unwrap();
+
+            let names = list_hook_names(hooks_dir);
+
+            prop_assert_eq!(names.len(), 1);
+            prop_assert_eq!(&names[0], &name);
+            // 拡張子が除去されていることを確認
+            let ext_suffix = format!(".{}", ext);
+            prop_assert!(!names[0].ends_with(&ext_suffix));
+        }
+
+        /// list_hook_names は複数ドットがあっても最後の拡張子のみ除去
+        #[test]
+        fn prop_list_hook_names_preserves_multiple_dots(
+            base in valid_name_strategy(),
+            middle in valid_name_strategy(),
+            ext in "[a-z]{2,4}"
+        ) {
+            let temp_dir = TempDir::new().unwrap();
+            let hooks_dir = temp_dir.path();
+
+            // name.middle.ext 形式
+            let filename = format!("{}.{}.{}", base, middle, ext);
+            fs::write(hooks_dir.join(&filename), "#!/bin/bash").unwrap();
+
+            let names = list_hook_names(hooks_dir);
+
+            prop_assert_eq!(names.len(), 1);
+            // base.middle が残る
+            let expected = format!("{}.{}", base, middle);
+            prop_assert_eq!(&names[0], &expected);
+        }
+
+        /// list_markdown_names は .md サフィックスを除去する
+        #[test]
+        fn prop_list_markdown_names_removes_md_suffix(
+            name in valid_name_strategy()
+        ) {
+            let temp_dir = TempDir::new().unwrap();
+            let dir = temp_dir.path();
+
+            let filename = format!("{}.md", name);
+            fs::write(dir.join(&filename), "# Markdown").unwrap();
+
+            let names = list_markdown_names(dir);
+
+            prop_assert_eq!(names.len(), 1);
+            prop_assert_eq!(&names[0], &name);
+            prop_assert!(!names[0].ends_with(".md"));
+        }
+
+        /// list_skill_names は SKILL.md を持つディレクトリ名を返す
+        #[test]
+        fn prop_list_skill_names_returns_dir_names(
+            name in valid_name_strategy()
+        ) {
+            let temp_dir = TempDir::new().unwrap();
+            let skills_dir = temp_dir.path();
+
+            let skill_dir = skills_dir.join(&name);
+            fs::create_dir(&skill_dir).unwrap();
+            fs::write(skill_dir.join("SKILL.md"), "# Skill").unwrap();
+
+            let names = list_skill_names(skills_dir);
+
+            prop_assert_eq!(names.len(), 1);
+            prop_assert_eq!(&names[0], &name);
+        }
+    }
 }
