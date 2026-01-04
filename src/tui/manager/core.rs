@@ -12,4 +12,4 @@ mod data;
 
 pub use app::{update, view, Model, Tab};
 pub use common::dialog_rect;
-pub use data::{ComponentKind, DataStore, PluginId};
+pub use data::{DataStore, PluginId};

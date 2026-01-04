@@ -4,10 +4,22 @@
 
 pub mod actions;
 
-use crate::tui::manager::core::{dialog_rect, ComponentKind, DataStore, PluginId, Tab};
+use crate::component::ComponentKind;
+use crate::tui::manager::core::{dialog_rect, DataStore, PluginId, Tab};
 use crossterm::event::KeyCode;
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Tabs};
+
+/// ComponentKind の表示用タイトルを取得（複数形）
+fn component_kind_title(kind: ComponentKind) -> &'static str {
+    match kind {
+        ComponentKind::Skill => "Skills",
+        ComponentKind::Agent => "Agents",
+        ComponentKind::Command => "Commands",
+        ComponentKind::Instruction => "Instructions",
+        ComponentKind::Hook => "Hooks",
+    }
+}
 
 // ============================================================================
 // CacheState（タブ切替時の保持状態）
@@ -320,9 +332,10 @@ fn enter(model: &mut Model, data: &mut DataStore) {
             ..
         } => {
             if let Some(plugin) = data.find_plugin(plugin_id) {
-                let kinds = data.available_component_kinds(plugin);
+                let counts = data.available_component_kinds(plugin);
                 let selected_idx = state.selected().unwrap_or(0);
-                if let Some(&kind) = kinds.get(selected_idx) {
+                if let Some(count) = counts.get(selected_idx) {
+                    let kind = count.kind;
                     let components = data.component_names(plugin, kind);
                     if !components.is_empty() {
                         let mut new_state = ListState::default();
@@ -612,10 +625,10 @@ fn view_component_types(
         return;
     };
 
-    let kinds = data.available_component_kinds(plugin);
+    let counts = data.available_component_kinds(plugin);
     let has_marketplace = plugin.marketplace.is_some();
     let base_lines = if has_marketplace { 4 } else { 3 };
-    let type_lines = if kinds.is_empty() { 1 } else { kinds.len() };
+    let type_lines = if counts.is_empty() { 1 } else { counts.len() };
     let content_height = (base_lines + type_lines) as u16 + 4;
     let dialog_width = 55u16;
     let dialog_height = content_height.min(15);
@@ -630,7 +643,7 @@ fn view_component_types(
 
     let title = format!(" {} ", plugin.name);
 
-    if kinds.is_empty() {
+    if counts.is_empty() {
         // コンポーネントがない場合
         let mut lines = Vec::new();
         lines.push(format!("  Version: {}", plugin.version));
@@ -645,11 +658,10 @@ fn view_component_types(
         f.render_widget(paragraph, chunks[0]);
     } else {
         // コンポーネントがある場合
-        let items: Vec<ListItem> = kinds
+        let items: Vec<ListItem> = counts
             .iter()
-            .map(|kind| {
-                let count = data.component_names(plugin, *kind).len();
-                let text = format!("  {} ({})", kind.title(), count);
+            .map(|count| {
+                let text = format!("  {} ({})", count.title(), count.count);
                 ListItem::new(text)
             })
             .collect();
@@ -667,7 +679,7 @@ fn view_component_types(
     }
 
     // ヘルプ
-    let help_text = if kinds.is_empty() {
+    let help_text = if counts.is_empty() {
         " Esc: back | q: quit"
     } else {
         " up/down: move | Enter: open | Esc: back | q: quit"
@@ -691,7 +703,7 @@ fn view_component_list(
     let components = data.component_names(plugin, kind);
     let items: Vec<ListItem> = components
         .iter()
-        .map(|c| ListItem::new(format!("  {}", c)))
+        .map(|c| ListItem::new(format!("  {}", c.name)))
         .collect();
 
     let content_height = (components.len() as u16).max(1) + 4;
@@ -709,7 +721,7 @@ fn view_component_list(
     let title = format!(
         " {} > {} ({}) ",
         plugin.name,
-        kind.title(),
+        component_kind_title(kind),
         components.len()
     );
     let list = List::new(items)

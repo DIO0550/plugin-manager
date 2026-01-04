@@ -1,8 +1,10 @@
 //! 共有データストア
 //!
 //! 全タブで共有されるデータを一元管理する。
+//! Application層のDTOのみを保持する。
 
 use crate::application::{list_installed_plugins, PluginSummary};
+use crate::component::{ComponentKind, ComponentName, ComponentTypeCount};
 use std::io;
 
 // ============================================================================
@@ -11,28 +13,6 @@ use std::io;
 
 /// プラグインID（リポジトリ名で識別）
 pub type PluginId = String;
-
-/// コンポーネント種別
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ComponentKind {
-    Skills,
-    Agents,
-    Commands,
-    Instructions,
-    Hooks,
-}
-
-impl ComponentKind {
-    pub fn title(&self) -> &'static str {
-        match self {
-            ComponentKind::Skills => "Skills",
-            ComponentKind::Agents => "Agents",
-            ComponentKind::Commands => "Commands",
-            ComponentKind::Instructions => "Instructions",
-            ComponentKind::Hooks => "Hooks",
-        }
-    }
-}
 
 // ============================================================================
 // DataStore（共有データストア）
@@ -69,39 +49,13 @@ impl DataStore {
     }
 
     /// プラグインの空でないコンポーネント種別を取得
-    pub fn available_component_kinds(&self, plugin: &PluginSummary) -> Vec<ComponentKind> {
-        let mut kinds = Vec::new();
-        if !plugin.skills.is_empty() {
-            kinds.push(ComponentKind::Skills);
-        }
-        if !plugin.agents.is_empty() {
-            kinds.push(ComponentKind::Agents);
-        }
-        if !plugin.commands.is_empty() {
-            kinds.push(ComponentKind::Commands);
-        }
-        if !plugin.instructions.is_empty() {
-            kinds.push(ComponentKind::Instructions);
-        }
-        if !plugin.hooks.is_empty() {
-            kinds.push(ComponentKind::Hooks);
-        }
-        kinds
+    pub fn available_component_kinds(&self, plugin: &PluginSummary) -> Vec<ComponentTypeCount> {
+        plugin.component_type_counts()
     }
 
     /// コンポーネント種別に応じたコンポーネント名一覧を取得
-    pub fn component_names<'a>(
-        &self,
-        plugin: &'a PluginSummary,
-        kind: ComponentKind,
-    ) -> &'a Vec<String> {
-        match kind {
-            ComponentKind::Skills => &plugin.skills,
-            ComponentKind::Agents => &plugin.agents,
-            ComponentKind::Commands => &plugin.commands,
-            ComponentKind::Instructions => &plugin.instructions,
-            ComponentKind::Hooks => &plugin.hooks,
-        }
+    pub fn component_names(&self, plugin: &PluginSummary, kind: ComponentKind) -> Vec<ComponentName> {
+        plugin.component_names(kind)
     }
 
     /// プラグインを一覧から削除
