@@ -154,7 +154,7 @@ plm pack
 | Environment | Skills | Agents | Prompts | Instructions |
 |-------------|:------:|:------:|:-------:|:------------:|
 | OpenAI Codex | Yes | - | - | Yes |
-| VSCode Copilot | - | Yes | Yes | Yes |
+| VSCode Copilot | Yes | Yes | Yes | Yes |
 
 ## Configuration
 

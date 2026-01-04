@@ -154,7 +154,7 @@ plm pack
 | 環境 | Skills | Agents | Prompts | Instructions |
 |------|:------:|:------:|:-------:|:------------:|
 | OpenAI Codex | 対応 | - | - | 対応 |
-| VSCode Copilot | - | 対応 | 対応 | 対応 |
+| VSCode Copilot | 対応 | 対応 | 対応 | 対応 |
 
 ## 設定
 

@@ -64,7 +64,7 @@ cargo deny check
 | 環境 | Skills | Agents | Prompts | Instructions |
 |------------|--------|--------|---------|--------------|
 | OpenAI Codex | ○ | × | × | ○ |
-| VSCode Copilot | × | ○ | ○ | ○ |
+| VSCode Copilot | ○ | ○ | ○ | ○ |
 
 **Component Trait** - コンポーネントタイプを抽象化：
 - Skills: YAMLフロントマター付き `SKILL.md`
