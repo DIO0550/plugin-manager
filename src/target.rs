@@ -21,9 +21,11 @@
 
 mod codex;
 mod copilot;
+mod effect;
 
 pub use codex::CodexTarget;
 pub use copilot::CopilotTarget;
+pub use effect::{AffectedTargets, OperationResult, TargetEffect, TargetError};
 // PluginOrigin はモジュール内で定義されているのでここでは再エクスポート不要
 
 use crate::component::ComponentKind;

@@ -3,11 +3,38 @@
 ## コミュニケーション
 - 応答は日本語で行います。
 
+## 役割と作業方針
+- 役割はレビューアーです。
+- レビュー結果は `docs/` 配下に書き出します。
+- 原則として Rust のファイルは変更しません。
+
 ## プロジェクト構成とモジュール配置
 - `src/main.rs` がCLIの入口、`src/cli.rs` がClapの引数定義です。
 - サブコマンドは `src/commands/` 配下に配置します（例: `install.rs`, `list.rs`, `update.rs`）。
 - 設計メモは `docs/` にあります（参考: `docs/plm-plan.md`）。
 - ライセンス/コンプライアンス関連は `about.toml`, `about.md.hbs`, `deny.toml` で管理しています。
+
+### モジュール構成方針（Feature ベース）
+レイヤーベース（domain/, application/, infrastructure/）ではなく、**Feature ベース**のモジュール構成を採用する。
+
+```
+src/
+├── target/           # Target 関連の全て
+│   ├── codex.rs      # Codex ターゲット実装
+│   ├── copilot.rs    # Copilot ターゲット実装
+│   └── effect.rs     # ターゲット操作の結果（値オブジェクト）
+├── plugin/           # Plugin 関連の全て
+│   ├── cache.rs      # キャッシュ管理
+│   └── manifest.rs   # マニフェスト
+└── component/        # Component 関連の全て
+    ├── kind.rs       # コンポーネント種別
+    └── deployment.rs # デプロイメント
+```
+
+**原則:**
+- 機能（Feature）単位でモジュールを分ける
+- 値オブジェクト、エンティティ、サービスは関連する Feature に配置
+- レイヤー分離よりも凝集度を優先
 
 ## ビルド・テスト・開発コマンド
 - `cargo build`: デバッグビルド。

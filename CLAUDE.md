@@ -112,6 +112,32 @@ pub use github::GitHubSource;
 pub struct GitHubSource { ... }
 ```
 
+### モジュール構成方針（Feature ベース）
+
+レイヤーベース（domain/, application/, infrastructure/）ではなく、
+**Feature ベース**のモジュール構成を採用する。
+
+関連する機能は同じモジュール/フォルダにまとめる：
+
+```
+src/
+├── target/           # Target 関連の全て
+│   ├── codex.rs      # Codex ターゲット実装
+│   ├── copilot.rs    # Copilot ターゲット実装
+│   └── effect.rs     # ターゲット操作の結果（値オブジェクト）
+├── plugin/           # Plugin 関連の全て
+│   ├── cache.rs      # キャッシュ管理
+│   └── manifest.rs   # マニフェスト
+└── component/        # Component 関連の全て
+    ├── kind.rs       # コンポーネント種別
+    └── deployment.rs # デプロイメント
+```
+
+**原則:**
+- 機能（Feature）単位でモジュールを分ける
+- 値オブジェクト、エンティティ、サービスは関連する Feature に配置
+- レイヤー分離よりも凝集度を優先
+
 ## 仕様ドキュメント
 
 詳細な仕様・実装計画は `docs/` フォルダを参照：
