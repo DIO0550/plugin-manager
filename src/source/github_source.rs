@@ -16,6 +16,9 @@ pub struct GitHubSource {
     repo: Repo,
     /// マーケットプレイス経由の場合はその名前
     marketplace: Option<String>,
+    /// 抽出するサブディレクトリ（正規化済み）
+    /// マーケットプレイス内の Local プラグイン用
+    subdir: Option<String>,
 }
 
 impl GitHubSource {
@@ -23,6 +26,7 @@ impl GitHubSource {
         Self {
             repo,
             marketplace: None,
+            subdir: None,
         }
     }
 
@@ -31,6 +35,17 @@ impl GitHubSource {
         Self {
             repo,
             marketplace: Some(marketplace),
+            subdir: None,
+        }
+    }
+
+    /// マーケットプレイス経由 + サブディレクトリ指定でのソース作成
+    /// Local プラグイン専用: marketplace と subdir は両方必須
+    pub fn with_marketplace_and_subdir(repo: Repo, marketplace: String, subdir: String) -> Self {
+        Self {
+            repo,
+            marketplace: Some(marketplace),
+            subdir: Some(subdir),
         }
     }
 }
@@ -83,7 +98,7 @@ impl PluginSource for GitHubSource {
 
             // キャッシュに保存
             println!("Extracting to cache...");
-            cache.store_from_archive(marketplace, &cache_name, &archive)?;
+            cache.store_from_archive(marketplace, &cache_name, &archive, self.subdir.as_deref())?;
 
             // マニフェスト読み込み
             let manifest = cache.load_manifest(marketplace, &cache_name)?;

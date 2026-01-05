@@ -8,7 +8,7 @@ use crate::scan::{
 };
 use std::fs;
 use std::io::{Cursor, Read};
-use std::path::{Path, PathBuf};
+use std::path::{Component as PathComponent, Path, PathBuf};
 use zip::ZipArchive;
 
 /// マニフェストファイルのパス候補（優先順）
@@ -352,12 +352,39 @@ impl PluginCache {
     /// * `marketplace` - マーケットプレイス名（None の場合は "github" を使用）
     /// * `name` - プラグイン名またはリポジトリ識別子
     /// * `archive` - zipアーカイブのバイト列
+    /// * `subdir` - 抽出するサブディレクトリ（正規化済み、例: "plugins/my-plugin"）
+    ///              指定時はサブディレクトリの内容のみをキャッシュ直下に展開
     pub fn store_from_archive(
         &self,
         marketplace: Option<&str>,
         name: &str,
         archive: &[u8],
+        subdir: Option<&str>,
     ) -> Result<PathBuf> {
+        // subdir の防御的検証（正規化は行わない、呼び出し元の責務）
+        if let Some(sd) = subdir {
+            if sd.contains("..") {
+                return Err(PlmError::InvalidSource(
+                    "subdir is not normalized: contains '..'".into(),
+                ));
+            }
+            if sd.contains('\\') {
+                return Err(PlmError::InvalidSource(
+                    "subdir is not normalized: contains backslash".into(),
+                ));
+            }
+            if sd.contains("./") || sd.starts_with('.') {
+                return Err(PlmError::InvalidSource(
+                    "subdir is not normalized: contains './' or starts with '.'".into(),
+                ));
+            }
+            if Path::new(sd).is_absolute() {
+                return Err(PlmError::InvalidSource(
+                    "subdir is not normalized: absolute path".into(),
+                ));
+            }
+        }
+
         let plugin_dir = self.plugin_path(marketplace, name);
 
         // 既存のキャッシュがあれば削除
@@ -383,24 +410,79 @@ impl PluginCache {
             String::new()
         };
 
+        // subdir 抽出時のエラートラッキング
+        let mut subdir_prefix_hit = false;
+        let mut _files_extracted = 0usize;
+        let mut entries_skipped_for_security = 0usize;
+
         // 各ファイルを展開
         for i in 0..zip.len() {
             let mut file = zip.by_index(i)?;
             let file_path = file.name();
 
+            // バックスラッシュをスラッシュに正規化（zip内の\区切りエントリ対応）
+            let file_path_normalized = file_path.replace('\\', "/");
+
             // プレフィックスを除去したパスを作成
-            let relative_path = if !prefix.is_empty() && file_path.starts_with(&prefix) {
-                &file_path[prefix.len()..]
-            } else {
-                file_path
-            };
+            let relative_path =
+                if !prefix.is_empty() && file_path_normalized.starts_with(&prefix) {
+                    &file_path_normalized[prefix.len()..]
+                } else {
+                    &file_path_normalized[..]
+                };
 
             // 空のパス（ルートディレクトリ）はスキップ
             if relative_path.is_empty() {
                 continue;
             }
 
-            let target_path = plugin_dir.join(relative_path);
+            // subdir が指定されている場合、サブディレクトリのみを抽出
+            let final_path = if let Some(sd) = subdir {
+                let relative_path_obj = Path::new(relative_path);
+                let subdir_path = Path::new(sd);
+
+                // strip_prefix でパス要素単位の一致判定
+                match relative_path_obj.strip_prefix(subdir_path) {
+                    Ok(stripped) => {
+                        subdir_prefix_hit = true;
+
+                        // strip_prefix 後の空パス（ディレクトリエントリ自体）はスキップ
+                        if stripped.as_os_str().is_empty() {
+                            continue;
+                        }
+
+                        // zip-slip 対策: Normal コンポーネントのみ許容
+                        let has_unsafe_component =
+                            stripped.components().any(|c| !matches!(c, PathComponent::Normal(_)));
+                        if has_unsafe_component {
+                            entries_skipped_for_security += 1;
+                            continue;
+                        }
+
+                        // symlink 対策（subdir 抽出時のみ）
+                        #[cfg(unix)]
+                        {
+                            if let Some(mode) = file.unix_mode() {
+                                // S_IFLNK = 0o120000
+                                if (mode & 0o170000) == 0o120000 {
+                                    entries_skipped_for_security += 1;
+                                    continue;
+                                }
+                            }
+                        }
+
+                        stripped.to_path_buf()
+                    }
+                    Err(_) => {
+                        // subdir にマッチしない → スキップ
+                        continue;
+                    }
+                }
+            } else {
+                PathBuf::from(relative_path)
+            };
+
+            let target_path = plugin_dir.join(&final_path);
 
             if file.is_dir() {
                 fs::create_dir_all(&target_path)?;
@@ -414,7 +496,27 @@ impl PluginCache {
                 let mut content = Vec::new();
                 file.read_to_end(&mut content)?;
                 fs::write(&target_path, content)?;
+                _files_extracted += 1;
             }
+        }
+
+        // subdir 指定時のエラーチェック
+        if subdir.is_some() {
+            if entries_skipped_for_security > 0 {
+                // セキュリティ理由でスキップされたエントリがあれば全体をエラー
+                return Err(PlmError::InvalidSource(format!(
+                    "{} entries in subdir were skipped for security reasons (possible zip-slip or symlink)",
+                    entries_skipped_for_security
+                )));
+            }
+            if !subdir_prefix_hit {
+                return Err(PlmError::InvalidSource(format!(
+                    "subdir not found in archive: {}",
+                    subdir.unwrap()
+                )));
+            }
+            // subdir_prefix_hit == true && files_extracted == 0 は
+            // ディレクトリエントリのみの場合。後続の plugin.json 不在エラーに委ねる
         }
 
         Ok(plugin_dir)
@@ -590,5 +692,245 @@ mod tests {
     fn test_has_manifest_returns_false_when_missing() {
         let temp_dir = TempDir::new().unwrap();
         assert!(!has_manifest(temp_dir.path()));
+    }
+
+    // =========================================================================
+    // store_from_archive subdir テスト
+    // =========================================================================
+
+    /// テスト用のzipアーカイブを作成するヘルパー
+    fn create_test_archive(entries: &[(&str, &str)]) -> Vec<u8> {
+        use std::io::Write;
+        let mut buf = Vec::new();
+        {
+            let mut zip = zip::ZipWriter::new(std::io::Cursor::new(&mut buf));
+            let options = zip::write::SimpleFileOptions::default();
+
+            for (path, content) in entries {
+                zip.start_file(*path, options).unwrap();
+                zip.write_all(content.as_bytes()).unwrap();
+            }
+            zip.finish().unwrap();
+        }
+        buf
+    }
+
+    #[test]
+    fn test_store_from_archive_with_subdir_extracts_to_root() {
+        // テストケース14: subdir 指定時、サブディレクトリの内容がキャッシュ直下に展開される
+        let temp_dir = TempDir::new().unwrap();
+        let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+        // GitHub 形式のアーカイブ（prefix + subdir）
+        let archive = create_test_archive(&[
+            ("repo-main/plugins/my-plugin/plugin.json", r#"{"name":"test","version":"1.0.0"}"#),
+            ("repo-main/plugins/my-plugin/skills/test.md", "# Test Skill"),
+            ("repo-main/other/file.txt", "should not be extracted"),
+        ]);
+
+        let result = cache.store_from_archive(
+            Some("test-marketplace"),
+            "my-plugin",
+            &archive,
+            Some("plugins/my-plugin"),
+        );
+
+        assert!(result.is_ok());
+        let plugin_dir = result.unwrap();
+
+        // サブディレクトリの内容がキャッシュ直下に展開されている
+        assert!(plugin_dir.join("plugin.json").exists());
+        assert!(plugin_dir.join("skills/test.md").exists());
+        // 他のファイルは展開されない
+        assert!(!plugin_dir.join("other").exists());
+    }
+
+    #[test]
+    fn test_store_from_archive_subdir_boundary_match() {
+        // テストケース15: subdir = "plugins/foo" で plugins/foo-bar が誤抽出されない
+        let temp_dir = TempDir::new().unwrap();
+        let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+        let archive = create_test_archive(&[
+            ("repo-main/plugins/foo/file.txt", "correct"),
+            ("repo-main/plugins/foo-bar/file.txt", "should not match"),
+            ("repo-main/plugins/foobar/file.txt", "should not match either"),
+        ]);
+
+        let result = cache.store_from_archive(
+            Some("test-marketplace"),
+            "foo-plugin",
+            &archive,
+            Some("plugins/foo"),
+        );
+
+        assert!(result.is_ok());
+        let plugin_dir = result.unwrap();
+
+        // plugins/foo の内容のみ展開
+        assert!(plugin_dir.join("file.txt").exists());
+        let content = fs::read_to_string(plugin_dir.join("file.txt")).unwrap();
+        assert_eq!(content, "correct");
+
+        // plugins/foo-bar や plugins/foobar は展開されない
+        // （ディレクトリ自体が存在しないことを確認）
+        let entries: Vec<_> = fs::read_dir(&plugin_dir).unwrap().collect();
+        assert_eq!(entries.len(), 1); // file.txt のみ
+    }
+
+    #[test]
+    fn test_store_from_archive_subdir_not_found() {
+        // テストケース16: subdir がアーカイブ内に存在しない場合 → InvalidSource エラー
+        let temp_dir = TempDir::new().unwrap();
+        let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+        let archive = create_test_archive(&[
+            ("repo-main/other/file.txt", "content"),
+        ]);
+
+        let result = cache.store_from_archive(
+            Some("test-marketplace"),
+            "my-plugin",
+            &archive,
+            Some("plugins/nonexistent"),
+        );
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            PlmError::InvalidSource(msg) => {
+                assert!(msg.contains("subdir not found"));
+            }
+            e => panic!("Expected InvalidSource error, got: {:?}", e),
+        }
+    }
+
+    #[test]
+    fn test_store_from_archive_subdir_validation_dotdot() {
+        // テストケース21: subdir に .. が含まれる場合 → エラー
+        let temp_dir = TempDir::new().unwrap();
+        let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+        let archive = create_test_archive(&[
+            ("repo-main/plugins/foo/file.txt", "content"),
+        ]);
+
+        let result = cache.store_from_archive(
+            Some("test-marketplace"),
+            "my-plugin",
+            &archive,
+            Some("plugins/../foo"),
+        );
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            PlmError::InvalidSource(msg) => {
+                assert!(msg.contains("not normalized"));
+            }
+            e => panic!("Expected InvalidSource error, got: {:?}", e),
+        }
+    }
+
+    #[test]
+    fn test_store_from_archive_subdir_validation_backslash() {
+        // テストケース21: subdir に \ が含まれる場合 → エラー
+        let temp_dir = TempDir::new().unwrap();
+        let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+        let archive = create_test_archive(&[
+            ("repo-main/plugins/foo/file.txt", "content"),
+        ]);
+
+        let result = cache.store_from_archive(
+            Some("test-marketplace"),
+            "my-plugin",
+            &archive,
+            Some("plugins\\foo"),
+        );
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            PlmError::InvalidSource(msg) => {
+                assert!(msg.contains("not normalized"));
+            }
+            e => panic!("Expected InvalidSource error, got: {:?}", e),
+        }
+    }
+
+    #[test]
+    fn test_store_from_archive_subdir_validation_dot_slash() {
+        // テストケース21: subdir に ./ が含まれる場合 → エラー
+        let temp_dir = TempDir::new().unwrap();
+        let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+        let archive = create_test_archive(&[
+            ("repo-main/plugins/foo/file.txt", "content"),
+        ]);
+
+        let result = cache.store_from_archive(
+            Some("test-marketplace"),
+            "my-plugin",
+            &archive,
+            Some("./plugins/foo"),
+        );
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            PlmError::InvalidSource(msg) => {
+                assert!(msg.contains("not normalized"));
+            }
+            e => panic!("Expected InvalidSource error, got: {:?}", e),
+        }
+    }
+
+    #[test]
+    fn test_store_from_archive_without_subdir_extracts_all() {
+        // subdir = None の場合は従来通り全ファイルを展開
+        let temp_dir = TempDir::new().unwrap();
+        let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+        let archive = create_test_archive(&[
+            ("repo-main/plugin.json", r#"{"name":"test","version":"1.0.0"}"#),
+            ("repo-main/skills/test.md", "# Test"),
+            ("repo-main/other/file.txt", "content"),
+        ]);
+
+        let result = cache.store_from_archive(
+            None,
+            "test-plugin",
+            &archive,
+            None,
+        );
+
+        assert!(result.is_ok());
+        let plugin_dir = result.unwrap();
+
+        // 全ファイルが展開される
+        assert!(plugin_dir.join("plugin.json").exists());
+        assert!(plugin_dir.join("skills/test.md").exists());
+        assert!(plugin_dir.join("other/file.txt").exists());
+    }
+
+    #[test]
+    fn test_store_from_archive_handles_backslash_entries() {
+        // テストケース20: zip内の \ 区切りエントリを / に正規化後一致
+        let temp_dir = TempDir::new().unwrap();
+        let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+        // バックスラッシュを含むエントリ名（Windows由来のzip）
+        // プレフィックスはスラッシュで書く（プレフィックス抽出は / でsplitするため）
+        let archive = create_test_archive(&[
+            ("repo-main/plugins\\foo\\file.txt", "content with backslash"),
+        ]);
+
+        let result = cache.store_from_archive(
+            Some("test-marketplace"),
+            "foo-plugin",
+            &archive,
+            Some("plugins/foo"),
+        );
+
+        assert!(result.is_ok(), "Expected Ok, got: {:?}", result);
+        let plugin_dir = result.unwrap();
+        assert!(plugin_dir.join("file.txt").exists());
     }
 }
