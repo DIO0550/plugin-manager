@@ -3,7 +3,7 @@
 //! marketplace.json の source フィールドで指定されるローカルプラグインへの相対パス。
 
 use crate::error::PlmError;
-use crate::marketplace::windows_path::starts_with_drive_letter;
+use crate::marketplace::windows_path::{starts_with_drive_letter, starts_with_unc};
 use std::path::{Component, Path};
 use std::str::FromStr;
 
@@ -50,8 +50,8 @@ impl FromStr for PluginSourcePath {
             ));
         }
 
-        // UNC パスを拒否（正規化後は "//" になる）
-        if path.starts_with("//") {
+        // Windows UNC パスを拒否（例: "\\server\share" → 正規化後 "//server/share"）
+        if starts_with_unc(&path) {
             return Err(PlmError::InvalidSource(
                 "subdir must be a relative path without UNC paths".into(),
             ));

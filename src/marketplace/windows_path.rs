@@ -11,6 +11,13 @@ pub fn starts_with_drive_letter(path: &str) -> bool {
     bytes[0].is_ascii_alphabetic() && bytes[1] == b':'
 }
 
+/// Windows UNC パスで始まるか（例: "//server/share"）
+///
+/// 元の形式は `\\server\share` だが、バックスラッシュ正規化後は `//` になる。
+pub fn starts_with_unc(path: &str) -> bool {
+    path.starts_with("//")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -46,5 +53,20 @@ mod tests {
     fn test_short_path() {
         assert!(!starts_with_drive_letter("C"));
         assert!(!starts_with_drive_letter(""));
+    }
+
+    #[test]
+    fn test_unc_path() {
+        assert!(starts_with_unc("//server/share"));
+        assert!(starts_with_unc("//server"));
+        assert!(starts_with_unc("//"));
+    }
+
+    #[test]
+    fn test_not_unc_path() {
+        assert!(!starts_with_unc("/foo"));
+        assert!(!starts_with_unc("foo"));
+        assert!(!starts_with_unc(""));
+        assert!(!starts_with_unc("C:/foo"));
     }
 }
