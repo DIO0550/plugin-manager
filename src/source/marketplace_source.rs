@@ -1,10 +1,9 @@
 //! Marketplace 経由のダウンロード
 
 use crate::error::{PlmError, Result};
-use crate::marketplace::{MarketplaceRegistry, PluginSource as MpPluginSource};
+use crate::marketplace::{MarketplaceRegistry, PluginSource as MpPluginSource, PluginSourcePath};
 use crate::plugin::CachedPlugin;
 use crate::repo;
-use crate::source::path_utils::normalize_subdir_path;
 use std::future::Future;
 use std::pin::Pin;
 
@@ -62,14 +61,14 @@ impl PluginSource for MarketplaceSource {
                     let repo_name = parts[1];
                     let repo = repo::from_url(&format!("{}/{}", owner, repo_name))?;
 
-                    // path を正規化（共通ヘルパーを使用）
-                    let subdir = normalize_subdir_path(path)?;
+                    // path を正規化・検証
+                    let subdir: PluginSourcePath = path.parse()?;
 
                     // Git ソースに委譲（marketplace + subdir 情報を渡す）
                     GitHubSource::with_marketplace_and_subdir(
                         repo,
                         self.marketplace.clone(),
-                        subdir,
+                        subdir.into(),
                     )
                     .download(force)
                     .await

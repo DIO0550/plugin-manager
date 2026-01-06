@@ -9,7 +9,6 @@
 
 mod github_source;
 mod marketplace_source;
-pub mod path_utils;
 mod search_source;
 
 pub use github_source::GitHubSource;
