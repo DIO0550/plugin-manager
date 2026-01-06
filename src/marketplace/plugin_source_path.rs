@@ -3,6 +3,7 @@
 //! marketplace.json の source フィールドで指定されるローカルプラグインへの相対パス。
 
 use crate::error::PlmError;
+use crate::marketplace::windows_path::starts_with_drive_letter;
 use std::path::{Component, Path};
 use std::str::FromStr;
 
@@ -41,20 +42,9 @@ impl FromStr for PluginSourcePath {
         // バックスラッシュをスラッシュに正規化（Windows 由来のパス対応）
         let path = s.replace('\\', "/");
 
-        // Windows パス形式を拒否（ドライブレター: "C:xxx" など）
-        // プラットフォーム間の一貫性のため、単一アルファベット+コロンのパターンは全て拒否
-        // 注: Unix では "a:plugins" は合法な相対パスだが、以下の理由で一律拒否:
-        //   1. marketplace.json は複数プラットフォームで共有される可能性がある
-        //   2. Windows で意図せずドライブレターとして解釈されるリスクを排除
-        //   3. コロン含みのディレクトリ名は一般的ではなく、拒否による影響は限定的
-        if path.len() >= 2
-            && path
-                .chars()
-                .next()
-                .map(|c| c.is_ascii_alphabetic())
-                .unwrap_or(false)
-            && path.chars().nth(1) == Some(':')
-        {
+        // Windows ドライブレターを拒否（例: "C:foo", "a:plugins"）
+        // クロスプラットフォームの一貫性のため、Unix でも拒否する
+        if starts_with_drive_letter(&path) {
             return Err(PlmError::InvalidSource(
                 "subdir must be a relative path without drive letters".into(),
             ));
