@@ -22,8 +22,11 @@ use std::str::FromStr;
 /// let path: PluginSourcePath = "./plugins/foo".parse()?;
 /// assert_eq!(path.as_str(), "plugins/foo");
 ///
+/// // リポジトリルートを指す場合は空文字列
+/// let root: PluginSourcePath = "./".parse()?;
+/// assert_eq!(root.as_str(), "");
+///
 /// assert!("../bad".parse::<PluginSourcePath>().is_err());
-/// assert!(".".parse::<PluginSourcePath>().is_err());
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PluginSourcePath(String);
@@ -90,16 +93,8 @@ impl FromStr for PluginSourcePath {
             }
         }
 
-        // 空パスを拒否（仕様通りの明確なメッセージ）
-        if parts.is_empty() {
-            return Err(PlmError::InvalidSource(
-                "Local plugin must specify a subdirectory (e.g., './plugins/my-plugin'). \
-                 Use External for root-level plugins."
-                    .into(),
-            ));
-        }
-
         // "/" 区切りで再構成（OS 非依存）
+        // 空の場合はリポジトリルートを表す
         Ok(Self(parts.join("/")))
     }
 }
@@ -148,27 +143,23 @@ mod tests {
         assert_eq!(path.as_str(), "plugins/foo");
     }
 
-    // テストケース: "" または "." → InvalidSource エラー（明確なメッセージ）
+    // テストケース: "" や "." や "./" → リポジトリルート（空文字列）
     #[test]
-    fn test_reject_empty_path() {
-        let err = "".parse::<PluginSourcePath>().unwrap_err();
-        match err {
-            PlmError::InvalidSource(msg) => {
-                assert!(msg.contains("subdirectory"));
-            }
-            _ => panic!("Expected InvalidSource error"),
-        }
+    fn test_empty_path_is_root() {
+        let path: PluginSourcePath = "".parse().unwrap();
+        assert_eq!(path.as_str(), "");
     }
 
     #[test]
-    fn test_reject_dot_only() {
-        let err = ".".parse::<PluginSourcePath>().unwrap_err();
-        match err {
-            PlmError::InvalidSource(msg) => {
-                assert!(msg.contains("subdirectory"));
-            }
-            _ => panic!("Expected InvalidSource error"),
-        }
+    fn test_dot_only_is_root() {
+        let path: PluginSourcePath = ".".parse().unwrap();
+        assert_eq!(path.as_str(), "");
+    }
+
+    #[test]
+    fn test_dot_slash_is_root() {
+        let path: PluginSourcePath = "./".parse().unwrap();
+        assert_eq!(path.as_str(), "");
     }
 
     // テストケース: "../plugins/foo" → InvalidSource エラー（セキュリティ）
