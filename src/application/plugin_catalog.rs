@@ -5,10 +5,7 @@
 use crate::component::{ComponentKind, ComponentName, ComponentTypeCount};
 use crate::error::Result;
 use crate::plugin::{has_manifest, PluginCache, PluginManifest};
-use crate::scan::{
-    file_stem_name, list_agent_names, list_command_names, list_hook_names, list_markdown_names,
-    list_skill_names,
-};
+use crate::scan::{scan_components, ComponentScan};
 use std::path::Path;
 
 /// プラグイン情報のサマリ（DTO）
@@ -142,7 +139,8 @@ fn build_summary(
     plugin_path: &Path,
     manifest: &PluginManifest,
 ) -> PluginSummary {
-    let scan = scan_components(plugin_path, manifest);
+    // 統一スキャンAPIを使用
+    let scan: ComponentScan = scan_components(plugin_path, manifest);
 
     PluginSummary {
         name,
@@ -153,102 +151,6 @@ fn build_summary(
         commands: scan.commands,
         instructions: scan.instructions,
         hooks: scan.hooks,
-    }
-}
-
-/// スキャン結果（内部用）
-struct ScanResult {
-    skills: Vec<String>,
-    agents: Vec<String>,
-    instructions: Vec<String>,
-    commands: Vec<String>,
-    hooks: Vec<String>,
-}
-
-// ============================================================================
-// コンポーネント別スキャン関数
-// ============================================================================
-
-/// Skills をスキャン
-///
-/// SKILL.md を持つサブディレクトリのみ抽出する。
-fn scan_skills(plugin_path: &Path, manifest: &PluginManifest) -> Vec<String> {
-    let skills_dir = manifest.skills_dir(plugin_path);
-    list_skill_names(&skills_dir)
-}
-
-/// Agents をスキャン
-///
-/// 単一ファイルまたはディレクトリ内の .agent.md / .md ファイルを抽出する。
-fn scan_agents(plugin_path: &Path, manifest: &PluginManifest) -> Vec<String> {
-    let agents_path = manifest.agents_dir(plugin_path);
-    list_agent_names(&agents_path)
-}
-
-/// Commands をスキャン
-///
-/// .prompt.md / .md ファイルを抽出する。
-fn scan_commands(plugin_path: &Path, manifest: &PluginManifest) -> Vec<String> {
-    let commands_dir = manifest.commands_dir(plugin_path);
-    list_command_names(&commands_dir)
-}
-
-/// Instructions をスキャン
-///
-/// マニフェスト指定時: ファイルまたはディレクトリを走査。
-/// 未指定時: instructions/ を走査 + ルートの AGENTS.md を追加。
-fn scan_instructions(plugin_path: &Path, manifest: &PluginManifest) -> Vec<String> {
-    if let Some(path_str) = &manifest.instructions {
-        // マニフェストで指定された場合
-        let path = plugin_path.join(path_str);
-
-        if path.is_file() {
-            return file_stem_name(&path)
-                .map(|name| vec![name])
-                .unwrap_or_default();
-        }
-
-        if path.is_dir() {
-            return list_markdown_names(&path);
-        }
-
-        return Vec::new();
-    }
-
-    // デフォルト: instructions/ ディレクトリ + AGENTS.md
-    let instructions_dir = manifest.instructions_dir(plugin_path);
-    let mut instructions = list_markdown_names(&instructions_dir);
-
-    // ルートの AGENTS.md もチェック
-    if plugin_path.join("AGENTS.md").exists() {
-        instructions.push("AGENTS".to_string());
-    }
-
-    instructions
-}
-
-/// Hooks をスキャン
-///
-/// ファイル名から拡張子を除去して抽出する。
-fn scan_hooks(plugin_path: &Path, manifest: &PluginManifest) -> Vec<String> {
-    let hooks_dir = manifest.hooks_dir(plugin_path);
-    list_hook_names(&hooks_dir)
-}
-
-// ============================================================================
-// メイン関数
-// ============================================================================
-
-/// プラグインディレクトリからコンポーネントをスキャン
-///
-/// マニフェストのカスタムパス定義を尊重する。
-fn scan_components(plugin_path: &Path, manifest: &PluginManifest) -> ScanResult {
-    ScanResult {
-        skills: scan_skills(plugin_path, manifest),
-        agents: scan_agents(plugin_path, manifest),
-        commands: scan_commands(plugin_path, manifest),
-        instructions: scan_instructions(plugin_path, manifest),
-        hooks: scan_hooks(plugin_path, manifest),
     }
 }
 

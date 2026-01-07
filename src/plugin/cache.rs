@@ -2,10 +2,7 @@ use crate::component::{Component, ComponentKind};
 use crate::error::{PlmError, Result};
 use crate::path_ext::PathExt;
 use crate::plugin::PluginManifest;
-use crate::scan::{
-    list_command_names, list_hook_names, list_skill_names, AGENT_SUFFIX, MARKDOWN_SUFFIX,
-    PROMPT_SUFFIX,
-};
+use crate::scan::{scan_components, AGENT_SUFFIX, MARKDOWN_SUFFIX, PROMPT_SUFFIX};
 use std::fs;
 use std::io::{Cursor, Read};
 use std::path::{Component as PathComponent, Path, PathBuf};
@@ -25,7 +22,11 @@ const MANIFEST_PATHS: &[&str] = &[".claude-plugin/plugin.json", "plugin.json"];
 ///
 /// # Returns
 /// マニフェストファイルのパス、見つからない場合は None
-pub fn resolve_manifest_path(plugin_dir: &Path) -> Option<PathBuf> {
+///
+/// # Visibility
+/// Infrastructure内部関数。外部（TUI/CLI）からは直接呼ばず、
+/// `PluginCache::load_manifest()` や `has_manifest()` を経由して使用する。
+pub(crate) fn resolve_manifest_path(plugin_dir: &Path) -> Option<PathBuf> {
     for candidate in MANIFEST_PATHS {
         let path = plugin_dir.join(candidate);
         if path.exists() {
@@ -149,162 +150,143 @@ impl CachedPlugin {
     // =========================================================================
 
     /// プラグイン内のコンポーネントをスキャン
+    ///
+    /// 統一スキャンAPI (`scan_components`) を使用し、名前からパスを解決して
+    /// `Component` に変換する。パス解決の責務は本メソッドが担う。
     pub fn components(&self) -> Vec<Component> {
+        let scan = scan_components(&self.path, &self.manifest);
         let mut components = Vec::new();
-        components.extend(self.scan_skills());
-        components.extend(self.scan_agents());
-        components.extend(self.scan_prompts());
-        components.extend(self.scan_instructions());
-        components.extend(self.scan_hooks());
-        components
-    }
 
-    /// Skills をスキャン
-    /// skills ディレクトリ配下で SKILL.md を持つディレクトリを検出
-    fn scan_skills(&self) -> Vec<Component> {
+        // Skills: skills_dir/name/
         let skills_dir = self.skills_dir();
-
-        let names = list_skill_names(&skills_dir);
-        names
-            .into_iter()
-            .map(|name| Component {
+        for name in scan.skills {
+            components.push(Component {
                 kind: ComponentKind::Skill,
                 path: skills_dir.join(&name),
                 name,
-            })
-            .collect()
-    }
-
-    /// Agents をスキャン
-    /// ディレクトリなら .agent.md または .md ファイルを検出、単一ファイルならそれを1件として扱う
-    fn scan_agents(&self) -> Vec<Component> {
-        let agents_dir = self.agents_dir();
-
-        if !agents_dir.exists() {
-            return Vec::new();
+            });
         }
 
+        // Agents: agents_dir/name.agent.md or agents_dir/name.md or single file
+        let agents_dir = self.agents_dir();
+        for name in scan.agents {
+            let path = self.resolve_agent_path(&agents_dir, &name);
+            components.push(Component {
+                kind: ComponentKind::Agent,
+                path,
+                name,
+            });
+        }
+
+        // Commands: commands_dir/name.prompt.md or commands_dir/name.md
+        let commands_dir = self.commands_dir();
+        for name in scan.commands {
+            let path = self.resolve_command_path(&commands_dir, &name);
+            components.push(Component {
+                kind: ComponentKind::Command,
+                path,
+                name,
+            });
+        }
+
+        // Instructions: instructions_path or instructions_dir/name.md
+        for name in scan.instructions {
+            let path = self.resolve_instruction_path(&name);
+            components.push(Component {
+                kind: ComponentKind::Instruction,
+                path,
+                name,
+            });
+        }
+
+        // Hooks: hooks_dir/name.*
+        let hooks_dir = self.hooks_dir();
+        for name in scan.hooks {
+            if let Some(path) = self.resolve_hook_path(&hooks_dir, &name) {
+                components.push(Component {
+                    kind: ComponentKind::Hook,
+                    path,
+                    name,
+                });
+            }
+        }
+
+        components
+    }
+
+    // =========================================================================
+    // パス解決ヘルパー（名前 → パス）
+    // =========================================================================
+
+    /// Agent のパスを解決
+    fn resolve_agent_path(&self, agents_dir: &Path, name: &str) -> PathBuf {
         // 単一ファイルの場合
         if agents_dir.is_file() {
-            let name = agents_dir
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or("agent")
-                .to_string();
-            return vec![Component {
-                kind: ComponentKind::Agent,
-                name,
-                path: agents_dir,
-            }];
+            return agents_dir.to_path_buf();
         }
 
-        // ディレクトリの場合: .agent.md または .md ファイルを検出
-        agents_dir
-            .read_dir_entries()
-            .into_iter()
-            .filter(|path| path.is_file())
-            .filter_map(|path| {
-                let file_name = path.file_name()?.to_str()?;
-                // .agent.md サフィックスを優先、なければ .md として処理
-                let name = if file_name.ends_with(AGENT_SUFFIX) {
-                    file_name.trim_end_matches(AGENT_SUFFIX).to_string()
-                } else if file_name.ends_with(MARKDOWN_SUFFIX) {
-                    file_name.trim_end_matches(MARKDOWN_SUFFIX).to_string()
-                } else {
-                    return None;
-                };
-                Some(Component {
-                    kind: ComponentKind::Agent,
-                    name,
-                    path,
-                })
-            })
-            .collect()
+        // .agent.md を優先、なければ .md
+        let agent_path = agents_dir.join(format!("{}{}", name, AGENT_SUFFIX));
+        if agent_path.exists() {
+            agent_path
+        } else {
+            agents_dir.join(format!("{}{}", name, MARKDOWN_SUFFIX))
+        }
     }
 
-    /// Prompts (Commands) をスキャン
-    /// commands ディレクトリ配下の .prompt.md または .md ファイルを検出
-    fn scan_prompts(&self) -> Vec<Component> {
-        let commands_dir = self.commands_dir();
-
-        list_command_names(&commands_dir)
-            .into_iter()
-            .map(|name| {
-                // .prompt.md サフィックスを優先、なければ .md として処理
-                let path = {
-                    let prompt_path = commands_dir.join(format!("{}{}", name, PROMPT_SUFFIX));
-                    if prompt_path.exists() {
-                        prompt_path
-                    } else {
-                        commands_dir.join(format!("{}{}", name, MARKDOWN_SUFFIX))
-                    }
-                };
-                Component {
-                    kind: ComponentKind::Command,
-                    name,
-                    path,
-                }
-            })
-            .collect()
+    /// Command のパスを解決
+    fn resolve_command_path(&self, commands_dir: &Path, name: &str) -> PathBuf {
+        // .prompt.md を優先、なければ .md
+        let prompt_path = commands_dir.join(format!("{}{}", name, PROMPT_SUFFIX));
+        if prompt_path.exists() {
+            prompt_path
+        } else {
+            commands_dir.join(format!("{}{}", name, MARKDOWN_SUFFIX))
+        }
     }
 
-    /// Instructions をスキャン
-    /// 単一ファイルのみ検出
-    fn scan_instructions(&self) -> Vec<Component> {
-        let path = self.instructions_path();
-
-        if !path.is_file() {
-            return Vec::new();
+    /// Instruction のパスを解決
+    fn resolve_instruction_path(&self, name: &str) -> PathBuf {
+        // AGENTS.md の場合はルートディレクトリ
+        if name == "AGENTS" {
+            return self.path.join("AGENTS.md");
         }
 
-        let name = path
-            .file_name()
-            .and_then(|s| s.to_str())
-            .unwrap_or("instructions")
-            .to_string();
-
-        vec![Component {
-            kind: ComponentKind::Instruction,
-            name,
-            path,
-        }]
-    }
-
-    /// Hooks をスキャン
-    /// hooks ディレクトリ配下のスクリプトファイルを検出
-    fn scan_hooks(&self) -> Vec<Component> {
-        let hooks_dir = self.hooks_dir();
-        let names = list_hook_names(&hooks_dir);
-
-        if names.is_empty() {
-            return Vec::new();
+        // マニフェストで指定されている場合
+        if let Some(path_str) = &self.manifest.instructions {
+            let path = self.path.join(path_str);
+            if path.is_file() {
+                return path;
+            }
+            if path.is_dir() {
+                return path.join(format!("{}.md", name));
+            }
         }
 
-        // 名前からパスへのマップを構築
-        let name_to_path: std::collections::HashMap<String, PathBuf> = hooks_dir
+        // デフォルト: instructions/name.md
+        self.manifest
+            .instructions_dir(&self.path)
+            .join(format!("{}.md", name))
+    }
+
+    /// Hook のパスを解決
+    fn resolve_hook_path(&self, hooks_dir: &Path, name: &str) -> Option<PathBuf> {
+        // hooks_dir 内のファイルを走査して名前が一致するものを探す
+        hooks_dir
             .read_dir_entries()
             .into_iter()
             .filter(|p| p.is_file())
-            .filter_map(|path| {
-                let file_name = path.file_name()?.to_str()?;
-                let name = file_name
-                    .rsplit_once('.')
-                    .map(|(n, _)| n.to_string())
-                    .unwrap_or_else(|| file_name.to_string());
-                Some((name, path))
+            .find(|path| {
+                path.file_name()
+                    .and_then(|f| f.to_str())
+                    .map(|f| {
+                        f.rsplit_once('.')
+                            .map(|(n, _)| n)
+                            .unwrap_or(f)
+                            == name
+                    })
+                    .unwrap_or(false)
             })
-            .collect();
-
-        names
-            .into_iter()
-            .filter_map(|name| {
-                name_to_path.get(&name).map(|path| Component {
-                    kind: ComponentKind::Hook,
-                    name,
-                    path: path.clone(),
-                })
-            })
-            .collect()
     }
 }
 
