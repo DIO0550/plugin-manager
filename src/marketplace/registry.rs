@@ -22,9 +22,9 @@ pub enum PluginSource {
     External { source: String, repo: String },
 }
 
-/// マーケットプレイス内のプラグインエントリ
+/// マーケットプレイス内のプラグイン定義
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MarketplacePluginEntry {
+pub struct MarketplacePlugin {
     pub name: String,
     pub source: PluginSource,
     #[serde(default)]
@@ -37,7 +37,7 @@ pub struct MarketplacePluginEntry {
 #[derive(Debug, Clone)]
 pub struct PluginMatch {
     pub marketplace: String,
-    pub plugin: MarketplacePluginEntry,
+    pub plugin: MarketplacePlugin,
 }
 
 /// marketplace.json のスキーマ
@@ -46,7 +46,7 @@ pub struct MarketplaceManifest {
     pub name: String,
     #[serde(default)]
     pub owner: Option<MarketplaceOwner>,
-    pub plugins: Vec<MarketplacePluginEntry>,
+    pub plugins: Vec<MarketplacePlugin>,
 }
 
 /// キャッシュされたマーケットプレイス情報
@@ -57,7 +57,7 @@ pub struct MarketplaceCache {
     pub source: String,
     #[serde(default)]
     pub owner: Option<MarketplaceOwner>,
-    pub plugins: Vec<MarketplacePluginEntry>,
+    pub plugins: Vec<MarketplacePlugin>,
 }
 
 /// マーケットプレイスレジストリ
@@ -146,7 +146,7 @@ impl MarketplaceRegistry {
     pub fn find_plugin(
         &self,
         plugin_name: &str,
-    ) -> Result<Option<(String, MarketplacePluginEntry)>> {
+    ) -> Result<Option<(String, MarketplacePlugin)>> {
         for marketplace_name in self.list()? {
             if let Some(cache) = self.get(&marketplace_name)? {
                 for plugin in cache.plugins {
