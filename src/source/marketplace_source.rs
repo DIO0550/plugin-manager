@@ -1,7 +1,7 @@
 //! Marketplace 経由のダウンロード
 
 use crate::error::{PlmError, Result};
-use crate::marketplace::{MarketplaceRegistry, PluginSource as MpPluginSource};
+use crate::marketplace::{MarketplaceRegistry, PluginSource as MpPluginSource, PluginSourcePath};
 use crate::plugin::CachedPlugin;
 use crate::repo;
 use std::future::Future;
@@ -43,9 +43,9 @@ impl PluginSource for MarketplaceSource {
                 .find(|p| p.name == self.plugin)
                 .ok_or_else(|| PlmError::PluginNotFound(self.plugin.clone()))?;
 
-            // プラグインソースをRepoに変換
-            let repo = match &plugin_entry.source {
-                MpPluginSource::Local(_path) => {
+            // プラグインソースをRepoに変換してダウンロード
+            match &plugin_entry.source {
+                MpPluginSource::Local(path) => {
                     let parts: Vec<&str> = mp_cache
                         .source
                         .strip_prefix("github:")
@@ -57,15 +57,31 @@ impl PluginSource for MarketplaceSource {
                         return Err(PlmError::InvalidRepoFormat(mp_cache.source.clone()));
                     }
 
-                    repo::from_url(&format!("{}/{}", parts[0], parts[1]))?
-                }
-                MpPluginSource::External { repo, .. } => repo::from_url(repo)?,
-            };
+                    let owner = parts[0];
+                    let repo_name = parts[1];
+                    let repo = repo::from_url(&format!("{}/{}", owner, repo_name))?;
 
-            // Git ソースに委譲（marketplace 情報を渡す）
-            GitHubSource::with_marketplace(repo, self.marketplace.clone())
-                .download(force)
-                .await
+                    // path を正規化・検証
+                    let source_path: PluginSourcePath = path.parse()?;
+
+                    // Git ソースに委譲（marketplace + source_path 情報を渡す）
+                    GitHubSource::with_marketplace_and_source_path(
+                        repo,
+                        self.marketplace.clone(),
+                        source_path.into(),
+                    )
+                    .download(force)
+                    .await
+                }
+                MpPluginSource::External { repo: repo_url, .. } => {
+                    let repo = repo::from_url(repo_url)?;
+                    // Git ソースに委譲（marketplace 情報を渡す）
+                    GitHubSource::with_marketplace(repo, self.marketplace.clone())
+                        .download(force)
+                        .await
+                }
+            }
         })
     }
 }
+

@@ -51,6 +51,9 @@ pub enum PlmError {
 
     #[error("Validation error: {0}")]
     Validation(String),
+
+    #[error("Invalid source: {0}")]
+    InvalidSource(String),
 }
 
 pub type Result<T> = std::result::Result<T, PlmError>;
