@@ -18,8 +18,8 @@ impl MarketplaceFetcher {
     }
 
     /// GitHubリポジトリから marketplace.json を取得
-    pub async fn fetch(&self, repo: &Repo, subdir: Option<&str>) -> Result<MarketplaceManifest> {
-        let path = match subdir {
+    pub async fn fetch(&self, repo: &Repo, source_path: Option<&str>) -> Result<MarketplaceManifest> {
+        let path = match source_path {
             Some(dir) => format!("{}/.claude-plugin/marketplace.json", dir),
             None => ".claude-plugin/marketplace.json".to_string(),
         };
@@ -37,9 +37,9 @@ impl MarketplaceFetcher {
         &self,
         repo: &Repo,
         name: &str,
-        subdir: Option<&str>,
+        source_path: Option<&str>,
     ) -> Result<MarketplaceCache> {
-        let manifest = self.fetch(repo, subdir).await?;
+        let manifest = self.fetch(repo, source_path).await?;
 
         Ok(MarketplaceCache {
             name: name.to_string(),

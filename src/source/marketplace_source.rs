@@ -62,13 +62,13 @@ impl PluginSource for MarketplaceSource {
                     let repo = repo::from_url(&format!("{}/{}", owner, repo_name))?;
 
                     // path を正規化・検証
-                    let subdir: PluginSourcePath = path.parse()?;
+                    let source_path: PluginSourcePath = path.parse()?;
 
-                    // Git ソースに委譲（marketplace + subdir 情報を渡す）
-                    GitHubSource::with_marketplace_and_subdir(
+                    // Git ソースに委譲（marketplace + source_path 情報を渡す）
+                    GitHubSource::with_marketplace_and_source_path(
                         repo,
                         self.marketplace.clone(),
-                        subdir.into(),
+                        source_path.into(),
                     )
                     .download(force)
                     .await

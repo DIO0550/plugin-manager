@@ -49,14 +49,14 @@ impl FromStr for PluginSourcePath {
         // クロスプラットフォームの一貫性のため、Unix でも拒否する
         if starts_with_drive_letter(&path) {
             return Err(PlmError::InvalidSource(
-                "subdir must be a relative path without drive letters".into(),
+                "source_path must be a relative path without drive letters".into(),
             ));
         }
 
         // Windows UNC パスを拒否（例: "\\server\share" → 正規化後 "//server/share"）
         if starts_with_unc(&path) {
             return Err(PlmError::InvalidSource(
-                "subdir must be a relative path without UNC paths".into(),
+                "source_path must be a relative path without UNC paths".into(),
             ));
         }
 
@@ -64,7 +64,7 @@ impl FromStr for PluginSourcePath {
 
         // 絶対パスを拒否
         if path_obj.is_absolute() {
-            return Err(PlmError::InvalidSource("subdir must be relative".into()));
+            return Err(PlmError::InvalidSource("source_path must be relative".into()));
         }
 
         // コンポーネントを走査し、Normal のみを収集
@@ -75,16 +75,16 @@ impl FromStr for PluginSourcePath {
                     Some(s) => parts.push(s),
                     None => {
                         return Err(PlmError::InvalidSource(
-                            "subdir contains non-UTF-8 characters".into(),
+                            "source_path contains non-UTF-8 characters".into(),
                         ));
                     }
                 },
                 Component::ParentDir => {
-                    return Err(PlmError::InvalidSource("subdir contains '..'".into()));
+                    return Err(PlmError::InvalidSource("source_path contains '..'".into()));
                 }
                 Component::Prefix(_) | Component::RootDir => {
                     return Err(PlmError::InvalidSource(
-                        "subdir must be a relative path without drive letters or UNC paths".into(),
+                        "source_path must be a relative path without drive letters or UNC paths".into(),
                     ));
                 }
                 Component::CurDir => {
@@ -168,7 +168,7 @@ mod tests {
         let err = "../plugins/foo".parse::<PluginSourcePath>().unwrap_err();
         match err {
             PlmError::InvalidSource(msg) => {
-                assert!(msg.contains(".."));
+                assert!(msg.contains("source_path contains '..'"));
             }
             _ => panic!("Expected InvalidSource error"),
         }
