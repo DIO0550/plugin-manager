@@ -4,7 +4,7 @@ use clap::ValueEnum;
 use std::path::PathBuf;
 
 /// コンポーネント種別
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, ValueEnum)]
 pub enum ComponentKind {
     /// スキル（SKILL.md形式）
     Skill,

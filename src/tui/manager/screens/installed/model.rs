@@ -26,6 +26,7 @@ pub struct CacheState {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DetailAction {
     DisablePlugin,
+    EnablePlugin,
     MarkForUpdate,
     UpdateNow,
     Uninstall,
@@ -34,8 +35,9 @@ pub enum DetailAction {
 }
 
 impl DetailAction {
-    pub fn all() -> &'static [DetailAction] {
-        &[
+    /// enabled プラグイン用のアクション一覧
+    pub fn for_enabled() -> Vec<DetailAction> {
+        vec![
             DetailAction::DisablePlugin,
             DetailAction::MarkForUpdate,
             DetailAction::UpdateNow,
@@ -45,9 +47,29 @@ impl DetailAction {
         ]
     }
 
+    /// disabled プラグイン用のアクション一覧
+    pub fn for_disabled() -> Vec<DetailAction> {
+        vec![
+            DetailAction::EnablePlugin,
+            DetailAction::Uninstall,
+            DetailAction::ViewComponents,
+            DetailAction::Back,
+        ]
+    }
+
+    /// プラグインの enabled 状態に応じたアクション一覧を取得
+    pub fn for_plugin(enabled: bool) -> Vec<DetailAction> {
+        if enabled {
+            Self::for_enabled()
+        } else {
+            Self::for_disabled()
+        }
+    }
+
     pub fn label(&self) -> &'static str {
         match self {
             DetailAction::DisablePlugin => "Disable plugin",
+            DetailAction::EnablePlugin => "Enable plugin",
             DetailAction::MarkForUpdate => "Mark for update",
             DetailAction::UpdateNow => "Update now",
             DetailAction::Uninstall => "Uninstall",
@@ -59,6 +81,7 @@ impl DetailAction {
     pub fn style(&self) -> Style {
         match self {
             DetailAction::UpdateNow => Style::default().fg(Color::Green),
+            DetailAction::EnablePlugin => Style::default().fg(Color::Green),
             DetailAction::Uninstall => Style::default().fg(Color::Red),
             _ => Style::default(),
         }

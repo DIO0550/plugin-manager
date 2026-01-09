@@ -36,3 +36,9 @@ pub fn uninstall_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionR
     let project_root = env::current_dir().unwrap_or_else(|_| ".".into());
     application::uninstall_plugin(plugin_name, marketplace, &project_root).into()
 }
+
+/// プラグインを Enable（キャッシュからデプロイ先に配置）
+pub fn enable_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionResult {
+    let project_root = env::current_dir().unwrap_or_else(|_| ".".into());
+    application::enable_plugin(plugin_name, marketplace, &project_root).into()
+}

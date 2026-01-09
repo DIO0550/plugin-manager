@@ -2,11 +2,13 @@
 //!
 //! インストール済みプラグインの一覧取得ユースケースを提供する。
 
-use crate::component::{ComponentKind, ComponentName, ComponentTypeCount};
+use crate::component::{ComponentKind, ComponentName, ComponentTypeCount, Scope};
 use crate::error::Result;
 use crate::plugin::{has_manifest, PluginCache, PluginManifest};
 use crate::scan::{scan_components, ComponentScan};
-use std::path::Path;
+use crate::target::{all_targets, PluginOrigin};
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
 
 /// プラグイン情報のサマリ（DTO）
 #[derive(Debug, Clone)]
@@ -27,6 +29,8 @@ pub struct PluginSummary {
     pub instructions: Vec<String>,
     /// フック名一覧
     pub hooks: Vec<String>,
+    /// 有効状態（デプロイ先に配置されているか）
+    pub enabled: bool,
 }
 
 impl PluginSummary {
@@ -106,6 +110,10 @@ pub fn list_installed_plugins() -> Result<Vec<PluginSummary>> {
     let cache = PluginCache::new()?;
     let plugin_list = cache.list()?;
 
+    // デプロイ済みプラグイン集合を事前取得（パフォーマンス改善）
+    let project_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let deployed = collect_deployed_plugins(&project_root);
+
     let mut plugins = Vec::new();
 
     for (marketplace, name) in plugin_list {
@@ -126,10 +134,48 @@ pub fn list_installed_plugins() -> Result<Vec<PluginSummary>> {
             Err(_) => continue,
         };
 
-        plugins.push(build_summary(name, marketplace, &plugin_path, &manifest));
+        plugins.push(build_summary(name, marketplace, &plugin_path, &manifest, &deployed));
     }
 
     Ok(plugins)
+}
+
+/// デプロイ済みプラグインの集合を取得
+///
+/// 全ターゲット・全コンポーネント種別のデプロイ済みコンポーネントを走査し、
+/// プラグインの (marketplace, plugin_name) の集合を返す。
+fn collect_deployed_plugins(project_root: &Path) -> HashSet<(String, String)> {
+    let mut deployed = HashSet::new();
+    let targets = all_targets();
+
+    for target in &targets {
+        for kind in ComponentKind::all() {
+            if !target.supports(*kind) {
+                continue;
+            }
+            // エラー時は黙殺（保守的に deployed とみなさない）
+            if let Ok(placed) = target.list_placed(*kind, Scope::Project, project_root) {
+                for item in placed {
+                    if let Some((mp, plugin)) = parse_placed_item(&item) {
+                        deployed.insert((mp, plugin));
+                    }
+                }
+            }
+        }
+    }
+    deployed
+}
+
+/// "marketplace/plugin/component" 形式をパース
+///
+/// 戻り値: Some((marketplace, plugin_name)) または None
+fn parse_placed_item(item: &str) -> Option<(String, String)> {
+    let parts: Vec<&str> = item.split('/').collect();
+    if parts.len() >= 2 {
+        Some((parts[0].to_string(), parts[1].to_string()))
+    } else {
+        None
+    }
 }
 
 /// PluginSummary を構築
@@ -138,9 +184,14 @@ fn build_summary(
     marketplace: Option<String>,
     plugin_path: &Path,
     manifest: &PluginManifest,
+    deployed: &HashSet<(String, String)>,
 ) -> PluginSummary {
     // 統一スキャンAPIを使用
     let scan: ComponentScan = scan_components(plugin_path, manifest);
+
+    // デプロイ状態をチェック
+    let origin = PluginOrigin::from_cached_plugin(marketplace.as_deref(), &name);
+    let enabled = deployed.contains(&(origin.marketplace, origin.plugin));
 
     PluginSummary {
         name,
@@ -151,6 +202,7 @@ fn build_summary(
         commands: scan.commands,
         instructions: scan.instructions,
         hooks: scan.hooks,
+        enabled,
     }
 }
 
@@ -168,6 +220,7 @@ mod tests {
             commands: vec![],
             instructions: vec![],
             hooks: vec![],
+            enabled: true,
         }
     }
 
@@ -181,6 +234,7 @@ mod tests {
             commands: vec!["cmd1".to_string(), "cmd2".to_string(), "cmd3".to_string()],
             instructions: vec!["inst1".to_string()],
             hooks: vec!["hook1".to_string(), "hook2".to_string()],
+            enabled: true,
         }
     }
 
@@ -212,6 +266,7 @@ mod tests {
             commands: vec!["c1".to_string(), "c2".to_string()],
             instructions: vec![],
             hooks: vec![],
+            enabled: true,
         };
         assert_eq!(summary.component_count(), 3);
     }
@@ -286,6 +341,7 @@ mod tests {
             commands: vec![],
             instructions: vec![],
             hooks: vec!["h1".to_string()],
+            enabled: true,
         };
 
         let counts = summary.component_type_counts();

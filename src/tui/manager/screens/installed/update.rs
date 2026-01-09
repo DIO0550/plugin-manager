@@ -64,13 +64,14 @@ fn enter(model: &mut Model, data: &mut DataStore) {
             }
         }
         Model::PluginDetail { plugin_id, state } => {
-            // アクションに応じて遷移
-            let detail_actions = DetailAction::all();
-            let selected = state.selected().unwrap_or(0);
-
             // プラグイン情報を取得
             let plugin = data.find_plugin(plugin_id).cloned();
             let marketplace = plugin.as_ref().and_then(|p| p.marketplace.clone());
+            let enabled = plugin.as_ref().is_some_and(|p| p.enabled);
+
+            // enabled 状態に応じたアクション一覧を取得
+            let detail_actions = DetailAction::for_plugin(enabled);
+            let selected = state.selected().unwrap_or(0);
 
             match detail_actions.get(selected) {
                 Some(DetailAction::DisablePlugin) => {
@@ -78,7 +79,21 @@ fn enter(model: &mut Model, data: &mut DataStore) {
                     let result = actions::disable_plugin(plugin_id, marketplace.as_deref());
                     match result {
                         actions::ActionResult::Success => {
-                            // 成功 - ステータス表示を更新（TODO: 実装）
+                            // 成功 - プラグインを disabled 状態に更新
+                            data.set_plugin_enabled(plugin_id, false);
+                        }
+                        actions::ActionResult::Error(e) => {
+                            data.last_error = Some(e);
+                        }
+                    }
+                }
+                Some(DetailAction::EnablePlugin) => {
+                    // Enable: キャッシュからデプロイ先に配置
+                    let result = actions::enable_plugin(plugin_id, marketplace.as_deref());
+                    match result {
+                        actions::ActionResult::Success => {
+                            // 成功 - プラグインを enabled 状態に更新
+                            data.set_plugin_enabled(plugin_id, true);
                         }
                         actions::ActionResult::Error(e) => {
                             data.last_error = Some(e);
@@ -204,7 +219,10 @@ fn back(model: &mut Model) {
 fn list_len(model: &Model, data: &DataStore) -> usize {
     match model {
         Model::PluginList { .. } => data.plugins.len(),
-        Model::PluginDetail { .. } => DetailAction::all().len(),
+        Model::PluginDetail { plugin_id, .. } => {
+            let enabled = data.find_plugin(plugin_id).is_some_and(|p| p.enabled);
+            DetailAction::for_plugin(enabled).len()
+        }
         Model::ComponentTypes { plugin_id, .. } => {
             if let Some(plugin) = data.find_plugin(plugin_id) {
                 data.available_component_kinds(plugin).len().max(1)

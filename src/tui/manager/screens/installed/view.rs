@@ -87,8 +87,14 @@ fn view_plugin_list(f: &mut Frame, mut state: ListState, data: &DataStore) {
                 .as_ref()
                 .map(|m| format!(" @{}", m))
                 .unwrap_or_default();
-            let text = format!("  {}{}  v{}", p.name, marketplace_str, p.version);
-            ListItem::new(text)
+            let status_str = if p.enabled { "" } else { " [disabled]" };
+            let text = format!("  {}{}  v{}{}", p.name, marketplace_str, p.version, status_str);
+            let style = if p.enabled {
+                Style::default()
+            } else {
+                Style::default().fg(Color::DarkGray)
+            };
+            ListItem::new(text).style(style)
         })
         .collect();
 
@@ -158,6 +164,12 @@ fn view_plugin_detail(
         .unwrap_or_default();
     let title = format!(" {}{} ", plugin.name, marketplace_str);
 
+    let (status_text, status_color) = if plugin.enabled {
+        ("Enabled", Color::Green)
+    } else {
+        ("Disabled", Color::DarkGray)
+    };
+
     let info_lines = vec![
         Line::from(vec![
             Span::raw("Scope: "),
@@ -174,7 +186,7 @@ fn view_plugin_detail(
         ]),
         Line::from(vec![
             Span::raw("Status: "),
-            Span::styled("Enabled", Style::default().fg(Color::Green)),
+            Span::styled(status_text, Style::default().fg(status_color)),
         ]),
     ];
 
@@ -182,8 +194,8 @@ fn view_plugin_detail(
     let info_para = Paragraph::new(info_lines).block(info_block);
     f.render_widget(info_para, chunks[1]);
 
-    // アクションメニュー
-    let actions = DetailAction::all();
+    // アクションメニュー（enabled 状態に応じて動的に切り替え）
+    let actions = DetailAction::for_plugin(plugin.enabled);
     let items: Vec<ListItem> = actions
         .iter()
         .map(|a| ListItem::new(format!("  {}", a.label())).style(a.style()))

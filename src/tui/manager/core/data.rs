@@ -62,4 +62,11 @@ impl DataStore {
     pub fn remove_plugin(&mut self, plugin_id: &PluginId) {
         self.plugins.retain(|p| p.name != *plugin_id);
     }
+
+    /// プラグインの有効状態を更新
+    pub fn set_plugin_enabled(&mut self, plugin_id: &PluginId, enabled: bool) {
+        if let Some(plugin) = self.plugins.iter_mut().find(|p| &p.name == plugin_id) {
+            plugin.enabled = enabled;
+        }
+    }
 }
