@@ -1,0 +1,446 @@
+//! プラグインアクションと計画
+//!
+//! Functional Core / Imperative Shell パターンに基づく設計。
+//! - PluginAction: 高レベルユースケース（Install/Uninstall/Enable/Disable）
+//! - PluginPlan: 計画を表す値オブジェクト
+//! - FileOperation: 低レベルファイル操作
+
+use crate::component::{Component, ComponentKind, Scope};
+use crate::domain::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
+use crate::error::{PlmError, Result};
+use crate::target::{all_targets, AffectedTargets, OperationResult, PluginOrigin, Target};
+use std::path::{Path, PathBuf};
+
+/// プラグインアクション（高レベルユースケース）
+#[derive(Debug, Clone)]
+pub enum PluginAction {
+    Install {
+        plugin_name: String,
+        marketplace: Option<String>,
+    },
+    Uninstall {
+        plugin_name: String,
+        marketplace: Option<String>,
+    },
+    Enable {
+        plugin_name: String,
+        marketplace: Option<String>,
+    },
+    Disable {
+        plugin_name: String,
+        marketplace: Option<String>,
+    },
+}
+
+impl PluginAction {
+    /// アクションの種類を文字列で取得
+    pub fn kind(&self) -> &'static str {
+        match self {
+            PluginAction::Install { .. } => "install",
+            PluginAction::Uninstall { .. } => "uninstall",
+            PluginAction::Enable { .. } => "enable",
+            PluginAction::Disable { .. } => "disable",
+        }
+    }
+
+    /// プラグイン名を取得
+    pub fn plugin_name(&self) -> &str {
+        match self {
+            PluginAction::Install { plugin_name, .. }
+            | PluginAction::Uninstall { plugin_name, .. }
+            | PluginAction::Enable { plugin_name, .. }
+            | PluginAction::Disable { plugin_name, .. } => plugin_name,
+        }
+    }
+
+    /// マーケットプレイスを取得
+    pub fn marketplace(&self) -> Option<&str> {
+        match self {
+            PluginAction::Install { marketplace, .. }
+            | PluginAction::Uninstall { marketplace, .. }
+            | PluginAction::Enable { marketplace, .. }
+            | PluginAction::Disable { marketplace, .. } => marketplace.as_deref(),
+        }
+    }
+
+    /// デプロイ系アクションか（Enable/Install）
+    pub fn is_deploy(&self) -> bool {
+        matches!(
+            self,
+            PluginAction::Install { .. } | PluginAction::Enable { .. }
+        )
+    }
+
+    /// 削除系アクションか（Disable/Uninstall）
+    pub fn is_remove(&self) -> bool {
+        matches!(
+            self,
+            PluginAction::Uninstall { .. } | PluginAction::Disable { .. }
+        )
+    }
+}
+
+/// ターゲット識別子（型安全）
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TargetId(String);
+
+impl TargetId {
+    pub fn new(name: impl Into<String>) -> Self {
+        Self(name.into())
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<&str> for TargetId {
+    fn from(s: &str) -> Self {
+        Self::new(s)
+    }
+}
+
+impl std::fmt::Display for TargetId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+/// 検証済みパス（project_root配下であることを保証）
+#[derive(Debug, Clone)]
+pub struct ValidatedPath {
+    path: PathBuf,
+}
+
+impl ValidatedPath {
+    /// 検証して生成
+    ///
+    /// # Errors
+    /// - パスが project_root 配下でない場合
+    pub fn new(path: PathBuf, project_root: &Path) -> Result<Self> {
+        // 絶対パスに変換して比較
+        let canonical_root = project_root.canonicalize().unwrap_or_else(|_| project_root.to_path_buf());
+
+        // パスがproject_root配下かチェック（パスが存在しない場合は親ディレクトリで判断）
+        let check_path = if path.exists() {
+            path.canonicalize().unwrap_or_else(|_| path.clone())
+        } else {
+            // 存在しないパスの場合、親が存在するか確認
+            let mut ancestors = path.ancestors();
+            let _ = ancestors.next(); // 自分自身をスキップ
+            ancestors
+                .find(|p| p.exists())
+                .and_then(|p| p.canonicalize().ok())
+                .unwrap_or_else(|| path.clone())
+        };
+
+        // project_root配下であることを確認
+        if !check_path.starts_with(&canonical_root) && !path.starts_with(project_root) {
+            return Err(PlmError::Validation(format!(
+                "Path '{}' is not under project root '{}'",
+                path.display(),
+                project_root.display()
+            )));
+        }
+
+        Ok(Self { path })
+    }
+
+    /// パスを取得
+    pub fn as_path(&self) -> &Path {
+        &self.path
+    }
+
+    /// PathBuf に変換
+    pub fn into_path(self) -> PathBuf {
+        self.path
+    }
+}
+
+/// 低レベルファイル操作（内部用）
+#[derive(Debug, Clone)]
+pub enum FileOperation {
+    CopyFile {
+        source: PathBuf,
+        target: ValidatedPath,
+    },
+    CopyDir {
+        source: PathBuf,
+        target: ValidatedPath,
+    },
+    RemoveFile {
+        path: ValidatedPath,
+    },
+    RemoveDir {
+        path: ValidatedPath,
+    },
+}
+
+impl FileOperation {
+    /// 操作の種類を文字列で取得
+    pub fn kind(&self) -> &'static str {
+        match self {
+            FileOperation::CopyFile { .. } => "copy_file",
+            FileOperation::CopyDir { .. } => "copy_dir",
+            FileOperation::RemoveFile { .. } => "remove_file",
+            FileOperation::RemoveDir { .. } => "remove_dir",
+        }
+    }
+
+    /// ターゲットパスを取得
+    pub fn target_path(&self) -> &Path {
+        match self {
+            FileOperation::CopyFile { target, .. } | FileOperation::CopyDir { target, .. } => {
+                target.as_path()
+            }
+            FileOperation::RemoveFile { path } | FileOperation::RemoveDir { path } => {
+                path.as_path()
+            }
+        }
+    }
+}
+
+/// プラグイン操作計画（事前スキャン済みデータを保持）
+#[derive(Debug)]
+pub struct PluginPlan {
+    action: PluginAction,
+    components: Vec<Component>,
+    project_root: PathBuf,
+}
+
+impl PluginPlan {
+    /// 計画を構築
+    pub fn new(
+        action: PluginAction,
+        components: Vec<Component>,
+        project_root: PathBuf,
+    ) -> Self {
+        Self {
+            action,
+            components,
+            project_root,
+        }
+    }
+
+    /// アクションを取得
+    pub fn action(&self) -> &PluginAction {
+        &self.action
+    }
+
+    /// コンポーネント数を取得
+    pub fn component_count(&self) -> usize {
+        self.components.len()
+    }
+
+    /// Functional Core: 低レベルファイル操作に展開（完全に純粋）
+    ///
+    /// ファイルシステムにアクセスしない。保持済みデータのみ使用。
+    pub fn expand(&self) -> Vec<(TargetId, FileOperation)> {
+        let targets = all_targets();
+        let origin = PluginOrigin::from_cached_plugin(
+            self.action.marketplace(),
+            self.action.plugin_name(),
+        );
+
+        let mut operations = Vec::new();
+
+        for target in &targets {
+            for component in &self.components {
+                if !target.supports(component.kind) {
+                    continue;
+                }
+
+                let context = PlacementContext {
+                    component: ComponentRef::new(component.kind, &component.name),
+                    origin: &origin,
+                    scope: PlacementScope(Scope::Project),
+                    project: ProjectContext::new(&self.project_root),
+                };
+
+                if let Some(location) = target.placement_location(&context) {
+                    let target_path = location.into_path();
+                    let target_id = TargetId::new(target.name());
+
+                    // ValidatedPath の検証はここで行うが、これは純粋な検証なので OK
+                    // （ファイルシステムの「読み込み」ではなく、パスの「検証」）
+                    if let Ok(validated) = ValidatedPath::new(target_path.clone(), &self.project_root) {
+                        let op = if self.action.is_deploy() {
+                            // デプロイ操作
+                            if component.kind == ComponentKind::Skill {
+                                FileOperation::CopyDir {
+                                    source: component.path.clone(),
+                                    target: validated,
+                                }
+                            } else {
+                                FileOperation::CopyFile {
+                                    source: component.path.clone(),
+                                    target: validated,
+                                }
+                            }
+                        } else {
+                            // 削除操作
+                            if component.kind == ComponentKind::Skill {
+                                FileOperation::RemoveDir { path: validated }
+                            } else {
+                                FileOperation::RemoveFile { path: validated }
+                            }
+                        };
+
+                        operations.push((target_id, op));
+                    }
+                }
+            }
+        }
+
+        operations
+    }
+
+    /// ドライラン: 実行予定の操作を確認
+    pub fn dry_run(&self) -> Vec<(TargetId, FileOperation)> {
+        self.expand()
+    }
+
+    /// Imperative Shell: 実行（副作用）
+    pub fn apply(self) -> OperationResult {
+        let operations = self.expand();
+        execute_file_operations(operations, &self.project_root)
+    }
+}
+
+/// ファイル操作を実行
+fn execute_file_operations(
+    operations: Vec<(TargetId, FileOperation)>,
+    _project_root: &Path,
+) -> OperationResult {
+    use crate::path_ext::PathExt;
+
+    let mut affected = AffectedTargets::new();
+
+    // ターゲットごとにグループ化
+    let mut by_target: std::collections::HashMap<TargetId, Vec<FileOperation>> =
+        std::collections::HashMap::new();
+
+    for (target_id, op) in operations {
+        by_target.entry(target_id).or_default().push(op);
+    }
+
+    for (target_id, ops) in by_target {
+        let mut success_count = 0;
+        let mut error_msg = None;
+
+        for op in ops {
+            let result = match &op {
+                FileOperation::CopyFile { source, target } => {
+                    source.copy_file_to(target.as_path())
+                }
+                FileOperation::CopyDir { source, target } => {
+                    source.copy_dir_to(target.as_path())
+                }
+                FileOperation::RemoveFile { path } => {
+                    let p = path.as_path();
+                    if p.exists() {
+                        std::fs::remove_file(p).map_err(|e| PlmError::Io(e))
+                    } else {
+                        Ok(())
+                    }
+                }
+                FileOperation::RemoveDir { path } => {
+                    let p = path.as_path();
+                    if p.exists() {
+                        std::fs::remove_dir_all(p).map_err(|e| PlmError::Io(e))
+                    } else {
+                        Ok(())
+                    }
+                }
+            };
+
+            match result {
+                Ok(()) => success_count += 1,
+                Err(e) => {
+                    error_msg = Some(e.to_string());
+                    break;
+                }
+            }
+        }
+
+        if let Some(msg) = error_msg {
+            affected.record_error(target_id.as_str(), msg);
+        } else {
+            affected.record_success(target_id.as_str(), success_count);
+        }
+    }
+
+    affected.into_result()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_plugin_action_kind() {
+        let install = PluginAction::Install {
+            plugin_name: "test".to_string(),
+            marketplace: None,
+        };
+        assert_eq!(install.kind(), "install");
+        assert!(install.is_deploy());
+        assert!(!install.is_remove());
+
+        let disable = PluginAction::Disable {
+            plugin_name: "test".to_string(),
+            marketplace: Some("official".to_string()),
+        };
+        assert_eq!(disable.kind(), "disable");
+        assert!(!disable.is_deploy());
+        assert!(disable.is_remove());
+    }
+
+    #[test]
+    fn test_target_id() {
+        let id = TargetId::new("codex");
+        assert_eq!(id.as_str(), "codex");
+        assert_eq!(format!("{}", id), "codex");
+
+        let from_str: TargetId = "copilot".into();
+        assert_eq!(from_str.as_str(), "copilot");
+    }
+
+    #[test]
+    fn test_validated_path_under_project() {
+        let temp_dir = std::env::temp_dir();
+        let path = temp_dir.join("test.txt");
+        let result = ValidatedPath::new(path.clone(), &temp_dir);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_file_operation_kind() {
+        let temp_dir = std::env::temp_dir();
+        let validated = ValidatedPath::new(temp_dir.join("test.txt"), &temp_dir).unwrap();
+
+        let copy = FileOperation::CopyFile {
+            source: PathBuf::from("/src/file.txt"),
+            target: validated.clone(),
+        };
+        assert_eq!(copy.kind(), "copy_file");
+
+        let remove = FileOperation::RemoveFile { path: validated };
+        assert_eq!(remove.kind(), "remove_file");
+    }
+
+    #[test]
+    fn test_plugin_plan_expand_empty() {
+        let plan = PluginPlan::new(
+            PluginAction::Enable {
+                plugin_name: "test-plugin".to_string(),
+                marketplace: None,
+            },
+            vec![],
+            std::env::temp_dir(),
+        );
+
+        let ops = plan.expand();
+        assert!(ops.is_empty());
+    }
+}

@@ -1,11 +1,18 @@
 //! プラグイン操作ユースケース
 //!
 //! Enable/Disable/Uninstall などのプラグインライフサイクル操作を提供する。
+//!
+//! ## Functional Core / Imperative Shell パターン
+//!
+//! このモジュールは以下のフローで動作する：
+//! 1. Imperative Shell: プラグインのスキャン（I/O）
+//! 2. Functional Core: `PluginPlan::expand()` で操作を計画（純粋関数）
+//! 3. Imperative Shell: `PluginPlan::apply()` で実行（I/O）
 
-use crate::component::{ComponentDeployment, ComponentKind, Scope};
-use crate::domain::placement::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
-use crate::plugin::{PluginCache, PluginManifest};
-use crate::target::{all_targets, AffectedTargets, OperationResult, PluginOrigin, Target};
+use super::plugin_action::{PluginAction, PluginPlan};
+use crate::component::Component;
+use crate::plugin::{CachedPlugin, PluginCache, PluginManifest};
+use crate::target::{all_targets, OperationResult, PluginOrigin};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -30,43 +37,34 @@ pub fn disable_plugin(
         return OperationResult::error(format!("Plugin '{}' not found in cache", plugin_name));
     }
 
-    // マニフェストを読み込んでコンポーネント情報を取得
-    let manifest = match cache.load_manifest(marketplace, plugin_name) {
-        Ok(m) => m,
-        Err(e) => return OperationResult::error(format!("Failed to load manifest: {}", e)),
+    // Imperative Shell: コンポーネントをスキャン（I/O）
+    let plugin = match load_plugin_deployment(&cache, marketplace, plugin_name) {
+        Ok(p) => p,
+        Err(e) => return OperationResult::error(e),
     };
+    let components = plugin.components();
 
-    // プラグインのオリジン情報を作成
-    let origin = match marketplace {
-        Some(mp) => PluginOrigin::from_marketplace(mp, &manifest.name),
-        None => PluginOrigin::from_marketplace("github", &manifest.name),
-    };
+    // Functional Core: 計画を生成（純粋）
+    let plan = PluginPlan::new(
+        PluginAction::Disable {
+            plugin_name: plugin_name.to_string(),
+            marketplace: marketplace.map(|s| s.to_string()),
+        },
+        components,
+        project_root.to_path_buf(),
+    );
 
-    let plugin_path = cache.plugin_path(marketplace, plugin_name);
+    // Imperative Shell: 実行（I/O）
+    let result = plan.apply();
 
-    // 値オブジェクトで結果を記録
-    let mut affected = AffectedTargets::new();
-    let targets = all_targets();
-
-    for target in &targets {
-        match remove_plugin_from_target(
-            target.as_ref(),
-            &origin,
-            &manifest,
-            &plugin_path,
-            project_root,
-        ) {
-            Ok(removed_count) => {
-                affected.record_success(target.name(), removed_count);
-            }
-            Err(e) => {
-                affected.record_error(target.name(), e);
-            }
+    // 後処理: 空になったディレクトリをクリーンアップ
+    if result.success {
+        for target in &all_targets() {
+            cleanup_plugin_directories(target.name(), &plugin.origin, project_root);
         }
     }
 
-    // 値オブジェクトが結果を生成
-    affected.into_result()
+    result
 }
 
 /// プラグインを Enable（キャッシュからデプロイ先に配置）
@@ -90,48 +88,25 @@ pub fn enable_plugin(
         return OperationResult::error(format!("Plugin '{}' not found in cache", plugin_name));
     }
 
-    // マニフェストを読み込んでコンポーネント情報を取得
-    let manifest = match cache.load_manifest(marketplace, plugin_name) {
-        Ok(m) => m,
-        Err(e) => return OperationResult::error(format!("Failed to load manifest: {}", e)),
+    // Imperative Shell: コンポーネントをスキャン（I/O）
+    let plugin = match load_plugin_deployment(&cache, marketplace, plugin_name) {
+        Ok(p) => p,
+        Err(e) => return OperationResult::error(e),
     };
+    let components = plugin.components();
 
-    // プラグインのオリジン情報を作成
-    let origin = match marketplace {
-        Some(mp) => PluginOrigin::from_marketplace(mp, &manifest.name),
-        None => PluginOrigin::from_marketplace("github", &manifest.name),
-    };
+    // Functional Core: 計画を生成（純粋）
+    let plan = PluginPlan::new(
+        PluginAction::Enable {
+            plugin_name: plugin_name.to_string(),
+            marketplace: marketplace.map(|s| s.to_string()),
+        },
+        components,
+        project_root.to_path_buf(),
+    );
 
-    let plugin_path = cache.plugin_path(marketplace, plugin_name);
-
-    // PluginDeployment を構築
-    let plugin = PluginDeployment {
-        origin,
-        manifest,
-        path: plugin_path,
-    };
-
-    // 値オブジェクトで結果を記録
-    let mut affected = AffectedTargets::new();
-    let targets = all_targets();
-
-    for target in &targets {
-        let ctx = TargetContext {
-            target: target.as_ref(),
-            project_root,
-        };
-        match deploy_plugin_to_target(&ctx, &plugin) {
-            Ok(deployed_count) => {
-                affected.record_success(target.name(), deployed_count);
-            }
-            Err(e) => {
-                affected.record_error(target.name(), e);
-            }
-        }
-    }
-
-    // 値オブジェクトが結果を生成
-    affected.into_result()
+    // Imperative Shell: 実行（I/O）
+    plan.apply()
 }
 
 /// プラグインを Uninstall（デプロイ先 + キャッシュ削除）
@@ -162,128 +137,6 @@ pub fn uninstall_plugin(
     }
 
     disable_result
-}
-
-/// 特定のターゲットからプラグインのコンポーネントを削除
-///
-/// 削除したコンポーネント数を返す。
-fn remove_plugin_from_target(
-    target: &dyn Target,
-    origin: &PluginOrigin,
-    manifest: &PluginManifest,
-    plugin_path: &Path,
-    project_root: &Path,
-) -> std::result::Result<usize, String> {
-    let mut removed_count = 0usize;
-
-    // スキルを削除
-    if target.supports(ComponentKind::Skill) {
-        let skills_dir = manifest.skills_dir(plugin_path);
-        if skills_dir.exists() {
-            for entry in skills_dir.read_dir().map_err(|e| e.to_string())? {
-                let entry = entry.map_err(|e| e.to_string())?;
-                if entry.path().is_dir() {
-                    let name = entry.file_name().to_string_lossy().to_string();
-                    if remove_component(target, origin, ComponentKind::Skill, &name, project_root)?
-                    {
-                        removed_count += 1;
-                    }
-                }
-            }
-        }
-    }
-
-    // エージェントを削除
-    if target.supports(ComponentKind::Agent) {
-        let agents_path = manifest.agents_dir(plugin_path);
-        if agents_path.exists() {
-            if agents_path.is_file() {
-                // 単一ファイルの場合
-                if let Some(name) = agents_path.file_stem() {
-                    let name = name.to_string_lossy().to_string();
-                    if remove_component(target, origin, ComponentKind::Agent, &name, project_root)?
-                    {
-                        removed_count += 1;
-                    }
-                }
-            } else {
-                // ディレクトリの場合
-                for entry in agents_path.read_dir().map_err(|e| e.to_string())? {
-                    let entry = entry.map_err(|e| e.to_string())?;
-                    let path = entry.path();
-                    if path.is_file() {
-                        if let Some(name) = path.file_stem() {
-                            let name = name.to_string_lossy().to_string();
-                            if remove_component(
-                                target,
-                                origin,
-                                ComponentKind::Agent,
-                                &name,
-                                project_root,
-                            )? {
-                                removed_count += 1;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // コマンドを削除
-    if target.supports(ComponentKind::Command) {
-        let commands_dir = manifest.commands_dir(plugin_path);
-        if commands_dir.exists() {
-            for entry in commands_dir.read_dir().map_err(|e| e.to_string())? {
-                let entry = entry.map_err(|e| e.to_string())?;
-                let path = entry.path();
-                if path.is_file() {
-                    if let Some(name) = path.file_stem() {
-                        let name = name.to_string_lossy().to_string();
-                        if remove_component(
-                            target,
-                            origin,
-                            ComponentKind::Command,
-                            &name,
-                            project_root,
-                        )? {
-                            removed_count += 1;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // インストラクションを削除
-    if target.supports(ComponentKind::Instruction) {
-        let instructions_dir = manifest.instructions_dir(plugin_path);
-        if instructions_dir.exists() {
-            for entry in instructions_dir.read_dir().map_err(|e| e.to_string())? {
-                let entry = entry.map_err(|e| e.to_string())?;
-                let path = entry.path();
-                if path.is_file() {
-                    if let Some(name) = path.file_stem() {
-                        let name = name.to_string_lossy().to_string();
-                        if remove_component(
-                            target,
-                            origin,
-                            ComponentKind::Instruction,
-                            &name,
-                            project_root,
-                        )? {
-                            removed_count += 1;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // プラグインディレクトリをクリーンアップ
-    cleanup_plugin_directories(target.name(), origin, project_root);
-
-    Ok(removed_count)
 }
 
 /// プラグインディレクトリをクリーンアップ
@@ -345,50 +198,35 @@ fn cleanup_plugin_directories(target_name: &str, origin: &PluginOrigin, project_
     }
 }
 
-/// 単一コンポーネントを削除
+/// キャッシュから PluginDeployment を読み込む
 ///
-/// 削除に成功したら true、存在しなかった場合は false を返す。
-fn remove_component(
-    target: &dyn Target,
-    origin: &PluginOrigin,
-    kind: ComponentKind,
-    name: &str,
-    project_root: &Path,
-) -> std::result::Result<bool, String> {
-    let context = PlacementContext {
-        component: ComponentRef::new(kind, name),
-        origin,
-        scope: PlacementScope(Scope::Project),
-        project: ProjectContext::new(project_root),
+/// マニフェストとパス情報を含む PluginDeployment を構築する。
+fn load_plugin_deployment(
+    cache: &PluginCache,
+    marketplace: Option<&str>,
+    plugin_name: &str,
+) -> Result<PluginDeployment, String> {
+    let manifest = cache
+        .load_manifest(marketplace, plugin_name)
+        .map_err(|e| format!("Failed to load manifest: {}", e))?;
+
+    let origin = match marketplace {
+        Some(mp) => PluginOrigin::from_marketplace(mp, &manifest.name),
+        None => PluginOrigin::from_marketplace("github", &manifest.name),
     };
 
-    // 削除を試みる（存在しなくてもエラーにしない）
-    match target.remove(&context) {
-        Ok(()) => Ok(true),
-        Err(e) => {
-            let err_str = e.to_string();
-            // ファイルが存在しない場合は無視
-            if err_str.contains("not found") || err_str.contains("No such file") {
-                Ok(false)
-            } else {
-                Err(err_str)
-            }
-        }
-    }
-}
+    let plugin_path = cache.plugin_path(marketplace, plugin_name);
 
-/// ターゲット環境のコンテキスト
-///
-/// デプロイ操作で共通して使用する環境パラメータをまとめる。
-struct TargetContext<'a> {
-    target: &'a dyn Target,
-    project_root: &'a Path,
+    Ok(PluginDeployment {
+        origin,
+        manifest,
+        path: plugin_path,
+    })
 }
 
 /// デプロイ用プラグイン情報（Application層DTO）
 ///
 /// デプロイ操作に必要な origin, manifest, path を保持。
-/// CachedPlugin から変換して使用する。
 pub struct PluginDeployment {
     pub origin: PluginOrigin,
     pub manifest: PluginManifest,
@@ -396,158 +234,19 @@ pub struct PluginDeployment {
 }
 
 impl PluginDeployment {
-    /// スキルディレクトリのパスを取得
-    pub fn skills_dir(&self) -> PathBuf {
-        self.manifest.skills_dir(&self.path)
+    /// プラグイン内のコンポーネントを取得
+    ///
+    /// CachedPlugin の components() メソッドを再利用する。
+    pub fn components(&self) -> Vec<Component> {
+        // CachedPlugin を構築してコンポーネントスキャンを委譲
+        let cached = CachedPlugin {
+            name: self.origin.plugin.clone(),
+            marketplace: Some(self.origin.marketplace.clone()),
+            path: self.path.clone(),
+            manifest: self.manifest.clone(),
+            git_ref: String::new(),
+            commit_sha: String::new(),
+        };
+        cached.components()
     }
-
-    /// エージェントディレクトリのパスを取得
-    pub fn agents_dir(&self) -> PathBuf {
-        self.manifest.agents_dir(&self.path)
-    }
-
-    /// コマンドディレクトリのパスを取得
-    pub fn commands_dir(&self) -> PathBuf {
-        self.manifest.commands_dir(&self.path)
-    }
-
-    /// インストラクションディレクトリのパスを取得
-    pub fn instructions_dir(&self) -> PathBuf {
-        self.manifest.instructions_dir(&self.path)
-    }
-}
-
-/// 特定のターゲットにプラグインのコンポーネントをデプロイ
-///
-/// デプロイしたコンポーネント数を返す。
-fn deploy_plugin_to_target(
-    ctx: &TargetContext,
-    plugin: &PluginDeployment,
-) -> std::result::Result<usize, String> {
-    let mut deployed_count = 0usize;
-
-    // スキルをデプロイ
-    if ctx.target.supports(ComponentKind::Skill) {
-        let skills_dir = plugin.skills_dir();
-        if skills_dir.exists() {
-            for entry in skills_dir.read_dir().map_err(|e| e.to_string())? {
-                let entry = entry.map_err(|e| e.to_string())?;
-                if entry.path().is_dir() {
-                    let name = entry.file_name().to_string_lossy().to_string();
-                    let source_path = entry.path();
-                    if deploy_component(ctx, &plugin.origin, ComponentKind::Skill, &name, &source_path)? {
-                        deployed_count += 1;
-                    }
-                }
-            }
-        }
-    }
-
-    // エージェントをデプロイ
-    if ctx.target.supports(ComponentKind::Agent) {
-        let agents_path = plugin.agents_dir();
-        if agents_path.exists() {
-            if agents_path.is_file() {
-                // 単一ファイルの場合
-                if let Some(name) = agents_path.file_stem() {
-                    let name = name.to_string_lossy().to_string();
-                    if deploy_component(ctx, &plugin.origin, ComponentKind::Agent, &name, &agents_path)? {
-                        deployed_count += 1;
-                    }
-                }
-            } else {
-                // ディレクトリの場合
-                for entry in agents_path.read_dir().map_err(|e| e.to_string())? {
-                    let entry = entry.map_err(|e| e.to_string())?;
-                    let path = entry.path();
-                    if path.is_file() {
-                        if let Some(name) = path.file_stem() {
-                            let name = name.to_string_lossy().to_string();
-                            if deploy_component(ctx, &plugin.origin, ComponentKind::Agent, &name, &path)? {
-                                deployed_count += 1;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // コマンドをデプロイ
-    if ctx.target.supports(ComponentKind::Command) {
-        let commands_dir = plugin.commands_dir();
-        if commands_dir.exists() {
-            for entry in commands_dir.read_dir().map_err(|e| e.to_string())? {
-                let entry = entry.map_err(|e| e.to_string())?;
-                let path = entry.path();
-                if path.is_file() {
-                    if let Some(name) = path.file_stem() {
-                        let name = name.to_string_lossy().to_string();
-                        if deploy_component(ctx, &plugin.origin, ComponentKind::Command, &name, &path)? {
-                            deployed_count += 1;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // インストラクションをデプロイ
-    if ctx.target.supports(ComponentKind::Instruction) {
-        let instructions_dir = plugin.instructions_dir();
-        if instructions_dir.exists() {
-            for entry in instructions_dir.read_dir().map_err(|e| e.to_string())? {
-                let entry = entry.map_err(|e| e.to_string())?;
-                let path = entry.path();
-                if path.is_file() {
-                    if let Some(name) = path.file_stem() {
-                        let name = name.to_string_lossy().to_string();
-                        if deploy_component(ctx, &plugin.origin, ComponentKind::Instruction, &name, &path)?
-                        {
-                            deployed_count += 1;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    Ok(deployed_count)
-}
-
-/// 単一コンポーネントをデプロイ
-///
-/// デプロイに成功したら true を返す。
-fn deploy_component(
-    ctx: &TargetContext,
-    origin: &PluginOrigin,
-    kind: ComponentKind,
-    name: &str,
-    source_path: &Path,
-) -> std::result::Result<bool, String> {
-    let context = PlacementContext {
-        component: ComponentRef::new(kind, name),
-        origin,
-        scope: PlacementScope(Scope::Project),
-        project: ProjectContext::new(ctx.project_root),
-    };
-
-    // 配置先を取得
-    let target_path = match ctx.target.placement_location(&context) {
-        Some(location) => location.into_path(),
-        None => return Ok(false), // サポートしていない場合はスキップ
-    };
-
-    // デプロイを実行
-    let deployment = ComponentDeployment::builder()
-        .kind(kind)
-        .name(name)
-        .scope(Scope::Project)
-        .source_path(source_path)
-        .target_path(target_path)
-        .build()
-        .map_err(|e| e.to_string())?;
-
-    deployment.execute().map_err(|e| e.to_string())?;
-    Ok(true)
 }
