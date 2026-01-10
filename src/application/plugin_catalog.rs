@@ -7,11 +7,12 @@ use crate::error::Result;
 use crate::plugin::{has_manifest, PluginCache, PluginManifest};
 use crate::scan::{scan_components, ComponentScan};
 use crate::target::{all_targets, PluginOrigin};
+use serde::Serialize;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 /// プラグイン情報のサマリ（DTO）
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct PluginSummary {
     /// プラグイン名
     pub name: String,
