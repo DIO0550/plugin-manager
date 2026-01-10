@@ -2,7 +2,7 @@
 //!
 //! Functional Core / Imperative Shell パターンに基づく設計。
 //! - PluginAction: 高レベルユースケース（Install/Uninstall/Enable/Disable）
-//! - PluginPlan: 計画を表す値オブジェクト
+//! - PluginIntent: 意図を表す値オブジェクト（展開可能）
 //! - FileOperation: 低レベルファイル操作
 
 use crate::component::{Component, ComponentKind, Scope};
@@ -200,15 +200,15 @@ impl FileOperation {
     }
 }
 
-/// プラグイン操作計画（事前スキャン済みデータを保持）
+/// プラグイン操作意図（事前スキャン済みデータを保持）
 #[derive(Debug)]
-pub struct PluginPlan {
+pub struct PluginIntent {
     action: PluginAction,
     components: Vec<Component>,
     project_root: PathBuf,
 }
 
-impl PluginPlan {
+impl PluginIntent {
     /// 計画を構築
     pub fn new(
         action: PluginAction,
@@ -427,7 +427,7 @@ mod tests {
 
     #[test]
     fn test_plugin_plan_expand_empty() {
-        let plan = PluginPlan::new(
+        let plan = PluginIntent::new(
             PluginAction::Enable {
                 plugin_name: "test-plugin".to_string(),
                 marketplace: None,

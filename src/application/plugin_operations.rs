@@ -6,10 +6,10 @@
 //!
 //! このモジュールは以下のフローで動作する：
 //! 1. Imperative Shell: プラグインのスキャン（I/O）
-//! 2. Functional Core: `PluginPlan::expand()` で操作を計画（純粋関数）
-//! 3. Imperative Shell: `PluginPlan::apply()` で実行（I/O）
+//! 2. Functional Core: `PluginIntent::expand()` で操作を展開（純粋関数）
+//! 3. Imperative Shell: `PluginIntent::apply()` で実行（I/O）
 
-use super::plugin_action::{PluginAction, PluginPlan};
+use super::plugin_action::{PluginAction, PluginIntent};
 use crate::component::Component;
 use crate::plugin::{CachedPlugin, PluginCache, PluginManifest};
 use crate::target::{all_targets, OperationResult, PluginOrigin};
@@ -44,8 +44,8 @@ pub fn disable_plugin(
     };
     let components = plugin.components();
 
-    // Functional Core: 計画を生成（純粋）
-    let plan = PluginPlan::new(
+    // Functional Core: 意図を生成（純粋）
+    let intent = PluginIntent::new(
         PluginAction::Disable {
             plugin_name: plugin_name.to_string(),
             marketplace: marketplace.map(|s| s.to_string()),
@@ -55,7 +55,7 @@ pub fn disable_plugin(
     );
 
     // Imperative Shell: 実行（I/O）
-    let result = plan.apply();
+    let result = intent.apply();
 
     // 後処理: 空になったディレクトリをクリーンアップ
     if result.success {
@@ -95,8 +95,8 @@ pub fn enable_plugin(
     };
     let components = plugin.components();
 
-    // Functional Core: 計画を生成（純粋）
-    let plan = PluginPlan::new(
+    // Functional Core: 意図を生成（純粋）
+    let intent = PluginIntent::new(
         PluginAction::Enable {
             plugin_name: plugin_name.to_string(),
             marketplace: marketplace.map(|s| s.to_string()),
@@ -106,7 +106,7 @@ pub fn enable_plugin(
     );
 
     // Imperative Shell: 実行（I/O）
-    plan.apply()
+    intent.apply()
 }
 
 /// プラグインを Uninstall（デプロイ先 + キャッシュ削除）
