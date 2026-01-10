@@ -242,62 +242,58 @@ impl PluginPlan {
             self.action.plugin_name(),
         );
 
-        let mut operations = Vec::new();
-
-        for target in &targets {
-            for component in &self.components {
-                if !target.supports(component.kind) {
-                    continue;
-                }
-
-                let context = PlacementContext {
-                    component: ComponentRef::new(component.kind, &component.name),
-                    origin: &origin,
-                    scope: PlacementScope(Scope::Project),
-                    project: ProjectContext::new(&self.project_root),
-                };
-
-                if let Some(location) = target.placement_location(&context) {
-                    let target_path = location.into_path();
-                    let target_id = TargetId::new(target.name());
-
-                    // ValidatedPath の検証はここで行うが、これは純粋な検証なので OK
-                    // （ファイルシステムの「読み込み」ではなく、パスの「検証」）
-                    if let Ok(validated) = ValidatedPath::new(target_path.clone(), &self.project_root) {
-                        let op = if self.action.is_deploy() {
-                            // デプロイ操作
-                            if component.kind == ComponentKind::Skill {
-                                FileOperation::CopyDir {
-                                    source: component.path.clone(),
-                                    target: validated,
-                                }
-                            } else {
-                                FileOperation::CopyFile {
-                                    source: component.path.clone(),
-                                    target: validated,
-                                }
-                            }
-                        } else {
-                            // 削除操作
-                            if component.kind == ComponentKind::Skill {
-                                FileOperation::RemoveDir { path: validated }
-                            } else {
-                                FileOperation::RemoveFile { path: validated }
-                            }
-                        };
-
-                        operations.push((target_id, op));
-                    }
-                }
-            }
-        }
-
-        operations
+        targets
+            .iter()
+            .flat_map(|target| {
+                self.components
+                    .iter()
+                    .filter(|component| target.supports(component.kind))
+                    .filter_map(|component| self.create_operation(target.as_ref(), component, &origin))
+            })
+            .collect()
     }
 
     /// ドライラン: 実行予定の操作を確認
     pub fn dry_run(&self) -> Vec<(TargetId, FileOperation)> {
         self.expand()
+    }
+
+    /// FileOperation を構築
+    fn build_file_operation(&self, component: &Component, validated: ValidatedPath) -> FileOperation {
+        match (self.action.is_deploy(), component.kind) {
+            (true, ComponentKind::Skill) => FileOperation::CopyDir {
+                source: component.path.clone(),
+                target: validated,
+            },
+            (true, _) => FileOperation::CopyFile {
+                source: component.path.clone(),
+                target: validated,
+            },
+            (false, ComponentKind::Skill) => FileOperation::RemoveDir { path: validated },
+            (false, _) => FileOperation::RemoveFile { path: validated },
+        }
+    }
+
+    /// 単一コンポーネントの操作を生成
+    fn create_operation(
+        &self,
+        target: &dyn Target,
+        component: &Component,
+        origin: &PluginOrigin,
+    ) -> Option<(TargetId, FileOperation)> {
+        let context = PlacementContext {
+            component: ComponentRef::new(component.kind, &component.name),
+            origin,
+            scope: PlacementScope(Scope::Project),
+            project: ProjectContext::new(&self.project_root),
+        };
+
+        let location = target.placement_location(&context)?;
+        let target_path = location.into_path();
+        let validated = ValidatedPath::new(target_path, &self.project_root).ok()?;
+
+        let op = self.build_file_operation(component, validated);
+        Some((TargetId::new(target.name()), op))
     }
 
     /// Imperative Shell: 実行（副作用）
