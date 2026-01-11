@@ -7,6 +7,7 @@ accepted = [
     "Zlib",
     "Unicode-3.0",
     "OpenSSL",
+    "CDLA-Permissive-2.0",
 ]
 
 # Limit scanning depth to avoid crawling vendored sources which can contain
