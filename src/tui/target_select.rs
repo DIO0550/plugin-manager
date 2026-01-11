@@ -53,6 +53,5 @@ pub fn select_targets(
 }
 
 #[cfg(test)]
-mod tests {
-    // TUIテストは実際のターミナルが必要なためスキップ
-}
+#[path = "target_select_test.rs"]
+mod tests;

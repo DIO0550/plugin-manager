@@ -30,6 +30,5 @@ pub fn select_scope() -> Result<Scope> {
 }
 
 #[cfg(test)]
-mod tests {
-    // TUIテストは実際のターミナルが必要なためスキップ
-}
+#[path = "scope_select_test.rs"]
+mod tests;
