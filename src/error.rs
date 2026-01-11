@@ -1,5 +1,15 @@
 use thiserror::Error;
 
+/// AmbiguousPlugin エラーのフォーマット
+fn format_ambiguous_plugin(name: &str, candidates: &[String]) -> String {
+    let mut msg = format!("multiple plugins named '{}' found:\n", name);
+    for c in candidates {
+        msg.push_str(&format!("  - {}\n", c));
+    }
+    msg.push_str(&format!("Use 'plm info <marketplace>/{}' to specify.", name));
+    msg
+}
+
 /// PLM統一エラー型
 #[derive(Debug, Error)]
 pub enum PlmError {
@@ -18,6 +28,12 @@ pub enum PlmError {
 
     #[error("Plugin not found: {0}")]
     PluginNotFound(String),
+
+    #[error("Invalid argument: {0}")]
+    InvalidArgument(String),
+
+    #[error("{}", format_ambiguous_plugin(.name, .candidates))]
+    AmbiguousPlugin { name: String, candidates: Vec<String> },
 
     #[error("Marketplace not found: {0}")]
     MarketplaceNotFound(String),

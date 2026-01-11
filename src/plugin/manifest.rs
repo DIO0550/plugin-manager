@@ -50,6 +50,11 @@ pub struct PluginManifest {
     pub mcp_servers: Option<String>,
     #[serde(default, rename = "lspServers")]
     pub lsp_servers: Option<String>,
+
+    /// インストール日時（RFC3339形式、例: "2025-01-15T10:30:00Z"）
+    /// PLMによりインストール時に自動設定される
+    #[serde(default, rename = "installedAt")]
+    pub installed_at: Option<String>,
 }
 
 impl PluginManifest {
@@ -351,5 +356,35 @@ mod tests {
         let json = r#"{"name": "test", "version": "1.0.0", "skills": null}"#;
         let manifest = PluginManifest::parse(json).unwrap();
         assert!(!manifest.has_skills());
+    }
+
+    // === installed_at フィールドのテスト ===
+
+    #[test]
+    fn test_parse_with_installed_at() {
+        let json = r#"{
+            "name": "test",
+            "version": "1.0.0",
+            "installedAt": "2025-01-15T10:30:00Z"
+        }"#;
+        let manifest = PluginManifest::parse(json).unwrap();
+        assert_eq!(
+            manifest.installed_at,
+            Some("2025-01-15T10:30:00Z".to_string())
+        );
+    }
+
+    #[test]
+    fn test_parse_without_installed_at() {
+        let json = r#"{"name": "test", "version": "1.0.0"}"#;
+        let manifest = PluginManifest::parse(json).unwrap();
+        assert!(manifest.installed_at.is_none());
+    }
+
+    #[test]
+    fn test_parse_installed_at_null() {
+        let json = r#"{"name": "test", "version": "1.0.0", "installedAt": null}"#;
+        let manifest = PluginManifest::parse(json).unwrap();
+        assert!(manifest.installed_at.is_none());
     }
 }
