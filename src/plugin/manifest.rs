@@ -52,8 +52,8 @@ pub struct PluginManifest {
     pub lsp_servers: Option<String>,
 
     /// インストール日時（RFC3339形式、例: "2025-01-15T10:30:00Z"）
-    /// PLMによりインストール時に自動設定される
-    #[serde(default, rename = "installedAt")]
+    /// 後方互換のため読み込みのみ対応。新規インストールでは .plm-meta.json に記録される。
+    #[serde(default, rename = "installedAt", skip_serializing)]
     pub installed_at: Option<String>,
 }
 

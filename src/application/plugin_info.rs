@@ -4,7 +4,7 @@
 
 use crate::component::{ComponentKind, Scope};
 use crate::error::{PlmError, Result};
-use crate::plugin::{has_manifest, PluginCache, PluginManifest};
+use crate::plugin::{has_manifest, meta, PluginCache, PluginManifest};
 use crate::scan::scan_components;
 use crate::target::{all_targets, PluginOrigin};
 use serde::Serialize;
@@ -291,7 +291,7 @@ fn build_plugin_detail(candidate: PluginCandidate) -> Result<PluginDetail> {
         version: manifest.version.clone(),
         description: manifest.description.clone(),
         author,
-        installed_at: manifest.installed_at.clone(),
+        installed_at: meta::resolve_installed_at(&candidate.cache_path, Some(&manifest)),
         source,
         components,
         enabled,

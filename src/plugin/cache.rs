@@ -5,7 +5,6 @@
 use super::manifest_resolve::resolve_manifest_path;
 use super::PluginManifest;
 use crate::error::{PlmError, Result};
-use chrono::Utc;
 use std::fs;
 use std::io::{Cursor, Read};
 use std::path::{Component as PathComponent, Path, PathBuf};
@@ -226,38 +225,12 @@ impl PluginCache {
             // ディレクトリエントリのみの場合。後続の plugin.json 不在エラーに委ねる
         }
 
-        // インストール日時を記録（失敗時は警告のみ、処理は継続）
-        if let Err(e) = self.write_installed_at(&plugin_dir) {
+        // インストール日時を .plm-meta.json に記録（失敗時は警告のみ、処理は継続）
+        if let Err(e) = super::meta::write_installed_at(&plugin_dir) {
             eprintln!("Warning: Failed to write installedAt: {}", e);
         }
 
         Ok(plugin_dir)
-    }
-
-    /// plugin.json に installedAt フィールドを書き込む（部分更新方式）
-    ///
-    /// 既存のフィールドを保持しながら installedAt のみを追加・更新する。
-    /// RFC3339形式（例: "2025-01-15T10:30:00Z"）で現在時刻を記録。
-    fn write_installed_at(&self, plugin_dir: &Path) -> Result<()> {
-        let manifest_path = resolve_manifest_path(plugin_dir).ok_or_else(|| {
-            PlmError::InvalidManifest("plugin.json not found for writing installedAt".into())
-        })?;
-
-        // 既存のJSONを読み込み
-        let content = fs::read_to_string(&manifest_path)?;
-        let mut json: serde_json::Value = serde_json::from_str(&content)?;
-
-        // installedAt を追加・更新
-        if let Some(obj) = json.as_object_mut() {
-            let now = Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
-            obj.insert("installedAt".to_string(), serde_json::Value::String(now));
-        }
-
-        // 整形して書き戻し
-        let updated = serde_json::to_string_pretty(&json)?;
-        fs::write(&manifest_path, updated)?;
-
-        Ok(())
     }
 
     /// キャッシュからマニフェストを読み込み
@@ -432,7 +405,7 @@ mod tests {
         // plugins/foo-bar や plugins/foobar は展開されない
         // （ディレクトリ自体が存在しないことを確認）
         let entries: Vec<_> = fs::read_dir(&plugin_dir).unwrap().collect();
-        assert_eq!(entries.len(), 1); // file.txt のみ
+        assert_eq!(entries.len(), 2); // file.txt + .plm-meta.json
     }
 
     #[test]
@@ -580,8 +553,8 @@ mod tests {
     }
 
     #[test]
-    fn test_store_from_archive_writes_installed_at() {
-        // store_from_archive 後に installedAt が書き込まれることを確認
+    fn test_store_from_archive_writes_installed_at_to_meta() {
+        // store_from_archive 後に .plm-meta.json に installedAt が書き込まれることを確認
         let temp_dir = TempDir::new().unwrap();
         let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
 
@@ -594,8 +567,11 @@ mod tests {
         assert!(result.is_ok());
         let plugin_dir = result.unwrap();
 
-        // plugin.json を読み込んで installedAt を確認
-        let content = fs::read_to_string(plugin_dir.join("plugin.json")).unwrap();
+        // .plm-meta.json を読み込んで installedAt を確認
+        let meta_path = plugin_dir.join(".plm-meta.json");
+        assert!(meta_path.exists(), ".plm-meta.json should exist");
+
+        let content = fs::read_to_string(&meta_path).unwrap();
         let json: serde_json::Value = serde_json::from_str(&content).unwrap();
 
         assert!(json.get("installedAt").is_some());
@@ -606,28 +582,36 @@ mod tests {
     }
 
     #[test]
-    fn test_store_from_archive_preserves_unknown_fields() {
-        // 部分更新で既存のフィールドが保持されることを確認
+    fn test_store_from_archive_does_not_modify_plugin_json() {
+        // plugin.json が改変されないことを確認（上流成果物の保持）
         let temp_dir = TempDir::new().unwrap();
         let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
 
-        let archive = create_test_archive(&[(
-            "repo-main/plugin.json",
-            r#"{"name":"test","version":"1.0.0","customField":"preserved"}"#,
-        )]);
+        let original_content = r#"{"name":"test","version":"1.0.0","customField":"preserved"}"#;
+        let archive = create_test_archive(&[("repo-main/plugin.json", original_content)]);
 
         let result = cache.store_from_archive(None, "test-plugin", &archive, None);
         assert!(result.is_ok());
         let plugin_dir = result.unwrap();
 
-        // plugin.json を読み込んで customField が保持されていることを確認
+        // plugin.json が改変されていないことを確認
         let content = fs::read_to_string(plugin_dir.join("plugin.json")).unwrap();
         let json: serde_json::Value = serde_json::from_str(&content).unwrap();
 
+        // customField が保持されている
         assert_eq!(
             json.get("customField").unwrap().as_str().unwrap(),
             "preserved"
         );
-        assert!(json.get("installedAt").is_some());
+        // installedAt は追加されていない（.plm-meta.json に記録される）
+        assert!(
+            json.get("installedAt").is_none(),
+            "plugin.json should not have installedAt"
+        );
+
+        // .plm-meta.json に installedAt がある
+        let meta_content = fs::read_to_string(plugin_dir.join(".plm-meta.json")).unwrap();
+        let meta_json: serde_json::Value = serde_json::from_str(&meta_content).unwrap();
+        assert!(meta_json.get("installedAt").is_some());
     }
 }
