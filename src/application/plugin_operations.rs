@@ -109,6 +109,64 @@ pub fn enable_plugin(
     intent.apply()
 }
 
+/// アンインストール前の情報取得
+///
+/// プラグインの存在確認と、削除対象の情報を取得する。
+///
+/// # Arguments
+/// * `plugin_name` - プラグイン名
+/// * `marketplace` - マーケットプレイス名（任意、デフォルト: "github"）
+///
+/// # Returns
+/// * `Ok(UninstallInfo)` - プラグイン情報
+/// * `Err(String)` - プラグインが見つからない場合のエラー
+pub fn get_uninstall_info(
+    plugin_name: &str,
+    marketplace: Option<&str>,
+) -> Result<UninstallInfo, String> {
+    let cache = PluginCache::new().map_err(|e| format!("Failed to access cache: {}", e))?;
+    let marketplace_str = marketplace.unwrap_or("github");
+
+    // 存在確認
+    if !cache.is_cached(Some(marketplace_str), plugin_name) {
+        return Err(format!(
+            "Plugin '{}' not found in cache (marketplace: {})",
+            plugin_name, marketplace_str
+        ));
+    }
+
+    // コンポーネント情報取得
+    let plugin = load_plugin_deployment(&cache, Some(marketplace_str), plugin_name)?;
+    let components = plugin.components();
+
+    // 影響を受けるターゲット
+    let affected_targets = all_targets()
+        .iter()
+        .filter(|t| components.iter().any(|c| t.supports(c.kind)))
+        .map(|t| t.name().to_string())
+        .collect();
+
+    Ok(UninstallInfo {
+        plugin_name: plugin_name.to_string(),
+        marketplace: marketplace_str.to_string(),
+        components,
+        affected_targets,
+    })
+}
+
+/// アンインストール情報
+#[derive(Debug)]
+pub struct UninstallInfo {
+    /// プラグイン名
+    pub plugin_name: String,
+    /// マーケットプレイス名
+    pub marketplace: String,
+    /// コンポーネント一覧
+    pub components: Vec<Component>,
+    /// 影響を受けるターゲット名一覧
+    pub affected_targets: Vec<String>,
+}
+
 /// プラグインを Uninstall（デプロイ先 + キャッシュ削除）
 ///
 /// # Arguments
@@ -250,3 +308,7 @@ impl PluginDeployment {
         cached.components()
     }
 }
+
+#[cfg(test)]
+#[path = "plugin_operations_test.rs"]
+mod tests;
