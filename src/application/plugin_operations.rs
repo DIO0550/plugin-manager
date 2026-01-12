@@ -22,10 +22,12 @@ use std::path::{Path, PathBuf};
 /// * `plugin_name` - プラグイン名
 /// * `marketplace` - マーケットプレイス名（任意）
 /// * `project_root` - プロジェクトルートパス
+/// * `target_filter` - ターゲットフィルタ（None で全ターゲット）
 pub fn disable_plugin(
     plugin_name: &str,
     marketplace: Option<&str>,
     project_root: &Path,
+    target_filter: Option<&str>,
 ) -> OperationResult {
     let cache = match PluginCache::new() {
         Ok(c) => c,
@@ -45,13 +47,14 @@ pub fn disable_plugin(
     let components = plugin.components();
 
     // Functional Core: 意図を生成（純粋）
-    let intent = PluginIntent::new(
+    let intent = PluginIntent::with_target_filter(
         PluginAction::Disable {
             plugin_name: plugin_name.to_string(),
             marketplace: marketplace.map(|s| s.to_string()),
         },
         components,
         project_root.to_path_buf(),
+        target_filter,
     );
 
     // Imperative Shell: 実行（I/O）
@@ -59,7 +62,14 @@ pub fn disable_plugin(
 
     // 後処理: 空になったディレクトリをクリーンアップ
     if result.success {
-        for target in &all_targets() {
+        let targets_to_cleanup: Vec<_> = match target_filter {
+            Some(filter) => all_targets()
+                .into_iter()
+                .filter(|t| t.name() == filter)
+                .collect(),
+            None => all_targets(),
+        };
+        for target in &targets_to_cleanup {
             cleanup_plugin_directories(target.name(), &plugin.origin, project_root);
         }
     }
@@ -73,10 +83,12 @@ pub fn disable_plugin(
 /// * `plugin_name` - プラグイン名
 /// * `marketplace` - マーケットプレイス名（任意）
 /// * `project_root` - プロジェクトルートパス
+/// * `target_filter` - ターゲットフィルタ（None で全ターゲット）
 pub fn enable_plugin(
     plugin_name: &str,
     marketplace: Option<&str>,
     project_root: &Path,
+    target_filter: Option<&str>,
 ) -> OperationResult {
     let cache = match PluginCache::new() {
         Ok(c) => c,
@@ -96,13 +108,14 @@ pub fn enable_plugin(
     let components = plugin.components();
 
     // Functional Core: 意図を生成（純粋）
-    let intent = PluginIntent::new(
+    let intent = PluginIntent::with_target_filter(
         PluginAction::Enable {
             plugin_name: plugin_name.to_string(),
             marketplace: marketplace.map(|s| s.to_string()),
         },
         components,
         project_root.to_path_buf(),
+        target_filter,
     );
 
     // Imperative Shell: 実行（I/O）
@@ -178,8 +191,8 @@ pub fn uninstall_plugin(
     marketplace: Option<&str>,
     project_root: &Path,
 ) -> OperationResult {
-    // まずデプロイ先から削除
-    let disable_result = disable_plugin(plugin_name, marketplace, project_root);
+    // まずデプロイ先から削除（全ターゲット）
+    let disable_result = disable_plugin(plugin_name, marketplace, project_root, None);
     if !disable_result.success {
         return disable_result;
     }

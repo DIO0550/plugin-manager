@@ -6,3 +6,4 @@ pub mod meta;
 
 pub use cache::{has_manifest, CachedPlugin, PluginCache};
 pub use manifest::{Author, PluginManifest};
+pub use meta::PluginMeta;

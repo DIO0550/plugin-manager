@@ -278,7 +278,7 @@ fn build_plugin_detail(candidate: PluginCandidate) -> Result<PluginDetail> {
     };
 
     // デプロイ状態判定
-    let enabled = check_deployed_status(&candidate.marketplace, &manifest.name);
+    let enabled = check_deployed_status(&candidate.cache_path, &candidate.marketplace, &manifest.name);
 
     // キャッシュパス（絶対パス）
     let cache_path = candidate
@@ -300,7 +300,19 @@ fn build_plugin_detail(candidate: PluginCandidate) -> Result<PluginDetail> {
 }
 
 /// デプロイ状態を判定
-fn check_deployed_status(marketplace: &str, plugin_name: &str) -> bool {
+///
+/// 1. `.plm-meta.json` の `statusByTarget` を優先参照
+/// 2. `statusByTarget` が空/null の場合は実デプロイ状態から判定（後方互換）
+fn check_deployed_status(cache_path: &Path, marketplace: &str, plugin_name: &str) -> bool {
+    // 1. .plm-meta.json の statusByTarget を確認
+    if let Some(plugin_meta) = meta::load_meta(cache_path) {
+        if !plugin_meta.status_by_target.is_empty() {
+            // いずれかのターゲットが enabled なら true
+            return plugin_meta.any_enabled();
+        }
+    }
+
+    // 2. 後方互換: 実デプロイ状態から判定
     let project_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let deployed = collect_deployed_plugins(&project_root);
 

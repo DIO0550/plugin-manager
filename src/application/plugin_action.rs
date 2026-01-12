@@ -209,6 +209,7 @@ pub struct PluginIntent {
     action: PluginAction,
     components: Vec<Component>,
     project_root: PathBuf,
+    target_filter: Option<String>,
 }
 
 impl PluginIntent {
@@ -222,6 +223,22 @@ impl PluginIntent {
             action,
             components,
             project_root,
+            target_filter: None,
+        }
+    }
+
+    /// ターゲットフィルタ付きで計画を構築
+    pub fn with_target_filter(
+        action: PluginAction,
+        components: Vec<Component>,
+        project_root: PathBuf,
+        target_filter: Option<&str>,
+    ) -> Self {
+        Self {
+            action,
+            components,
+            project_root,
+            target_filter: target_filter.map(String::from),
         }
     }
 
@@ -238,6 +255,7 @@ impl PluginIntent {
     /// Functional Core: 低レベルファイル操作に展開（完全に純粋）
     ///
     /// ファイルシステムにアクセスしない。保持済みデータのみ使用。
+    /// target_filter が設定されている場合は、そのターゲットのみを対象とする。
     pub fn expand(&self) -> Vec<(TargetId, FileOperation)> {
         let targets = all_targets();
         let origin = PluginOrigin::from_cached_plugin(
@@ -247,6 +265,13 @@ impl PluginIntent {
 
         targets
             .iter()
+            .filter(|target| {
+                // ターゲットフィルタが指定されている場合は一致するもののみ
+                match &self.target_filter {
+                    Some(filter) => target.name() == filter,
+                    None => true,
+                }
+            })
             .flat_map(|target| {
                 self.components
                     .iter()

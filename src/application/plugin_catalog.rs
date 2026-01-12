@@ -4,7 +4,7 @@
 
 use crate::component::{ComponentKind, ComponentName, ComponentTypeCount, Scope};
 use crate::error::Result;
-use crate::plugin::{has_manifest, PluginCache, PluginManifest};
+use crate::plugin::{has_manifest, meta, PluginCache, PluginManifest};
 use crate::scan::{scan_components, ComponentScan};
 use crate::target::{all_targets, PluginOrigin};
 use serde::Serialize;
@@ -191,8 +191,22 @@ fn build_summary(
     let scan: ComponentScan = scan_components(plugin_path, manifest);
 
     // デプロイ状態をチェック
-    let origin = PluginOrigin::from_cached_plugin(marketplace.as_deref(), &name);
-    let enabled = deployed.contains(&(origin.marketplace, origin.plugin));
+    // 1. .plm-meta.json の statusByTarget を優先参照
+    // 2. statusByTarget が空/null の場合は実デプロイ状態から判定（後方互換）
+    let enabled = if let Some(plugin_meta) = meta::load_meta(plugin_path) {
+        if !plugin_meta.status_by_target.is_empty() {
+            // いずれかのターゲットが enabled なら true
+            plugin_meta.any_enabled()
+        } else {
+            // 後方互換: 実デプロイ状態から判定
+            let origin = PluginOrigin::from_cached_plugin(marketplace.as_deref(), &name);
+            deployed.contains(&(origin.marketplace, origin.plugin))
+        }
+    } else {
+        // 後方互換: 実デプロイ状態から判定
+        let origin = PluginOrigin::from_cached_plugin(marketplace.as_deref(), &name);
+        deployed.contains(&(origin.marketplace, origin.plugin))
+    };
 
     PluginSummary {
         name,

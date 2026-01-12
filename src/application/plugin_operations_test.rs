@@ -33,7 +33,7 @@ fn test_uninstall_plugin_not_found() {
 fn test_disable_plugin_not_found() {
     // 存在しないプラグインのdisableはエラー
     let temp_dir = std::env::temp_dir();
-    let result = disable_plugin("nonexistent-plugin-12345", Some("github"), &temp_dir);
+    let result = disable_plugin("nonexistent-plugin-12345", Some("github"), &temp_dir, None);
     assert!(!result.success);
     assert!(result.error.is_some());
     assert!(result.error.unwrap().contains("not found"));
@@ -43,7 +43,7 @@ fn test_disable_plugin_not_found() {
 fn test_enable_plugin_not_found() {
     // 存在しないプラグインのenableはエラー
     let temp_dir = std::env::temp_dir();
-    let result = enable_plugin("nonexistent-plugin-12345", Some("github"), &temp_dir);
+    let result = enable_plugin("nonexistent-plugin-12345", Some("github"), &temp_dir, None);
     assert!(!result.success);
     assert!(result.error.is_some());
     assert!(result.error.unwrap().contains("not found"));

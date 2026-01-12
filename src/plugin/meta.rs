@@ -8,6 +8,7 @@ use super::PluginManifest;
 use crate::error::Result;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::path::Path;
@@ -23,6 +24,34 @@ pub struct PluginMeta {
     /// 欠損時は None として扱う
     #[serde(default, rename = "installedAt")]
     pub installed_at: Option<String>,
+
+    /// ターゲット別ステータス（"enabled" / "disabled"）
+    /// 空の場合はシリアライズ時に省略
+    #[serde(default, rename = "statusByTarget", skip_serializing_if = "HashMap::is_empty")]
+    pub status_by_target: HashMap<String, String>,
+}
+
+impl PluginMeta {
+    /// 指定ターゲットのステータスを取得
+    pub fn get_status(&self, target: &str) -> Option<&str> {
+        self.status_by_target.get(target).map(|s| s.as_str())
+    }
+
+    /// 指定ターゲットのステータスを設定
+    pub fn set_status(&mut self, target: &str, status: &str) {
+        self.status_by_target
+            .insert(target.to_string(), status.to_string());
+    }
+
+    /// 指定ターゲットが有効化されているか
+    pub fn is_enabled(&self, target: &str) -> bool {
+        self.get_status(target) == Some("enabled")
+    }
+
+    /// いずれかのターゲットが有効化されているか
+    pub fn any_enabled(&self) -> bool {
+        self.status_by_target.values().any(|s| s == "enabled")
+    }
 }
 
 /// installedAt の正規化
@@ -72,6 +101,7 @@ pub fn write_installed_at(plugin_dir: &Path) -> Result<()> {
     let now = Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
     let meta = PluginMeta {
         installed_at: Some(now),
+        ..Default::default()
     };
     write_meta(plugin_dir, &meta)
 }
