@@ -30,25 +30,25 @@ fn test_target_id() {
 }
 
 #[test]
-fn test_validated_path_under_project() {
+fn test_scoped_path_under_project() {
     let temp_dir = std::env::temp_dir();
     let path = temp_dir.join("test.txt");
-    let result = ValidatedPath::new(path.clone(), &temp_dir);
+    let result = ScopedPath::new(path.clone(), &temp_dir);
     assert!(result.is_ok());
 }
 
 #[test]
 fn test_file_operation_kind() {
     let temp_dir = std::env::temp_dir();
-    let validated = ValidatedPath::new(temp_dir.join("test.txt"), &temp_dir).unwrap();
+    let scoped = ScopedPath::new(temp_dir.join("test.txt"), &temp_dir).unwrap();
 
     let copy = FileOperation::CopyFile {
         source: PathBuf::from("/src/file.txt"),
-        target: validated.clone(),
+        target: scoped.clone(),
     };
     assert_eq!(copy.kind(), "copy_file");
 
-    let remove = FileOperation::RemoveFile { path: validated };
+    let remove = FileOperation::RemoveFile { path: scoped };
     assert_eq!(remove.kind(), "remove_file");
 }
 

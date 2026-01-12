@@ -106,13 +106,16 @@ impl std::fmt::Display for TargetId {
     }
 }
 
-/// 検証済みパス（project_root配下であることを保証）
+/// スコープ付きパス（project_root配下であることを保証）
+///
+/// ディレクトリトラバーサル攻撃を防ぐため、
+/// パスが指定されたルート配下にあることを型レベルで保証する。
 #[derive(Debug, Clone)]
-pub struct ValidatedPath {
+pub struct ScopedPath {
     path: PathBuf,
 }
 
-impl ValidatedPath {
+impl ScopedPath {
     /// 検証して生成
     ///
     /// # Errors
@@ -162,17 +165,17 @@ impl ValidatedPath {
 pub enum FileOperation {
     CopyFile {
         source: PathBuf,
-        target: ValidatedPath,
+        target: ScopedPath,
     },
     CopyDir {
         source: PathBuf,
-        target: ValidatedPath,
+        target: ScopedPath,
     },
     RemoveFile {
-        path: ValidatedPath,
+        path: ScopedPath,
     },
     RemoveDir {
-        path: ValidatedPath,
+        path: ScopedPath,
     },
 }
 
@@ -259,18 +262,18 @@ impl PluginIntent {
     }
 
     /// FileOperation を構築
-    fn build_file_operation(&self, component: &Component, validated: ValidatedPath) -> FileOperation {
+    fn build_file_operation(&self, component: &Component, scoped: ScopedPath) -> FileOperation {
         match (self.action.is_deploy(), component.kind) {
             (true, ComponentKind::Skill) => FileOperation::CopyDir {
                 source: component.path.clone(),
-                target: validated,
+                target: scoped,
             },
             (true, _) => FileOperation::CopyFile {
                 source: component.path.clone(),
-                target: validated,
+                target: scoped,
             },
-            (false, ComponentKind::Skill) => FileOperation::RemoveDir { path: validated },
-            (false, _) => FileOperation::RemoveFile { path: validated },
+            (false, ComponentKind::Skill) => FileOperation::RemoveDir { path: scoped },
+            (false, _) => FileOperation::RemoveFile { path: scoped },
         }
     }
 
@@ -290,9 +293,9 @@ impl PluginIntent {
 
         let location = target.placement_location(&context)?;
         let target_path = location.into_path();
-        let validated = ValidatedPath::new(target_path, &self.project_root).ok()?;
+        let scoped = ScopedPath::new(target_path, &self.project_root).ok()?;
 
-        let op = self.build_file_operation(component, validated);
+        let op = self.build_file_operation(component, scoped);
         Some((TargetId::new(target.name()), op))
     }
 
