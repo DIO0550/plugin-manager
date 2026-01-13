@@ -297,3 +297,178 @@ fn test_resolve_installed_at_both_none() {
     let result = resolve_installed_at(plugin_dir, Some(&manifest));
     assert!(result.is_none());
 }
+
+// =============================================================================
+// Git tracking fields tests
+// =============================================================================
+
+#[test]
+fn test_set_git_info() {
+    let mut meta = PluginMeta::default();
+
+    meta.set_git_info("main", "abc123def456");
+
+    assert_eq!(meta.git_ref, Some("main".to_string()));
+    assert_eq!(meta.commit_sha, Some("abc123def456".to_string()));
+    assert!(meta.updated_at.is_some());
+    // updated_at は RFC3339 形式
+    let updated = meta.updated_at.unwrap();
+    assert!(updated.contains("T"));
+    assert!(updated.ends_with("Z"));
+}
+
+#[test]
+fn test_set_git_info_overwrites() {
+    let mut meta = PluginMeta::default();
+
+    meta.set_git_info("develop", "old_sha");
+    meta.set_git_info("main", "new_sha");
+
+    assert_eq!(meta.git_ref, Some("main".to_string()));
+    assert_eq!(meta.commit_sha, Some("new_sha".to_string()));
+}
+
+#[test]
+fn test_enabled_targets_empty() {
+    let meta = PluginMeta::default();
+    let targets = meta.enabled_targets();
+    assert!(targets.is_empty());
+}
+
+#[test]
+fn test_enabled_targets_filters_enabled_only() {
+    let mut meta = PluginMeta::default();
+    meta.set_status("codex", "enabled");
+    meta.set_status("copilot", "disabled");
+    meta.set_status("claude", "enabled");
+
+    let mut targets = meta.enabled_targets();
+    targets.sort();
+
+    assert_eq!(targets.len(), 2);
+    assert_eq!(targets, vec!["claude", "codex"]);
+}
+
+#[test]
+fn test_set_source_repo() {
+    let mut meta = PluginMeta::default();
+
+    meta.set_source_repo("owner", "repo");
+
+    assert_eq!(meta.source_repo, Some("owner/repo".to_string()));
+}
+
+#[test]
+fn test_get_source_repo() {
+    let mut meta = PluginMeta::default();
+    meta.source_repo = Some("owner/repo".to_string());
+
+    let result = meta.get_source_repo();
+
+    assert_eq!(result, Some(("owner", "repo")));
+}
+
+#[test]
+fn test_get_source_repo_none() {
+    let meta = PluginMeta::default();
+
+    let result = meta.get_source_repo();
+
+    assert!(result.is_none());
+}
+
+#[test]
+fn test_source_repo_roundtrip() {
+    let mut meta = PluginMeta::default();
+
+    meta.set_source_repo("my-org", "my-repo");
+    let (owner, repo) = meta.get_source_repo().unwrap();
+
+    assert_eq!(owner, "my-org");
+    assert_eq!(repo, "my-repo");
+}
+
+#[test]
+fn test_is_github_none_marketplace() {
+    let meta = PluginMeta::default();
+    assert!(meta.is_github());
+}
+
+#[test]
+fn test_is_github_explicit() {
+    let mut meta = PluginMeta::default();
+    meta.marketplace = Some("github".to_string());
+    assert!(meta.is_github());
+}
+
+#[test]
+fn test_is_github_other_marketplace() {
+    let mut meta = PluginMeta::default();
+    meta.marketplace = Some("gitlab".to_string());
+    assert!(!meta.is_github());
+}
+
+#[test]
+fn test_git_fields_serde() {
+    let mut meta = PluginMeta::default();
+    meta.git_ref = Some("main".to_string());
+    meta.commit_sha = Some("abc123".to_string());
+    meta.updated_at = Some("2025-01-15T10:30:00Z".to_string());
+    meta.source_repo = Some("owner/repo".to_string());
+    meta.marketplace = Some("github".to_string());
+
+    let json = serde_json::to_string(&meta).unwrap();
+
+    // Verify camelCase field names
+    assert!(json.contains("gitRef"));
+    assert!(json.contains("commitSha"));
+    assert!(json.contains("updatedAt"));
+    assert!(json.contains("sourceRepo"));
+    assert!(json.contains("marketplace"));
+
+    // Verify roundtrip
+    let parsed: PluginMeta = serde_json::from_str(&json).unwrap();
+    assert_eq!(parsed.git_ref, Some("main".to_string()));
+    assert_eq!(parsed.commit_sha, Some("abc123".to_string()));
+    assert_eq!(parsed.source_repo, Some("owner/repo".to_string()));
+}
+
+#[test]
+fn test_git_fields_skip_serializing_if_none() {
+    let meta = PluginMeta {
+        installed_at: Some("2025-01-15T10:30:00Z".to_string()),
+        ..Default::default()
+    };
+
+    let json = serde_json::to_string(&meta).unwrap();
+
+    // None フィールドはシリアライズされない
+    assert!(!json.contains("gitRef"));
+    assert!(!json.contains("commitSha"));
+    assert!(!json.contains("updatedAt"));
+    assert!(!json.contains("sourceRepo"));
+    assert!(!json.contains("marketplace"));
+}
+
+#[test]
+fn test_write_and_load_meta_with_git_info() {
+    let temp_dir = TempDir::new().unwrap();
+    let plugin_dir = temp_dir.path();
+
+    let mut meta = PluginMeta {
+        installed_at: Some("2025-01-15T10:30:00Z".to_string()),
+        ..Default::default()
+    };
+    meta.set_git_info("main", "abc123");
+    meta.set_source_repo("owner", "repo");
+    meta.marketplace = Some("github".to_string());
+
+    write_meta(plugin_dir, &meta).unwrap();
+
+    let loaded = load_meta(plugin_dir).unwrap();
+    assert_eq!(loaded.git_ref, Some("main".to_string()));
+    assert_eq!(loaded.commit_sha, Some("abc123".to_string()));
+    assert_eq!(loaded.source_repo, Some("owner/repo".to_string()));
+    assert_eq!(loaded.marketplace, Some("github".to_string()));
+    assert!(loaded.updated_at.is_some());
+}

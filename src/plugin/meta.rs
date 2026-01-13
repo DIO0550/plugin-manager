@@ -29,6 +29,26 @@ pub struct PluginMeta {
     /// 空の場合はシリアライズ時に省略
     #[serde(default, rename = "statusByTarget", skip_serializing_if = "HashMap::is_empty")]
     pub status_by_target: HashMap<String, String>,
+
+    /// Git参照（ブランチ名やタグ）
+    #[serde(default, rename = "gitRef", skip_serializing_if = "Option::is_none")]
+    pub git_ref: Option<String>,
+
+    /// コミットSHA
+    #[serde(default, rename = "commitSha", skip_serializing_if = "Option::is_none")]
+    pub commit_sha: Option<String>,
+
+    /// 更新日時（RFC3339形式）
+    #[serde(default, rename = "updatedAt", skip_serializing_if = "Option::is_none")]
+    pub updated_at: Option<String>,
+
+    /// ソースリポジトリ情報（owner/repo形式）
+    #[serde(default, rename = "sourceRepo", skip_serializing_if = "Option::is_none")]
+    pub source_repo: Option<String>,
+
+    /// マーケットプレイス（"github" 固定、将来拡張用）
+    #[serde(default, rename = "marketplace", skip_serializing_if = "Option::is_none")]
+    pub marketplace: Option<String>,
 }
 
 impl PluginMeta {
@@ -51,6 +71,39 @@ impl PluginMeta {
     /// いずれかのターゲットが有効化されているか
     pub fn any_enabled(&self) -> bool {
         self.status_by_target.values().any(|s| s == "enabled")
+    }
+
+    /// Git参照情報を更新
+    pub fn set_git_info(&mut self, git_ref: &str, commit_sha: &str) {
+        self.git_ref = Some(git_ref.to_string());
+        self.commit_sha = Some(commit_sha.to_string());
+        self.updated_at = Some(Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string());
+    }
+
+    /// 有効なターゲット一覧を取得
+    pub fn enabled_targets(&self) -> Vec<&str> {
+        self.status_by_target
+            .iter()
+            .filter(|(_, status)| *status == "enabled")
+            .map(|(target, _)| target.as_str())
+            .collect()
+    }
+
+    /// ソースリポジトリを設定
+    pub fn set_source_repo(&mut self, owner: &str, repo: &str) {
+        self.source_repo = Some(format!("{}/{}", owner, repo));
+    }
+
+    /// ソースリポジトリを取得
+    pub fn get_source_repo(&self) -> Option<(&str, &str)> {
+        self.source_repo
+            .as_ref()
+            .and_then(|s| s.split_once('/'))
+    }
+
+    /// GitHub プラグインかどうか
+    pub fn is_github(&self) -> bool {
+        self.marketplace.as_deref() == Some("github") || self.marketplace.is_none()
     }
 }
 
