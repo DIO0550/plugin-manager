@@ -2,7 +2,7 @@
 
 use crate::error::Result;
 use crate::host::HostClientFactory;
-use crate::plugin::{CachedPlugin, PluginCache};
+use crate::plugin::{meta, CachedPlugin, PluginCache};
 use crate::repo::Repo;
 use std::future::Future;
 use std::pin::Pin;
@@ -102,15 +102,25 @@ impl PluginSource for GitHubSource {
 
             // キャッシュに保存
             println!("Extracting to cache...");
-            cache.store_from_archive(marketplace, &cache_name, &archive, self.source_path.as_deref())?;
+            let plugin_path = cache.store_from_archive(marketplace, &cache_name, &archive, self.source_path.as_deref())?;
 
             // マニフェスト読み込み
             let manifest = cache.load_manifest(marketplace, &cache_name)?;
 
+            // メタデータ保存（source_repo, git_ref, commit_sha, marketplace）
+            // store_from_archive で installedAt は既に書き込まれているので、追加フィールドのみ更新
+            let mut plugin_meta = meta::load_meta(&plugin_path).unwrap_or_default();
+            plugin_meta.set_source_repo(self.repo.owner(), self.repo.name());
+            plugin_meta.set_git_info(&git_ref, &commit_sha);
+            plugin_meta.marketplace = Some("github".to_string());
+            if let Err(e) = meta::write_meta(&plugin_path, &plugin_meta) {
+                eprintln!("Warning: Failed to save plugin metadata: {}", e);
+            }
+
             Ok(CachedPlugin {
                 name: manifest.name.clone(),
                 marketplace: self.marketplace.clone(),
-                path: cache.plugin_path(marketplace, &cache_name),
+                path: plugin_path,
                 manifest,
                 git_ref,
                 commit_sha,
