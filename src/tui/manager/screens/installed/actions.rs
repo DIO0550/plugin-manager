@@ -28,7 +28,7 @@ impl From<application::OperationResult> for ActionResult {
 /// プラグインを Disable（デプロイ先から削除、キャッシュは残す）
 pub fn disable_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionResult {
     let project_root = env::current_dir().unwrap_or_else(|_| ".".into());
-    application::disable_plugin(plugin_name, marketplace, &project_root).into()
+    application::disable_plugin(plugin_name, marketplace, &project_root, None).into()
 }
 
 /// プラグインを Uninstall（デプロイ先 + キャッシュ削除）
@@ -40,5 +40,5 @@ pub fn uninstall_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionR
 /// プラグインを Enable（キャッシュからデプロイ先に配置）
 pub fn enable_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionResult {
     let project_root = env::current_dir().unwrap_or_else(|_| ".".into());
-    application::enable_plugin(plugin_name, marketplace, &project_root).into()
+    application::enable_plugin(plugin_name, marketplace, &project_root, None).into()
 }
