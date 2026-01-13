@@ -67,29 +67,8 @@ impl PluginCache {
         archive: &[u8],
         source_path: Option<&str>,
     ) -> Result<PathBuf> {
-        // source_path の防御的検証（正規化は行わない、呼び出し元の責務）
-        if let Some(sp) = source_path {
-            if sp.contains("..") {
-                return Err(PlmError::InvalidSource(
-                    "source_path is not normalized: contains '..'".into(),
-                ));
-            }
-            if sp.contains('\\') {
-                return Err(PlmError::InvalidSource(
-                    "source_path is not normalized: contains backslash".into(),
-                ));
-            }
-            if sp.contains("./") || sp.starts_with('.') {
-                return Err(PlmError::InvalidSource(
-                    "source_path is not normalized: contains './' or starts with '.'".into(),
-                ));
-            }
-            if Path::new(sp).is_absolute() {
-                return Err(PlmError::InvalidSource(
-                    "source_path is not normalized: absolute path".into(),
-                ));
-            }
-        }
+        // source_path の防御的検証
+        validate_source_path(source_path)?;
 
         let plugin_dir = self.plugin_path(marketplace, name);
 
@@ -98,132 +77,8 @@ impl PluginCache {
             fs::remove_dir_all(&plugin_dir)?;
         }
 
-        // zipを展開
-        let cursor = Cursor::new(archive);
-        let mut zip = ZipArchive::new(cursor)?;
-
-        // 最初のエントリからプレフィックスを取得
-        let prefix = if zip.len() > 0 {
-            let first = zip.by_index(0)?;
-            let first_name = first.name();
-            // "repo-branch/" のような形式からプレフィックスを抽出
-            first_name
-                .split('/')
-                .next()
-                .map(|s| format!("{}/", s))
-                .unwrap_or_default()
-        } else {
-            String::new()
-        };
-
-        // source_path 抽出時のエラートラッキング
-        let mut source_path_hit = false;
-        let mut _files_extracted = 0usize;
-        let mut entries_skipped_for_security = 0usize;
-
-        // 各ファイルを展開
-        for i in 0..zip.len() {
-            let mut file = zip.by_index(i)?;
-            let file_path = file.name();
-
-            // バックスラッシュをスラッシュに正規化（zip内の\区切りエントリ対応）
-            let file_path_normalized = file_path.replace('\\', "/");
-
-            // プレフィックスを除去したパスを作成
-            let relative_path =
-                if !prefix.is_empty() && file_path_normalized.starts_with(&prefix) {
-                    &file_path_normalized[prefix.len()..]
-                } else {
-                    &file_path_normalized[..]
-                };
-
-            // 空のパス（ルートディレクトリ）はスキップ
-            if relative_path.is_empty() {
-                continue;
-            }
-
-            // source_path が指定されている場合、そのパス配下のみを抽出
-            let final_path = if let Some(sp) = source_path {
-                let relative_path_obj = Path::new(relative_path);
-                let source_path_obj = Path::new(sp);
-
-                // strip_prefix でパス要素単位の一致判定
-                match relative_path_obj.strip_prefix(source_path_obj) {
-                    Ok(stripped) => {
-                        source_path_hit = true;
-
-                        // strip_prefix 後の空パス（ディレクトリエントリ自体）はスキップ
-                        if stripped.as_os_str().is_empty() {
-                            continue;
-                        }
-
-                        // zip-slip 対策: Normal コンポーネントのみ許容
-                        let has_unsafe_component =
-                            stripped.components().any(|c| !matches!(c, PathComponent::Normal(_)));
-                        if has_unsafe_component {
-                            entries_skipped_for_security += 1;
-                            continue;
-                        }
-
-                        // symlink 対策（source_path 抽出時のみ）
-                        #[cfg(unix)]
-                        {
-                            if let Some(mode) = file.unix_mode() {
-                                // S_IFLNK = 0o120000
-                                if (mode & 0o170000) == 0o120000 {
-                                    entries_skipped_for_security += 1;
-                                    continue;
-                                }
-                            }
-                        }
-
-                        stripped.to_path_buf()
-                    }
-                    Err(_) => {
-                        // source_path にマッチしない → スキップ
-                        continue;
-                    }
-                }
-            } else {
-                PathBuf::from(relative_path)
-            };
-
-            let target_path = plugin_dir.join(&final_path);
-
-            if file.is_dir() {
-                fs::create_dir_all(&target_path)?;
-            } else {
-                // 親ディレクトリを作成
-                if let Some(parent) = target_path.parent() {
-                    fs::create_dir_all(parent)?;
-                }
-
-                // ファイルを書き込み
-                let mut content = Vec::new();
-                file.read_to_end(&mut content)?;
-                fs::write(&target_path, content)?;
-                _files_extracted += 1;
-            }
-        }
-
-        // source_path 指定時のエラーチェック
-        if source_path.is_some() {
-            if entries_skipped_for_security > 0 {
-                // セキュリティ理由でスキップされたエントリがあれば全体をエラー
-                return Err(PlmError::InvalidSource(format!(
-                    "{} entries in source_path were skipped for security reasons (possible zip-slip or symlink)",
-                    entries_skipped_for_security
-                )));
-            }
-            if !source_path_hit {
-                return Err(PlmError::InvalidSource(format!(
-                    "source_path not found in archive: {}",
-                    source_path.unwrap()
-                )));
-            }
-            // source_path_hit == true && files_extracted == 0 は
-            // ディレクトリエントリのみの場合。後続の plugin.json 不在エラーに委ねる
-        }
+        // アーカイブを展開
+        extract_archive_with_source_path(&plugin_dir, archive, source_path)?;
 
         // インストール日時を .plm-meta.json に記録（失敗時は警告のみ、処理は継続）
         if let Err(e) = super::meta::write_installed_at(&plugin_dir) {
@@ -312,6 +167,339 @@ impl PluginCache {
 
         Ok(plugins)
     }
+
+    // =========================================================================
+    // バックアップ機能
+    // =========================================================================
+
+    /// バックアップパスを取得
+    fn backup_path(&self, marketplace: Option<&str>, name: &str) -> PathBuf {
+        let marketplace_dir = marketplace.unwrap_or("github");
+        self.cache_dir
+            .join(".backup")
+            .join(marketplace_dir)
+            .join(name)
+    }
+
+    /// 一時パスを取得
+    fn temp_path(&self, marketplace: Option<&str>, name: &str) -> PathBuf {
+        let marketplace_dir = marketplace.unwrap_or("github");
+        self.cache_dir
+            .join(".temp")
+            .join(marketplace_dir)
+            .join(name)
+    }
+
+    /// プラグインをバックアップ
+    ///
+    /// 注意: 実行ビット/シンボリックリンクは保持されない。
+    /// プラグインは平文ファイルのみを含むことを前提とする。
+    pub fn backup(&self, marketplace: Option<&str>, name: &str) -> Result<PathBuf> {
+        let source = self.plugin_path(marketplace, name);
+        let backup_dir = self.backup_path(marketplace, name);
+
+        if !source.exists() {
+            return Err(PlmError::Cache(format!(
+                "Plugin not found: {}",
+                source.display()
+            )));
+        }
+
+        // 既存バックアップがあれば削除
+        if backup_dir.exists() {
+            fs::remove_dir_all(&backup_dir)?;
+        }
+
+        // 親ディレクトリを作成
+        if let Some(parent) = backup_dir.parent() {
+            fs::create_dir_all(parent)?;
+        }
+
+        copy_dir_recursive(&source, &backup_dir)?;
+        Ok(backup_dir)
+    }
+
+    /// バックアップからリストア
+    pub fn restore(&self, marketplace: Option<&str>, name: &str) -> Result<()> {
+        let backup_dir = self.backup_path(marketplace, name);
+        let target = self.plugin_path(marketplace, name);
+
+        if !backup_dir.exists() {
+            return Err(PlmError::Cache("Backup not found".to_string()));
+        }
+
+        // 現在のディレクトリを削除
+        if target.exists() {
+            fs::remove_dir_all(&target)?;
+        }
+
+        // バックアップからリストア
+        copy_dir_recursive(&backup_dir, &target)?;
+
+        // バックアップを削除
+        fs::remove_dir_all(&backup_dir)?;
+
+        Ok(())
+    }
+
+    /// バックアップを削除
+    pub fn remove_backup(&self, marketplace: Option<&str>, name: &str) -> Result<()> {
+        let backup_dir = self.backup_path(marketplace, name);
+        if backup_dir.exists() {
+            fs::remove_dir_all(&backup_dir)?;
+        }
+        Ok(())
+    }
+
+    // =========================================================================
+    // アトミック更新
+    // =========================================================================
+
+    /// アトミック更新（temp展開 → 検証 → リネーム）
+    ///
+    /// 中断耐性のあるキャッシュ更新を行う。
+    /// 展開ロジックは store_from_archive と同一（トップディレクトリ除去含む）。
+    ///
+    /// # Arguments
+    /// * `marketplace` - マーケットプレイス名
+    /// * `name` - プラグイン名
+    /// * `archive` - zipアーカイブのバイト列
+    ///
+    /// # Returns
+    /// 成功時は新しいプラグインパスを返す
+    pub fn atomic_update(
+        &self,
+        marketplace: Option<&str>,
+        name: &str,
+        archive: &[u8],
+    ) -> Result<PathBuf> {
+        let target = self.plugin_path(marketplace, name);
+        let temp_dir = self.temp_path(marketplace, name);
+
+        // temp ディレクトリをクリーンアップ
+        if temp_dir.exists() {
+            fs::remove_dir_all(&temp_dir)?;
+        }
+
+        // 親ディレクトリを作成
+        if let Some(parent) = temp_dir.parent() {
+            fs::create_dir_all(parent)?;
+        }
+
+        // temp に展開（source_path なし）
+        extract_archive_with_source_path(&temp_dir, archive, None)?;
+
+        // 検証: plugin.json の存在確認
+        if !has_manifest(&temp_dir) {
+            fs::remove_dir_all(&temp_dir)?;
+            return Err(PlmError::InvalidManifest("plugin.json not found".into()));
+        }
+
+        // 旧キャッシュ削除 → temp をリネーム
+        if target.exists() {
+            fs::remove_dir_all(&target)?;
+        }
+
+        // リネーム（同一ファイルシステム上でのアトミック操作）
+        fs::rename(&temp_dir, &target)?;
+
+        Ok(target)
+    }
+}
+
+/// ディレクトリを再帰コピー
+fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
+    fs::create_dir_all(dst)?;
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let src_path = entry.path();
+        let dst_path = dst.join(entry.file_name());
+
+        if src_path.is_dir() {
+            copy_dir_recursive(&src_path, &dst_path)?;
+        } else {
+            fs::copy(&src_path, &dst_path)?;
+        }
+    }
+    Ok(())
+}
+
+/// source_path の防御的検証
+fn validate_source_path(source_path: Option<&str>) -> Result<()> {
+    let sp = match source_path {
+        Some(s) => s,
+        None => return Ok(()),
+    };
+
+    if sp.contains("..") {
+        return Err(PlmError::InvalidSource(
+            "source_path is not normalized: contains '..'".into(),
+        ));
+    }
+    if sp.contains('\\') {
+        return Err(PlmError::InvalidSource(
+            "source_path is not normalized: contains backslash".into(),
+        ));
+    }
+    if sp.contains("./") || sp.starts_with('.') {
+        return Err(PlmError::InvalidSource(
+            "source_path is not normalized: contains './' or starts with '.'".into(),
+        ));
+    }
+    if Path::new(sp).is_absolute() {
+        return Err(PlmError::InvalidSource(
+            "source_path is not normalized: absolute path".into(),
+        ));
+    }
+
+    Ok(())
+}
+
+/// zipアーカイブのプレフィックス（トップディレクトリ）を取得
+fn get_archive_prefix(zip: &mut ZipArchive<Cursor<&[u8]>>) -> Result<String> {
+    if zip.len() == 0 {
+        return Ok(String::new());
+    }
+
+    let first = zip.by_index(0)?;
+    let first_name = first.name();
+    Ok(first_name
+        .split('/')
+        .next()
+        .map(|s| format!("{}/", s))
+        .unwrap_or_default())
+}
+
+/// アーカイブを展開（source_path 指定対応）
+fn extract_archive_with_source_path(
+    dest: &Path,
+    archive: &[u8],
+    source_path: Option<&str>,
+) -> Result<()> {
+    let cursor = Cursor::new(archive);
+    let mut zip = ZipArchive::new(cursor)?;
+
+    let prefix = get_archive_prefix(&mut zip)?;
+
+    let mut source_path_hit = false;
+    let mut entries_skipped_for_security = 0usize;
+
+    for i in 0..zip.len() {
+        let mut file = zip.by_index(i)?;
+        let file_path = file.name();
+
+        // バックスラッシュをスラッシュに正規化
+        let file_path_normalized = file_path.replace('\\', "/");
+
+        // プレフィックスを除去
+        let relative_path = if !prefix.is_empty() && file_path_normalized.starts_with(&prefix) {
+            &file_path_normalized[prefix.len()..]
+        } else {
+            &file_path_normalized[..]
+        };
+
+        // 空のパス（ルートディレクトリ）はスキップ
+        if relative_path.is_empty() {
+            continue;
+        }
+
+        // source_path が指定されている場合、そのパス配下のみを抽出
+        let final_path = match source_path {
+            Some(sp) => {
+                match extract_with_source_path_filter(
+                    relative_path,
+                    sp,
+                    &file,
+                    &mut source_path_hit,
+                    &mut entries_skipped_for_security,
+                ) {
+                    Some(path) => path,
+                    None => continue,
+                }
+            }
+            None => PathBuf::from(relative_path),
+        };
+
+        write_zip_entry(&mut file, &dest.join(&final_path))?;
+    }
+
+    // source_path 指定時のエラーチェック
+    if let Some(sp) = source_path {
+        if entries_skipped_for_security > 0 {
+            return Err(PlmError::InvalidSource(format!(
+                "{} entries in source_path were skipped for security reasons (possible zip-slip or symlink)",
+                entries_skipped_for_security
+            )));
+        }
+        if !source_path_hit {
+            return Err(PlmError::InvalidSource(format!(
+                "source_path not found in archive: {}",
+                sp
+            )));
+        }
+    }
+
+    Ok(())
+}
+
+/// source_path フィルタを適用し、展開すべきパスを返す（None = スキップ）
+fn extract_with_source_path_filter(
+    relative_path: &str,
+    source_path: &str,
+    file: &zip::read::ZipFile,
+    source_path_hit: &mut bool,
+    entries_skipped: &mut usize,
+) -> Option<PathBuf> {
+    let relative_path_obj = Path::new(relative_path);
+    let source_path_obj = Path::new(source_path);
+
+    let stripped = relative_path_obj.strip_prefix(source_path_obj).ok()?;
+    *source_path_hit = true;
+
+    // strip_prefix 後の空パス（ディレクトリエントリ自体）はスキップ
+    if stripped.as_os_str().is_empty() {
+        return None;
+    }
+
+    // zip-slip 対策: Normal コンポーネントのみ許容
+    let has_unsafe_component = stripped
+        .components()
+        .any(|c| !matches!(c, PathComponent::Normal(_)));
+    if has_unsafe_component {
+        *entries_skipped += 1;
+        return None;
+    }
+
+    // symlink 対策（source_path 抽出時のみ）
+    #[cfg(unix)]
+    {
+        if let Some(mode) = file.unix_mode() {
+            // S_IFLNK = 0o120000
+            if (mode & 0o170000) == 0o120000 {
+                *entries_skipped += 1;
+                return None;
+            }
+        }
+    }
+    #[cfg(not(unix))]
+    let _ = file;
+
+    Some(stripped.to_path_buf())
+}
+
+/// zipエントリをファイルシステムに書き込み
+fn write_zip_entry(file: &mut zip::read::ZipFile, target_path: &Path) -> Result<()> {
+    if file.is_dir() {
+        fs::create_dir_all(target_path)?;
+    } else {
+        if let Some(parent) = target_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        let mut content = Vec::new();
+        file.read_to_end(&mut content)?;
+        fs::write(target_path, content)?;
+    }
+    Ok(())
 }
 
 impl Default for PluginCache {

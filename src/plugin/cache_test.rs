@@ -291,3 +291,212 @@ fn test_store_from_archive_does_not_modify_plugin_json() {
     let meta_json: serde_json::Value = serde_json::from_str(&meta_content).unwrap();
     assert!(meta_json.get("installedAt").is_some());
 }
+
+// =============================================================================
+// Backup/Restore tests
+// =============================================================================
+
+#[test]
+fn test_backup_creates_copy() {
+    let temp_dir = TempDir::new().unwrap();
+    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+    // まずプラグインをインストール
+    let archive = create_test_archive(&[
+        ("repo-main/plugin.json", r#"{"name":"test","version":"1.0.0"}"#),
+        ("repo-main/skills/test.md", "# Original Skill"),
+    ]);
+    cache
+        .store_from_archive(Some("github"), "test-plugin", &archive, None)
+        .unwrap();
+
+    // バックアップ作成
+    let backup_path = cache.backup(Some("github"), "test-plugin").unwrap();
+
+    // バックアップが存在する
+    assert!(backup_path.exists());
+    assert!(backup_path.join("plugin.json").exists());
+    assert!(backup_path.join("skills/test.md").exists());
+
+    // 元のプラグインも存在する
+    let original = cache.plugin_path(Some("github"), "test-plugin");
+    assert!(original.exists());
+}
+
+#[test]
+fn test_restore_recovers_from_backup() {
+    let temp_dir = TempDir::new().unwrap();
+    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+    // プラグインをインストール
+    let archive = create_test_archive(&[
+        ("repo-main/plugin.json", r#"{"name":"test","version":"1.0.0"}"#),
+        ("repo-main/data.txt", "original content"),
+    ]);
+    cache
+        .store_from_archive(Some("github"), "test-plugin", &archive, None)
+        .unwrap();
+
+    // バックアップ作成
+    cache.backup(Some("github"), "test-plugin").unwrap();
+
+    // 元のプラグインを変更（削除してから違う内容で作り直し）
+    let plugin_path = cache.plugin_path(Some("github"), "test-plugin");
+    fs::write(plugin_path.join("data.txt"), "modified content").unwrap();
+
+    // 変更されていることを確認
+    let content = fs::read_to_string(plugin_path.join("data.txt")).unwrap();
+    assert_eq!(content, "modified content");
+
+    // リストア
+    cache.restore(Some("github"), "test-plugin").unwrap();
+
+    // 元の内容に戻っている
+    let restored_content = fs::read_to_string(plugin_path.join("data.txt")).unwrap();
+    assert_eq!(restored_content, "original content");
+}
+
+#[test]
+fn test_remove_backup_deletes_backup() {
+    let temp_dir = TempDir::new().unwrap();
+    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+    // プラグインをインストール
+    let archive = create_test_archive(&[(
+        "repo-main/plugin.json",
+        r#"{"name":"test","version":"1.0.0"}"#,
+    )]);
+    cache
+        .store_from_archive(Some("github"), "test-plugin", &archive, None)
+        .unwrap();
+
+    // バックアップ作成
+    let backup_path = cache.backup(Some("github"), "test-plugin").unwrap();
+    assert!(backup_path.exists());
+
+    // バックアップ削除
+    cache.remove_backup(Some("github"), "test-plugin").unwrap();
+
+    // バックアップが存在しない
+    assert!(!backup_path.exists());
+}
+
+#[test]
+fn test_restore_without_backup_returns_error() {
+    let temp_dir = TempDir::new().unwrap();
+    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+    // プラグインをインストール（バックアップなし）
+    let archive = create_test_archive(&[(
+        "repo-main/plugin.json",
+        r#"{"name":"test","version":"1.0.0"}"#,
+    )]);
+    cache
+        .store_from_archive(Some("github"), "test-plugin", &archive, None)
+        .unwrap();
+
+    // バックアップなしでリストア → エラー
+    let result = cache.restore(Some("github"), "test-plugin");
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_backup_nonexistent_plugin_returns_error() {
+    let temp_dir = TempDir::new().unwrap();
+    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+    // 存在しないプラグインのバックアップ → エラー
+    let result = cache.backup(Some("github"), "nonexistent-plugin");
+    assert!(result.is_err());
+}
+
+// =============================================================================
+// Atomic update tests
+// =============================================================================
+
+#[test]
+fn test_atomic_update_success() {
+    let temp_dir = TempDir::new().unwrap();
+    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+    // 初期プラグインをインストール
+    let archive_v1 = create_test_archive(&[
+        ("repo-main/plugin.json", r#"{"name":"test","version":"1.0.0"}"#),
+        ("repo-main/data.txt", "version 1"),
+    ]);
+    cache
+        .store_from_archive(Some("github"), "test-plugin", &archive_v1, None)
+        .unwrap();
+
+    // 新しいバージョンのアーカイブ
+    let archive_v2 = create_test_archive(&[
+        ("repo-main/plugin.json", r#"{"name":"test","version":"2.0.0"}"#),
+        ("repo-main/data.txt", "version 2"),
+    ]);
+
+    // アトミック更新
+    let result = cache.atomic_update(Some("github"), "test-plugin", &archive_v2);
+
+    assert!(result.is_ok());
+    let plugin_path = result.unwrap();
+
+    // 新しいバージョンが配置されている
+    let content = fs::read_to_string(plugin_path.join("data.txt")).unwrap();
+    assert_eq!(content, "version 2");
+
+    let manifest = fs::read_to_string(plugin_path.join("plugin.json")).unwrap();
+    assert!(manifest.contains("2.0.0"));
+}
+
+#[test]
+fn test_atomic_update_without_plugin_json_returns_error() {
+    let temp_dir = TempDir::new().unwrap();
+    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+    // 初期プラグインをインストール
+    let archive_v1 = create_test_archive(&[(
+        "repo-main/plugin.json",
+        r#"{"name":"test","version":"1.0.0"}"#,
+    )]);
+    cache
+        .store_from_archive(Some("github"), "test-plugin", &archive_v1, None)
+        .unwrap();
+
+    // plugin.json がないアーカイブ
+    let bad_archive = create_test_archive(&[("repo-main/readme.md", "# No plugin.json here")]);
+
+    // アトミック更新 → エラー
+    let result = cache.atomic_update(Some("github"), "test-plugin", &bad_archive);
+    assert!(result.is_err());
+
+    // 元のプラグインは残っている
+    let plugin_path = cache.plugin_path(Some("github"), "test-plugin");
+    assert!(plugin_path.join("plugin.json").exists());
+}
+
+#[test]
+fn test_atomic_update_cleans_up_temp_on_failure() {
+    let temp_dir = TempDir::new().unwrap();
+    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+    // 初期プラグインをインストール
+    let archive_v1 = create_test_archive(&[(
+        "repo-main/plugin.json",
+        r#"{"name":"test","version":"1.0.0"}"#,
+    )]);
+    cache
+        .store_from_archive(Some("github"), "test-plugin", &archive_v1, None)
+        .unwrap();
+
+    // 不正なアーカイブでアトミック更新
+    let bad_archive = create_test_archive(&[("repo-main/other.txt", "no plugin.json")]);
+
+    let _ = cache.atomic_update(Some("github"), "test-plugin", &bad_archive);
+
+    // .temp ディレクトリがクリーンアップされている
+    let temp_base = temp_dir.path().join(".temp").join("github").join("test-plugin");
+    assert!(
+        !temp_base.exists(),
+        "Temp directory should be cleaned up after failure"
+    );
+}
