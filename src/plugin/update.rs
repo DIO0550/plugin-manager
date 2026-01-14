@@ -6,9 +6,9 @@
 use crate::application::enable_plugin;
 use crate::host::{HostClientFactory, HostKind};
 use crate::http::with_retry;
+use crate::plugin::version::{fetch_remote_versions, needs_update, VersionQueryResult};
 use crate::plugin::{meta, PluginCache, PluginMeta};
 use crate::repo::Repo;
-use std::collections::HashMap;
 use std::path::Path;
 
 /// 更新ステータス
@@ -327,16 +327,52 @@ pub async fn update_all_plugins(
         plugin_metas.push((name.clone(), meta));
     }
 
-    // 一括更新チェック
+    // 一括リモートバージョン取得（version モジュールを使用）
     println!("Checking for updates...");
-    let updates = check_updates_batch(&plugin_metas).await;
+    let factory = HostClientFactory::with_defaults();
+    let client = factory.create(HostKind::GitHub);
+    let remote_versions = fetch_remote_versions(&plugin_metas, client.as_ref()).await;
 
-    // 更新対象をカウント
-    let update_count = updates.len();
-    let up_to_date_count = plugin_metas.len() - update_count;
+    // 更新対象を集計
+    let mut updates_to_do: Vec<(&str, String, &PluginMeta)> = Vec::new();
+    let mut error_count = 0;
+
+    for ((name, meta), (_plugin_name, result)) in plugin_metas.iter().zip(remote_versions.iter()) {
+        match result {
+            VersionQueryResult::Failed { message } => {
+                error_count += 1;
+                eprintln!("  {}: Failed to check ({})", name, message);
+            }
+            VersionQueryResult::Found(remote) => {
+                if needs_update(meta.commit_sha.as_deref(), &remote.sha) {
+                    let current_short = meta
+                        .commit_sha
+                        .as_ref()
+                        .map(|s| &s[..7.min(s.len())])
+                        .unwrap_or("unknown");
+                    let latest_short = &remote.sha[..7.min(remote.sha.len())];
+                    println!("  {}: {} -> {}", name, current_short, latest_short);
+                    updates_to_do.push((name, remote.sha.clone(), meta));
+                } else {
+                    println!("  {}: Already up to date", name);
+                }
+            }
+        }
+    }
+
+    let update_count = updates_to_do.len();
+    let up_to_date_count = plugin_metas.len() - update_count - error_count;
 
     if update_count == 0 {
-        println!("All {} plugin(s) are up to date.", plugin_metas.len());
+        println!(
+            "\nAll {} plugin(s) are up to date.{}",
+            up_to_date_count,
+            if error_count > 0 {
+                format!(" ({} could not be checked)", error_count)
+            } else {
+                String::new()
+            }
+        );
         return plugin_metas
             .iter()
             .map(|(name, _)| UpdateResult::up_to_date(name))
@@ -344,109 +380,73 @@ pub async fn update_all_plugins(
     }
 
     println!(
-        "\nUpdating {} plugin(s)... ({} up to date)",
-        update_count, up_to_date_count
+        "\nUpdating {} plugin(s)... ({} up to date{})",
+        update_count,
+        up_to_date_count,
+        if error_count > 0 {
+            format!(", {} errors", error_count)
+        } else {
+            String::new()
+        }
     );
 
     // 各プラグインを更新
     let mut results = Vec::new();
     let mut update_idx = 0;
 
-    for (name, meta) in &plugin_metas {
-        if let Some(latest_sha) = updates.get(name) {
-            update_idx += 1;
-            println!("\n[{}/{}] Updating {}...", update_idx, update_count, name);
+    for (name, latest_sha, meta) in &updates_to_do {
+        update_idx += 1;
+        println!("\n[{}/{}] Updating {}...", update_idx, update_count, name);
 
-            let git_ref = meta.git_ref.as_deref().unwrap_or("HEAD");
-            let repo = match restore_repo(meta, name, git_ref) {
-                Ok(r) => r,
-                Err(e) => {
-                    results.push(UpdateResult::failed(name, e));
-                    continue;
-                }
-            };
-
-            let factory = HostClientFactory::with_defaults();
-            let client = factory.create(HostKind::GitHub);
-
-            let result = do_update(
-                name,
-                latest_sha,
-                &cache,
-                &*client,
-                &repo,
-                meta,
-                project_root,
-                target_filter,
-            )
-            .await;
-
-            // 結果表示
-            match &result.status {
-                UpdateStatus::Updated { from_sha, to_sha } => {
-                    let from = from_sha.as_deref().unwrap_or("unknown");
-                    println!("  Updated: {} -> {}", from, to_sha);
-                }
-                UpdateStatus::Failed => {
-                    if let Some(e) = &result.error {
-                        eprintln!("  Error: {}", e);
-                    }
-                }
-                _ => {}
+        let git_ref = meta.git_ref.as_deref().unwrap_or("HEAD");
+        let repo = match restore_repo(meta, name, git_ref) {
+            Ok(r) => r,
+            Err(e) => {
+                results.push(UpdateResult::failed(name, e));
+                continue;
             }
+        };
 
-            results.push(result);
-        } else {
+        let update_factory = HostClientFactory::with_defaults();
+        let update_client = update_factory.create(HostKind::GitHub);
+
+        let result = do_update(
+            name,
+            latest_sha,
+            &cache,
+            &*update_client,
+            &repo,
+            meta,
+            project_root,
+            target_filter,
+        )
+        .await;
+
+        // 結果表示
+        match &result.status {
+            UpdateStatus::Updated { from_sha, to_sha } => {
+                let from = from_sha.as_deref().unwrap_or("unknown");
+                println!("  Updated: {} -> {}", from, to_sha);
+            }
+            UpdateStatus::Failed => {
+                if let Some(e) = &result.error {
+                    eprintln!("  Error: {}", e);
+                }
+            }
+            _ => {}
+        }
+
+        results.push(result);
+    }
+
+    // 更新対象外のプラグインも結果に追加
+    for (name, _) in &plugin_metas {
+        if !updates_to_do.iter().any(|(n, _, _)| n == name) {
             results.push(UpdateResult::up_to_date(name));
         }
     }
 
     results
-}
-
-/// 複数プラグインの更新チェック（API呼び出し効率化）
-///
-/// 指定されたプラグインの最新SHAを取得し、現在のSHAと異なるもののみを返す。
-async fn check_updates_batch(plugins: &[(String, PluginMeta)]) -> HashMap<String, String> {
-    let mut updates = HashMap::new();
-    let factory = HostClientFactory::with_defaults();
-    let client = factory.create(HostKind::GitHub);
-
-    for (name, meta) in plugins {
-        // GitHub プラグインのみ
-        if !meta.is_github() {
-            continue;
-        }
-
-        let git_ref = meta.git_ref.as_deref().unwrap_or("HEAD");
-        let repo = match restore_repo(meta, name, git_ref) {
-            Ok(r) => r,
-            Err(_) => continue,
-        };
-
-        // SHA取得（リトライ付き）
-        match with_retry(|| client.get_commit_sha(&repo, git_ref), 3).await {
-            Ok(latest_sha) => {
-                let current_sha = meta.commit_sha.as_deref();
-                let short_sha = &latest_sha[..7.min(latest_sha.len())];
-
-                if current_sha != Some(&latest_sha) {
-                    let current_short = current_sha
-                        .map(|s| &s[..7.min(s.len())])
-                        .unwrap_or("unknown");
-                    println!("  {}: {} -> {}", name, current_short, short_sha);
-                    updates.insert(name.clone(), latest_sha);
-                } else {
-                    println!("  {}: Already up to date", name);
-                }
-            }
-            Err(e) => {
-                eprintln!("  {}: Failed to check ({})", name, e);
-            }
-        }
-    }
-
-    updates
 }
 
 #[cfg(test)]

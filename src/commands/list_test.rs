@@ -167,6 +167,7 @@ fn test_filter_plugins_combined() {
         target: Some(TargetKind::Codex),
         json: false,
         simple: false,
+        outdated: false,
     };
 
     let filtered = filter_plugins(plugins, &args);
