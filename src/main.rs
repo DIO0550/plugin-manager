@@ -15,6 +15,7 @@ mod plugin;
 mod repo;
 mod scan;
 mod source;
+mod sync;
 mod target;
 mod tui;
 

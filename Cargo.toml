@@ -27,3 +27,5 @@ tempfile = "3"
 
 [dev-dependencies]
 proptest = "1"
+assert_cmd = "2"
+predicates = "3"
