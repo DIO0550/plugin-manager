@@ -76,7 +76,7 @@ impl PluginOrigin {
 }
 
 /// ターゲット種別（CLIオプション用）
-#[derive(Debug, Clone, ValueEnum)]
+#[derive(Debug, Clone, PartialEq, Eq, ValueEnum)]
 pub enum TargetKind {
     Codex,
     Copilot,

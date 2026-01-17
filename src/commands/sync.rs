@@ -1,7 +1,10 @@
 //! plm sync コマンド
 
 use crate::component::Scope;
-use crate::sync::{SyncAction, SyncExecutor, SyncOptions, SyncPlan, SyncResult, SyncableKind};
+use crate::sync::{
+    sync, PlacedComponent, SyncAction, SyncDestination, SyncOptions, SyncResult, SyncSource,
+    SyncableKind,
+};
 use crate::target::TargetKind;
 use clap::Parser;
 use comfy_table::{presets::UTF8_FULL, Cell, Color, Table};
@@ -32,175 +35,130 @@ pub struct Args {
 }
 
 pub async fn run(args: Args) -> Result<(), String> {
+    // 同一ターゲットチェック
+    if args.from == args.to {
+        return Err("Cannot sync to the same target".to_string());
+    }
+
     let project_root = env::current_dir().map_err(|e| e.to_string())?;
 
-    // SyncExecutor を作成
-    let executor = SyncExecutor::new(args.from.clone(), args.to.clone(), &project_root)
-        .map_err(|e| e.to_string())?;
+    // Source と Destination を作成
+    let source = SyncSource::new(args.from.clone(), &project_root).map_err(|e| e.to_string())?;
+    let dest = SyncDestination::new(args.to.clone(), &project_root).map_err(|e| e.to_string())?;
 
     // オプションを構築
     let options = SyncOptions {
         component_type: args.component_type,
         scope: args.scope,
+        dry_run: args.dry_run,
     };
 
-    // 同期計画を作成
-    let plan = executor.plan(&options).map_err(|e| e.to_string())?;
-
-    // 計画を表示
-    print_plan(&plan);
-
-    if plan.items.is_empty() {
-        println!("\nNo components to sync.");
-        return Ok(());
-    }
-
-    // dry-run の場合は終了
-    if args.dry_run {
-        println!(
-            "\n{} {} item(s) would be synced ({} create, {} overwrite, {} skip)",
-            "Dry run:".yellow().bold(),
-            plan.actionable_count(),
-            plan.create_count(),
-            plan.overwrite_count(),
-            plan.skip_count()
-        );
-        return Ok(());
-    }
-
-    // アクション可能なアイテムがない場合
-    if plan.actionable_count() == 0 {
-        println!("\nNo actionable items (all skipped).");
-        return Ok(());
-    }
-
     // 同期を実行
-    println!("\nSyncing...");
-    let result = executor.execute(&plan);
+    let result = sync(&source, &dest, &options).map_err(|e| e.to_string())?;
 
     // 結果を表示
-    print_result(&result, &plan);
+    print_result(&result, source.name(), dest.name());
 
     // 失敗があれば非0終了
-    if !result.failed.is_empty() {
+    if result.failure_count() > 0 {
         return Err(format!(
             "{} item(s) failed to sync",
-            result.failed.len()
+            result.failure_count()
         ));
     }
 
     Ok(())
 }
 
-fn print_plan(plan: &SyncPlan) {
+fn print_result(result: &SyncResult, from_name: &str, to_name: &str) {
     println!(
-        "Sync plan: {} -> {}\n",
-        plan.from_target.cyan(),
-        plan.to_target.cyan()
+        "Sync: {} -> {}\n",
+        from_name.cyan(),
+        to_name.cyan()
     );
 
-    if plan.items.is_empty() {
+    let total = result.total_count();
+    if total == 0 {
+        println!("No components to sync.");
         return;
     }
 
+    // テーブルを表示
     let mut table = Table::new();
     table.load_preset(UTF8_FULL);
-    table.set_header(vec!["Type", "Name", "Scope", "Action", "Reason"]);
+    table.set_header(vec!["Type", "Name", "Scope", "Action"]);
 
-    for item in &plan.items {
-        let action_cell = match &item.action {
-            SyncAction::Create => Cell::new("Create").fg(Color::Green),
-            SyncAction::Overwrite => Cell::new("Overwrite").fg(Color::Yellow),
-            SyncAction::Skip { .. } => Cell::new("Skip").fg(Color::DarkGrey),
-        };
+    // Created
+    for component in &result.created {
+        add_component_row(&mut table, component, "Create", Color::Green);
+    }
 
-        let reason = item.action.skip_reason().unwrap_or("-");
+    // Updated
+    for component in &result.updated {
+        add_component_row(&mut table, component, "Update", Color::Yellow);
+    }
 
-        table.add_row(vec![
-            Cell::new(item.kind.display_name()),
-            Cell::new(&item.name),
-            Cell::new(item.scope.display_name()),
-            action_cell,
-            Cell::new(reason),
-        ]);
+    // Deleted
+    for component in &result.deleted {
+        add_component_row(&mut table, component, "Delete", Color::Red);
+    }
+
+    // Skipped
+    for component in &result.skipped {
+        add_component_row(&mut table, component, "Skip (no change)", Color::DarkGrey);
+    }
+
+    // Unsupported
+    for component in &result.unsupported {
+        add_component_row(&mut table, component, "Skip (unsupported)", Color::DarkGrey);
     }
 
     println!("{table}");
-}
 
-fn print_result(result: &SyncResult, plan: &SyncPlan) {
-    let succeeded = result.succeeded.len();
-    let failed = result.failed.len();
-    let skipped = plan.skip_count();
-
+    // サマリー
+    let prefix = if result.dry_run { "Would sync" } else { "Synced" };
     println!(
-        "\n{}: {} succeeded, {} failed, {} skipped",
-        "Result".bold(),
-        succeeded.to_string().green(),
-        failed.to_string().red(),
-        skipped.to_string().dimmed()
+        "\n{}: {} created, {} updated, {} deleted, {} skipped",
+        prefix.bold(),
+        result.create_count().to_string().green(),
+        result.update_count().to_string().yellow(),
+        result.delete_count().to_string().red(),
+        result.skip_count().to_string().dimmed()
     );
 
+    // 失敗
     if !result.failed.is_empty() {
         println!("\n{}", "Failed items:".red().bold());
         for failure in &result.failed {
             println!(
-                "  {} ({}/{}): {}",
-                failure.item.name.red(),
-                failure.item.kind.display_name(),
-                failure.item.scope.display_name(),
+                "  {} ({}/{}): {} - {}",
+                failure.component.name().red(),
+                failure.component.kind().display_name(),
+                failure.component.scope().display_name(),
+                failure.action.display_name(),
                 failure.error
             );
         }
     }
 }
 
+fn add_component_row(table: &mut Table, component: &PlacedComponent, action: &str, color: Color) {
+    table.add_row(vec![
+        Cell::new(component.kind().display_name()),
+        Cell::new(component.name()),
+        Cell::new(component.scope().display_name()),
+        Cell::new(action).fg(color),
+    ]);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::component::ComponentKind;
-    use crate::sync::SyncItem;
-    use std::path::PathBuf;
 
     #[test]
     fn test_args_parsing() {
         use clap::CommandFactory;
         let cmd = Args::command();
         cmd.debug_assert();
-    }
-
-    #[test]
-    fn test_print_plan_empty() {
-        let plan = SyncPlan {
-            from_target: "codex".to_string(),
-            to_target: "copilot".to_string(),
-            items: vec![],
-        };
-        // Should not panic
-        print_plan(&plan);
-    }
-
-    #[test]
-    fn test_print_result_success() {
-        let plan = SyncPlan {
-            from_target: "codex".to_string(),
-            to_target: "copilot".to_string(),
-            items: vec![SyncItem {
-                kind: ComponentKind::Skill,
-                name: "test".to_string(),
-                scope: Scope::Personal,
-                source_path: PathBuf::from("/src"),
-                target_path: PathBuf::from("/dst"),
-                action: SyncAction::Create,
-            }],
-        };
-
-        let result = SyncResult {
-            succeeded: vec![plan.items[0].clone()],
-            failed: vec![],
-        };
-
-        // Should not panic
-        print_result(&result, &plan);
     }
 }

@@ -26,7 +26,7 @@ fn test_sync_dry_run_shows_plan() {
         .args(["sync", "--from", "codex", "--to", "copilot", "--dry-run"])
         .assert()
         .success()
-        .stdout(predicate::str::contains("Sync plan"));
+        .stdout(predicate::str::contains("Would sync"));
 }
 
 #[test]
@@ -101,7 +101,7 @@ fn test_sync_creates_component() {
         ])
         .assert()
         .success()
-        .stdout(predicate::str::contains("succeeded"));
+        .stdout(predicate::str::contains("Synced"));
 
     // Verify the skill was copied to copilot
     let target_skill = temp

@@ -79,7 +79,7 @@ pub struct Component {
 }
 
 /// デプロイスコープ
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, ValueEnum)]
 pub enum Scope {
     /// ユーザーレベル（~/.codex/, ~/.copilot/）
     Personal,
