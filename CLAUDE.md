@@ -138,6 +138,10 @@ src/
 - 値オブジェクト、エンティティ、サービスは関連する Feature に配置
 - レイヤー分離よりも凝集度を優先
 
+### テストコードの分離
+
+テストコードは本体コードと同じファイルに書かない。`foo.rs` のテストは `foo_test.rs` に分離する。
+
 ## 仕様ドキュメント
 
 詳細な仕様・実装計画は `docs/` フォルダを参照：
@@ -147,51 +151,5 @@ src/
 ※ 仕様ドキュメントのバージョンを上げる際は、古いバージョンを `docs/old/` に移動すること
 
 ## コミットメッセージ規約
-コミットメッセージは、英語にする
-Conventional Commits に従い、絵文字プレフィックスを使用する：
 
-```
-<emoji> <type>(<scope>): <description>
-```
-
-### Type 一覧
-
-| 絵文字 | type | 説明 |
-|--------|------|------|
-| ✨ | `feat` | 新機能 |
-| 🐛 | `fix` | バグ修正 |
-| 📚 | `docs` | ドキュメントのみの変更 |
-| 🎨 | `style` | フォーマット変更（動作に影響しない） |
-| ♻️ | `refactor` | リファクタリング（機能追加・バグ修正なし） |
-| 🧪 | `test` | テストの追加・修正 |
-| 🔧 | `chore` | ビルドプロセス・補助ツールの変更 |
-| ⚡ | `perf` | パフォーマンス改善 |
-| 👷 | `ci` | CI設定の変更 |
-
-### 例
-
-```
-✨ feat(install): add GitHub repository caching
-🐛 fix(parser): handle empty YAML frontmatter
-📚 docs: update README with new commands
-♻️ refactor(targets): migrate to trait-based design
-```
-
-### コミットの分割
-
-関連性のある変更ごとにコミットを分ける：
-
-- **機能単位**: 1つの機能・修正は1つのコミット
-- **ドキュメント**: コード変更とドキュメント変更は分ける
-- **依存関係**: Cargo.toml の変更は関連するコード変更と一緒にコミット可
-- **リファクタリング**: 機能追加とリファクタリングは分ける
-
-```bash
-# ✗ 悪い例: 無関係な変更を1つにまとめる
-git commit -m "feat: add feature X, fix bug Y, update docs"
-
-# ✓ 良い例: 関連性で分ける
-git commit -m "✨ feat(install): add feature X"
-git commit -m "🐛 fix(parser): fix bug Y"
-git commit -m "📚 docs: update installation guide"
-```
+コミットメッセージは英語で書く。
