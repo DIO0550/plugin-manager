@@ -26,5 +26,6 @@
 
 # AI tool generated files
 .codex-reviews/
+.spec/
 .specs/
 docs/
