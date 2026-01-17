@@ -6,6 +6,7 @@ mod config;
 mod domain;
 mod env;
 mod error;
+mod fs;
 mod host;
 mod http;
 mod marketplace;

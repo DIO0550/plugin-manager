@@ -5,7 +5,7 @@
 use super::manifest_resolve::resolve_manifest_path;
 use super::PluginManifest;
 use crate::error::{PlmError, Result};
-use std::fs;
+use crate::fs::{FileSystem, RealFs};
 use std::io::{Cursor, Read};
 use std::path::{Component as PathComponent, Path, PathBuf};
 use zip::ZipArchive;
@@ -23,16 +23,18 @@ pub struct PluginCache {
 impl PluginCache {
     /// キャッシュマネージャを初期化（ディレクトリ作成含む）
     pub fn new() -> Result<Self> {
+        let fs = RealFs;
         let home = std::env::var("HOME")
             .map_err(|_| PlmError::Cache("HOME environment variable not set".to_string()))?;
         let cache_dir = PathBuf::from(home).join(".plm").join("cache").join("plugins");
-        fs::create_dir_all(&cache_dir)?;
+        fs.create_dir_all(&cache_dir)?;
         Ok(Self { cache_dir })
     }
 
     /// カスタムキャッシュディレクトリで初期化（テスト用）
     pub fn with_cache_dir(cache_dir: PathBuf) -> Result<Self> {
-        fs::create_dir_all(&cache_dir)?;
+        let fs = RealFs;
+        fs.create_dir_all(&cache_dir)?;
         Ok(Self { cache_dir })
     }
 
@@ -67,14 +69,16 @@ impl PluginCache {
         archive: &[u8],
         source_path: Option<&str>,
     ) -> Result<PathBuf> {
+        let fs = RealFs;
+
         // source_path の防御的検証
         validate_source_path(source_path)?;
 
         let plugin_dir = self.plugin_path(marketplace, name);
 
         // 既存のキャッシュがあれば削除
-        if plugin_dir.exists() {
-            fs::remove_dir_all(&plugin_dir)?;
+        if fs.exists(&plugin_dir) {
+            fs.remove_dir_all(&plugin_dir)?;
         }
 
         // アーカイブを展開
@@ -104,21 +108,21 @@ impl PluginCache {
 
     /// キャッシュから削除
     pub fn remove(&self, marketplace: Option<&str>, name: &str) -> Result<()> {
+        let fs = RealFs;
         let plugin_dir = self.plugin_path(marketplace, name);
-        if plugin_dir.exists() {
-            fs::remove_dir_all(&plugin_dir)?;
+        if fs.exists(&plugin_dir) {
+            fs.remove_dir_all(&plugin_dir)?;
         }
         Ok(())
     }
 
     /// 全キャッシュをクリア
     pub fn clear(&self) -> Result<()> {
-        if self.cache_dir.exists() {
-            for entry in fs::read_dir(&self.cache_dir)? {
-                let entry = entry?;
-                let path = entry.path();
-                if path.is_dir() {
-                    fs::remove_dir_all(path)?;
+        let fs = RealFs;
+        if fs.exists(&self.cache_dir) {
+            for entry in fs.read_dir(&self.cache_dir)? {
+                if entry.is_dir() {
+                    fs.remove_dir_all(&entry.path)?;
                 }
             }
         }
@@ -128,30 +132,26 @@ impl PluginCache {
     /// キャッシュされているプラグイン一覧を取得
     /// 階層構造を走査し、(marketplace, plugin_name) のタプルを返す
     pub fn list(&self) -> Result<Vec<(Option<String>, String)>> {
+        let fs = RealFs;
         let mut plugins = Vec::new();
 
-        if !self.cache_dir.exists() {
+        if !fs.exists(&self.cache_dir) {
             return Ok(plugins);
         }
 
         // marketplace ディレクトリを走査
-        for mp_entry in fs::read_dir(&self.cache_dir)? {
-            let mp_entry = mp_entry?;
-            let mp_path = mp_entry.path();
-
-            if !mp_path.is_dir() {
+        for mp_entry in fs.read_dir(&self.cache_dir)? {
+            if !mp_entry.is_dir() {
                 continue;
             }
 
+            let mp_path = &mp_entry.path;
             let marketplace_name = mp_path.file_name().and_then(|n| n.to_str()).map(String::from);
 
             // marketplace 内のプラグインを走査
-            for plugin_entry in fs::read_dir(&mp_path)? {
-                let plugin_entry = plugin_entry?;
-                let plugin_path = plugin_entry.path();
-
-                if plugin_path.is_dir() {
-                    if let Some(plugin_name) = plugin_path.file_name() {
+            for plugin_entry in fs.read_dir(mp_path)? {
+                if plugin_entry.is_dir() {
+                    if let Some(plugin_name) = plugin_entry.path.file_name() {
                         let plugin_name = plugin_name.to_string_lossy().to_string();
                         // "github" marketplace は None として扱う
                         let mp = if marketplace_name.as_deref() == Some("github") {
@@ -195,10 +195,11 @@ impl PluginCache {
     /// 注意: 実行ビット/シンボリックリンクは保持されない。
     /// プラグインは平文ファイルのみを含むことを前提とする。
     pub fn backup(&self, marketplace: Option<&str>, name: &str) -> Result<PathBuf> {
+        let fs = RealFs;
         let source = self.plugin_path(marketplace, name);
         let backup_dir = self.backup_path(marketplace, name);
 
-        if !source.exists() {
+        if !fs.exists(&source) {
             return Err(PlmError::Cache(format!(
                 "Plugin not found: {}",
                 source.display()
@@ -206,47 +207,49 @@ impl PluginCache {
         }
 
         // 既存バックアップがあれば削除
-        if backup_dir.exists() {
-            fs::remove_dir_all(&backup_dir)?;
+        if fs.exists(&backup_dir) {
+            fs.remove_dir_all(&backup_dir)?;
         }
 
         // 親ディレクトリを作成
         if let Some(parent) = backup_dir.parent() {
-            fs::create_dir_all(parent)?;
+            fs.create_dir_all(parent)?;
         }
 
-        copy_dir_recursive(&source, &backup_dir)?;
+        fs.copy_dir(&source, &backup_dir)?;
         Ok(backup_dir)
     }
 
     /// バックアップからリストア
     pub fn restore(&self, marketplace: Option<&str>, name: &str) -> Result<()> {
+        let fs = RealFs;
         let backup_dir = self.backup_path(marketplace, name);
         let target = self.plugin_path(marketplace, name);
 
-        if !backup_dir.exists() {
+        if !fs.exists(&backup_dir) {
             return Err(PlmError::Cache("Backup not found".to_string()));
         }
 
         // 現在のディレクトリを削除
-        if target.exists() {
-            fs::remove_dir_all(&target)?;
+        if fs.exists(&target) {
+            fs.remove_dir_all(&target)?;
         }
 
         // バックアップからリストア
-        copy_dir_recursive(&backup_dir, &target)?;
+        fs.copy_dir(&backup_dir, &target)?;
 
         // バックアップを削除
-        fs::remove_dir_all(&backup_dir)?;
+        fs.remove_dir_all(&backup_dir)?;
 
         Ok(())
     }
 
     /// バックアップを削除
     pub fn remove_backup(&self, marketplace: Option<&str>, name: &str) -> Result<()> {
+        let fs = RealFs;
         let backup_dir = self.backup_path(marketplace, name);
-        if backup_dir.exists() {
-            fs::remove_dir_all(&backup_dir)?;
+        if fs.exists(&backup_dir) {
+            fs.remove_dir_all(&backup_dir)?;
         }
         Ok(())
     }
@@ -273,17 +276,18 @@ impl PluginCache {
         name: &str,
         archive: &[u8],
     ) -> Result<PathBuf> {
+        let fs = RealFs;
         let target = self.plugin_path(marketplace, name);
         let temp_dir = self.temp_path(marketplace, name);
 
         // temp ディレクトリをクリーンアップ
-        if temp_dir.exists() {
-            fs::remove_dir_all(&temp_dir)?;
+        if fs.exists(&temp_dir) {
+            fs.remove_dir_all(&temp_dir)?;
         }
 
         // 親ディレクトリを作成
         if let Some(parent) = temp_dir.parent() {
-            fs::create_dir_all(parent)?;
+            fs.create_dir_all(parent)?;
         }
 
         // temp に展開（source_path なし）
@@ -291,37 +295,20 @@ impl PluginCache {
 
         // 検証: plugin.json の存在確認
         if !has_manifest(&temp_dir) {
-            fs::remove_dir_all(&temp_dir)?;
+            fs.remove_dir_all(&temp_dir)?;
             return Err(PlmError::InvalidManifest("plugin.json not found".into()));
         }
 
         // 旧キャッシュ削除 → temp をリネーム
-        if target.exists() {
-            fs::remove_dir_all(&target)?;
+        if fs.exists(&target) {
+            fs.remove_dir_all(&target)?;
         }
 
         // リネーム（同一ファイルシステム上でのアトミック操作）
-        fs::rename(&temp_dir, &target)?;
+        fs.rename(&temp_dir, &target)?;
 
         Ok(target)
     }
-}
-
-/// ディレクトリを再帰コピー
-fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
-    fs::create_dir_all(dst)?;
-    for entry in fs::read_dir(src)? {
-        let entry = entry?;
-        let src_path = entry.path();
-        let dst_path = dst.join(entry.file_name());
-
-        if src_path.is_dir() {
-            copy_dir_recursive(&src_path, &dst_path)?;
-        } else {
-            fs::copy(&src_path, &dst_path)?;
-        }
-    }
-    Ok(())
 }
 
 /// source_path の防御的検証
@@ -489,15 +476,16 @@ fn extract_with_source_path_filter(
 
 /// zipエントリをファイルシステムに書き込み
 fn write_zip_entry(file: &mut zip::read::ZipFile, target_path: &Path) -> Result<()> {
+    let fs = RealFs;
     if file.is_dir() {
-        fs::create_dir_all(target_path)?;
+        fs.create_dir_all(target_path)?;
     } else {
         if let Some(parent) = target_path.parent() {
-            fs::create_dir_all(parent)?;
+            fs.create_dir_all(parent)?;
         }
         let mut content = Vec::new();
         file.read_to_end(&mut content)?;
-        fs::write(target_path, content)?;
+        fs.write(target_path, &content)?;
     }
     Ok(())
 }

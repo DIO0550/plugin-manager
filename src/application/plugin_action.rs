@@ -8,6 +8,7 @@
 use crate::component::{Component, ComponentKind, Scope};
 use crate::domain::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
 use crate::error::{PlmError, Result};
+use crate::fs::{FileSystem, RealFs};
 use crate::target::{all_targets, AffectedTargets, OperationResult, PluginOrigin, Target};
 use std::path::{Path, PathBuf};
 
@@ -338,6 +339,7 @@ fn execute_file_operations(
 ) -> OperationResult {
     use crate::path_ext::PathExt;
 
+    let fs = RealFs;
     let mut affected = AffectedTargets::new();
 
     // ターゲットごとにグループ化
@@ -362,16 +364,16 @@ fn execute_file_operations(
                 }
                 FileOperation::RemoveFile { path } => {
                     let p = path.as_path();
-                    if p.exists() {
-                        std::fs::remove_file(p).map_err(|e| PlmError::Io(e))
+                    if fs.exists(p) {
+                        fs.remove_file(p)
                     } else {
                         Ok(())
                     }
                 }
                 FileOperation::RemoveDir { path } => {
                     let p = path.as_path();
-                    if p.exists() {
-                        std::fs::remove_dir_all(p).map_err(|e| PlmError::Io(e))
+                    if fs.exists(p) {
+                        fs.remove_dir_all(p)
                     } else {
                         Ok(())
                     }

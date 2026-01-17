@@ -23,15 +23,14 @@
 
 mod action;
 mod destination;
-mod fs;
 mod options;
 mod placed;
 mod result;
 mod source;
 
 pub use action::SyncAction;
+pub use crate::fs::{FileSystem, RealFs};
 pub use destination::SyncDestination;
-pub use fs::{FileSystem, RealFs};
 pub use options::{SyncOptions, SyncableKind};
 pub use placed::{ComponentIdentity, PlacedComponent};
 pub use result::{SyncFailure, SyncResult};
@@ -234,7 +233,7 @@ fn execute_delete(component: &PlacedComponent, fs: &dyn FileSystem) -> Result<()
 mod tests {
     use super::*;
     use crate::component::{ComponentKind, Scope};
-    use fs::mock::MockFs;
+    use crate::fs::mock::MockFs;
 
     #[test]
     fn test_needs_update_newer_source() {

@@ -11,9 +11,9 @@
 
 use super::plugin_action::{PluginAction, PluginIntent};
 use crate::component::Component;
+use crate::fs::{FileSystem, RealFs};
 use crate::plugin::{CachedPlugin, PluginCache, PluginManifest};
 use crate::target::{all_targets, OperationResult, PluginOrigin};
-use std::fs;
 use std::path::{Path, PathBuf};
 
 /// プラグインを Disable（デプロイ先から削除、キャッシュは残す）
@@ -214,6 +214,8 @@ pub fn uninstall_plugin(
 ///
 /// コンポーネント削除後に空になったプラグインディレクトリを削除する。
 fn cleanup_plugin_directories(target_name: &str, origin: &PluginOrigin, project_root: &Path) {
+    let fs = RealFs;
+
     // ターゲットごとのディレクトリ構造
     let dirs_to_check: Vec<(&str, &str)> = match target_name {
         "codex" => vec![("agents", ".codex"), ("skills", ".codex")],
@@ -234,10 +236,10 @@ fn cleanup_plugin_directories(target_name: &str, origin: &PluginOrigin, project_
             .join(&origin.plugin);
 
         // ディレクトリが存在して空なら削除
-        if plugin_dir.is_dir() {
-            if let Ok(entries) = fs::read_dir(&plugin_dir) {
-                if entries.count() == 0 {
-                    let _ = fs::remove_dir(&plugin_dir);
+        if fs.is_dir(&plugin_dir) {
+            if let Ok(entries) = fs.read_dir(&plugin_dir) {
+                if entries.is_empty() {
+                    let _ = fs.remove_dir_all(&plugin_dir);
                 }
             }
         }
@@ -248,10 +250,10 @@ fn cleanup_plugin_directories(target_name: &str, origin: &PluginOrigin, project_
             .join(kind_dir)
             .join(&origin.marketplace);
 
-        if marketplace_dir.is_dir() {
-            if let Ok(entries) = fs::read_dir(&marketplace_dir) {
-                if entries.count() == 0 {
-                    let _ = fs::remove_dir(&marketplace_dir);
+        if fs.is_dir(&marketplace_dir) {
+            if let Ok(entries) = fs.read_dir(&marketplace_dir) {
+                if entries.is_empty() {
+                    let _ = fs.remove_dir_all(&marketplace_dir);
                 }
             }
         }
@@ -259,10 +261,10 @@ fn cleanup_plugin_directories(target_name: &str, origin: &PluginOrigin, project_
         // kind ディレクトリも空なら削除
         let kind_dir_path = project_root.join(base_dir).join(kind_dir);
 
-        if kind_dir_path.is_dir() {
-            if let Ok(entries) = fs::read_dir(&kind_dir_path) {
-                if entries.count() == 0 {
-                    let _ = fs::remove_dir(&kind_dir_path);
+        if fs.is_dir(&kind_dir_path) {
+            if let Ok(entries) = fs.read_dir(&kind_dir_path) {
+                if entries.is_empty() {
+                    let _ = fs.remove_dir_all(&kind_dir_path);
                 }
             }
         }

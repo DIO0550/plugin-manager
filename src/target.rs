@@ -33,8 +33,8 @@ use crate::component::ComponentKind;
 pub use crate::component::Scope;
 use crate::domain::{ComponentRef, PlacementContext, PlacementLocation, PlacementScope, ProjectContext};
 use crate::error::{PlmError, Result};
+use crate::fs::{FileSystem, RealFs};
 use clap::ValueEnum;
-use std::fs;
 use std::path::Path;
 
 /// プラグインの出自情報
@@ -131,6 +131,7 @@ pub trait Target: Send + Sync {
 
     /// コンポーネントを削除
     fn remove(&self, context: &PlacementContext) -> Result<()> {
+        let fs = RealFs;
         let location = self.placement_location(context).ok_or_else(|| {
             PlmError::Deployment(format!(
                 "{} is not supported on {} with {} scope",
@@ -141,11 +142,11 @@ pub trait Target: Send + Sync {
         })?;
 
         let path = location.as_path();
-        if path.exists() {
+        if fs.exists(path) {
             if location.is_dir() {
-                fs::remove_dir_all(path)?;
+                fs.remove_dir_all(path)?;
             } else {
-                fs::remove_file(path)?;
+                fs.remove_file(path)?;
             }
         }
 

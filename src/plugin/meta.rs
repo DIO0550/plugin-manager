@@ -6,10 +6,10 @@
 use super::manifest_resolve::resolve_manifest_path;
 use super::PluginManifest;
 use crate::error::Result;
+use crate::fs::{FileSystem, RealFs};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fs;
 use std::io::Write;
 use std::path::Path;
 use tempfile::NamedTempFile;
@@ -139,7 +139,8 @@ pub fn write_meta(plugin_dir: &Path, meta: &PluginMeta) -> Result<()> {
         Err(e) => {
             if e.error.kind() == std::io::ErrorKind::AlreadyExists {
                 // 既存ファイルを削除して再試行
-                let _ = fs::remove_file(&meta_path);
+                let fs = RealFs;
+                let _ = fs.remove_file(&meta_path);
                 e.file.persist(&meta_path).map_err(|e| e.error)?;
                 Ok(())
             } else {
@@ -164,13 +165,14 @@ pub fn write_installed_at(plugin_dir: &Path) -> Result<()> {
 /// 欠損時は None、破損時は警告ログを出力して None を返す。
 /// 読み取り時は副作用なし（`.bak` 退避などを行わない）。
 pub fn load_meta(plugin_dir: &Path) -> Option<PluginMeta> {
+    let fs = RealFs;
     let meta_path = plugin_dir.join(META_FILE);
 
-    if !meta_path.exists() {
+    if !fs.exists(&meta_path) {
         return None;
     }
 
-    match fs::read_to_string(&meta_path) {
+    match fs.read_to_string(&meta_path) {
         Ok(content) => match serde_json::from_str::<PluginMeta>(&content) {
             Ok(meta) => Some(meta),
             Err(e) => {
