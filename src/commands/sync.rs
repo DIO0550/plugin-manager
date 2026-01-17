@@ -152,13 +152,5 @@ fn add_component_row(table: &mut Table, component: &PlacedComponent, action: &st
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_args_parsing() {
-        use clap::CommandFactory;
-        let cmd = Args::command();
-        cmd.debug_assert();
-    }
-}
+#[path = "sync_test.rs"]
+mod tests;
