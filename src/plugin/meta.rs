@@ -7,9 +7,10 @@ use super::manifest_resolve::resolve_manifest_path;
 use super::PluginManifest;
 use crate::error::Result;
 use crate::fs::{FileSystem, RealFs};
+use crate::target::PluginOrigin;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::path::Path;
 use tempfile::NamedTempFile;
@@ -27,7 +28,11 @@ pub struct PluginMeta {
 
     /// ターゲット別ステータス（"enabled" / "disabled"）
     /// 空の場合はシリアライズ時に省略
-    #[serde(default, rename = "statusByTarget", skip_serializing_if = "HashMap::is_empty")]
+    #[serde(
+        default,
+        rename = "statusByTarget",
+        skip_serializing_if = "HashMap::is_empty"
+    )]
     pub status_by_target: HashMap<String, String>,
 
     /// Git参照（ブランチ名やタグ）
@@ -43,11 +48,19 @@ pub struct PluginMeta {
     pub updated_at: Option<String>,
 
     /// ソースリポジトリ情報（owner/repo形式）
-    #[serde(default, rename = "sourceRepo", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        rename = "sourceRepo",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub source_repo: Option<String>,
 
     /// マーケットプレイス（"github" 固定、将来拡張用）
-    #[serde(default, rename = "marketplace", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        rename = "marketplace",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub marketplace: Option<String>,
 }
 
@@ -96,9 +109,7 @@ impl PluginMeta {
 
     /// ソースリポジトリを取得
     pub fn get_source_repo(&self) -> Option<(&str, &str)> {
-        self.source_repo
-            .as_ref()
-            .and_then(|s| s.split_once('/'))
+        self.source_repo.as_ref().and_then(|s| s.split_once('/'))
     }
 
     /// GitHub プラグインかどうか
@@ -202,7 +213,10 @@ pub fn load_meta(plugin_dir: &Path) -> Option<PluginMeta> {
 /// 3. 両方無い → `None`
 ///
 /// manifest が None の場合は plugin.json を読み込んでフォールバック
-pub fn resolve_installed_at(plugin_dir: &Path, manifest: Option<&PluginManifest>) -> Option<String> {
+pub fn resolve_installed_at(
+    plugin_dir: &Path,
+    manifest: Option<&PluginManifest>,
+) -> Option<String> {
     // 1. .plm-meta.json から取得を試みる
     if let Some(meta) = load_meta(plugin_dir) {
         if let Some(installed_at) = normalize_installed_at(meta.installed_at.as_deref()) {
@@ -216,14 +230,55 @@ pub fn resolve_installed_at(plugin_dir: &Path, manifest: Option<&PluginManifest>
     }
 
     // manifest が渡されていない場合は読み込みを試みる
-    let loaded_manifest = resolve_manifest_path(plugin_dir)
-        .and_then(|path| PluginManifest::load(&path).ok());
+    let loaded_manifest =
+        resolve_manifest_path(plugin_dir).and_then(|path| PluginManifest::load(&path).ok());
 
     if let Some(m) = loaded_manifest {
         return normalize_installed_at(m.installed_at.as_deref());
     }
 
     None
+}
+
+/// プラグインが有効かどうかを判定
+///
+/// 判定ロジック:
+/// 1. `.plm-meta.json` の `statusByTarget` を優先参照
+///    - ファイルが存在し、statusByTarget が空でない場合: いずれかのターゲットが enabled なら true
+/// 2. `.plm-meta.json` が存在しない/読み取りエラー/statusByTarget が空の場合:
+///    実デプロイ状態から判定（後方互換）
+///
+/// # Arguments
+/// * `cache_path` - プラグインのキャッシュパス
+/// * `marketplace` - マーケットプレイス名
+/// * `plugin_name` - プラグイン名
+/// * `deployed` - デプロイ済みプラグインの集合（事前計算済み）
+///
+/// # Returns
+/// `true` if enabled, `false` otherwise
+pub fn is_enabled(
+    cache_path: &Path,
+    marketplace: &str,
+    plugin_name: &str,
+    deployed: &HashSet<(String, String)>,
+) -> bool {
+    // 1. .plm-meta.json の statusByTarget を確認
+    if let Some(plugin_meta) = load_meta(cache_path) {
+        if !plugin_meta.status_by_target.is_empty() {
+            return plugin_meta.any_enabled();
+        }
+    }
+
+    // 2. 後方互換: 実デプロイ状態から判定
+    let origin = PluginOrigin::from_cached_plugin(
+        if marketplace == "github" {
+            None
+        } else {
+            Some(marketplace)
+        },
+        plugin_name,
+    );
+    deployed.contains(&(origin.marketplace, origin.plugin))
 }
 
 #[cfg(test)]

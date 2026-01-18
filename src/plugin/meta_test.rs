@@ -103,7 +103,10 @@ fn test_write_and_load_meta_with_status() {
     write_meta(plugin_dir, &meta).unwrap();
 
     let loaded = load_meta(plugin_dir).unwrap();
-    assert_eq!(loaded.installed_at, Some("2025-01-15T10:30:00Z".to_string()));
+    assert_eq!(
+        loaded.installed_at,
+        Some("2025-01-15T10:30:00Z".to_string())
+    );
     assert_eq!(loaded.get_status("codex"), Some("enabled"));
     assert_eq!(loaded.get_status("copilot"), Some("disabled"));
 }
@@ -156,7 +159,10 @@ fn test_write_and_load_meta() {
     write_meta(plugin_dir, &meta).unwrap();
 
     let loaded = load_meta(plugin_dir).unwrap();
-    assert_eq!(loaded.installed_at, Some("2025-01-15T10:30:00Z".to_string()));
+    assert_eq!(
+        loaded.installed_at,
+        Some("2025-01-15T10:30:00Z".to_string())
+    );
 }
 
 #[test]
@@ -235,7 +241,8 @@ fn test_resolve_installed_at_fallback_to_manifest() {
     let plugin_dir = temp_dir.path();
 
     // plugin.json を作成（.plm-meta.json なし）
-    let manifest_content = r#"{"name":"test","version":"1.0.0","installedAt":"2025-01-10T00:00:00Z"}"#;
+    let manifest_content =
+        r#"{"name":"test","version":"1.0.0","installedAt":"2025-01-10T00:00:00Z"}"#;
     fs::write(plugin_dir.join("plugin.json"), manifest_content).unwrap();
 
     let manifest = PluginManifest::parse(manifest_content).unwrap();
@@ -255,7 +262,8 @@ fn test_resolve_installed_at_meta_priority() {
     };
     write_meta(plugin_dir, &meta).unwrap();
 
-    let manifest_content = r#"{"name":"test","version":"1.0.0","installedAt":"2025-01-10T00:00:00Z"}"#;
+    let manifest_content =
+        r#"{"name":"test","version":"1.0.0","installedAt":"2025-01-10T00:00:00Z"}"#;
     fs::write(plugin_dir.join("plugin.json"), manifest_content).unwrap();
 
     let manifest = PluginManifest::parse(manifest_content).unwrap();
@@ -276,7 +284,8 @@ fn test_resolve_installed_at_empty_meta_fallback() {
     write_meta(plugin_dir, &meta).unwrap();
 
     // plugin.json に値あり
-    let manifest_content = r#"{"name":"test","version":"1.0.0","installedAt":"2025-01-10T00:00:00Z"}"#;
+    let manifest_content =
+        r#"{"name":"test","version":"1.0.0","installedAt":"2025-01-10T00:00:00Z"}"#;
     fs::write(plugin_dir.join("plugin.json"), manifest_content).unwrap();
 
     let manifest = PluginManifest::parse(manifest_content).unwrap();
@@ -471,4 +480,89 @@ fn test_write_and_load_meta_with_git_info() {
     assert_eq!(loaded.source_repo, Some("owner/repo".to_string()));
     assert_eq!(loaded.marketplace, Some("github".to_string()));
     assert!(loaded.updated_at.is_some());
+}
+
+// =============================================================================
+// is_enabled (module-level function) tests
+// =============================================================================
+
+#[test]
+fn test_is_enabled_func_with_status_by_target_enabled() {
+    let temp_dir = TempDir::new().unwrap();
+    let plugin_dir = temp_dir.path();
+
+    // statusByTarget が有効な場合
+    let mut meta = PluginMeta::default();
+    meta.set_status("codex", "enabled");
+    write_meta(plugin_dir, &meta).unwrap();
+
+    let deployed: HashSet<(String, String)> = HashSet::new();
+    assert!(is_enabled(plugin_dir, "github", "test-plugin", &deployed));
+}
+
+#[test]
+fn test_is_enabled_func_with_status_by_target_disabled() {
+    let temp_dir = TempDir::new().unwrap();
+    let plugin_dir = temp_dir.path();
+
+    // statusByTarget が無効のみの場合
+    let mut meta = PluginMeta::default();
+    meta.set_status("codex", "disabled");
+    write_meta(plugin_dir, &meta).unwrap();
+
+    let deployed: HashSet<(String, String)> = HashSet::new();
+    assert!(!is_enabled(plugin_dir, "github", "test-plugin", &deployed));
+}
+
+#[test]
+fn test_is_enabled_func_fallback_to_deployed() {
+    let temp_dir = TempDir::new().unwrap();
+    let plugin_dir = temp_dir.path();
+
+    // statusByTarget が空の場合、deployed から判定
+    let meta = PluginMeta::default();
+    write_meta(plugin_dir, &meta).unwrap();
+
+    let mut deployed: HashSet<(String, String)> = HashSet::new();
+    deployed.insert(("github".to_string(), "test-plugin".to_string()));
+
+    assert!(is_enabled(plugin_dir, "github", "test-plugin", &deployed));
+}
+
+#[test]
+fn test_is_enabled_func_fallback_not_deployed() {
+    let temp_dir = TempDir::new().unwrap();
+    let plugin_dir = temp_dir.path();
+
+    // statusByTarget が空で deployed にもない場合
+    let meta = PluginMeta::default();
+    write_meta(plugin_dir, &meta).unwrap();
+
+    let deployed: HashSet<(String, String)> = HashSet::new();
+    assert!(!is_enabled(plugin_dir, "github", "test-plugin", &deployed));
+}
+
+#[test]
+fn test_is_enabled_func_no_meta_file_fallback() {
+    let temp_dir = TempDir::new().unwrap();
+    let plugin_dir = temp_dir.path();
+
+    // .plm-meta.json が存在しない場合、deployed から判定
+    let mut deployed: HashSet<(String, String)> = HashSet::new();
+    deployed.insert(("github".to_string(), "test-plugin".to_string()));
+
+    assert!(is_enabled(plugin_dir, "github", "test-plugin", &deployed));
+}
+
+#[test]
+fn test_is_enabled_func_marketplace_normalization() {
+    let temp_dir = TempDir::new().unwrap();
+    let plugin_dir = temp_dir.path();
+
+    // marketplace が "github" の場合、None として扱われる
+    let mut deployed: HashSet<(String, String)> = HashSet::new();
+    deployed.insert(("github".to_string(), "test-plugin".to_string()));
+
+    // "github" は PluginOrigin::from_cached_plugin(None, ...) と同じ結果
+    assert!(is_enabled(plugin_dir, "github", "test-plugin", &deployed));
 }

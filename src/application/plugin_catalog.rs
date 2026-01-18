@@ -5,8 +5,8 @@
 use crate::component::{ComponentKind, ComponentName, ComponentTypeCount, Scope};
 use crate::error::Result;
 use crate::plugin::{has_manifest, meta, PluginCache, PluginManifest};
-use crate::scan::{scan_components, ComponentScan};
-use crate::target::{all_targets, PluginOrigin};
+use crate::scan::{list_placed_plugins, scan_components, ComponentScan};
+use crate::target::all_targets;
 use serde::Serialize;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -113,7 +113,7 @@ pub fn list_installed_plugins() -> Result<Vec<PluginSummary>> {
 
     // デプロイ済みプラグイン集合を事前取得（パフォーマンス改善）
     let project_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-    let deployed = collect_deployed_plugins(&project_root);
+    let deployed = list_all_placed(&project_root);
 
     let mut plugins = Vec::new();
 
@@ -135,19 +135,27 @@ pub fn list_installed_plugins() -> Result<Vec<PluginSummary>> {
             Err(_) => continue,
         };
 
-        plugins.push(build_summary(name, marketplace, &plugin_path, &manifest, &deployed));
+        plugins.push(build_summary(
+            name,
+            marketplace,
+            &plugin_path,
+            &manifest,
+            &deployed,
+        ));
     }
 
     Ok(plugins)
 }
 
-/// デプロイ済みプラグインの集合を取得
+/// 全ターゲットから配置済みプラグインを収集
 ///
 /// 全ターゲット・全コンポーネント種別のデプロイ済みコンポーネントを走査し、
 /// プラグインの (marketplace, plugin_name) の集合を返す。
-fn collect_deployed_plugins(project_root: &Path) -> HashSet<(String, String)> {
-    let mut deployed = HashSet::new();
+///
+/// `plugin_info.rs` からも使用されるため `pub(crate)` で公開。
+pub(crate) fn list_all_placed(project_root: &Path) -> HashSet<(String, String)> {
     let targets = all_targets();
+    let mut all_items = Vec::new();
 
     for target in &targets {
         for kind in ComponentKind::all() {
@@ -156,27 +164,12 @@ fn collect_deployed_plugins(project_root: &Path) -> HashSet<(String, String)> {
             }
             // エラー時は黙殺（保守的に deployed とみなさない）
             if let Ok(placed) = target.list_placed(*kind, Scope::Project, project_root) {
-                for item in placed {
-                    if let Some((mp, plugin)) = parse_placed_item(&item) {
-                        deployed.insert((mp, plugin));
-                    }
-                }
+                all_items.extend(placed);
             }
         }
     }
-    deployed
-}
 
-/// "marketplace/plugin/component" 形式をパース
-///
-/// 戻り値: Some((marketplace, plugin_name)) または None
-fn parse_placed_item(item: &str) -> Option<(String, String)> {
-    let parts: Vec<&str> = item.split('/').collect();
-    if parts.len() >= 2 {
-        Some((parts[0].to_string(), parts[1].to_string()))
-    } else {
-        None
-    }
+    list_placed_plugins(&all_items)
 }
 
 /// PluginSummary を構築
@@ -190,23 +183,9 @@ fn build_summary(
     // 統一スキャンAPIを使用
     let scan: ComponentScan = scan_components(plugin_path, manifest);
 
-    // デプロイ状態をチェック
-    // 1. .plm-meta.json の statusByTarget を優先参照
-    // 2. statusByTarget が空/null の場合は実デプロイ状態から判定（後方互換）
-    let enabled = if let Some(plugin_meta) = meta::load_meta(plugin_path) {
-        if !plugin_meta.status_by_target.is_empty() {
-            // いずれかのターゲットが enabled なら true
-            plugin_meta.any_enabled()
-        } else {
-            // 後方互換: 実デプロイ状態から判定
-            let origin = PluginOrigin::from_cached_plugin(marketplace.as_deref(), &name);
-            deployed.contains(&(origin.marketplace, origin.plugin))
-        }
-    } else {
-        // 後方互換: 実デプロイ状態から判定
-        let origin = PluginOrigin::from_cached_plugin(marketplace.as_deref(), &name);
-        deployed.contains(&(origin.marketplace, origin.plugin))
-    };
+    // デプロイ状態をチェック（meta::is_enabled に委譲）
+    let marketplace_str = marketplace.as_deref().unwrap_or("github");
+    let enabled = meta::is_enabled(plugin_path, marketplace_str, &name, deployed);
 
     PluginSummary {
         name,

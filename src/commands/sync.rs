@@ -61,21 +61,14 @@ pub async fn run(args: Args) -> Result<(), String> {
 
     // 失敗があれば非0終了
     if result.failure_count() > 0 {
-        return Err(format!(
-            "{} item(s) failed to sync",
-            result.failure_count()
-        ));
+        return Err(format!("{} item(s) failed to sync", result.failure_count()));
     }
 
     Ok(())
 }
 
 fn print_result(result: &SyncResult, from_name: &str, to_name: &str) {
-    println!(
-        "Sync: {} -> {}\n",
-        from_name.cyan(),
-        to_name.cyan()
-    );
+    println!("Sync: {} -> {}\n", from_name.cyan(), to_name.cyan());
 
     let total = result.total_count();
     if total == 0 {
@@ -116,7 +109,11 @@ fn print_result(result: &SyncResult, from_name: &str, to_name: &str) {
     println!("{table}");
 
     // サマリー
-    let prefix = if result.dry_run { "Would sync" } else { "Synced" };
+    let prefix = if result.dry_run {
+        "Would sync"
+    } else {
+        "Synced"
+    };
     println!(
         "\n{}: {} created, {} updated, {} deleted, {} skipped",
         prefix.bold(),

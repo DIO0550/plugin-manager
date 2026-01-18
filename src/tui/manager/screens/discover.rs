@@ -111,16 +111,11 @@ pub fn view(f: &mut Frame, _model: &Model, _data: &DataStore) {
 
     // プレースホルダーコンテンツ
     let content = Paragraph::new("\n  Browse available plugins")
-        .block(
-            Block::default()
-                .title(" Discover ")
-                .borders(Borders::ALL),
-        )
+        .block(Block::default().title(" Discover ").borders(Borders::ALL))
         .style(Style::default().fg(Color::DarkGray));
     f.render_widget(content, chunks[1]);
 
     // ヘルプ
-    let help =
-        Paragraph::new(" Tab: switch | q: quit").style(Style::default().fg(Color::DarkGray));
+    let help = Paragraph::new(" Tab: switch | q: quit").style(Style::default().fg(Color::DarkGray));
     f.render_widget(help, chunks[2]);
 }

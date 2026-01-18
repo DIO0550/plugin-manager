@@ -18,7 +18,11 @@ impl MarketplaceFetcher {
     }
 
     /// GitHubリポジトリから marketplace.json を取得
-    pub async fn fetch(&self, repo: &Repo, source_path: Option<&str>) -> Result<MarketplaceManifest> {
+    pub async fn fetch(
+        &self,
+        repo: &Repo,
+        source_path: Option<&str>,
+    ) -> Result<MarketplaceManifest> {
         let path = match source_path {
             Some(dir) => format!("{}/.claude-plugin/marketplace.json", dir),
             None => ".claude-plugin/marketplace.json".to_string(),

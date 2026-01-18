@@ -88,7 +88,10 @@ fn view_plugin_list(f: &mut Frame, mut state: ListState, data: &DataStore) {
                 .map(|m| format!(" @{}", m))
                 .unwrap_or_default();
             let status_str = if p.enabled { "" } else { " [disabled]" };
-            let text = format!("  {}{}  v{}{}", p.name, marketplace_str, p.version, status_str);
+            let text = format!(
+                "  {}{}  v{}{}",
+                p.name, marketplace_str, p.version, status_str
+            );
             let style = if p.enabled {
                 Style::default()
             } else {
@@ -117,12 +120,7 @@ fn view_plugin_list(f: &mut Frame, mut state: ListState, data: &DataStore) {
 }
 
 /// プラグイン詳細画面を描画
-fn view_plugin_detail(
-    f: &mut Frame,
-    plugin_id: &PluginId,
-    mut state: ListState,
-    data: &DataStore,
-) {
+fn view_plugin_detail(f: &mut Frame, plugin_id: &PluginId, mut state: ListState, data: &DataStore) {
     let Some(plugin) = data.find_plugin(plugin_id) else {
         return;
     };

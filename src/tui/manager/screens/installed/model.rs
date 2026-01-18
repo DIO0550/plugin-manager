@@ -141,7 +141,11 @@ impl Model {
         let index = selected_id
             .as_ref()
             .and_then(|id| data.plugin_index(id))
-            .or(if data.plugins.is_empty() { None } else { Some(0) });
+            .or(if data.plugins.is_empty() {
+                None
+            } else {
+                Some(0)
+            });
 
         let mut state = ListState::default();
         state.select(index);

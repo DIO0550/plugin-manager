@@ -40,13 +40,7 @@ fn test_sync_result_empty() {
 
 #[test]
 fn test_sync_result_dry_run() {
-    let result = SyncResult::dry_run(
-        vec![make_component("c1")],
-        vec![],
-        vec![],
-        vec![],
-        vec![],
-    );
+    let result = SyncResult::dry_run(vec![make_component("c1")], vec![], vec![], vec![], vec![]);
 
     assert!(result.dry_run);
     assert_eq!(result.create_count(), 1);

@@ -4,4 +4,6 @@
 
 pub mod placement;
 
-pub use placement::{ComponentRef, PlacementContext, PlacementLocation, PlacementScope, ProjectContext};
+pub use placement::{
+    ComponentRef, PlacementContext, PlacementLocation, PlacementScope, ProjectContext,
+};

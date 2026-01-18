@@ -1,7 +1,9 @@
 //! GitHub Copilot ターゲット実装
 
 use crate::component::{ComponentKind, Scope};
-use crate::domain::{ComponentRef, PlacementContext, PlacementLocation, PlacementScope, ProjectContext};
+use crate::domain::{
+    ComponentRef, PlacementContext, PlacementLocation, PlacementScope, ProjectContext,
+};
 use crate::error::Result;
 use crate::target::{PluginOrigin, Target};
 use std::fs;
@@ -97,7 +99,9 @@ impl Target for CopilotTarget {
                     .join(&origin.plugin)
                     .join(format!("{}.prompt.md", name)),
             ),
-            ComponentKind::Instruction => PlacementLocation::file(base.join("copilot-instructions.md")),
+            ComponentKind::Instruction => {
+                PlacementLocation::file(base.join("copilot-instructions.md"))
+            }
             ComponentKind::Hook => return None,
         })
     }

@@ -61,7 +61,10 @@ fn test_store_from_archive_source_path_boundary_match() {
     let archive = create_test_archive(&[
         ("repo-main/plugins/foo/file.txt", "correct"),
         ("repo-main/plugins/foo-bar/file.txt", "should not match"),
-        ("repo-main/plugins/foobar/file.txt", "should not match either"),
+        (
+            "repo-main/plugins/foobar/file.txt",
+            "should not match either",
+        ),
     ]);
 
     let result = cache.store_from_archive(
@@ -188,7 +191,10 @@ fn test_store_from_archive_without_source_path_extracts_all() {
     let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
 
     let archive = create_test_archive(&[
-        ("repo-main/plugin.json", r#"{"name":"test","version":"1.0.0"}"#),
+        (
+            "repo-main/plugin.json",
+            r#"{"name":"test","version":"1.0.0"}"#,
+        ),
         ("repo-main/skills/test.md", "# Test"),
         ("repo-main/other/file.txt", "content"),
     ]);
@@ -212,10 +218,8 @@ fn test_store_from_archive_handles_backslash_entries() {
 
     // バックスラッシュを含むエントリ名（Windows由来のzip）
     // プレフィックスはスラッシュで書く（プレフィックス抽出は / でsplitするため）
-    let archive = create_test_archive(&[(
-        "repo-main/plugins\\foo\\file.txt",
-        "content with backslash",
-    )]);
+    let archive =
+        create_test_archive(&[("repo-main/plugins\\foo\\file.txt", "content with backslash")]);
 
     let result = cache.store_from_archive(
         Some("test-marketplace"),
@@ -303,7 +307,10 @@ fn test_backup_creates_copy() {
 
     // まずプラグインをインストール
     let archive = create_test_archive(&[
-        ("repo-main/plugin.json", r#"{"name":"test","version":"1.0.0"}"#),
+        (
+            "repo-main/plugin.json",
+            r#"{"name":"test","version":"1.0.0"}"#,
+        ),
         ("repo-main/skills/test.md", "# Original Skill"),
     ]);
     cache
@@ -330,7 +337,10 @@ fn test_restore_recovers_from_backup() {
 
     // プラグインをインストール
     let archive = create_test_archive(&[
-        ("repo-main/plugin.json", r#"{"name":"test","version":"1.0.0"}"#),
+        (
+            "repo-main/plugin.json",
+            r#"{"name":"test","version":"1.0.0"}"#,
+        ),
         ("repo-main/data.txt", "original content"),
     ]);
     cache
@@ -421,7 +431,10 @@ fn test_atomic_update_success() {
 
     // 初期プラグインをインストール
     let archive_v1 = create_test_archive(&[
-        ("repo-main/plugin.json", r#"{"name":"test","version":"1.0.0"}"#),
+        (
+            "repo-main/plugin.json",
+            r#"{"name":"test","version":"1.0.0"}"#,
+        ),
         ("repo-main/data.txt", "version 1"),
     ]);
     cache
@@ -430,7 +443,10 @@ fn test_atomic_update_success() {
 
     // 新しいバージョンのアーカイブ
     let archive_v2 = create_test_archive(&[
-        ("repo-main/plugin.json", r#"{"name":"test","version":"2.0.0"}"#),
+        (
+            "repo-main/plugin.json",
+            r#"{"name":"test","version":"2.0.0"}"#,
+        ),
         ("repo-main/data.txt", "version 2"),
     ]);
 
@@ -494,7 +510,11 @@ fn test_atomic_update_cleans_up_temp_on_failure() {
     let _ = cache.atomic_update(Some("github"), "test-plugin", &bad_archive);
 
     // .temp ディレクトリがクリーンアップされている
-    let temp_base = temp_dir.path().join(".temp").join("github").join("test-plugin");
+    let temp_base = temp_dir
+        .path()
+        .join(".temp")
+        .join("github")
+        .join("test-plugin");
     assert!(
         !temp_base.exists(),
         "Temp directory should be cleaned up after failure"

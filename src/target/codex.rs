@@ -1,7 +1,9 @@
 //! OpenAI Codex ターゲット実装
 
 use crate::component::{ComponentKind, Scope};
-use crate::domain::{ComponentRef, PlacementContext, PlacementLocation, PlacementScope, ProjectContext};
+use crate::domain::{
+    ComponentRef, PlacementContext, PlacementLocation, PlacementScope, ProjectContext,
+};
 use crate::error::Result;
 use crate::target::{PluginOrigin, Target};
 use std::fs;

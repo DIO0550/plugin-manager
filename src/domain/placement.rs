@@ -4,4 +4,6 @@
 
 mod model;
 
-pub use model::{ComponentRef, PlacementContext, PlacementLocation, PlacementScope, ProjectContext};
+pub use model::{
+    ComponentRef, PlacementContext, PlacementLocation, PlacementScope, ProjectContext,
+};

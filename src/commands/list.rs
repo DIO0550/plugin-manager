@@ -5,7 +5,9 @@
 use crate::application::{list_installed_plugins, PluginSummary};
 use crate::component::ComponentKind;
 use crate::host::{HostClientFactory, HostKind};
-use crate::plugin::{fetch_remote_versions, meta, needs_update, PluginCache, PluginMeta, VersionQueryResult};
+use crate::plugin::{
+    fetch_remote_versions, meta, needs_update, PluginCache, PluginMeta, VersionQueryResult,
+};
 use crate::target::TargetKind;
 use clap::Parser;
 use comfy_table::{presets::UTF8_FULL, Table};
@@ -116,9 +118,7 @@ async fn run_outdated_check(
                     let has_update = needs_update(current_sha.as_deref(), &remote.sha);
                     (Some(remote.sha.clone()), has_update, None)
                 }
-                VersionQueryResult::Failed { message } => {
-                    (None, false, Some(message.clone()))
-                }
+                VersionQueryResult::Failed { message } => (None, false, Some(message.clone())),
             };
             PluginWithUpdateInfo {
                 summary: summary.clone(),
@@ -190,10 +190,7 @@ fn print_outdated_table(plugins: &[PluginWithUpdateInfo], total_count: usize) {
         }
 
         println!("{table}");
-        println!(
-            "{} plugin(s) have updates available",
-            with_updates.len()
-        );
+        println!("{} plugin(s) have updates available", with_updates.len());
     }
 
     // エラーサマリ

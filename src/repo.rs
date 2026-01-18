@@ -111,11 +111,11 @@ pub fn from_url(input: &str) -> Result<Repo> {
     // ホスト別パース
     let (owner, name) = match host {
         HostKind::GitHub => host::github::parse_repo_path(&path)?,
-        HostKind::GitLab => {
-            return Err(PlmError::Validation("GitLab is not yet supported".into()))
-        }
+        HostKind::GitLab => return Err(PlmError::Validation("GitLab is not yet supported".into())),
         HostKind::Bitbucket => {
-            return Err(PlmError::Validation("Bitbucket is not yet supported".into()))
+            return Err(PlmError::Validation(
+                "Bitbucket is not yet supported".into(),
+            ))
         }
     };
 

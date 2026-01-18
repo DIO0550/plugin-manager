@@ -74,7 +74,8 @@ impl AffectedTargets {
     /// 成功を記録
     pub fn record_success(&mut self, target_name: &str, component_count: usize) {
         if component_count > 0 {
-            self.effects.push(TargetEffect::new(target_name, component_count));
+            self.effects
+                .push(TargetEffect::new(target_name, component_count));
         }
     }
 

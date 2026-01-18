@@ -104,19 +104,34 @@ fn test_component_type_counts_full() {
     assert_eq!(counts.len(), 5);
 
     // Check each type
-    let skill_count = counts.iter().find(|c| c.kind == ComponentKind::Skill).unwrap();
+    let skill_count = counts
+        .iter()
+        .find(|c| c.kind == ComponentKind::Skill)
+        .unwrap();
     assert_eq!(skill_count.count, 2);
 
-    let agent_count = counts.iter().find(|c| c.kind == ComponentKind::Agent).unwrap();
+    let agent_count = counts
+        .iter()
+        .find(|c| c.kind == ComponentKind::Agent)
+        .unwrap();
     assert_eq!(agent_count.count, 1);
 
-    let cmd_count = counts.iter().find(|c| c.kind == ComponentKind::Command).unwrap();
+    let cmd_count = counts
+        .iter()
+        .find(|c| c.kind == ComponentKind::Command)
+        .unwrap();
     assert_eq!(cmd_count.count, 3);
 
-    let inst_count = counts.iter().find(|c| c.kind == ComponentKind::Instruction).unwrap();
+    let inst_count = counts
+        .iter()
+        .find(|c| c.kind == ComponentKind::Instruction)
+        .unwrap();
     assert_eq!(inst_count.count, 1);
 
-    let hook_count = counts.iter().find(|c| c.kind == ComponentKind::Hook).unwrap();
+    let hook_count = counts
+        .iter()
+        .find(|c| c.kind == ComponentKind::Hook)
+        .unwrap();
     assert_eq!(hook_count.count, 2);
 }
 
@@ -137,8 +152,12 @@ fn test_component_type_counts_partial() {
     let counts = summary.component_type_counts();
 
     assert_eq!(counts.len(), 2);
-    assert!(counts.iter().any(|c| c.kind == ComponentKind::Agent && c.count == 2));
-    assert!(counts.iter().any(|c| c.kind == ComponentKind::Hook && c.count == 1));
+    assert!(counts
+        .iter()
+        .any(|c| c.kind == ComponentKind::Agent && c.count == 2));
+    assert!(counts
+        .iter()
+        .any(|c| c.kind == ComponentKind::Hook && c.count == 1));
 }
 
 #[test]

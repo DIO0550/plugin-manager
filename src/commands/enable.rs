@@ -54,7 +54,12 @@ pub async fn run(args: Args) -> Result<(), String> {
     let target_filter = args.target.as_ref().map(|t| t.as_str());
 
     // enable_plugin を実行
-    let result = enable_plugin(&args.name, Some(&args.marketplace), &project_root, target_filter);
+    let result = enable_plugin(
+        &args.name,
+        Some(&args.marketplace),
+        &project_root,
+        target_filter,
+    );
 
     // 結果に基づいてステータスを更新
     let plugin_path = cache.plugin_path(Some(&args.marketplace), &args.name);
@@ -115,7 +120,10 @@ fn display_result(plugin_name: &str, result: &OperationResult, target_filter: Op
         }
     } else {
         if let Some(error) = &result.error {
-            eprintln!("Error: Failed to enable plugin '{}': {}", plugin_name, error);
+            eprintln!(
+                "Error: Failed to enable plugin '{}': {}",
+                plugin_name, error
+            );
         } else {
             eprintln!("Error: Failed to enable plugin '{}'", plugin_name);
         }

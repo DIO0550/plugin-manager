@@ -127,7 +127,11 @@ fn print_table(detail: &PluginDetail) {
     deploy_table.load_preset(UTF8_FULL);
     deploy_table.set_header(vec!["Field", "Value"]);
 
-    let status = if detail.enabled { "enabled" } else { "disabled" };
+    let status = if detail.enabled {
+        "enabled"
+    } else {
+        "disabled"
+    };
     deploy_table.add_row(vec!["Status", status]);
     deploy_table.add_row(vec!["Cache Path", &detail.cache_path]);
 

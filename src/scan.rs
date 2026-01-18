@@ -1,12 +1,18 @@
 //! コンポーネントスキャン共通関数
 //!
-//! SKILL.md を持つサブディレクトリの列挙など、複数箇所で使用される
-//! スキャンロジックを提供する。
+//! ドメイン非依存のスキャンロジックを提供する。
+//! Path と String のみに依存し、ドメイン型への変換はユースケース層で行う。
 //!
 //! ## 主要API
 //!
-//! - [`scan_components`]: プラグインディレクトリからコンポーネントをスキャン（統一API）
-//! - [`ComponentScan`]: スキャン結果（名前のみ）
+//! - `scan_from_paths`: ドメイン非依存のスキャン（推奨）
+//! - `scan_components`: プラグインディレクトリからコンポーネントをスキャン（レガシー）
+//! - `ComponentScan`: スキャン結果（名前のみ）
+//!
+//! ## 配置スキャン
+//!
+//! - `list_placed_plugins`: 配置済みアイテムからプラグインを抽出
+//! - `parse_placement`: 配置済みアイテム文字列をパース
 //!
 //! ## 低レベル関数
 //!
@@ -14,9 +20,10 @@
 
 mod components;
 mod constants;
+mod placement;
 
 use crate::plugin::PluginManifest;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 // Re-exports
 pub use components::{
@@ -28,6 +35,52 @@ pub use constants::{
     DEFAULT_INSTRUCTIONS_DIR, DEFAULT_INSTRUCTIONS_FILE, DEFAULT_SKILLS_DIR, MARKDOWN_SUFFIX,
     PROMPT_SUFFIX, SKILL_MANIFEST,
 };
+pub use placement::{list_placed_plugins, parse_placement};
+
+// ============================================================================
+// ドメイン非依存スキャン型
+// ============================================================================
+
+/// スキャン対象パス（ドメイン非依存）
+///
+/// PluginManifest 等のドメイン型からの変換はユースケース層で行う。
+///
+/// ## Note
+///
+/// `Default` は実装しない。空パスはカレントディレクトリを走査するリスクがあるため、
+/// 常に明示的に構築すること。
+#[derive(Debug, Clone)]
+pub struct ScanPaths {
+    /// スキルディレクトリ
+    pub skills_dir: PathBuf,
+    /// エージェントパス（ファイル or ディレクトリ）
+    pub agents_path: PathBuf,
+    /// コマンドディレクトリ
+    pub commands_dir: PathBuf,
+    /// インストラクション設定
+    pub instructions: InstructionPath,
+    /// フックディレクトリ
+    pub hooks_dir: PathBuf,
+}
+
+/// インストラクションパス設定
+///
+/// ## Note
+///
+/// `Default` は実装しない。空パスはカレントディレクトリを走査するリスクがあるため、
+/// 常に明示的に構築すること。
+#[derive(Debug, Clone)]
+pub enum InstructionPath {
+    /// 単一ファイル
+    File(PathBuf),
+    /// ディレクトリ
+    Dir(PathBuf),
+    /// デフォルト（instructions/ + AGENTS.md）
+    Default {
+        instructions_dir: PathBuf,
+        root_agents_md: PathBuf,
+    },
+}
 
 // ============================================================================
 // 統一スキャンAPI
@@ -67,10 +120,50 @@ impl ComponentScan {
     }
 }
 
+/// コンポーネントをスキャン（ドメイン非依存）
+///
+/// 推奨API。ScanPaths を受け取り、ドメイン型への依存がない。
+/// `PluginManifest` からの変換は `PluginManifest::to_scan_paths()` を使用。
+///
+/// # Arguments
+/// * `paths` - スキャン対象パス
+///
+/// # Returns
+/// 検出されたコンポーネント名の一覧
+pub fn scan_from_paths(paths: &ScanPaths) -> ComponentScan {
+    ComponentScan {
+        skills: list_skill_names(&paths.skills_dir),
+        agents: list_agent_names(&paths.agents_path),
+        commands: list_command_names(&paths.commands_dir),
+        instructions: scan_instructions(&paths.instructions),
+        hooks: list_hook_names(&paths.hooks_dir),
+    }
+}
+
+/// インストラクションをスキャン
+fn scan_instructions(path: &InstructionPath) -> Vec<String> {
+    match path {
+        InstructionPath::File(p) => file_stem_name(p).map(|n| vec![n]).unwrap_or_default(),
+        InstructionPath::Dir(p) => list_markdown_names(p),
+        InstructionPath::Default {
+            instructions_dir,
+            root_agents_md,
+        } => {
+            let mut result = list_markdown_names(instructions_dir);
+            if root_agents_md.exists() {
+                result.push("AGENTS".to_string());
+            }
+            result
+        }
+    }
+}
+
 /// プラグインディレクトリからコンポーネントをスキャン
 ///
 /// マニフェストのカスタムパス定義を尊重し、全コンポーネント種別を一括スキャン。
-/// これが唯一の統一スキャンAPIであり、Application層はこれを使用すべき。
+///
+/// **Note**: 新規コードでは `scan_from_paths()` の使用を推奨。
+/// このAPIは後方互換のために維持されている。
 ///
 /// # Arguments
 /// * `plugin_path` - プラグインのルートディレクトリ

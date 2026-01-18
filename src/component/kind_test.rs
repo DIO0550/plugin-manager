@@ -31,7 +31,11 @@ fn test_component_kind_all_elements_unique() {
     let all = ComponentKind::all();
     let mut seen = std::collections::HashSet::new();
     for kind in all {
-        assert!(seen.insert(kind), "Duplicate ComponentKind found: {:?}", kind);
+        assert!(
+            seen.insert(kind),
+            "Duplicate ComponentKind found: {:?}",
+            kind
+        );
     }
 }
 

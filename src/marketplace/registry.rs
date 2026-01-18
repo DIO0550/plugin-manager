@@ -143,10 +143,7 @@ impl MarketplaceRegistry {
     /// 全マーケットプレイスからプラグインを検索（最初の1件のみ）
     ///
     /// 注意: 競合検出には find_plugins() を使用してください
-    pub fn find_plugin(
-        &self,
-        plugin_name: &str,
-    ) -> Result<Option<(String, MarketplacePlugin)>> {
+    pub fn find_plugin(&self, plugin_name: &str) -> Result<Option<(String, MarketplacePlugin)>> {
         for marketplace_name in self.list()? {
             if let Some(cache) = self.get(&marketplace_name)? {
                 for plugin in cache.plugins {

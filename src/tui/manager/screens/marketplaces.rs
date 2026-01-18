@@ -120,7 +120,6 @@ pub fn view(f: &mut Frame, _model: &Model, _data: &DataStore) {
     f.render_widget(content, chunks[1]);
 
     // ヘルプ
-    let help =
-        Paragraph::new(" Tab: switch | q: quit").style(Style::default().fg(Color::DarkGray));
+    let help = Paragraph::new(" Tab: switch | q: quit").style(Style::default().fg(Color::DarkGray));
     f.render_widget(help, chunks[2]);
 }

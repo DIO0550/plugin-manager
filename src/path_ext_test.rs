@@ -122,8 +122,14 @@ fn test_copy_dir_to_copies_files() {
     source.copy_dir_to(&target).unwrap();
 
     assert!(target.exists());
-    assert_eq!(fs::read_to_string(target.join("file1.txt")).unwrap(), "content1");
-    assert_eq!(fs::read_to_string(target.join("file2.txt")).unwrap(), "content2");
+    assert_eq!(
+        fs::read_to_string(target.join("file1.txt")).unwrap(),
+        "content1"
+    );
+    assert_eq!(
+        fs::read_to_string(target.join("file2.txt")).unwrap(),
+        "content2"
+    );
 }
 
 #[test]
@@ -140,8 +146,14 @@ fn test_copy_dir_to_copies_nested_dirs() {
     source.copy_dir_to(&target).unwrap();
 
     assert_eq!(fs::read_to_string(target.join("root.txt")).unwrap(), "root");
-    assert_eq!(fs::read_to_string(target.join("a/nested.txt")).unwrap(), "nested");
-    assert_eq!(fs::read_to_string(target.join("a/b/deep.txt")).unwrap(), "deep");
+    assert_eq!(
+        fs::read_to_string(target.join("a/nested.txt")).unwrap(),
+        "nested"
+    );
+    assert_eq!(
+        fs::read_to_string(target.join("a/b/deep.txt")).unwrap(),
+        "deep"
+    );
 }
 
 #[test]
@@ -177,7 +189,10 @@ fn test_copy_dir_to_creates_target_parent_dirs() {
     source.copy_dir_to(&target).unwrap();
 
     assert!(target.exists());
-    assert_eq!(fs::read_to_string(target.join("file.txt")).unwrap(), "content");
+    assert_eq!(
+        fs::read_to_string(target.join("file.txt")).unwrap(),
+        "content"
+    );
 }
 
 #[test]

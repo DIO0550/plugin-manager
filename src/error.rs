@@ -6,7 +6,10 @@ fn format_ambiguous_plugin(name: &str, candidates: &[String]) -> String {
     for c in candidates {
         msg.push_str(&format!("  - {}\n", c));
     }
-    msg.push_str(&format!("Use 'plm info <marketplace>/{}' to specify.", name));
+    msg.push_str(&format!(
+        "Use 'plm info <marketplace>/{}' to specify.",
+        name
+    ));
     msg
 }
 
@@ -33,7 +36,10 @@ pub enum PlmError {
     InvalidArgument(String),
 
     #[error("{}", format_ambiguous_plugin(.name, .candidates))]
-    AmbiguousPlugin { name: String, candidates: Vec<String> },
+    AmbiguousPlugin {
+        name: String,
+        candidates: Vec<String>,
+    },
 
     #[error("Marketplace not found: {0}")]
     MarketplaceNotFound(String),

@@ -123,7 +123,9 @@ impl ScopedPath {
     /// - パスが project_root 配下でない場合
     pub fn new(path: PathBuf, project_root: &Path) -> Result<Self> {
         // 絶対パスに変換して比較
-        let canonical_root = project_root.canonicalize().unwrap_or_else(|_| project_root.to_path_buf());
+        let canonical_root = project_root
+            .canonicalize()
+            .unwrap_or_else(|_| project_root.to_path_buf());
 
         // パスがproject_root配下かチェック（パスが存在しない場合は親ディレクトリで判断）
         let check_path = if path.exists() {
@@ -164,20 +166,10 @@ impl ScopedPath {
 /// 低レベルファイル操作（内部用）
 #[derive(Debug, Clone)]
 pub enum FileOperation {
-    CopyFile {
-        source: PathBuf,
-        target: ScopedPath,
-    },
-    CopyDir {
-        source: PathBuf,
-        target: ScopedPath,
-    },
-    RemoveFile {
-        path: ScopedPath,
-    },
-    RemoveDir {
-        path: ScopedPath,
-    },
+    CopyFile { source: PathBuf, target: ScopedPath },
+    CopyDir { source: PathBuf, target: ScopedPath },
+    RemoveFile { path: ScopedPath },
+    RemoveDir { path: ScopedPath },
 }
 
 impl FileOperation {
@@ -215,11 +207,7 @@ pub struct PluginIntent {
 
 impl PluginIntent {
     /// 計画を構築
-    pub fn new(
-        action: PluginAction,
-        components: Vec<Component>,
-        project_root: PathBuf,
-    ) -> Self {
+    pub fn new(action: PluginAction, components: Vec<Component>, project_root: PathBuf) -> Self {
         Self {
             action,
             components,
@@ -259,10 +247,8 @@ impl PluginIntent {
     /// target_filter が設定されている場合は、そのターゲットのみを対象とする。
     pub fn expand(&self) -> Vec<(TargetId, FileOperation)> {
         let targets = all_targets();
-        let origin = PluginOrigin::from_cached_plugin(
-            self.action.marketplace(),
-            self.action.plugin_name(),
-        );
+        let origin =
+            PluginOrigin::from_cached_plugin(self.action.marketplace(), self.action.plugin_name());
 
         targets
             .iter()
@@ -277,7 +263,9 @@ impl PluginIntent {
                 self.components
                     .iter()
                     .filter(|component| target.supports(component.kind))
-                    .filter_map(|component| self.create_operation(target.as_ref(), component, &origin))
+                    .filter_map(|component| {
+                        self.create_operation(target.as_ref(), component, &origin)
+                    })
             })
             .collect()
     }
@@ -356,12 +344,8 @@ fn execute_file_operations(
 
         for op in ops {
             let result = match &op {
-                FileOperation::CopyFile { source, target } => {
-                    source.copy_file_to(target.as_path())
-                }
-                FileOperation::CopyDir { source, target } => {
-                    source.copy_dir_to(target.as_path())
-                }
+                FileOperation::CopyFile { source, target } => source.copy_file_to(target.as_path()),
+                FileOperation::CopyDir { source, target } => source.copy_dir_to(target.as_path()),
                 FileOperation::RemoveFile { path } => {
                     let p = path.as_path();
                     if fs.exists(p) {

@@ -17,8 +17,7 @@ pub fn select_scope() -> Result<Scope> {
             .with_selected(true), // Default to Project
     ];
 
-    let result =
-        single_select("Select scope", &items).map_err(|e| PlmError::Tui(e.to_string()))?;
+    let result = single_select("Select scope", &items).map_err(|e| PlmError::Tui(e.to_string()))?;
 
     if result.cancelled {
         return Err(PlmError::Cancelled);

@@ -56,13 +56,7 @@ fn test_sync_project_scope_no_components_zero_exit() {
     plm()
         .current_dir(temp.path())
         .args([
-            "sync",
-            "--from",
-            "codex",
-            "--to",
-            "copilot",
-            "--scope",
-            "project",
+            "sync", "--from", "codex", "--to", "copilot", "--scope", "project",
         ])
         .assert()
         .success()
@@ -89,15 +83,7 @@ fn test_sync_creates_component() {
     plm()
         .current_dir(temp.path())
         .args([
-            "sync",
-            "--from",
-            "codex",
-            "--to",
-            "copilot",
-            "--type",
-            "skill",
-            "--scope",
-            "project",
+            "sync", "--from", "codex", "--to", "copilot", "--type", "skill", "--scope", "project",
         ])
         .assert()
         .success()

@@ -38,7 +38,12 @@ pub enum Tab {
 
 impl Tab {
     pub fn all() -> &'static [Tab] {
-        &[Tab::Discover, Tab::Installed, Tab::Marketplaces, Tab::Errors]
+        &[
+            Tab::Discover,
+            Tab::Installed,
+            Tab::Marketplaces,
+            Tab::Errors,
+        ]
     }
 
     pub fn title(&self) -> &'static str {
@@ -241,12 +246,14 @@ fn switch_tab(model: &mut Model, new_tab: Tab) {
 
     // 新しい画面を作成（キャッシュから復元）
     model.screen = match new_tab {
-        Tab::Installed => {
-            Screen::Installed(installed::Model::from_cache(&model.data, &model.cache.installed))
-        }
-        Tab::Discover => {
-            Screen::Discover(discover::Model::from_cache(&model.data, &model.cache.discover))
-        }
+        Tab::Installed => Screen::Installed(installed::Model::from_cache(
+            &model.data,
+            &model.cache.installed,
+        )),
+        Tab::Discover => Screen::Discover(discover::Model::from_cache(
+            &model.data,
+            &model.cache.discover,
+        )),
         Tab::Marketplaces => Screen::Marketplaces(marketplaces::Model::from_cache(
             &model.data,
             &model.cache.marketplaces,

@@ -50,7 +50,10 @@ pub async fn run(args: Args) -> Result<(), String> {
         display_batch_results(&results);
 
         // 全失敗時のみエラー終了
-        if !results.is_empty() && results.iter().all(|r| matches!(r.status, UpdateStatus::Failed))
+        if !results.is_empty()
+            && results
+                .iter()
+                .all(|r| matches!(r.status, UpdateStatus::Failed))
         {
             return Err("All updates failed".to_string());
         }

@@ -201,9 +201,7 @@ impl FileSystem for MockFs {
             .unwrap()
             .get(path.to_string_lossy().as_ref())
             .map(|f| f.mtime)
-            .ok_or_else(|| {
-                std::io::Error::new(std::io::ErrorKind::NotFound, "not found").into()
-            })
+            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "not found").into())
     }
 
     fn content_hash(&self, path: &Path) -> Result<u64> {
@@ -226,9 +224,7 @@ impl FileSystem for MockFs {
             .unwrap()
             .get(path.to_string_lossy().as_ref())
             .map(|f| String::from_utf8_lossy(&f.content).to_string())
-            .ok_or_else(|| {
-                std::io::Error::new(std::io::ErrorKind::NotFound, "not found").into()
-            })
+            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "not found").into())
     }
 
     fn write(&self, path: &Path, content: &[u8]) -> Result<()> {

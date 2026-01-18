@@ -26,7 +26,10 @@ impl PluginCache {
         let fs = RealFs;
         let home = std::env::var("HOME")
             .map_err(|_| PlmError::Cache("HOME environment variable not set".to_string()))?;
-        let cache_dir = PathBuf::from(home).join(".plm").join("cache").join("plugins");
+        let cache_dir = PathBuf::from(home)
+            .join(".plm")
+            .join("cache")
+            .join("plugins");
         fs.create_dir_all(&cache_dir)?;
         Ok(Self { cache_dir })
     }
@@ -146,7 +149,10 @@ impl PluginCache {
             }
 
             let mp_path = &mp_entry.path;
-            let marketplace_name = mp_path.file_name().and_then(|n| n.to_str()).map(String::from);
+            let marketplace_name = mp_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .map(String::from);
 
             // marketplace 内のプラグインを走査
             for plugin_entry in fs.read_dir(mp_path)? {

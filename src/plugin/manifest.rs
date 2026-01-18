@@ -1,8 +1,8 @@
 use crate::error::{PlmError, Result};
 use crate::path_ext::PathExt;
 use crate::scan::{
-    DEFAULT_AGENTS_DIR, DEFAULT_COMMANDS_DIR, DEFAULT_HOOKS_DIR, DEFAULT_INSTRUCTIONS_DIR,
-    DEFAULT_INSTRUCTIONS_FILE, DEFAULT_SKILLS_DIR,
+    InstructionPath, ScanPaths, DEFAULT_AGENTS_DIR, DEFAULT_COMMANDS_DIR, DEFAULT_HOOKS_DIR,
+    DEFAULT_INSTRUCTIONS_DIR, DEFAULT_INSTRUCTIONS_FILE, DEFAULT_SKILLS_DIR,
 };
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -60,9 +60,8 @@ pub struct PluginManifest {
 impl PluginManifest {
     /// JSONからパース
     pub fn parse(content: &str) -> Result<Self> {
-        serde_json::from_str(content).map_err(|e| {
-            PlmError::InvalidManifest(format!("Failed to parse plugin.json: {}", e))
-        })
+        serde_json::from_str(content)
+            .map_err(|e| PlmError::InvalidManifest(format!("Failed to parse plugin.json: {}", e)))
     }
 
     /// ファイルから読み込み
@@ -123,6 +122,44 @@ impl PluginManifest {
     /// フックディレクトリのパスを解決
     pub fn hooks_dir(&self, base: &Path) -> PathBuf {
         base.join_or(self.hooks.as_deref(), DEFAULT_HOOKS_DIR)
+    }
+
+    // =========================================================================
+    // ScanPaths 変換
+    // =========================================================================
+
+    /// ScanPaths への変換（scan モジュール用）
+    ///
+    /// ドメイン非依存の `scan_from_paths()` API で使用するための変換メソッド。
+    /// マニフェストのパス設定を解決し、`ScanPaths` 構造体を生成する。
+    pub fn to_scan_paths(&self, plugin_path: &Path) -> ScanPaths {
+        let instructions = if let Some(path_str) = &self.instructions {
+            let path = plugin_path.join(path_str);
+            if path.is_file() {
+                InstructionPath::File(path)
+            } else if path.is_dir() {
+                InstructionPath::Dir(path)
+            } else {
+                // 存在しない場合はデフォルトにフォールバック
+                InstructionPath::Default {
+                    instructions_dir: self.instructions_dir(plugin_path),
+                    root_agents_md: plugin_path.join("AGENTS.md"),
+                }
+            }
+        } else {
+            InstructionPath::Default {
+                instructions_dir: self.instructions_dir(plugin_path),
+                root_agents_md: plugin_path.join("AGENTS.md"),
+            }
+        };
+
+        ScanPaths {
+            skills_dir: self.skills_dir(plugin_path),
+            agents_path: self.agents_dir(plugin_path),
+            commands_dir: self.commands_dir(plugin_path),
+            instructions,
+            hooks_dir: self.hooks_dir(plugin_path),
+        }
     }
 }
 

@@ -246,12 +246,7 @@ impl CachedPlugin {
             .find(|path| {
                 path.file_name()
                     .and_then(|f| f.to_str())
-                    .map(|f| {
-                        f.rsplit_once('.')
-                            .map(|(n, _)| n)
-                            .unwrap_or(f)
-                            == name
-                    })
+                    .map(|f| f.rsplit_once('.').map(|(n, _)| n).unwrap_or(f) == name)
                     .unwrap_or(false)
             })
     }

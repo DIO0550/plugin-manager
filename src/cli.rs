@@ -1,8 +1,8 @@
 use clap::{Parser, Subcommand};
 
 use crate::commands::{
-    disable, enable, import, info, init, install, list, marketplace, pack, sync, target,
-    uninstall, update,
+    disable, enable, import, info, init, install, list, marketplace, pack, sync, target, uninstall,
+    update,
 };
 
 #[derive(Debug, Parser)]

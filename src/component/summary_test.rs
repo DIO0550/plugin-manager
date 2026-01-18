@@ -48,7 +48,10 @@ fn test_component_type_count_title_hook() {
 #[test]
 fn test_component_type_count_all_titles_are_plural() {
     for kind in ComponentKind::all() {
-        let count = ComponentTypeCount { kind: *kind, count: 1 };
+        let count = ComponentTypeCount {
+            kind: *kind,
+            count: 1,
+        };
         let title = count.title();
         assert!(title.ends_with('s'), "{:?} title should be plural", kind);
     }

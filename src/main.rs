@@ -20,8 +20,8 @@ mod sync;
 mod target;
 mod tui;
 
-use clap::Parser;
 use crate::cli::Cli;
+use clap::Parser;
 
 #[tokio::main]
 async fn main() {

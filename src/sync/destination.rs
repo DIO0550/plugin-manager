@@ -91,7 +91,8 @@ impl SyncDestination {
 
     /// このコンポーネントをサポートしているか
     pub fn supports(&self, identity: &ComponentIdentity) -> bool {
-        self.target.supports(identity.kind) && self.target.supports_scope(identity.kind, identity.scope)
+        self.target.supports(identity.kind)
+            && self.target.supports_scope(identity.kind, identity.scope)
     }
 
     /// 対象の SyncableKind リストを取得

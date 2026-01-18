@@ -2,13 +2,11 @@
 //!
 //! 特定のプラグインの詳細情報を取得するユースケースを提供する。
 
-use crate::component::{ComponentKind, Scope};
+use super::plugin_catalog::list_all_placed;
 use crate::error::{PlmError, Result};
 use crate::plugin::{has_manifest, meta, PluginCache, PluginManifest};
 use crate::scan::scan_components;
-use crate::target::{all_targets, PluginOrigin};
 use serde::Serialize;
-use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 /// プラグイン詳細情報（DTO）
@@ -218,7 +216,11 @@ fn resolve_single_plugin(
 }
 
 /// キャッシュパスからソース情報を判定
-fn determine_source_from_path(_cache_path: &Path, marketplace: &str, dir_name: &str) -> PluginSource {
+fn determine_source_from_path(
+    _cache_path: &Path,
+    marketplace: &str,
+    dir_name: &str,
+) -> PluginSource {
     if marketplace == "github" {
         // owner--repo → owner/repo
         let repository = restore_github_repo(dir_name);
@@ -278,20 +280,21 @@ fn build_plugin_detail(candidate: PluginCandidate) -> Result<PluginDetail> {
     };
 
     // デプロイ状態判定
-    let enabled = check_deployed_status(&candidate.cache_path, &candidate.marketplace, &manifest.name);
+    let enabled = check_deployed_status(
+        &candidate.cache_path,
+        &candidate.marketplace,
+        &manifest.name,
+    );
 
     // キャッシュパス（絶対パス）
-    let cache_path = candidate
-        .cache_path
-        .to_string_lossy()
-        .to_string();
+    let cache_path = candidate.cache_path.to_string_lossy().to_string();
 
     Ok(PluginDetail {
         name: manifest.name.clone(),
         version: manifest.version.clone(),
         description: manifest.description.clone(),
         author,
-        installed_at: meta::resolve_installed_at(&candidate.cache_path, Some(&manifest)),
+        installed_at: meta::resolve_installed_at(&candidate.cache_path, Some(manifest)),
         source,
         components,
         enabled,
@@ -301,71 +304,11 @@ fn build_plugin_detail(candidate: PluginCandidate) -> Result<PluginDetail> {
 
 /// デプロイ状態を判定
 ///
-/// 1. `.plm-meta.json` の `statusByTarget` を優先参照
-/// 2. `statusByTarget` が空/null の場合は実デプロイ状態から判定（後方互換）
+/// `meta::is_enabled()` に委譲する。
 fn check_deployed_status(cache_path: &Path, marketplace: &str, plugin_name: &str) -> bool {
-    // 1. .plm-meta.json の statusByTarget を確認
-    if let Some(plugin_meta) = meta::load_meta(cache_path) {
-        if !plugin_meta.status_by_target.is_empty() {
-            // いずれかのターゲットが enabled なら true
-            return plugin_meta.any_enabled();
-        }
-    }
-
-    // 2. 後方互換: 実デプロイ状態から判定
     let project_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-    let deployed = collect_deployed_plugins(&project_root);
-
-    let origin = PluginOrigin::from_cached_plugin(
-        if marketplace == "github" {
-            None
-        } else {
-            Some(marketplace)
-        },
-        plugin_name,
-    );
-    deployed.contains(&(origin.marketplace, origin.plugin))
-}
-
-/// デプロイ済みプラグインの集合を取得
-fn collect_deployed_plugins(project_root: &Path) -> HashSet<(String, String)> {
-    let mut deployed = HashSet::new();
-    let targets = all_targets();
-
-    for target in &targets {
-        for kind in ComponentKind::all() {
-            if !target.supports(*kind) {
-                continue;
-            }
-            // エラー時は警告のみで継続
-            match target.list_placed(*kind, Scope::Project, project_root) {
-                Ok(placed) => {
-                    for item in placed {
-                        if let Some((mp, plugin)) = parse_placed_item(&item) {
-                            deployed.insert((mp, plugin));
-                        }
-                    }
-                }
-                Err(e) => {
-                    eprintln!(
-                        "Warning: failed to list placed components for {:?}: {}",
-                        kind, e
-                    );
-                }
-            }
-        }
-    }
-    deployed
-}
-
-/// "marketplace/plugin/component" 形式をパース
-fn parse_placed_item(item: &str) -> Option<(String, String)> {
-    let parts: Vec<&str> = item.split('/').collect();
-    if parts.len() >= 2 {
-        Some((parts[0].to_string(), parts[1].to_string()))
-    } else {
-        None
-    }
+    let deployed = list_all_placed(&project_root);
+    meta::is_enabled(cache_path, marketplace, plugin_name, &deployed)
 }
 
 #[cfg(test)]

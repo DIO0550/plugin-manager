@@ -257,3 +257,91 @@ fn test_parse_installed_at_null() {
     let manifest = PluginManifest::parse(json).unwrap();
     assert!(manifest.installed_at.is_none());
 }
+
+// === to_scan_paths テスト ===
+
+use crate::scan::InstructionPath;
+use tempfile::TempDir;
+
+#[test]
+fn test_to_scan_paths_default() {
+    let json = r#"{"name": "test", "version": "1.0.0"}"#;
+    let manifest = PluginManifest::parse(json).unwrap();
+    let base = Path::new("/plugin");
+    let paths = manifest.to_scan_paths(base);
+
+    assert_eq!(paths.skills_dir, Path::new("/plugin/skills"));
+    assert_eq!(paths.agents_path, Path::new("/plugin/agents"));
+    assert_eq!(paths.commands_dir, Path::new("/plugin/commands"));
+    assert_eq!(paths.hooks_dir, Path::new("/plugin/hooks"));
+
+    // instructions はデフォルト
+    match paths.instructions {
+        InstructionPath::Default {
+            instructions_dir,
+            root_agents_md,
+        } => {
+            assert_eq!(instructions_dir, Path::new("/plugin/instructions"));
+            assert_eq!(root_agents_md, Path::new("/plugin/AGENTS.md"));
+        }
+        _ => panic!("Expected InstructionPath::Default"),
+    }
+}
+
+#[test]
+fn test_to_scan_paths_instructions_file() {
+    let temp_dir = TempDir::new().unwrap();
+    let plugin_path = temp_dir.path();
+
+    // instructions ファイルを作成
+    let instr_file = plugin_path.join("custom.md");
+    std::fs::write(&instr_file, "# Instructions").unwrap();
+
+    let json = r#"{"name": "test", "version": "1.0.0", "instructions": "custom.md"}"#;
+    let manifest = PluginManifest::parse(json).unwrap();
+    let paths = manifest.to_scan_paths(plugin_path);
+
+    match paths.instructions {
+        InstructionPath::File(p) => {
+            assert_eq!(p, instr_file);
+        }
+        _ => panic!("Expected InstructionPath::File"),
+    }
+}
+
+#[test]
+fn test_to_scan_paths_instructions_dir() {
+    let temp_dir = TempDir::new().unwrap();
+    let plugin_path = temp_dir.path();
+
+    // instructions ディレクトリを作成
+    let instr_dir = plugin_path.join("custom-instructions");
+    std::fs::create_dir(&instr_dir).unwrap();
+
+    let json = r#"{"name": "test", "version": "1.0.0", "instructions": "custom-instructions"}"#;
+    let manifest = PluginManifest::parse(json).unwrap();
+    let paths = manifest.to_scan_paths(plugin_path);
+
+    match paths.instructions {
+        InstructionPath::Dir(p) => {
+            assert_eq!(p, instr_dir);
+        }
+        _ => panic!("Expected InstructionPath::Dir"),
+    }
+}
+
+#[test]
+fn test_to_scan_paths_instructions_fallback_to_default() {
+    let temp_dir = TempDir::new().unwrap();
+    let plugin_path = temp_dir.path();
+
+    // 指定されたパスが存在しない場合はデフォルトにフォールバック
+    let json = r#"{"name": "test", "version": "1.0.0", "instructions": "nonexistent"}"#;
+    let manifest = PluginManifest::parse(json).unwrap();
+    let paths = manifest.to_scan_paths(plugin_path);
+
+    match paths.instructions {
+        InstructionPath::Default { .. } => {}
+        _ => panic!("Expected InstructionPath::Default"),
+    }
+}

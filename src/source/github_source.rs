@@ -102,7 +102,12 @@ impl PluginSource for GitHubSource {
 
             // キャッシュに保存
             println!("Extracting to cache...");
-            let plugin_path = cache.store_from_archive(marketplace, &cache_name, &archive, self.source_path.as_deref())?;
+            let plugin_path = cache.store_from_archive(
+                marketplace,
+                &cache_name,
+                &archive,
+                self.source_path.as_deref(),
+            )?;
 
             // マニフェスト読み込み
             let manifest = cache.load_manifest(marketplace, &cache_name)?;

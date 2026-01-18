@@ -27,7 +27,10 @@ use std::pin::Pin;
 /// 使う側は具体的なソースタイプを意識せず `download()` を呼ぶだけ。
 pub trait PluginSource: Send + Sync {
     /// プラグインをダウンロードする
-    fn download(&self, force: bool) -> Pin<Box<dyn Future<Output = Result<CachedPlugin>> + Send + '_>>;
+    fn download(
+        &self,
+        force: bool,
+    ) -> Pin<Box<dyn Future<Output = Result<CachedPlugin>> + Send + '_>>;
 }
 
 /// 入力文字列をパースして適切な PluginSource を返す

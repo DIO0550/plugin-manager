@@ -31,7 +31,9 @@ pub use effect::{AffectedTargets, OperationResult, TargetEffect, TargetError};
 use crate::component::ComponentKind;
 // componentモジュールから再エクスポート
 pub use crate::component::Scope;
-use crate::domain::{ComponentRef, PlacementContext, PlacementLocation, PlacementScope, ProjectContext};
+use crate::domain::{
+    ComponentRef, PlacementContext, PlacementLocation, PlacementScope, ProjectContext,
+};
 use crate::error::{PlmError, Result};
 use crate::fs::{FileSystem, RealFs};
 use clap::ValueEnum;
@@ -175,10 +177,7 @@ pub fn parse_target(name: &str) -> Result<Box<dyn Target>> {
 
 /// 全ターゲットを取得
 pub fn all_targets() -> Vec<Box<dyn Target>> {
-    vec![
-        Box::new(CodexTarget::new()),
-        Box::new(CopilotTarget::new()),
-    ]
+    vec![Box::new(CodexTarget::new()), Box::new(CopilotTarget::new())]
 }
 
 #[cfg(test)]

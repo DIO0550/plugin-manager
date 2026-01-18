@@ -104,7 +104,11 @@ impl UpdateResult {
 /// 優先順位:
 /// 1. meta.source_repo（owner/repo形式）
 /// 2. プラグイン名からフォールバック（owner--repo形式）
-fn restore_repo(meta: &PluginMeta, plugin_name: &str, git_ref: &str) -> std::result::Result<Repo, String> {
+fn restore_repo(
+    meta: &PluginMeta,
+    plugin_name: &str,
+    git_ref: &str,
+) -> std::result::Result<Repo, String> {
     if let Some((owner, name)) = meta.get_source_repo() {
         let repo = Repo::new(HostKind::GitHub, owner, name, Some(git_ref.to_string()));
         return Ok(repo);
@@ -113,7 +117,12 @@ fn restore_repo(meta: &PluginMeta, plugin_name: &str, git_ref: &str) -> std::res
     // フォールバック: owner--repo 形式からパース
     let parts: Vec<&str> = plugin_name.split("--").collect();
     if parts.len() == 2 {
-        let repo = Repo::new(HostKind::GitHub, parts[0], parts[1], Some(git_ref.to_string()));
+        let repo = Repo::new(
+            HostKind::GitHub,
+            parts[0],
+            parts[1],
+            Some(git_ref.to_string()),
+        );
         Ok(repo)
     } else {
         Err(format!(
@@ -131,7 +140,9 @@ pub async fn update_plugin(
 ) -> UpdateResult {
     let cache = match PluginCache::new() {
         Ok(c) => c,
-        Err(e) => return UpdateResult::failed(plugin_name, format!("Failed to access cache: {}", e)),
+        Err(e) => {
+            return UpdateResult::failed(plugin_name, format!("Failed to access cache: {}", e))
+        }
     };
 
     // プラグインがキャッシュに存在するか確認
@@ -164,7 +175,9 @@ pub async fn update_plugin(
     // 最新SHAを取得（リトライ付き）
     let latest_sha = match with_retry(|| client.get_commit_sha(&repo, git_ref), 3).await {
         Ok(sha) => sha,
-        Err(e) => return UpdateResult::failed(plugin_name, format!("Failed to get latest SHA: {}", e)),
+        Err(e) => {
+            return UpdateResult::failed(plugin_name, format!("Failed to get latest SHA: {}", e))
+        }
     };
 
     // 比較判定
@@ -259,7 +272,13 @@ async fn do_update(
     // バックアップ削除
     let _ = cache.remove_backup(Some("github"), plugin_name);
 
-    UpdateResult::updated(plugin_name, current_sha, latest_sha.to_string(), deployed, failed)
+    UpdateResult::updated(
+        plugin_name,
+        current_sha,
+        latest_sha.to_string(),
+        deployed,
+        failed,
+    )
 }
 
 /// ターゲットへの再デプロイ

@@ -64,7 +64,9 @@ impl FromStr for PluginSourcePath {
 
         // 絶対パスを拒否
         if path_obj.is_absolute() {
-            return Err(PlmError::InvalidSource("source_path must be relative".into()));
+            return Err(PlmError::InvalidSource(
+                "source_path must be relative".into(),
+            ));
         }
 
         // コンポーネントを走査し、Normal のみを収集
@@ -84,7 +86,8 @@ impl FromStr for PluginSourcePath {
                 }
                 Component::Prefix(_) | Component::RootDir => {
                     return Err(PlmError::InvalidSource(
-                        "source_path must be a relative path without drive letters or UNC paths".into(),
+                        "source_path must be a relative path without drive letters or UNC paths"
+                            .into(),
                     ));
                 }
                 Component::CurDir => {

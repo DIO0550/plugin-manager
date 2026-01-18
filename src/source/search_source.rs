@@ -22,7 +22,10 @@ impl SearchSource {
 }
 
 impl PluginSource for SearchSource {
-    fn download(&self, force: bool) -> Pin<Box<dyn Future<Output = Result<CachedPlugin>> + Send + '_>> {
+    fn download(
+        &self,
+        force: bool,
+    ) -> Pin<Box<dyn Future<Output = Result<CachedPlugin>> + Send + '_>> {
         Box::pin(async move {
             let registry = MarketplaceRegistry::new()?;
 

@@ -17,7 +17,6 @@ use crate::tui;
 use clap::Parser;
 use std::env;
 
-
 #[derive(Debug, Parser)]
 pub struct Args {
     /// owner/repo 形式、または plugin@marketplace 形式
@@ -117,10 +116,8 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
     let project_root = env::current_dir().map_err(|e| e.to_string())?;
 
     // プラグインの出自情報を作成
-    let origin = PluginOrigin::from_cached_plugin(
-        cached_plugin.marketplace.as_deref(),
-        &cached_plugin.name,
-    );
+    let origin =
+        PluginOrigin::from_cached_plugin(cached_plugin.marketplace.as_deref(), &cached_plugin.name);
 
     let mut total_success = 0;
     let mut total_failure = 0;

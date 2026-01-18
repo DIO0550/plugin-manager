@@ -54,7 +54,11 @@ impl DataStore {
     }
 
     /// コンポーネント種別に応じたコンポーネント名一覧を取得
-    pub fn component_names(&self, plugin: &PluginSummary, kind: ComponentKind) -> Vec<ComponentName> {
+    pub fn component_names(
+        &self,
+        plugin: &PluginSummary,
+        kind: ComponentKind,
+    ) -> Vec<ComponentName> {
         plugin.component_names(kind)
     }
 

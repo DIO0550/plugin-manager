@@ -28,8 +28,8 @@ mod placed;
 mod result;
 mod source;
 
-pub use action::SyncAction;
 pub use crate::fs::{FileSystem, RealFs};
+pub use action::SyncAction;
 pub use destination::SyncDestination;
 pub use options::{SyncOptions, SyncableKind};
 pub use placed::{ComponentIdentity, PlacedComponent};
@@ -67,10 +67,8 @@ pub(crate) fn sync_with_fs(
         .iter()
         .map(|c| (c.identity(), c))
         .collect();
-    let dest_map: HashMap<&ComponentIdentity, &PlacedComponent> = dest_components
-        .iter()
-        .map(|c| (c.identity(), c))
-        .collect();
+    let dest_map: HashMap<&ComponentIdentity, &PlacedComponent> =
+        dest_components.iter().map(|c| (c.identity(), c)).collect();
 
     let mut to_create = Vec::new();
     let mut to_update = Vec::new();
