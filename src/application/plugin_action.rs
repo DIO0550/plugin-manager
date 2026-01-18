@@ -6,7 +6,7 @@
 //! - FileOperation: 低レベルファイル操作
 
 use crate::component::{Component, ComponentKind, Scope};
-use crate::domain::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
+use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
 use crate::error::{PlmError, Result};
 use crate::fs::{FileSystem, RealFs};
 use crate::target::{all_targets, AffectedTargets, OperationResult, PluginOrigin, Target};

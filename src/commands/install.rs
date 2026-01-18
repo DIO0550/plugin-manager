@@ -9,7 +9,7 @@
 //! 3. 配置
 
 use crate::component::{ComponentDeployment, ComponentKind};
-use crate::domain::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
+use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
 use crate::output::CommandSummary;
 use crate::source::parse_source;
 use crate::target::{all_targets, parse_target, PluginOrigin, Scope, Target, TargetKind};

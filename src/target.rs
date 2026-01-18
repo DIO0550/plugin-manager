@@ -6,7 +6,7 @@
 //! ## 使い方
 //!
 //! ```ignore
-//! use crate::domain::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
+//! use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
 //!
 //! let target = parse_target("codex")?;
 //! let origin = PluginOrigin::from_marketplace("official", "my-plugin");
@@ -31,7 +31,7 @@ pub use effect::{AffectedTargets, OperationResult, TargetEffect, TargetError};
 use crate::component::ComponentKind;
 // componentモジュールから再エクスポート
 pub use crate::component::Scope;
-use crate::domain::{
+use crate::component::{
     ComponentRef, PlacementContext, PlacementLocation, PlacementScope, ProjectContext,
 };
 use crate::error::{PlmError, Result};

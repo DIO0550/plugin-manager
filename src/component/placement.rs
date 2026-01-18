@@ -1,6 +1,6 @@
-//! 配置ドメインの値オブジェクト
+//! 配置(Placement)ドメイン
 //!
-//! 配置先決定に必要な情報をモデル化する。
+//! コンポーネントの配置先決定に関するドメインモデルを定義する。
 
 use crate::component::{ComponentKind, Scope};
 use crate::target::PluginOrigin;
@@ -145,5 +145,5 @@ impl PlacementLocation {
 }
 
 #[cfg(test)]
-#[path = "model_test.rs"]
+#[path = "placement_test.rs"]
 mod tests;

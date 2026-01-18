@@ -1,7 +1,7 @@
 //! GitHub Copilot ターゲット実装
 
 use crate::component::{ComponentKind, Scope};
-use crate::domain::{
+use crate::component::{
     ComponentRef, PlacementContext, PlacementLocation, PlacementScope, ProjectContext,
 };
 use crate::error::Result;

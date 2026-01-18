@@ -4,8 +4,12 @@
 
 mod deployment;
 mod kind;
+mod placement;
 mod summary;
 
 pub use deployment::{ComponentDeployment, ComponentDeploymentBuilder};
 pub use kind::{Component, ComponentKind, Scope};
+pub use placement::{
+    ComponentRef, PlacementContext, PlacementLocation, PlacementScope, ProjectContext,
+};
 pub use summary::{ComponentName, ComponentTypeCount};

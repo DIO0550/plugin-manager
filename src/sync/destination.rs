@@ -4,7 +4,7 @@ use super::options::{SyncOptions, SyncableKind};
 use super::placed::{ComponentIdentity, PlacedComponent};
 use super::source::parse_component_name;
 use crate::component::{ComponentKind, Scope};
-use crate::domain::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
+use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
 use crate::error::{PlmError, Result};
 use crate::target::{parse_target, Target, TargetKind};
 use std::collections::HashSet;

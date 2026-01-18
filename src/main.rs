@@ -3,7 +3,6 @@ mod cli;
 mod commands;
 mod component;
 mod config;
-mod domain;
 mod env;
 mod error;
 mod fs;
