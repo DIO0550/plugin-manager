@@ -22,6 +22,9 @@
 mod codex;
 mod copilot;
 mod effect;
+mod registry;
+
+pub use registry::{AddResult, RemoveResult, TargetRegistry};
 
 pub use codex::CodexTarget;
 pub use copilot::CopilotTarget;
@@ -37,6 +40,7 @@ use crate::component::{
 use crate::error::{PlmError, Result};
 use crate::fs::{FileSystem, RealFs};
 use clap::ValueEnum;
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 /// プラグインの出自情報
@@ -78,7 +82,8 @@ impl PluginOrigin {
 }
 
 /// ターゲット種別（CLIオプション用）
-#[derive(Debug, Clone, PartialEq, Eq, ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum TargetKind {
     Codex,
     Copilot,

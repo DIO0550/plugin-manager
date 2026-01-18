@@ -76,6 +76,9 @@ pub enum PlmError {
 
     #[error("Invalid source: {0}")]
     InvalidSource(String),
+
+    #[error("Target registry error: {0}")]
+    TargetRegistry(String),
 }
 
 pub type Result<T> = std::result::Result<T, PlmError>;
