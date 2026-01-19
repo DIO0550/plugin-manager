@@ -8,28 +8,32 @@ pub struct Args {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    /// 登録済みマーケットプレイス一覧を表示
+    /// List registered marketplaces
+    #[command(long_about = "Display all registered plugin marketplaces with their source repositories.")]
     List,
 
-    /// マーケットプレイスを追加
+    /// Add a marketplace
+    #[command(long_about = "Register a GitHub repository as a plugin marketplace. Use owner/repo format or full URL.")]
     Add {
-        /// GitHubリポジトリ (owner/repo) またはURL
+        /// GitHub repository (owner/repo) or URL
         source: String,
 
-        /// マーケットプレイス名（未指定ならリポジトリ名から自動設定）
+        /// Marketplace name (defaults to repository name if not specified)
         #[arg(long)]
         name: Option<String>,
     },
 
-    /// マーケットプレイスを削除
+    /// Remove a marketplace
+    #[command(long_about = "Unregister a marketplace. Installed plugins from this marketplace are not affected.")]
     Remove {
-        /// マーケットプレイス名
+        /// Marketplace name
         name: String,
     },
 
-    /// マーケットプレイスのキャッシュを更新
+    /// Update marketplace cache
+    #[command(long_about = "Refresh the local cache for marketplaces. Fetches latest plugin listings from remote repositories.")]
     Update {
-        /// 特定のマーケットプレイスのみ更新（未指定なら全て）
+        /// Update only a specific marketplace (updates all if not specified)
         name: Option<String>,
     },
 }

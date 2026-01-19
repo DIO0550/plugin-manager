@@ -9,16 +9,19 @@ pub struct Args {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    /// 現在のターゲット一覧を表示
+    /// List configured targets
+    #[command(long_about = "Display all registered target environments. Shows which AI coding assistants (codex, copilot) are configured to receive plugin deployments.")]
     List,
 
-    /// ターゲット環境を追加
+    /// Add a target environment
+    #[command(long_about = "Register a new target environment. Available targets: codex, copilot. Once added, plugins can be deployed to this target.")]
     Add {
         #[arg(value_enum)]
         target: TargetKind,
     },
 
-    /// ターゲット環境を削除
+    /// Remove a target environment
+    #[command(long_about = "Unregister a target environment. Plugins will no longer be deployed to this target, but existing deployments are not removed.")]
     Remove {
         #[arg(value_enum)]
         target: TargetKind,
