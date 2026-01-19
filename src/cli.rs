@@ -153,3 +153,7 @@ OPTIONS:
     #[command(long_about = "Open interactive TUI for managing plugins visually.")]
     Managed,
 }
+
+#[cfg(test)]
+#[path = "cli_test.rs"]
+mod tests;
