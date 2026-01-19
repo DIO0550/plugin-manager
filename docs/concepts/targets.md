@@ -1,0 +1,116 @@
+# ターゲット環境
+
+PLMがサポートするAI開発環境（ターゲット）について説明します。
+
+## 対応ターゲット
+
+| ターゲット | 説明 |
+|------------|------|
+| **codex** | OpenAI Codex CLI |
+| **copilot** | VSCode GitHub Copilot |
+
+## サポートするコンポーネント
+
+| コンポーネント | Codex | Copilot |
+|----------------|-------|---------|
+| Skills | ✅ | ✅ |
+| Agents | ✅* | ✅ |
+| Prompts | ❌ | ✅ |
+| Instructions | ✅ | ✅ |
+
+> *Codexは現時点で`.agent.md`を公式サポートしていませんが、将来対応を見越して配置します。
+
+## OpenAI Codex
+
+### 読み込みパスと優先順位
+
+公式ドキュメント: [Custom instructions with AGENTS.md](https://developers.openai.com/codex/guides/agents-md/)
+
+| スコープ | パス | 自動読み込み | 備考 |
+|---------|------|--------------|------|
+| Global (override) | `~/.codex/AGENTS.override.md` | ✅ | 最優先 |
+| Global | `~/.codex/AGENTS.md` | ✅ | Personal対応 |
+| Project | `./AGENTS.override.md` | ✅ | ディレクトリ毎 |
+| Project | `./AGENTS.md` | ✅ | ディレクトリ毎 |
+| Skills (Global) | `~/.codex/skills/` | ✅ | Personal |
+| Skills (Project) | `./.codex/skills/` | ✅ | Project |
+
+### 読み込み順序
+
+1. **Global scope**: `~/.codex/` (または `$CODEX_HOME`) をチェック
+   - `AGENTS.override.md` があればそれを使用、なければ `AGENTS.md`
+2. **Project scope**: リポジトリルートから現在ディレクトリまで走査
+   - 各ディレクトリで `AGENTS.override.md` → `AGENTS.md` → fallback の順
+3. **マージ**: ルートから現在ディレクトリに向かって連結（上限: `project_doc_max_bytes` = 32KiB）
+
+### コンポーネント配置場所
+
+| 種別 | ファイル形式 | Personal | Project |
+|------|-------------|----------|---------|
+| Skills | `SKILL.md` | `~/.codex/skills/<marketplace>/<plugin>/<skill>/` | `.codex/skills/<marketplace>/<plugin>/<skill>/` |
+| Agents | `*.agent.md` | `~/.codex/agents/<marketplace>/<plugin>/` | `.codex/agents/<marketplace>/<plugin>/` |
+| Instructions | `AGENTS.md` | `~/.codex/AGENTS.md` | `AGENTS.md` |
+
+## VSCode GitHub Copilot
+
+### 読み込みパスと優先順位
+
+公式ドキュメント: [Use custom instructions in VS Code](https://code.visualstudio.com/docs/copilot/customization/custom-instructions)
+
+| スコープ | パス | 自動読み込み | 備考 |
+|---------|------|--------------|------|
+| Project | `.github/copilot-instructions.md` | ✅ | メインの指示ファイル |
+| Project | `.github/instructions/*.instructions.md` | ❌ | 手動指定が必要 |
+| User | VSCode設定の `file` プロパティ | ✅ | 設定で外部ファイル参照 |
+| Prompts | `.github/prompts/*.prompt.md` | ❌ | 手動呼び出し |
+
+### 重要な制約
+
+- **Copilotはグローバルファイル（`~/.copilot/`等）を直接読み込まない**
+- Personal スコープは VSCode 設定経由で外部ファイルを参照する形式
+- Issue: [Global files outside workspace の要望](https://github.com/microsoft/vscode-copilot-release/issues/3129)
+
+### VSCode設定での外部ファイル参照
+
+```json
+// settings.json (User または Workspace)
+{
+  "github.copilot.chat.codeGeneration.instructions": [
+    {
+      "file": "/path/to/personal-instructions.md"
+    }
+  ],
+  "github.copilot.chat.codeGeneration.useInstructionFiles": true
+}
+```
+
+### コンポーネント配置場所
+
+| 種別 | ファイル形式 | Personal | Project |
+|------|-------------|----------|---------|
+| Skills | `SKILL.md` | - | `.github/skills/<marketplace>/<plugin>/<skill>/` |
+| Agents | `*.agent.md` | `~/.copilot/agents/<marketplace>/<plugin>/` | `.github/agents/<marketplace>/<plugin>/` |
+| Prompts | `*.prompt.md` | - | `.github/prompts/<marketplace>/<plugin>/` |
+| Instructions | `AGENTS.md` | - | `AGENTS.md` |
+| Instructions | `copilot-instructions.md` | - | `.github/copilot-instructions.md` |
+
+## PLMでの対応方針
+
+| ターゲット | Personal インストール | 追加アクション |
+|-----------|----------------------|----------------|
+| Codex | `~/.codex/` に配置 | 不要（自動読み込み） |
+| Copilot | ファイル配置 + VSCode設定追記 | `settings.json` への参照追加が必要 |
+
+## 将来の拡張候補
+
+- Cursor（.cursor/）
+- Windsurf
+- Aider
+- Gemini CLI
+- その他SKILL.md対応ツール
+
+## 関連
+
+- [concepts/components](./components.md) - コンポーネント種別
+- [concepts/scopes](./scopes.md) - Personal/Projectスコープ
+- [commands/target](../commands/target.md) - ターゲット管理コマンド
