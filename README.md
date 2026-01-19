@@ -52,22 +52,38 @@ plm managed
 
 ## Commands
 
-| Command | Description |
-|---------|-------------|
-| `target` | Manage target environments (codex/copilot) |
-| `marketplace` | Manage plugin marketplaces |
-| `install` | Install plugins from marketplace or GitHub |
-| `list` | List installed components |
-| `info` | Show component details |
-| `enable` | Enable a component |
-| `disable` | Disable a component |
-| `uninstall` | Remove a component |
-| `update` | Update components |
-| `init` | Generate component templates |
-| `pack` | Create distribution packages |
-| `sync` | Synchronize between environments |
-| `import` | Import from Claude Code Plugins |
-| `managed` | Open TUI for plugin management |
+### Core Commands
+
+| Command | Description | Details |
+|---------|-------------|---------|
+| `install` | Install plugins | Install from GitHub (`owner/repo`) or marketplace (`plugin@market`) |
+| `list` | List installed plugins | Supports `--json`, `--simple`, `--outdated` flags |
+| `info` | Show plugin details | View components, author, deployment status |
+| `enable` | Enable a plugin | Deploy components from cache to targets |
+| `disable` | Disable a plugin | Remove from targets, keep cache |
+| `uninstall` | Remove a plugin | Remove completely including cache |
+| `update` | Update plugins | Check and apply available updates |
+
+### Configuration Commands
+
+| Command | Description | Details |
+|---------|-------------|---------|
+| `target` | Manage targets | `list`, `add`, `remove` subcommands |
+| `marketplace` | Manage marketplaces | `list`, `add`, `remove`, `update` subcommands |
+
+### Plugin Development
+
+| Command | Description | Details |
+|---------|-------------|---------|
+| `init` | Generate templates | Create new plugin skeleton |
+
+### Other
+
+| Command | Description | Details |
+|---------|-------------|---------|
+| `sync` | Sync between environments | Keep plugins synchronized |
+| `import` | Import Claude Code Plugins | Convert and deploy existing plugins |
+| `managed` | TUI interface | Visual plugin management |
 
 ## Usage Examples
 
@@ -143,10 +159,7 @@ plm update
 
 ```bash
 # Generate a new plugin template
-plm init
-
-# Create a distribution package
-plm pack
+plm init my-plugin --type skill
 ```
 
 ## Supported Environments
