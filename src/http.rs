@@ -44,7 +44,7 @@ async fn download_with_progress_impl(
     if !response.status().is_success() {
         let message = response.text().await.unwrap_or_default();
         return Err(PlmError::RepoApi {
-            host: host.to_string(),
+            url: url.to_string(),
             status,
             message,
         });

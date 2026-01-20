@@ -16,6 +16,10 @@ Supported environments:
 
 Install plugins from GitHub or marketplaces, manage their lifecycle, and keep them synchronized across environments."#)]
 pub struct Cli {
+    /// Show detailed error information including cause and remediation
+    #[arg(long, global = true)]
+    pub verbose: bool,
+
     #[command(subcommand)]
     pub command: Command,
 }

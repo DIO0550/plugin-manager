@@ -7,7 +7,7 @@ use super::*;
 #[test]
 fn test_is_retriable_error_429() {
     let error = PlmError::RepoApi {
-        host: "github.com".to_string(),
+        url: "https://github.com".to_string(),
         status: 429,
         message: "Too Many Requests".to_string(),
     };
@@ -17,7 +17,7 @@ fn test_is_retriable_error_429() {
 #[test]
 fn test_is_retriable_error_403_rate_limit() {
     let error = PlmError::RepoApi {
-        host: "github.com".to_string(),
+        url: "https://github.com".to_string(),
         status: 403,
         message: "API rate limit exceeded".to_string(),
     };
@@ -27,7 +27,7 @@ fn test_is_retriable_error_403_rate_limit() {
 #[test]
 fn test_is_retriable_error_403_rate_limit_case_insensitive() {
     let error = PlmError::RepoApi {
-        host: "github.com".to_string(),
+        url: "https://github.com".to_string(),
         status: 403,
         message: "RATE LIMIT exceeded".to_string(),
     };
@@ -37,7 +37,7 @@ fn test_is_retriable_error_403_rate_limit_case_insensitive() {
 #[test]
 fn test_is_retriable_error_403_not_rate_limit() {
     let error = PlmError::RepoApi {
-        host: "github.com".to_string(),
+        url: "https://github.com".to_string(),
         status: 403,
         message: "Forbidden".to_string(),
     };
@@ -47,7 +47,7 @@ fn test_is_retriable_error_403_not_rate_limit() {
 #[test]
 fn test_is_retriable_error_500() {
     let error = PlmError::RepoApi {
-        host: "github.com".to_string(),
+        url: "https://github.com".to_string(),
         status: 500,
         message: "Internal Server Error".to_string(),
     };
@@ -58,7 +58,7 @@ fn test_is_retriable_error_500() {
 #[test]
 fn test_is_retriable_error_502() {
     let error = PlmError::RepoApi {
-        host: "github.com".to_string(),
+        url: "https://github.com".to_string(),
         status: 502,
         message: "Bad Gateway".to_string(),
     };
@@ -68,7 +68,7 @@ fn test_is_retriable_error_502() {
 #[test]
 fn test_is_retriable_error_503() {
     let error = PlmError::RepoApi {
-        host: "github.com".to_string(),
+        url: "https://github.com".to_string(),
         status: 503,
         message: "Service Unavailable".to_string(),
     };
@@ -78,7 +78,7 @@ fn test_is_retriable_error_503() {
 #[test]
 fn test_is_retriable_error_404() {
     let error = PlmError::RepoApi {
-        host: "github.com".to_string(),
+        url: "https://github.com".to_string(),
         status: 404,
         message: "Not Found".to_string(),
     };
@@ -88,7 +88,7 @@ fn test_is_retriable_error_404() {
 #[test]
 fn test_is_retriable_error_401() {
     let error = PlmError::RepoApi {
-        host: "github.com".to_string(),
+        url: "https://github.com".to_string(),
         status: 401,
         message: "Unauthorized".to_string(),
     };
@@ -125,7 +125,7 @@ async fn test_with_retry_success_after_retries() {
             async move {
                 if call_count < 3 {
                     Err(PlmError::RepoApi {
-                        host: "test".to_string(),
+                        url: "https://test.com".to_string(),
                         status: 500,
                         message: "error".to_string(),
                     })
@@ -151,7 +151,7 @@ async fn test_with_retry_fails_after_max_retries() {
             call_count += 1;
             async {
                 Err(PlmError::RepoApi {
-                    host: "test".to_string(),
+                    url: "https://test.com".to_string(),
                     status: 500,
                     message: "always fails".to_string(),
                 })
@@ -174,7 +174,7 @@ async fn test_with_retry_non_retriable_error_fails_immediately() {
             call_count += 1;
             async {
                 Err(PlmError::RepoApi {
-                    host: "test".to_string(),
+                    url: "https://test.com".to_string(),
                     status: 404,
                     message: "not found".to_string(),
                 })

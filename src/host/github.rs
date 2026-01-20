@@ -126,7 +126,7 @@ impl HostClient for GitHubClient {
             if !response.status().is_success() {
                 let message = response.text().await.unwrap_or_default();
                 return Err(PlmError::RepoApi {
-                    host: "github".to_string(),
+                    url: url.clone(),
                     status,
                     message,
                 });
@@ -166,7 +166,7 @@ impl HostClient for GitHubClient {
             if !response.status().is_success() {
                 let message = response.text().await.unwrap_or_default();
                 return Err(PlmError::RepoApi {
-                    host: "github".to_string(),
+                    url: url.clone(),
                     status,
                     message,
                 });
@@ -235,7 +235,7 @@ impl HostClient for GitHubClient {
             if !response.status().is_success() {
                 let message = response.text().await.unwrap_or_default();
                 return Err(PlmError::RepoApi {
-                    host: "github".to_string(),
+                    url: url.clone(),
                     status,
                     message,
                 });

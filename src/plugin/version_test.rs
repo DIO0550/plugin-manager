@@ -51,7 +51,7 @@ impl HostClient for MockHostClient {
         let result = match &self.commit_sha_result {
             MockResult::Ok(sha) => Ok(sha.clone()),
             MockResult::Err { status, message } => Err(PlmError::RepoApi {
-                host: "github".to_string(),
+                url: "https://api.github.com/test".to_string(),
                 status: *status,
                 message: message.clone(),
             }),
