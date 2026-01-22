@@ -8,6 +8,7 @@ mod error;
 mod fs;
 mod host;
 mod http;
+mod import;
 mod marketplace;
 mod output;
 mod path_ext;

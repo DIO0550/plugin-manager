@@ -87,6 +87,9 @@ pub enum PlmError {
 
     #[error("Target registry error: {0}")]
     TargetRegistry(String),
+
+    #[error("Import registry error: {0}")]
+    ImportRegistry(String),
 }
 
 pub type Result<T> = std::result::Result<T, PlmError>;
@@ -234,6 +237,11 @@ impl From<PlmError> for RichError {
                 format!("Target registry error: {}", s),
                 ErrorContext::default(),
             ),
+            PlmError::ImportRegistry(s) => (
+                ErrorCode::Cfg002,
+                format!("Import registry error: {}", s),
+                ErrorContext::default(),
+            ),
         };
 
         RichError::new(code, message).with_context(context)
@@ -372,6 +380,7 @@ mod tests {
             PlmError::Validation("test".to_string()),
             PlmError::InvalidSource("test".to_string()),
             PlmError::TargetRegistry("test".to_string()),
+            PlmError::ImportRegistry("test".to_string()),
         ];
 
         for error in test_cases {

@@ -1,26 +1,373 @@
-use clap::{Parser, ValueEnum};
+//! plm import コマンド
+//!
+//! Claude Code Plugin形式のGitHubリポジトリから、
+//! 特定のコンポーネントを選択してインポートする。
 
-#[derive(Debug, Clone, ValueEnum)]
-pub enum ComponentType {
-    Skill,
-    Agent,
-    Prompt,
-    Instruction,
-}
+use crate::component::{Component, ComponentDeployment, ComponentKind};
+use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
+use crate::import::{ImportRecord, ImportRegistry};
+use crate::output::CommandSummary;
+use crate::source::parse_source;
+use crate::target::{all_targets, parse_target, PluginOrigin, Scope, Target, TargetKind};
+use crate::tui;
+use chrono::Utc;
+use clap::Parser;
+use std::env;
 
 #[derive(Debug, Parser)]
 pub struct Args {
-    /// owner/repo 形式
-    pub repo: String,
+    /// GitHub repository in owner/repo format
+    pub source: String,
 
-    #[arg(long = "type", value_enum)]
-    pub component_type: Option<ComponentType>,
+    /// Specific component paths to import (e.g., skills/pdf, agents/review)
+    /// Format: <kind>/<name> where kind is: skills, agents, commands, instructions, hooks
+    #[arg(long = "component", value_name = "PATH")]
+    pub component: Vec<String>,
 
+    /// Filter by component type (cannot be used with --component)
+    #[arg(long = "type", value_enum, conflicts_with = "component")]
+    pub component_type: Vec<ComponentKind>,
+
+    /// Target environments to deploy to (if not specified, TUI selection)
+    #[arg(long, value_enum)]
+    pub target: Option<Vec<TargetKind>>,
+
+    /// Deployment scope (if not specified, TUI selection)
+    #[arg(long, value_enum)]
+    pub scope: Option<Scope>,
+
+    /// Force re-download even if cached
     #[arg(long)]
-    pub component: Option<String>,
+    pub force: bool,
+}
+
+/// Parse a component path string into (ComponentKind, name)
+///
+/// Format: `<plural_kind>/<name>`
+/// - plural_kind: skills, agents, commands, instructions, hooks (case-insensitive)
+/// - name: component name (case-sensitive)
+///
+/// # Examples
+/// - "skills/pdf" -> Ok((Skill, "pdf"))
+/// - "SKILLS/pdf" -> Ok((Skill, "pdf")) (kind normalized)
+/// - "skills/PDF" -> Ok((Skill, "PDF")) (name preserved)
+/// - "skill/pdf" -> Err (singular not allowed)
+pub fn parse_component_path(path: &str) -> Result<(ComponentKind, String), String> {
+    // 1. Trim whitespace
+    let path = path.trim();
+
+    // 2. Remove trailing slash
+    let path = path.trim_end_matches('/');
+
+    // 3. Check for consecutive slashes
+    if path.contains("//") {
+        return Err(format!(
+            "Invalid component path format: '{}'. Consecutive slashes are not allowed.",
+            path
+        ));
+    }
+
+    // 4. Split by first slash
+    let (kind_str, name) = path.split_once('/').ok_or_else(|| {
+        format!(
+            "Invalid component path format: '{}'. Expected: <kind>/<name>",
+            path
+        )
+    })?;
+
+    // 5. Check for nested paths (more than one slash)
+    if name.contains('/') {
+        return Err(format!(
+            "Invalid component path format: '{}'. Nested paths are not allowed.",
+            path
+        ));
+    }
+
+    // 6. Check empty name
+    if name.is_empty() {
+        return Err(format!(
+            "Invalid component path format: '{}'. Component name cannot be empty.",
+            path
+        ));
+    }
+
+    // 7. Parse kind (case-insensitive, must be plural form)
+    let kind = match kind_str.to_lowercase().as_str() {
+        "skills" => ComponentKind::Skill,
+        "agents" => ComponentKind::Agent,
+        "commands" => ComponentKind::Command,
+        "instructions" => ComponentKind::Instruction,
+        "hooks" => ComponentKind::Hook,
+        _ => {
+            return Err(format!(
+                "Invalid component kind: '{}'. Valid kinds: skills, agents, commands, instructions, hooks",
+                kind_str
+            ))
+        }
+    };
+
+    Ok((kind, name.to_string()))
+}
+
+/// Filter components by paths or types
+///
+/// Returns (filtered_components, skipped_paths)
+/// - If paths is non-empty: filter by kind + name exact match
+/// - If types is non-empty: filter by kind only
+/// - If both empty: return all components
+pub fn filter_components(
+    components: Vec<Component>,
+    paths: &[(ComponentKind, String)],
+    types: &[ComponentKind],
+) -> (Vec<Component>, Vec<String>) {
+    use std::collections::HashSet;
+
+    // If both empty, return all components
+    if paths.is_empty() && types.is_empty() {
+        return (components, vec![]);
+    }
+
+    // Filter by types (kind only)
+    if !types.is_empty() {
+        let filtered = components
+            .into_iter()
+            .filter(|c| types.contains(&c.kind))
+            .collect();
+        return (filtered, vec![]);
+    }
+
+    // Filter by paths (kind + name exact match)
+    // Deduplicate paths while preserving order
+    let mut seen_paths: HashSet<(ComponentKind, &str)> = HashSet::new();
+    let mut unique_paths: Vec<&(ComponentKind, String)> = Vec::new();
+
+    for path in paths {
+        let key = (path.0, path.1.as_str());
+        if seen_paths.insert(key) {
+            unique_paths.push(path);
+        }
+    }
+
+    // Build result in input order
+    let mut filtered = Vec::new();
+    let mut matched_paths: HashSet<(ComponentKind, &str)> = HashSet::new();
+
+    for path in &unique_paths {
+        let key = (path.0, path.1.as_str());
+        // Find matching component
+        if let Some(component) = components.iter().find(|c| c.kind == path.0 && c.name == path.1) {
+            if matched_paths.insert(key) {
+                filtered.push(component.clone());
+            }
+        }
+    }
+
+    // Collect skipped paths (not found in components)
+    let mut seen_skipped: HashSet<String> = HashSet::new();
+    let mut skipped = Vec::new();
+
+    for path in &unique_paths {
+        let key = (path.0, path.1.as_str());
+        if !matched_paths.contains(&key) {
+            let path_str = format!("{}/{}", path.0.plural(), path.1);
+            if seen_skipped.insert(path_str.clone()) {
+                skipped.push(path_str);
+            }
+        }
+    }
+
+    (filtered, skipped)
 }
 
 pub async fn run(args: Args) -> Result<(), String> {
-    println!("import: {:?}", args);
-    Err("not implemented".to_string())
+    // 1. Parse component paths (validate early, before download)
+    let component_paths: Vec<(ComponentKind, String)> = args
+        .component
+        .iter()
+        .map(|p| parse_component_path(p))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    // 2. Target selection (before download)
+    let target_names: Vec<String> = match &args.target {
+        Some(targets) => targets.iter().map(|t| t.as_str().to_string()).collect(),
+        None => {
+            let available = all_targets();
+            let available_refs: Vec<&dyn Target> = available.iter().map(|t| t.as_ref()).collect();
+            let all_components = ComponentKind::all().to_vec();
+
+            tui::select_targets(&available_refs, &all_components).map_err(|e| e.to_string())?
+        }
+    };
+
+    if target_names.is_empty() {
+        return Err("No targets selected".to_string());
+    }
+
+    // 3. Scope selection (before download)
+    let scope: Scope = match args.scope {
+        Some(s) => s,
+        None => tui::select_scope().map_err(|e| e.to_string())?,
+    };
+
+    println!("\nSelected targets: {}", target_names.join(", "));
+    println!("Selected scope: {}", scope);
+
+    // 4. Parse source
+    let source = parse_source(&args.source).map_err(|e| e.to_string())?;
+
+    // 5. Download plugin
+    println!("\nDownloading plugin...");
+    let cached_plugin = source
+        .download(args.force)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    println!("\nPlugin downloaded successfully!");
+    println!("  Name: {}", cached_plugin.name);
+    println!("  Version: {}", cached_plugin.version());
+    println!("  Path: {}", cached_plugin.path.display());
+    println!("  Ref: {}", cached_plugin.git_ref);
+    println!("  SHA: {}", cached_plugin.commit_sha);
+
+    if let Some(desc) = cached_plugin.description() {
+        println!("  Description: {}", desc);
+    }
+
+    // 6. Scan components
+    let components = cached_plugin.components();
+
+    // 7. Filter components
+    let (filtered_components, skipped_paths) =
+        filter_components(components, &component_paths, &args.component_type);
+
+    // Show warnings for skipped paths
+    for path in &skipped_paths {
+        eprintln!("Warning: Component not found: {}", path);
+    }
+
+    // Check if any components to import
+    if filtered_components.is_empty() {
+        return Err("No components to import".to_string());
+    }
+
+    println!("\nComponents to import: {}", filtered_components.len());
+    for c in &filtered_components {
+        println!("  - {}: {}", c.kind, c.name);
+    }
+
+    // 8. Place components
+    println!("\nPlacing to targets...");
+
+    let project_root = env::current_dir().map_err(|e| e.to_string())?;
+    let origin =
+        PluginOrigin::from_cached_plugin(cached_plugin.marketplace.as_deref(), &cached_plugin.name);
+
+    let mut import_registry = ImportRegistry::new().map_err(|e| e.to_string())?;
+    let mut total_success = 0;
+    let mut total_failure = 0;
+
+    println!("\nPlacement Results:");
+    for target_name in &target_names {
+        let target = parse_target(target_name).map_err(|e| e.to_string())?;
+
+        for component in &filtered_components {
+            // Check if target supports this component
+            if !target.supports(component.kind) {
+                continue;
+            }
+
+            // Build placement context
+            let ctx = PlacementContext {
+                component: ComponentRef::new(component.kind, &component.name),
+                origin: &origin,
+                scope: PlacementScope(scope),
+                project: ProjectContext::new(&project_root),
+            };
+
+            // Get target path
+            let target_path = match target.placement_location(&ctx) {
+                Some(location) => location.into_path(),
+                None => continue,
+            };
+
+            // Build deployment
+            let deployment = match ComponentDeployment::builder()
+                .component(component)
+                .scope(scope)
+                .target_path(target_path.clone())
+                .build()
+            {
+                Ok(d) => d,
+                Err(e) => {
+                    println!(
+                        "  x {} {}: {} - {}",
+                        target.name(),
+                        component.kind,
+                        component.name,
+                        e
+                    );
+                    total_failure += 1;
+                    continue;
+                }
+            };
+
+            // Execute deployment
+            match deployment.execute() {
+                Ok(()) => {
+                    println!(
+                        "  + {} {}: {} -> {}",
+                        target.name(),
+                        component.kind,
+                        component.name,
+                        deployment.path().display()
+                    );
+
+                    // Record import history
+                    let target_kind = match target.name() {
+                        "codex" => TargetKind::Codex,
+                        "copilot" => TargetKind::Copilot,
+                        _ => continue,
+                    };
+
+                    let record = ImportRecord {
+                        source_repo: args.source.clone(),
+                        kind: component.kind,
+                        name: component.name.clone(),
+                        target: target_kind,
+                        scope,
+                        path: target_path,
+                        imported_at: Utc::now().to_rfc3339(),
+                        git_ref: cached_plugin.git_ref.clone(),
+                        commit_sha: cached_plugin.commit_sha.clone(),
+                    };
+
+                    if let Err(e) = import_registry.record(record) {
+                        eprintln!("Warning: Failed to record import history: {}", e);
+                    }
+
+                    total_success += 1;
+                }
+                Err(e) => {
+                    println!(
+                        "  x {} {}: {} - {}",
+                        target.name(),
+                        component.kind,
+                        component.name,
+                        e
+                    );
+                    total_failure += 1;
+                }
+            }
+        }
+    }
+
+    // Summary
+    let summary = CommandSummary::format(total_success, total_failure);
+    println!("\n{} {}", summary.prefix, summary.message);
+
+    Ok(())
 }
+
+#[cfg(test)]
+#[path = "import_test.rs"]
+mod tests;

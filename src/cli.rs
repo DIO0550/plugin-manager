@@ -144,13 +144,30 @@ OPTIONS:
     Sync(sync::Args),
 
     /// Import from Claude Code Plugin
-    #[command(long_about = r#"Import existing Claude Code Plugins and deploy them to other environments.
+    #[command(long_about = r#"Import components from a Claude Code Plugin repository.
 
-Fetches plugins from a Claude Code Plugin repository and converts them for use with PLM.
+Selectively import specific components from a Claude Code Plugin format repository.
+Use --component to specify exact components or --type to filter by component type.
+
+SOURCE FORMATS:
+  owner/repo              GitHub repository (e.g., DIO0550/sample-plugin)
+  owner/repo@ref          Specific branch, tag, or commit
+
+COMPONENT SELECTION:
+  --component skills/pdf        Import specific component (plural kind/name)
+  --component agents/review     Multiple --component flags allowed
+  --type skill                  Import all components of a type
+  --type agent --type command   Multiple --type flags allowed
+
+Valid kinds for --component: skills, agents, commands, instructions, hooks
+Valid types for --type: skill, agent, command, instruction, hook
+
+Note: --component and --type cannot be used together.
 
 OPTIONS:
-  --type       Component type to import (skill, agent, prompt, instruction)
-  --component  Specific component name to import"#)]
+  --target     Target environments to deploy to (codex, copilot)
+  --scope      Deployment scope (personal, project)
+  --force      Re-download even if cached"#)]
     Import(import::Args),
 
     /// Plugin management (TUI)

@@ -1,10 +1,12 @@
 //! コンポーネント種別とスコープの定義
 
 use clap::ValueEnum;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 /// コンポーネント種別
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, ValueEnum, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum ComponentKind {
     /// スキル（SKILL.md形式）
     Skill,
@@ -79,7 +81,8 @@ pub struct Component {
 }
 
 /// デプロイスコープ
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, ValueEnum, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Scope {
     /// ユーザーレベル（~/.codex/, ~/.copilot/）
     Personal,
