@@ -135,6 +135,29 @@ plm install plugin-name@marketplace-name
 plm install owner/repo --force
 ```
 
+### Import Claude Code Plugins
+
+```bash
+# Import all components from a Claude Code Plugin repository
+plm import owner/repo
+
+# Import specific components by path
+plm import owner/repo --component skills/pdf
+plm import owner/repo --component skills/pdf --component agents/review
+
+# Filter by component type
+plm import owner/repo --type skill
+plm import owner/repo --type agent --type command
+
+# Specify target and scope
+plm import owner/repo --component skills/pdf --target codex --scope personal
+
+# Force re-download
+plm import owner/repo --force
+```
+
+For detailed specification, see [docs/import.md](docs/import.md).
+
 ### Component Management
 
 ```bash
