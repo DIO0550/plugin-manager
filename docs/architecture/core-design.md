@@ -112,6 +112,31 @@ impl Target for CodexTarget {
     }
     // ...
 }
+
+pub struct AntigravityTarget;
+
+impl Target for AntigravityTarget {
+    fn name(&self) -> &str {
+        "antigravity"
+    }
+
+    fn supported_components(&self) -> Vec<ComponentKind> {
+        vec![ComponentKind::Skill]  // Antigravity only supports Skills
+    }
+
+    fn component_path(&self, kind: ComponentKind, scope: Scope) -> Option<PathBuf> {
+        match (kind, scope) {
+            (ComponentKind::Skill, Scope::Personal) => {
+                Some(dirs::home_dir()?.join(".gemini/antigravity/skills"))
+            }
+            (ComponentKind::Skill, Scope::Project) => {
+                Some(PathBuf::from(".agent/skills"))
+            }
+            _ => None,  // Other components not supported
+        }
+    }
+    // ...
+}
 ```
 
 ## GitRepo 構造体

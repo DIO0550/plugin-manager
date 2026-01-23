@@ -17,6 +17,7 @@ PLMの実装状況と将来の計画について説明します。
 - [ ] Component trait 定義
 - [ ] Codexターゲット実装
 - [ ] Copilotターゲット実装
+- [ ] Antigravityターゲット実装
 - [ ] `plm target` コマンド
 
 ### Phase 3: パーサー実装
@@ -113,7 +114,6 @@ PLMの実装状況と将来の計画について説明します。
 | Cursor | .cursor/ ディレクトリ |
 | Windsurf | Windsurf IDE |
 | Aider | Aider CLI |
-| Gemini CLI | Google Gemini CLI |
 | その他 | SKILL.md対応ツール |
 
 ### GitLab/Bitbucket対応
@@ -164,3 +164,9 @@ impl GitRepo {
 - [Plugins Documentation](https://code.claude.com/docs/en/plugins)
 - [Skills Documentation](https://code.claude.com/docs/en/skills)
 - [anthropics/claude-code plugins](https://github.com/anthropics/claude-code/tree/main/plugins)
+
+### Google Antigravity
+
+- [Getting Started with Google Antigravity](https://codelabs.developers.google.com/getting-started-google-antigravity)
+- [Authoring Google Antigravity Skills](https://codelabs.developers.google.com/getting-started-with-antigravity-skills)
+- [Build with Google Antigravity](https://developers.googleblog.com/build-with-google-antigravity-our-new-agentic-development-platform/)

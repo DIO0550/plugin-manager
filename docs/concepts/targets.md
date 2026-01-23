@@ -8,17 +8,19 @@ PLMがサポートするAI開発環境（ターゲット）について説明し
 |------------|------|
 | **codex** | OpenAI Codex CLI |
 | **copilot** | VSCode GitHub Copilot |
+| **antigravity** | Google Antigravity IDE |
 
 ## サポートするコンポーネント
 
-| コンポーネント | Codex | Copilot |
-|----------------|-------|---------|
-| Skills | ✅ | ✅ |
-| Agents | ✅* | ✅ |
-| Prompts | ❌ | ✅ |
-| Instructions | ✅ | ✅ |
+| コンポーネント | Codex | Copilot | Antigravity |
+|----------------|-------|---------|-------------|
+| Skills | ✅ | ✅ | ✅ |
+| Agents | ✅* | ✅ | ❌ |
+| Prompts | ❌ | ✅ | ❌ |
+| Instructions | ✅ | ✅ | ❌** |
 
 > *Codexは現時点で`.agent.md`を公式サポートしていませんが、将来対応を見越して配置します。
+> **AntigravityはSkills専用の設計で、Instructionsは別途設定で管理します。
 
 ## OpenAI Codex
 
@@ -94,19 +96,53 @@ PLMがサポートするAI開発環境（ターゲット）について説明し
 | Instructions | `AGENTS.md` | - | `AGENTS.md` |
 | Instructions | `copilot-instructions.md` | - | `.github/copilot-instructions.md` |
 
+## Google Antigravity
+
+### 概要
+
+Google AntigravityはGemini 3 Pro搭載のエージェント指向IDE。2026年1月13日にAnthropicのAgent Skills open standard（SKILL.md形式）を正式採用。
+
+公式ドキュメント:
+- [Getting Started with Google Antigravity](https://codelabs.developers.google.com/getting-started-google-antigravity)
+- [Authoring Google Antigravity Skills](https://codelabs.developers.google.com/getting-started-with-antigravity-skills)
+
+### 読み込みパスと優先順位
+
+| スコープ | パス | 自動読み込み | 備考 |
+|---------|------|--------------|------|
+| Global | `~/.gemini/antigravity/skills/` | ✅ | Personal対応 |
+| Workspace | `<workspace-root>/.agent/skills/` | ✅ | Project対応 |
+
+### 重要な特徴
+
+- **ディレクトリベースのSkillsパッケージ**: 各Skillは独立したディレクトリとして管理
+- **Progressive Disclosure**: Skillは必要時のみコンテキストにロードされる（コンテキスト肥大化を防止）
+- **SKILL.md形式**: Anthropic発祥のAgent Skills open standardを採用
+
+### コンポーネント配置場所
+
+| 種別 | ファイル形式 | Personal | Project |
+|------|-------------|----------|---------|
+| Skills | `SKILL.md` | `~/.gemini/antigravity/skills/<marketplace>/<plugin>/<skill>/` | `.agent/skills/<marketplace>/<plugin>/<skill>/` |
+
+### 制約事項
+
+- **Skills専用**: Agents、Prompts、Instructionsは別のシステムで管理
+- Skillsはタスク終了後にコンテキストから解放される（エフェメラル）
+
 ## PLMでの対応方針
 
 | ターゲット | Personal インストール | 追加アクション |
 |-----------|----------------------|----------------|
 | Codex | `~/.codex/` に配置 | 不要（自動読み込み） |
 | Copilot | ファイル配置 + VSCode設定追記 | `settings.json` への参照追加が必要 |
+| Antigravity | `~/.gemini/antigravity/` に配置 | 不要（自動読み込み） |
 
 ## 将来の拡張候補
 
 - Cursor（.cursor/）
 - Windsurf
 - Aider
-- Gemini CLI
 - その他SKILL.md対応ツール
 
 ## 関連
