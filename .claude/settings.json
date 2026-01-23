@@ -1,5 +1,11 @@
 {
   "enabledPlugins": {
-    "rust-analyzer-lsp@claude-plugins-official": true
-  }
+    "rust-analyzer-lsp@claude-plugins-official": true,
+    "workflow-automation-plugin@d-market": true,
+    "code-review-plugin@d-market": true,
+    "spec-plugin@d-market": true,
+    "git-workflow-plugin@d-market": true,
+    "code-simplifier@claude-plugins-official": true
+  },
+  "plansDirectory": "./.spec"
 }

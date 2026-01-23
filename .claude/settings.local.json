@@ -2,7 +2,21 @@
   "permissions": {
     "allow": [
       "Bash(cargo test:*)",
-      "Bash(cargo check:*)"
+      "Bash(cargo check:*)",
+      "Bash(cargo clippy:*)",
+      "Bash(cargo run:*)",
+      "Bash(cargo build:*)",
+      "Bash(cat:*)",
+      "Bash(ls:*)",
+      "Bash(ls -la:*)",
+      "Bash(echo:*)",
+      "Bash(cargo fmt:*)",
+      "Bash(cargo deny check:*)",
+      "Bash(codex:*)",
+      "Bash(codex *)",
+      "Bash(codex exec * | cat *)",
+      "Bash(cat * | codex exec *)",
+      "Skill(commit)"
     ]
   }
 }
