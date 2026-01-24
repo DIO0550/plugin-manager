@@ -100,27 +100,8 @@ fn update_status_after_disable(plugin_path: &std::path::Path, result: &Operation
 
 /// 結果を表示
 fn display_result(plugin_name: &str, result: &OperationResult, target_filter: Option<&str>) {
-    if result.success {
-        let targets = result.affected_targets.target_names();
-        if targets.is_empty() {
-            // ターゲット指定で未対応の場合
-            if let Some(filter) = target_filter {
-                println!(
-                    "Skipped: Plugin '{}' has no components for target '{}'",
-                    plugin_name, filter
-                );
-            } else {
-                println!("Disabled: Plugin '{}' (no components removed)", plugin_name);
-            }
-        } else {
-            let target_list = targets.join(", ");
-            let component_count = result.affected_targets.total_components();
-            println!(
-                "Disabled: Plugin '{}' ({} component(s) removed from {})",
-                plugin_name, component_count, target_list
-            );
-        }
-    } else {
+    // エラーケースを先に処理
+    if !result.success {
         if let Some(error) = &result.error {
             eprintln!(
                 "Error: Failed to disable plugin '{}': {}",
@@ -138,5 +119,28 @@ fn display_result(plugin_name: &str, result: &OperationResult, target_filter: Op
                 successful_targets.len()
             );
         }
+        return;
     }
+
+    // 空ターゲットケースを処理
+    let targets = result.affected_targets.target_names();
+    if targets.is_empty() {
+        if let Some(filter) = target_filter {
+            println!(
+                "Skipped: Plugin '{}' has no components for target '{}'",
+                plugin_name, filter
+            );
+        } else {
+            println!("Disabled: Plugin '{}' (no components removed)", plugin_name);
+        }
+        return;
+    }
+
+    // 成功ケース
+    let target_list = targets.join(", ");
+    let component_count = result.affected_targets.total_components();
+    println!(
+        "Disabled: Plugin '{}' ({} component(s) removed from {})",
+        plugin_name, component_count, target_list
+    );
 }
