@@ -4,26 +4,30 @@
     "dockerfile": "Dockerfile",
     "context": ".."
   },
+  "workspaceFolder": "/workspace",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
   "remoteUser": "vscode",
   "containerEnv": {
     "CARGO_REGISTRIES_CRATES_IO_PROTOCOL": "sparse",
-    "CARGO_HOME": "/workspaces/plugin-manager/.cargo-home",
-    "CARGO_TARGET_DIR": "/workspaces/plugin-manager/.target",
+    "CARGO_HOME": "/workspace/.cargo-home",
+    "CARGO_TARGET_DIR": "/workspace/.target",
     "RUST_BACKTRACE": "1",
     "GITHUB_TOKEN": "${localEnv:GITHUB_PERSONAL_ACCESS_TOKEN}"
   },
   "customizations": {
     "vscode": {
-      "extensions": [
-        "rust-lang.rust-analyzer",
-      ]
+      "settings": {
+        "terminal.integrated.cwd": "/workspace"
+      },
+      "extensions": ["rust-lang.rust-analyzer"]
     }
   },
   "mounts": [
-    "source=${localEnv:HOME}/.gitconfig,target=/home/vscode/.gitconfig,type=bind,readonly",
-    "source=${localEnv:HOME}/.codex,target=/home/vscode/.codex,type=bind",
     "source=plm-cargo-registry,target=/usr/local/cargo/registry,type=volume",
     "source=plm-cargo-git,target=/usr/local/cargo/git,type=volume",
-    "source=plm-target,target=/workspaces/plugin-manager/target,type=volume"
-  ]
+    "source=plm-target,target=/workspace/target,type=volume",
+    "source=${localEnv:HOME}/.config/gh,target=/home/vscode/.config/gh,type=bind,readonly"
+  ],
+  "initializeCommand": "curl -fsSL https://gist.githubusercontent.com/DIO0550/9030208a4e92984e9a1369f61ca8605e/raw/initialize-command.sh | bash",
+  "postCreateCommand": "curl -fsSL https://gist.githubusercontent.com/DIO0550/b08fa721f2b2e63f3cf708015390d5af/raw/post-create.sh | bash"
 }
