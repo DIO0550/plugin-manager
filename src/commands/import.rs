@@ -324,6 +324,7 @@ pub async fn run(args: Args) -> Result<(), String> {
 
                     // Record import history
                     let target_kind = match target.name() {
+                        "antigravity" => TargetKind::Antigravity,
                         "codex" => TargetKind::Codex,
                         "copilot" => TargetKind::Copilot,
                         _ => continue,

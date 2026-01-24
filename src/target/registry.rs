@@ -48,7 +48,11 @@ pub struct TargetsConfig {
 impl Default for TargetsConfig {
     fn default() -> Self {
         Self {
-            targets: vec![TargetKind::Codex, TargetKind::Copilot],
+            targets: vec![
+                TargetKind::Antigravity,
+                TargetKind::Codex,
+                TargetKind::Copilot,
+            ],
         }
     }
 }

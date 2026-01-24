@@ -11,9 +11,16 @@ fn create_test_registry() -> (TargetRegistry, TempDir) {
 #[test]
 fn test_default_config() {
     let config = TargetsConfig::default();
-    assert_eq!(config.targets.len(), 2);
+    assert_eq!(config.targets.len(), 3);
+    assert!(config.targets.contains(&TargetKind::Antigravity));
     assert!(config.targets.contains(&TargetKind::Codex));
     assert!(config.targets.contains(&TargetKind::Copilot));
+}
+
+#[test]
+fn test_default_includes_antigravity() {
+    let config = TargetsConfig::default();
+    assert!(config.targets.contains(&TargetKind::Antigravity));
 }
 
 #[test]
@@ -22,7 +29,8 @@ fn test_load_nonexistent() {
     let config = registry.load().unwrap();
 
     // ファイルが存在しない場合はデフォルト
-    assert_eq!(config.targets.len(), 2);
+    assert_eq!(config.targets.len(), 3);
+    assert!(config.targets.contains(&TargetKind::Antigravity));
     assert!(config.targets.contains(&TargetKind::Codex));
     assert!(config.targets.contains(&TargetKind::Copilot));
 }
@@ -164,13 +172,44 @@ fn test_normalize_sorts() {
 }
 
 #[test]
+fn test_normalize_sorts_antigravity_first() {
+    let mut config = TargetsConfig {
+        targets: vec![TargetKind::Copilot, TargetKind::Antigravity, TargetKind::Codex],
+    };
+
+    config.normalize();
+
+    // Antigravity < Codex < Copilot の順でソート
+    assert_eq!(config.targets[0], TargetKind::Antigravity);
+    assert_eq!(config.targets[1], TargetKind::Codex);
+    assert_eq!(config.targets[2], TargetKind::Copilot);
+}
+
+#[test]
 fn test_empty_targets_allowed() {
     let (mut registry, _temp_dir) = create_test_registry();
 
-    // 両方削除
+    // 全て削除
+    registry.remove(TargetKind::Antigravity).unwrap();
     registry.remove(TargetKind::Codex).unwrap();
     registry.remove(TargetKind::Copilot).unwrap();
 
     let targets = registry.list().unwrap();
     assert!(targets.is_empty());
+}
+
+#[test]
+fn test_antigravity_serialization() {
+    let config = TargetsConfig {
+        targets: vec![TargetKind::Antigravity],
+    };
+    let json = serde_json::to_string(&config).unwrap();
+    assert!(json.contains("\"antigravity\""));
+}
+
+#[test]
+fn test_antigravity_deserialization() {
+    let json = r#"{"targets": ["antigravity"]}"#;
+    let config: TargetsConfig = serde_json::from_str(json).unwrap();
+    assert_eq!(config.targets, vec![TargetKind::Antigravity]);
 }

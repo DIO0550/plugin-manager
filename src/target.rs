@@ -1,6 +1,6 @@
 //! ターゲット環境の抽象化
 //!
-//! 各AI開発環境（Codex, Copilot）への配置を抽象化する。
+//! 各AI開発環境（Antigravity, Codex, Copilot）への配置を抽象化する。
 //! 使う側は具体的なターゲットを意識せず、`Target` traitを通じて操作する。
 //!
 //! ## 使い方
@@ -19,6 +19,7 @@
 //! let location = target.placement_location(&ctx);
 //! ```
 
+mod antigravity;
 mod codex;
 mod copilot;
 mod effect;
@@ -26,6 +27,7 @@ mod registry;
 
 pub use registry::{AddResult, RemoveResult, TargetRegistry};
 
+pub use antigravity::AntigravityTarget;
 pub use codex::CodexTarget;
 pub use copilot::CopilotTarget;
 pub use effect::{AffectedTargets, OperationResult, TargetEffect, TargetError};
@@ -85,6 +87,7 @@ impl PluginOrigin {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TargetKind {
+    Antigravity,
     Codex,
     Copilot,
 }
@@ -93,6 +96,7 @@ impl TargetKind {
     /// ターゲット名を取得
     pub fn as_str(&self) -> &'static str {
         match self {
+            TargetKind::Antigravity => "antigravity",
             TargetKind::Codex => "codex",
             TargetKind::Copilot => "copilot",
         }
@@ -174,6 +178,7 @@ pub trait Target: Send + Sync {
 /// parse_sourceと同じパターンで、使う側は具体的なターゲットを意識しない。
 pub fn parse_target(name: &str) -> Result<Box<dyn Target>> {
     match name {
+        "antigravity" => Ok(Box::new(AntigravityTarget::new())),
         "codex" => Ok(Box::new(CodexTarget::new())),
         "copilot" => Ok(Box::new(CopilotTarget::new())),
         _ => Err(PlmError::TargetNotFound(name.to_string())),
@@ -182,7 +187,11 @@ pub fn parse_target(name: &str) -> Result<Box<dyn Target>> {
 
 /// 全ターゲットを取得
 pub fn all_targets() -> Vec<Box<dyn Target>> {
-    vec![Box::new(CodexTarget::new()), Box::new(CopilotTarget::new())]
+    vec![
+        Box::new(AntigravityTarget::new()),
+        Box::new(CodexTarget::new()),
+        Box::new(CopilotTarget::new()),
+    ]
 }
 
 #[cfg(test)]

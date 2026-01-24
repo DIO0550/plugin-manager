@@ -19,9 +19,16 @@ fn test_parse_target_unknown() {
 }
 
 #[test]
+fn test_parse_target_antigravity() {
+    let target = parse_target("antigravity").unwrap();
+    assert_eq!(target.name(), "antigravity");
+}
+
+#[test]
 fn test_all_targets() {
     let targets = all_targets();
-    assert_eq!(targets.len(), 2);
+    assert_eq!(targets.len(), 3);
+    assert!(targets.iter().any(|t| t.name() == "antigravity"));
     assert!(targets.iter().any(|t| t.name() == "codex"));
     assert!(targets.iter().any(|t| t.name() == "copilot"));
 }
