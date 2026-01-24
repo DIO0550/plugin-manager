@@ -24,6 +24,7 @@ mod codex;
 mod copilot;
 mod effect;
 mod registry;
+pub mod scanner;
 
 pub use registry::{AddResult, RemoveResult, TargetRegistry};
 

@@ -5,8 +5,8 @@ use crate::component::{
     ComponentRef, PlacementContext, PlacementLocation, PlacementScope, ProjectContext,
 };
 use crate::error::Result;
+use crate::target::scanner::{scan_components, ScannedComponent};
 use crate::target::{PluginOrigin, Target};
-use std::fs;
 use std::path::{Path, PathBuf};
 
 /// OpenAI Codex ターゲット
@@ -34,6 +34,22 @@ impl CodexTarget {
     /// この組み合わせで配置できるか
     fn can_place(kind: ComponentKind) -> bool {
         kind != ComponentKind::Command && kind != ComponentKind::Hook
+    }
+
+    /// コンポーネント種別に応じたフィルタリング
+    fn filter_component(c: &ScannedComponent, kind: ComponentKind) -> Option<String> {
+        let qualified = format!("{}/{}/{}", c.origin.marketplace, c.origin.plugin, c.name);
+        match kind {
+            ComponentKind::Skill if c.is_dir => Some(qualified),
+            ComponentKind::Agent if !c.is_dir && c.name.ends_with(".agent.md") => {
+                let name = c.name.trim_end_matches(".agent.md");
+                Some(format!(
+                    "{}/{}/{}",
+                    c.origin.marketplace, c.origin.plugin, name
+                ))
+            }
+            _ => None,
+        }
     }
 }
 
@@ -130,44 +146,11 @@ impl Target for CodexTarget {
             _ => return Ok(vec![]),
         };
 
-        if !dir_path.exists() {
-            return Ok(vec![]);
-        }
-
-        // 階層構造を走査: <kind>/<marketplace>/<plugin>/<component>
-        let mut names = Vec::new();
-        for mp_entry in fs::read_dir(&dir_path)? {
-            let mp_entry = mp_entry?;
-            if !mp_entry.path().is_dir() {
-                continue;
-            }
-            let marketplace = mp_entry.file_name().to_string_lossy().to_string();
-
-            for plugin_entry in fs::read_dir(mp_entry.path())? {
-                let plugin_entry = plugin_entry?;
-                if !plugin_entry.path().is_dir() {
-                    continue;
-                }
-                let plugin = plugin_entry.file_name().to_string_lossy().to_string();
-
-                for component_entry in fs::read_dir(plugin_entry.path())? {
-                    let component_entry = component_entry?;
-                    let name = component_entry.file_name().to_string_lossy().to_string();
-
-                    match kind {
-                        ComponentKind::Skill if component_entry.path().is_dir() => {
-                            // 完全修飾名: marketplace/plugin/component
-                            names.push(format!("{}/{}/{}", marketplace, plugin, name));
-                        }
-                        ComponentKind::Agent if name.ends_with(".agent.md") => {
-                            let agent_name = name.trim_end_matches(".agent.md").to_string();
-                            names.push(format!("{}/{}/{}", marketplace, plugin, agent_name));
-                        }
-                        _ => {}
-                    }
-                }
-            }
-        }
+        // scan_components を使用して3層構造を走査
+        let names = scan_components(&dir_path)?
+            .into_iter()
+            .filter_map(|c| Self::filter_component(&c, kind))
+            .collect();
 
         Ok(names)
     }

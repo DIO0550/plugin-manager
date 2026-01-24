@@ -5,8 +5,8 @@ use crate::component::{
     ComponentRef, PlacementContext, PlacementLocation, PlacementScope, ProjectContext,
 };
 use crate::error::Result;
+use crate::target::scanner::{scan_components, ScannedComponent};
 use crate::target::{PluginOrigin, Target};
-use std::fs;
 use std::path::{Path, PathBuf};
 
 /// Google Antigravity ターゲット
@@ -34,6 +34,25 @@ impl AntigravityTarget {
     /// この組み合わせで配置できるか（Skillのみサポート）
     fn can_place(kind: ComponentKind) -> bool {
         kind == ComponentKind::Skill
+    }
+
+    /// コンポーネント種別に応じたフィルタリング（SKILL.md存在チェック維持）
+    fn filter_component(c: &ScannedComponent, kind: ComponentKind) -> Option<String> {
+        match kind {
+            ComponentKind::Skill if c.is_dir => {
+                // SKILL.mdが存在する場合のみ有効なSkillとして認識
+                let skill_md = c.path.join("SKILL.md");
+                if skill_md.exists() {
+                    Some(format!(
+                        "{}/{}/{}",
+                        c.origin.marketplace, c.origin.plugin, c.name
+                    ))
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
     }
 }
 
@@ -93,41 +112,11 @@ impl Target for AntigravityTarget {
         let base = Self::base_dir(scope, project_root);
         let dir_path = base.join("skills");
 
-        if !dir_path.exists() {
-            return Ok(vec![]);
-        }
-
-        // 階層構造を走査: skills/<marketplace>/<plugin>/<component>
-        let mut names = Vec::new();
-        for mp_entry in fs::read_dir(&dir_path)? {
-            let mp_entry = mp_entry?;
-            if !mp_entry.path().is_dir() {
-                continue;
-            }
-            let marketplace = mp_entry.file_name().to_string_lossy().to_string();
-
-            for plugin_entry in fs::read_dir(mp_entry.path())? {
-                let plugin_entry = plugin_entry?;
-                if !plugin_entry.path().is_dir() {
-                    continue;
-                }
-                let plugin = plugin_entry.file_name().to_string_lossy().to_string();
-
-                for component_entry in fs::read_dir(plugin_entry.path())? {
-                    let component_entry = component_entry?;
-                    if !component_entry.path().is_dir() {
-                        continue;
-                    }
-
-                    // SKILL.mdが存在する場合のみ有効なSkillとして認識
-                    let skill_md_path = component_entry.path().join("SKILL.md");
-                    if skill_md_path.exists() {
-                        let name = component_entry.file_name().to_string_lossy().to_string();
-                        names.push(format!("{}/{}/{}", marketplace, plugin, name));
-                    }
-                }
-            }
-        }
+        // scan_components を使用して3層構造を走査
+        let names = scan_components(&dir_path)?
+            .into_iter()
+            .filter_map(|c| Self::filter_component(&c, kind))
+            .collect();
 
         Ok(names)
     }
