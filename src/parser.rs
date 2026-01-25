@@ -2,6 +2,7 @@
 
 mod claude_code;
 mod codex;
+pub mod convert;
 mod copilot;
 mod frontmatter;
 
@@ -14,6 +15,8 @@ pub use frontmatter::{parse_frontmatter, ParsedDocument};
 mod claude_code_test;
 #[cfg(test)]
 mod codex_test;
+#[cfg(test)]
+mod convert_test;
 #[cfg(test)]
 mod copilot_test;
 #[cfg(test)]

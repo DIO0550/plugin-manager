@@ -7,6 +7,9 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 
+use super::codex::CodexPrompt;
+use super::convert;
+use super::copilot::CopilotPrompt;
 use super::frontmatter::{parse_frontmatter, ParsedDocument};
 
 /// Claude Code Command frontmatter fields.
@@ -98,6 +101,89 @@ impl ClaudeCodeCommand {
         }
 
         Ok(command)
+    }
+
+    /// Serializes to Claude Code Markdown format.
+    pub fn to_markdown(&self) -> String {
+        let mut fields: Vec<String> = Vec::new();
+
+        if let Some(ref v) = self.name {
+            fields.push(format!("name: {}", convert::escape_yaml_string(v)));
+        }
+        if let Some(ref v) = self.description {
+            fields.push(format!("description: {}", convert::escape_yaml_string(v)));
+        }
+        if let Some(ref v) = self.allowed_tools {
+            fields.push(format!("allowed-tools: {}", convert::escape_yaml_string(v)));
+        }
+        if let Some(ref v) = self.argument_hint {
+            fields.push(format!("argument-hint: {}", convert::escape_yaml_string(v)));
+        }
+        if let Some(ref v) = self.model {
+            fields.push(format!("model: {}", v));
+        }
+        if let Some(v) = self.disable_model_invocation {
+            fields.push(format!("disable-model-invocation: {}", v));
+        }
+        if let Some(v) = self.user_invocable {
+            fields.push(format!("user-invocable: {}", v));
+        }
+
+        if fields.is_empty() {
+            self.body.clone()
+        } else {
+            format!("---\n{}\n---\n\n{}", fields.join("\n"), self.body)
+        }
+    }
+}
+
+// ============================================================================
+// From trait implementations
+// ============================================================================
+
+impl From<&CopilotPrompt> for ClaudeCodeCommand {
+    fn from(prompt: &CopilotPrompt) -> Self {
+        let allowed_tools = prompt.tools.as_ref().map(|tools| {
+            let converted: Vec<_> = tools
+                .iter()
+                .map(|t| convert::tool_copilot_to_claude(t))
+                .collect();
+            convert::format_allowed_tools(&converted)
+        });
+
+        let argument_hint = prompt.hint.as_ref().map(|h| {
+            let inner = h.strip_prefix("Enter ").unwrap_or(h);
+            format!("[{}]", inner)
+        });
+
+        ClaudeCodeCommand {
+            name: prompt.name.clone(),
+            description: prompt.description.clone(),
+            allowed_tools,
+            argument_hint,
+            model: prompt
+                .model
+                .as_ref()
+                .map(|m| convert::model_copilot_to_claude(m)),
+            disable_model_invocation: None,
+            user_invocable: None,
+            body: convert::body_copilot_to_claude(&prompt.body),
+        }
+    }
+}
+
+impl From<&CodexPrompt> for ClaudeCodeCommand {
+    fn from(prompt: &CodexPrompt) -> Self {
+        ClaudeCodeCommand {
+            name: prompt.name.clone(),
+            description: prompt.description.clone(),
+            allowed_tools: None,
+            argument_hint: None,
+            model: None,
+            disable_model_invocation: None,
+            user_invocable: None,
+            body: prompt.body.clone(),
+        }
     }
 }
 

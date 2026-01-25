@@ -7,6 +7,9 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 
+use super::claude_code::ClaudeCodeCommand;
+use super::codex::CodexPrompt;
+use super::convert;
 use super::frontmatter::{parse_frontmatter, ParsedDocument};
 
 /// Copilot Prompt frontmatter fields.
@@ -90,6 +93,83 @@ impl CopilotPrompt {
         }
 
         Ok(prompt)
+    }
+
+    /// Serializes to Copilot Markdown format.
+    pub fn to_markdown(&self) -> String {
+        let mut fields: Vec<String> = Vec::new();
+
+        if let Some(ref v) = self.name {
+            fields.push(format!("name: {}", convert::escape_yaml_string(v)));
+        }
+        if let Some(ref v) = self.description {
+            fields.push(format!("description: {}", convert::escape_yaml_string(v)));
+        }
+        if let Some(ref v) = self.tools {
+            // YAML array format: tools: ['codebase', 'terminal']
+            let arr = v
+                .iter()
+                .map(|t| format!("'{}'", t.replace('\'', "''")))
+                .collect::<Vec<_>>()
+                .join(", ");
+            fields.push(format!("tools: [{}]", arr));
+        }
+        if let Some(ref v) = self.hint {
+            fields.push(format!("hint: {}", convert::escape_yaml_string(v)));
+        }
+        if let Some(ref v) = self.model {
+            fields.push(format!("model: {}", v));
+        }
+        if let Some(ref v) = self.agent {
+            fields.push(format!("agent: {}", convert::escape_yaml_string(v)));
+        }
+
+        if fields.is_empty() {
+            self.body.clone()
+        } else {
+            format!("---\n{}\n---\n\n{}", fields.join("\n"), self.body)
+        }
+    }
+}
+
+// ============================================================================
+// From trait implementations
+// ============================================================================
+
+impl From<&ClaudeCodeCommand> for CopilotPrompt {
+    fn from(cmd: &ClaudeCodeCommand) -> Self {
+        // Tool conversion: comma-separated string -> array -> convert -> deduplicate
+        let tools = cmd
+            .allowed_tools
+            .as_ref()
+            .map(|t| convert::tools_claude_to_copilot(&convert::parse_allowed_tools(t)));
+
+        // Hint conversion: [message] -> "Enter message"
+        let hint = cmd.argument_hint.as_ref().map(|h| {
+            let inner = h.trim_start_matches('[').trim_end_matches(']');
+            format!("Enter {}", inner)
+        });
+
+        CopilotPrompt {
+            name: cmd.name.clone(),
+            description: cmd.description.clone(),
+            tools,
+            hint,
+            model: cmd
+                .model
+                .as_ref()
+                .map(|m| convert::model_claude_to_copilot(m)),
+            agent: None,
+            body: convert::body_claude_to_copilot(&cmd.body),
+        }
+    }
+}
+
+impl From<&CodexPrompt> for CopilotPrompt {
+    fn from(prompt: &CodexPrompt) -> Self {
+        // Convert via ClaudeCodeCommand
+        let cmd = ClaudeCodeCommand::from(prompt);
+        CopilotPrompt::from(&cmd)
     }
 }
 
