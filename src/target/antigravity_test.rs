@@ -1,6 +1,8 @@
 //! AntigravityTarget unit tests
 
 use super::*;
+use crate::component::{ComponentRef, PlacementScope, ProjectContext};
+use crate::target::PluginOrigin;
 use std::path::Path;
 use tempfile::TempDir;
 
