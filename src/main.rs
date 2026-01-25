@@ -14,6 +14,7 @@ mod http;
 mod import;
 mod marketplace;
 mod output;
+mod parser;
 mod path_ext;
 mod plugin;
 mod repo;

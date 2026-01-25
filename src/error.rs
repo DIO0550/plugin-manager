@@ -88,6 +88,12 @@ pub enum PlmError {
 
     #[error("Import registry error: {0}")]
     ImportRegistry(String),
+
+    #[error("Parse error: {0}")]
+    Parse(String),
+
+    #[error("YAML parse error: {0}")]
+    Yaml(#[from] serde_yaml::Error),
 }
 
 pub type Result<T> = std::result::Result<T, PlmError>;
@@ -236,6 +242,16 @@ impl From<PlmError> for RichError {
             PlmError::ImportRegistry(s) => (
                 ErrorCode::Cfg002,
                 format!("Import registry error: {}", s),
+                ErrorContext::default(),
+            ),
+            PlmError::Parse(s) => (
+                ErrorCode::Val001,
+                format!("Parse error: {}", s),
+                ErrorContext::default(),
+            ),
+            PlmError::Yaml(e) => (
+                ErrorCode::Cfg001,
+                format!("YAML parse error: {}", e),
                 ErrorContext::default(),
             ),
         };
