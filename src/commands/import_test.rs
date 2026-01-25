@@ -168,8 +168,11 @@ mod filter_components_tests {
     #[test]
     fn filter_by_multiple_types() {
         let components = make_test_components();
-        let (filtered, skipped) =
-            filter_components(components, &[], &[ComponentKind::Skill, ComponentKind::Agent]);
+        let (filtered, skipped) = filter_components(
+            components,
+            &[],
+            &[ComponentKind::Skill, ComponentKind::Agent],
+        );
         assert_eq!(filtered.len(), 3);
         assert!(skipped.is_empty());
     }

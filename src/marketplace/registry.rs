@@ -129,7 +129,7 @@ impl MarketplaceRegistry {
             for entry in fs::read_dir(&self.cache_dir)? {
                 let entry = entry?;
                 let path = entry.path();
-                if path.is_file() && path.extension().map_or(false, |e| e == "json") {
+                if path.is_file() && path.extension().is_some_and(|e| e == "json") {
                     if let Some(name) = path.file_stem() {
                         marketplaces.push(name.to_string_lossy().to_string());
                     }

@@ -31,7 +31,7 @@ pub use registry::{AddResult, RemoveResult, TargetRegistry};
 pub use antigravity::AntigravityTarget;
 pub use codex::CodexTarget;
 pub use copilot::CopilotTarget;
-pub use effect::{AffectedTargets, OperationResult, TargetEffect, TargetError};
+pub use effect::{AffectedTargets, OperationResult};
 // PluginOrigin はモジュール内で定義されているのでここでは再エクスポート不要
 
 use crate::component::ComponentKind;

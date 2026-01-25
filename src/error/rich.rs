@@ -149,10 +149,7 @@ mod tests {
         let error = RichError::new(ErrorCode::Plg001, "Plugin not found").with_context(context);
 
         assert!(!error.context().is_empty());
-        assert_eq!(
-            error.context().url.as_deref(),
-            Some("https://example.com")
-        );
+        assert_eq!(error.context().url.as_deref(), Some("https://example.com"));
         assert_eq!(error.context().plugin_name.as_deref(), Some("my-plugin"));
     }
 
@@ -172,10 +169,7 @@ mod tests {
             .with_additional("key1", "value1")
             .with_additional("key2", "value2");
 
-        assert_eq!(
-            context.file_path,
-            Some(PathBuf::from("/path/to/file"))
-        );
+        assert_eq!(context.file_path, Some(PathBuf::from("/path/to/file")));
         assert_eq!(context.url, Some("https://api.github.com".to_string()));
         assert_eq!(context.plugin_name, Some("test-plugin".to_string()));
         assert_eq!(context.additional.len(), 2);

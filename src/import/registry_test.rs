@@ -156,7 +156,11 @@ mod import_registry_tests {
     #[test]
     fn creates_parent_directories() {
         let temp_dir = TempDir::new().unwrap();
-        let nested_path = temp_dir.path().join("nested").join("dir").join("imports.json");
+        let nested_path = temp_dir
+            .path()
+            .join("nested")
+            .join("dir")
+            .join("imports.json");
 
         let mut registry = ImportRegistry::with_path(nested_path.clone());
         registry.record(make_test_record("pdf")).unwrap();

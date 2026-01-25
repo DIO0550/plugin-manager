@@ -174,7 +174,11 @@ fn test_normalize_sorts() {
 #[test]
 fn test_normalize_sorts_antigravity_first() {
     let mut config = TargetsConfig {
-        targets: vec![TargetKind::Copilot, TargetKind::Antigravity, TargetKind::Codex],
+        targets: vec![
+            TargetKind::Copilot,
+            TargetKind::Antigravity,
+            TargetKind::Codex,
+        ],
     };
 
     config.normalize();

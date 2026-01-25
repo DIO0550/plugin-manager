@@ -3,7 +3,7 @@
 //! メッセージに応じた画面状態の更新ロジック。
 
 use super::actions;
-use super::model::{CacheState, DetailAction, Model, Msg};
+use super::model::{DetailAction, Model, Msg};
 use crate::tui::manager::core::DataStore;
 use ratatui::widgets::ListState;
 

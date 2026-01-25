@@ -38,6 +38,7 @@ impl std::fmt::Display for HostKind {
 }
 
 /// ホスト別クライアント trait
+#[allow(clippy::type_complexity)]
 pub trait HostClient: Send + Sync {
     /// デフォルトブランチを取得
     fn get_default_branch<'a>(

@@ -2,7 +2,7 @@
 //!
 //! インストール済みプラグインの詳細情報を表示する。
 
-use crate::application::{get_plugin_info, ComponentInfo, PluginDetail, PluginSource};
+use crate::application::{get_plugin_info, PluginDetail, PluginSource};
 use clap::{Parser, ValueEnum};
 use comfy_table::{presets::UTF8_FULL, Table};
 

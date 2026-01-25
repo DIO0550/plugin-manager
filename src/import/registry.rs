@@ -128,9 +128,10 @@ impl ImportRegistry {
 
     /// 設定を保存（Modified → Idle）
     fn save(&mut self) -> Result<()> {
-        let config = self.config.as_ref().ok_or_else(|| {
-            PlmError::ImportRegistry("No config loaded".to_string())
-        })?;
+        let config = self
+            .config
+            .as_ref()
+            .ok_or_else(|| PlmError::ImportRegistry("No config loaded".to_string()))?;
 
         // 親ディレクトリを作成
         if let Some(parent) = self.config_path.parent() {
@@ -142,18 +143,17 @@ impl ImportRegistry {
             .config_path
             .parent()
             .unwrap_or(std::path::Path::new("."));
-        let mut temp_file = NamedTempFile::new_in(parent).map_err(|e| {
-            PlmError::ImportRegistry(format!("Failed to create temp file: {}", e))
-        })?;
+        let mut temp_file = NamedTempFile::new_in(parent)
+            .map_err(|e| PlmError::ImportRegistry(format!("Failed to create temp file: {}", e)))?;
 
         // JSONを書き込み
         let content = serde_json::to_string_pretty(config)?;
         temp_file.write_all(content.as_bytes())?;
 
         // アトミックに置換
-        temp_file.persist(&self.config_path).map_err(|e| {
-            PlmError::ImportRegistry(format!("Failed to persist config: {}", e))
-        })?;
+        temp_file
+            .persist(&self.config_path)
+            .map_err(|e| PlmError::ImportRegistry(format!("Failed to persist config: {}", e)))?;
 
         self.state = State::Idle;
         Ok(())

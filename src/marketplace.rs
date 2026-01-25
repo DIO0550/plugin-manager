@@ -10,7 +10,4 @@ pub use config::{
 };
 pub use fetcher::MarketplaceFetcher;
 pub use plugin_source_path::PluginSourcePath;
-pub use registry::{
-    MarketplaceCache, MarketplaceManifest, MarketplaceOwner, MarketplacePlugin,
-    MarketplaceRegistry, PluginMatch, PluginSource,
-};
+pub use registry::{MarketplaceCache, MarketplaceManifest, MarketplaceRegistry, PluginSource};

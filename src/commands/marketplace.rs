@@ -15,11 +15,15 @@ pub struct Args {
 #[derive(Debug, Subcommand)]
 pub enum Command {
     /// List registered marketplaces
-    #[command(long_about = "Display all registered plugin marketplaces with their source repositories.")]
+    #[command(
+        long_about = "Display all registered plugin marketplaces with their source repositories."
+    )]
     List,
 
     /// Add a marketplace
-    #[command(long_about = "Register a GitHub repository as a plugin marketplace. Use owner/repo format or full URL.")]
+    #[command(
+        long_about = "Register a GitHub repository as a plugin marketplace. Use owner/repo format or full URL."
+    )]
     Add {
         /// GitHub repository (owner/repo) or URL
         source: String,
@@ -34,21 +38,27 @@ pub enum Command {
     },
 
     /// Remove a marketplace
-    #[command(long_about = "Unregister a marketplace. Installed plugins from this marketplace are not affected.")]
+    #[command(
+        long_about = "Unregister a marketplace. Installed plugins from this marketplace are not affected."
+    )]
     Remove {
         /// Marketplace name
         name: String,
     },
 
     /// Update marketplace cache
-    #[command(long_about = "Refresh the local cache for marketplaces. Fetches latest plugin listings from remote repositories.")]
+    #[command(
+        long_about = "Refresh the local cache for marketplaces. Fetches latest plugin listings from remote repositories."
+    )]
     Update {
         /// Update only a specific marketplace (updates all if not specified)
         name: Option<String>,
     },
 
     /// Show marketplace details
-    #[command(long_about = "Display detailed information about a marketplace including its plugins.")]
+    #[command(
+        long_about = "Display detailed information about a marketplace including its plugins."
+    )]
     Show {
         /// Marketplace name
         name: String,
@@ -91,7 +101,12 @@ async fn run_list() -> Result<(), String> {
             _ => ("N/A".to_string(), "Never".to_string()),
         };
 
-        table.add_row(vec![&entry.name, &source_display, &plugins_count, &last_updated]);
+        table.add_row(vec![
+            &entry.name,
+            &source_display,
+            &plugins_count,
+            &last_updated,
+        ]);
     }
 
     println!("{table}");
@@ -185,7 +200,9 @@ async fn run_update(name: Option<String>) -> Result<(), String> {
     // Determine which marketplaces to update
     let entries: Vec<_> = match &name {
         Some(n) => {
-            let entry = config.get(n).ok_or_else(|| format!("Marketplace '{}' not found.", n))?;
+            let entry = config
+                .get(n)
+                .ok_or_else(|| format!("Marketplace '{}' not found.", n))?;
             vec![entry.clone()]
         }
         None => config.list().to_vec(),
@@ -260,10 +277,7 @@ async fn run_show(name: String) -> Result<(), String> {
     // Header
     println!("Marketplace: {}", entry.name);
     println!("Source: {}", to_display_source(&entry.source));
-    println!(
-        "Path: {}",
-        entry.source_path.as_deref().unwrap_or("(root)")
-    );
+    println!("Path: {}", entry.source_path.as_deref().unwrap_or("(root)"));
 
     // Get cache
     match registry.get(&name) {

@@ -131,5 +131,7 @@ fn test_import_help() {
         .args(["import", "--help"])
         .assert()
         .success()
-        .stdout(predicate::str::contains("Import components from a Claude Code Plugin"));
+        .stdout(predicate::str::contains(
+            "Import components from a Claude Code Plugin",
+        ));
 }

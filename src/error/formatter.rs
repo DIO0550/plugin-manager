@@ -188,7 +188,8 @@ impl ErrorFormatter {
 
         // Match file paths like /home/user/.env or /path/to/credentials.json
         // Requires at least one path separator and the sensitive filename
-        let sensitive_file_re = Regex::new(r"(?:^|[^:/])(/(?:[^/\s]+/)*\.env(?:\.[^\s]*)?)").unwrap();
+        let sensitive_file_re =
+            Regex::new(r"(?:^|[^:/])(/(?:[^/\s]+/)*\.env(?:\.[^\s]*)?)").unwrap();
         let mut result = sensitive_file_re
             .replace_all(text, |caps: &regex::Captures| {
                 // Keep the prefix character (if any) and replace the path
@@ -224,11 +225,7 @@ impl ErrorFormatter {
                 let bracket_end = line.find(']').unwrap_or(0) + 1;
                 let error_prefix = &line[..bracket_end];
                 let rest = &line[bracket_end..];
-                result.push_str(&format!(
-                    "{}{}",
-                    error_prefix.red().bold(),
-                    rest.bold()
-                ));
+                result.push_str(&format!("{}{}", error_prefix.red().bold(), rest.bold()));
             } else if line.starts_with("  -->") {
                 // Color the location line blue
                 result.push_str(&line.blue().to_string());
@@ -363,8 +360,7 @@ mod tests {
     fn verbose_includes_source_chain() {
         let formatter = ErrorFormatter::with_color_detection(true, no_color);
         let io_error = std::io::Error::new(std::io::ErrorKind::NotFound, "underlying error");
-        let error =
-            RichError::new(ErrorCode::Io001, "Failed to read file").with_source(io_error);
+        let error = RichError::new(ErrorCode::Io001, "Failed to read file").with_source(io_error);
 
         let output = formatter.format(&error);
         assert!(output.contains("Source chain:"));
