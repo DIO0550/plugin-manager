@@ -9,7 +9,7 @@ mod plugin_operations;
 
 pub use crate::target::OperationResult;
 pub use plugin_catalog::{list_installed_plugins, PluginSummary};
-pub use plugin_info::{get_plugin_info, AuthorInfo, ComponentInfo, PluginDetail, PluginSource};
+pub use plugin_info::{get_plugin_info, PluginDetail, PluginSource};
 pub use plugin_operations::{
     disable_plugin, enable_plugin, get_uninstall_info, uninstall_plugin, UninstallInfo,
 };
