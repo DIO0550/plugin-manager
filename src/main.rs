@@ -1,3 +1,6 @@
+// Allow unused code for future expansion
+#![allow(dead_code)]
+
 mod application;
 mod cli;
 mod commands;

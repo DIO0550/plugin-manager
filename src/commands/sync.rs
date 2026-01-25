@@ -2,8 +2,7 @@
 
 use crate::component::Scope;
 use crate::sync::{
-    sync, PlacedComponent, SyncAction, SyncDestination, SyncOptions, SyncResult, SyncSource,
-    SyncableKind,
+    sync, PlacedComponent, SyncDestination, SyncOptions, SyncResult, SyncSource, SyncableKind,
 };
 use crate::target::TargetKind;
 use clap::Parser;
@@ -43,8 +42,8 @@ pub async fn run(args: Args) -> Result<(), String> {
     let project_root = env::current_dir().map_err(|e| e.to_string())?;
 
     // Source と Destination を作成
-    let source = SyncSource::new(args.from.clone(), &project_root).map_err(|e| e.to_string())?;
-    let dest = SyncDestination::new(args.to.clone(), &project_root).map_err(|e| e.to_string())?;
+    let source = SyncSource::new(args.from, &project_root).map_err(|e| e.to_string())?;
+    let dest = SyncDestination::new(args.to, &project_root).map_err(|e| e.to_string())?;
 
     // オプションを構築
     let options = SyncOptions {

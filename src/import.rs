@@ -4,4 +4,4 @@
 
 mod registry;
 
-pub use registry::{ImportRecord, ImportRegistry, ImportsConfig};
+pub use registry::{ImportRecord, ImportRegistry};

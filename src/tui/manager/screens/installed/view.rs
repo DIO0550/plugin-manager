@@ -23,17 +23,17 @@ fn component_kind_title(kind: ComponentKind) -> &'static str {
 pub fn view(f: &mut Frame, model: &Model, data: &DataStore) {
     match model {
         Model::PluginList { state, .. } => {
-            view_plugin_list(f, state.clone(), data);
+            view_plugin_list(f, *state, data);
         }
         Model::PluginDetail {
             plugin_id, state, ..
         } => {
-            view_plugin_detail(f, plugin_id, state.clone(), data);
+            view_plugin_detail(f, plugin_id, *state, data);
         }
         Model::ComponentTypes {
             plugin_id, state, ..
         } => {
-            view_component_types(f, plugin_id, state.clone(), data);
+            view_component_types(f, plugin_id, *state, data);
         }
         Model::ComponentList {
             plugin_id,
@@ -41,7 +41,7 @@ pub fn view(f: &mut Frame, model: &Model, data: &DataStore) {
             state,
             ..
         } => {
-            view_component_list(f, plugin_id, *kind, state.clone(), data);
+            view_component_list(f, plugin_id, *kind, *state, data);
         }
     }
 }

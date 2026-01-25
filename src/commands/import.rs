@@ -155,7 +155,10 @@ pub fn filter_components(
     for path in &unique_paths {
         let key = (path.0, path.1.as_str());
         // Find matching component
-        if let Some(component) = components.iter().find(|c| c.kind == path.0 && c.name == path.1) {
+        if let Some(component) = components
+            .iter()
+            .find(|c| c.kind == path.0 && c.name == path.1)
+        {
             if matched_paths.insert(key) {
                 filtered.push(component.clone());
             }

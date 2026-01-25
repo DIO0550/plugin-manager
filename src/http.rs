@@ -16,13 +16,14 @@ pub async fn download_with_progress(
 }
 
 /// ホスト名付きプログレスバーダウンロード
+#[allow(dead_code)]
 pub async fn download_with_progress_and_host(
     client: &Client,
     url: &str,
     auth_header: Option<(&str, String)>,
-    host: &str,
+    _host: &str,
 ) -> Result<Vec<u8>> {
-    download_with_progress_impl(client, url, auth_header, host).await
+    download_with_progress_impl(client, url, auth_header, _host).await
 }
 
 /// プログレスバー付きダウンロード実装
@@ -30,7 +31,7 @@ async fn download_with_progress_impl(
     client: &Client,
     url: &str,
     auth_header: Option<(&str, String)>,
-    host: &str,
+    _host: &str,
 ) -> Result<Vec<u8>> {
     let mut req = client.get(url).header("User-Agent", "plm-cli");
 

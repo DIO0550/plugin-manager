@@ -1,9 +1,7 @@
 mod code;
-mod formatter;
 mod rich;
 
 pub use code::ErrorCode;
-pub use formatter::ErrorFormatter;
 pub use rich::{ErrorContext, RichError};
 
 use thiserror::Error;
@@ -158,9 +156,7 @@ impl From<PlmError> for RichError {
                 format!("Invalid repository format: {}", s),
                 ErrorContext::default(),
             ),
-            PlmError::InvalidArgument(s) => {
-                (ErrorCode::Val001, s.clone(), ErrorContext::default())
-            }
+            PlmError::InvalidArgument(s) => (ErrorCode::Val001, s.clone(), ErrorContext::default()),
             PlmError::AmbiguousPlugin { name, candidates } => {
                 let ctx = ErrorContext::new().with_plugin_name(name.clone());
                 let msg = format!(

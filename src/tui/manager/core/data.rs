@@ -29,8 +29,7 @@ pub struct DataStore {
 impl DataStore {
     /// 新しいデータストアを作成
     pub fn new() -> io::Result<Self> {
-        let plugins = list_installed_plugins()
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+        let plugins = list_installed_plugins().map_err(|e| io::Error::other(e.to_string()))?;
 
         Ok(Self {
             plugins,

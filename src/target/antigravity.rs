@@ -1,12 +1,9 @@
 //! Google Antigravity ターゲット実装
 
-use crate::component::{ComponentKind, Scope};
-use crate::component::{
-    ComponentRef, PlacementContext, PlacementLocation, PlacementScope, ProjectContext,
-};
+use crate::component::{ComponentKind, PlacementContext, PlacementLocation, Scope};
 use crate::error::Result;
 use crate::target::scanner::{scan_components, ScannedComponent};
-use crate::target::{PluginOrigin, Target};
+use crate::target::Target;
 use std::path::{Path, PathBuf};
 
 /// Google Antigravity ターゲット

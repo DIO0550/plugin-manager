@@ -33,11 +33,10 @@ impl CopilotTarget {
 
     /// この組み合わせで配置できるか
     fn can_place(kind: ComponentKind, scope: Scope) -> bool {
-        match (kind, scope) {
-            (ComponentKind::Agent, _) => true,
-            (_, Scope::Project) => true,
-            _ => false,
-        }
+        matches!(
+            (kind, scope),
+            (ComponentKind::Agent, _) | (_, Scope::Project)
+        )
     }
 
     /// コンポーネント種別に応じたフィルタリング（Command対応含む）

@@ -64,7 +64,7 @@ impl PluginCache {
     /// * `name` - プラグイン名またはリポジトリ識別子
     /// * `archive` - zipアーカイブのバイト列
     /// * `source_path` - 抽出するソースパス（正規化済み、例: "plugins/my-plugin"）
-    ///                   指定時はそのパス配下の内容のみをキャッシュ直下に展開
+    ///   指定時はそのパス配下の内容のみをキャッシュ直下に展開
     pub fn store_from_archive(
         &self,
         marketplace: Option<&str>,
@@ -350,7 +350,7 @@ fn validate_source_path(source_path: Option<&str>) -> Result<()> {
 
 /// zipアーカイブのプレフィックス（トップディレクトリ）を取得
 fn get_archive_prefix(zip: &mut ZipArchive<Cursor<&[u8]>>) -> Result<String> {
-    if zip.len() == 0 {
+    if zip.is_empty() {
         return Ok(String::new());
     }
 

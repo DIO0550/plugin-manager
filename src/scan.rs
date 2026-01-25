@@ -33,9 +33,9 @@ pub use components::{
 pub use constants::{
     AGENT_SUFFIX, DEFAULT_AGENTS_DIR, DEFAULT_COMMANDS_DIR, DEFAULT_HOOKS_DIR,
     DEFAULT_INSTRUCTIONS_DIR, DEFAULT_INSTRUCTIONS_FILE, DEFAULT_SKILLS_DIR, MARKDOWN_SUFFIX,
-    PROMPT_SUFFIX, SKILL_MANIFEST,
+    PROMPT_SUFFIX,
 };
-pub use placement::{list_placed_plugins, parse_placement};
+pub use placement::list_placed_plugins;
 
 // ============================================================================
 // ドメイン非依存スキャン型

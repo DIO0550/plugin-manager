@@ -238,7 +238,11 @@ mod tests {
 
         for code in codes {
             let cause = code.cause();
-            assert!(!cause.is_empty(), "Cause should not be empty for {:?}", code);
+            assert!(
+                !cause.is_empty(),
+                "Cause should not be empty for {:?}",
+                code
+            );
         }
     }
 

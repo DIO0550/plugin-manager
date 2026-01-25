@@ -208,6 +208,7 @@ pub async fn update_plugin(
 }
 
 /// 更新処理の実行
+#[allow(clippy::too_many_arguments)]
 async fn do_update(
     plugin_name: &str,
     latest_sha: &str,

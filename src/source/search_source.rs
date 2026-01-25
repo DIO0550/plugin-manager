@@ -30,9 +30,11 @@ impl PluginSource for SearchSource {
             let registry = MarketplaceRegistry::new()?;
 
             // Get registered marketplace names from config
-            let config = MarketplaceConfig::load()
-                .map_err(|e| PlmError::Cache(format!("Failed to load marketplace config: {}", e)))?;
-            let registered_names: Vec<&str> = config.list().iter().map(|e| e.name.as_str()).collect();
+            let config = MarketplaceConfig::load().map_err(|e| {
+                PlmError::Cache(format!("Failed to load marketplace config: {}", e))
+            })?;
+            let registered_names: Vec<&str> =
+                config.list().iter().map(|e| e.name.as_str()).collect();
 
             // Check if any marketplaces are registered
             if registered_names.is_empty() {
@@ -72,7 +74,8 @@ impl PluginSource for SearchSource {
 
             // Handle multiple matches (conflict)
             if matches.len() > 1 {
-                let marketplace_names: Vec<_> = matches.iter().map(|m| m.marketplace.as_str()).collect();
+                let marketplace_names: Vec<_> =
+                    matches.iter().map(|m| m.marketplace.as_str()).collect();
                 return Err(PlmError::InvalidArgument(format!(
                     "Plugin '{}' found in multiple marketplaces: {}. Use '{}@<marketplace>' to specify which one.",
                     self.query,
