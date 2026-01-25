@@ -55,7 +55,7 @@ cargo deny check
 - `components/` - Component traitを実装するコンポーネントタイプハンドラー
 - `registry/` - `components.json`による状態管理
 - `github/` - GitHub API連携
-- `parser/` - ファイル形式パーサー（SKILL.md, .agent.md, plugin.json）
+- `parser/` - ファイル形式パーサー・変換（詳細は `docs/architecture/file-formats.md` 参照）
 - `config.rs` - 設定管理（`~/.plm/config.toml`）
 
 ### コア設計パターン
@@ -187,7 +187,7 @@ src/
 ## 仕様ドキュメント
 
 詳細な仕様・実装計画は `docs/` フォルダを参照：
-- `docs/plm-plan-v3.md` - 最新の実装計画（TUI管理画面、GitRepo設計、キャッシュアーキテクチャ）
+- `docs/architecture/file-formats.md` - ファイルフォーマット仕様・変換マッピング
 - `docs/old/` - 過去のドキュメント
 
 ※ 仕様ドキュメントのバージョンを上げる際は、古いバージョンを `docs/old/` に移動すること

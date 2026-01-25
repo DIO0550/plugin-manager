@@ -165,3 +165,4 @@ regex = "1"
 - [core-design](./core-design.md) - コア設計（Traits, 構造体）
 - [cache](./cache.md) - キャッシュアーキテクチャ
 - [tui](./tui.md) - TUI設計
+- [file-formats](./file-formats.md) - ファイルフォーマット仕様・変換マッピング
