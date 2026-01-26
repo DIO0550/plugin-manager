@@ -6,7 +6,7 @@ use crate::component::{
 };
 use crate::error::Result;
 use crate::target::scanner::{scan_components, ScannedComponent};
-use crate::target::{PluginOrigin, Target};
+use crate::target::{PluginOrigin, Target, TargetKind};
 use std::path::{Path, PathBuf};
 
 /// GitHub Copilot ターゲット
@@ -76,6 +76,10 @@ impl Target for CopilotTarget {
 
     fn display_name(&self) -> &'static str {
         "GitHub Copilot"
+    }
+
+    fn kind(&self) -> TargetKind {
+        TargetKind::Copilot
     }
 
     fn supported_components(&self) -> &[ComponentKind] {

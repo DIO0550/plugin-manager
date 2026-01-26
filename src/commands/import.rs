@@ -316,7 +316,7 @@ pub async fn run(args: Args) -> Result<(), String> {
 
             // Execute deployment
             match deployment.execute() {
-                Ok(()) => {
+                Ok(_result) => {
                     println!(
                         "  + {} {}: {} -> {}",
                         target.name(),

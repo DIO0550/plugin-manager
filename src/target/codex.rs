@@ -6,7 +6,7 @@ use crate::component::{
 };
 use crate::error::Result;
 use crate::target::scanner::{scan_components, ScannedComponent};
-use crate::target::{PluginOrigin, Target};
+use crate::target::{PluginOrigin, Target, TargetKind};
 use std::path::{Path, PathBuf};
 
 /// OpenAI Codex ターゲット
@@ -66,6 +66,10 @@ impl Target for CodexTarget {
 
     fn display_name(&self) -> &'static str {
         "OpenAI Codex"
+    }
+
+    fn kind(&self) -> TargetKind {
+        TargetKind::Codex
     }
 
     fn supported_components(&self) -> &[ComponentKind] {

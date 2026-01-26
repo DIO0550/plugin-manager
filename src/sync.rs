@@ -36,6 +36,7 @@ pub use placed::{ComponentIdentity, PlacedComponent};
 pub use result::{SyncFailure, SyncResult};
 pub use source::SyncSource;
 
+use crate::component::{convert, ComponentKind};
 use crate::error::Result;
 use std::collections::HashMap;
 
@@ -202,6 +203,15 @@ fn execute_create(
 
     if fs.is_dir(&src_path) {
         fs.copy_dir(&src_path, &dst_path)
+    } else if component.kind() == ComponentKind::Command {
+        // Command はフォーマット変換を行う
+        convert::convert_and_write(
+            &src_path,
+            &dst_path,
+            source.command_format(),
+            dest.command_format(),
+        )?;
+        Ok(())
     } else {
         fs.copy_file(&src_path, &dst_path)
     }

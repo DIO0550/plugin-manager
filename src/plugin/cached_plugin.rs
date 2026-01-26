@@ -3,7 +3,7 @@
 //! プラグインキャッシュから読み込んだプラグインの情報と、
 //! コンポーネントスキャン機能を提供する。
 
-use crate::component::{Component, ComponentKind};
+use crate::component::{CommandFormat, Component, ComponentKind};
 use crate::path_ext::PathExt;
 use crate::plugin::PluginManifest;
 use crate::scan::{scan_components, AGENT_SUFFIX, MARKDOWN_SUFFIX, PROMPT_SUFFIX};
@@ -81,6 +81,23 @@ impl CachedPlugin {
     /// フックのパスを取得
     pub fn hooks(&self) -> Option<&str> {
         self.manifest.hooks.as_deref()
+    }
+
+    /// Command コンポーネントのソース形式を取得
+    ///
+    /// marketplace フィールドから判定する。
+    /// - `Some("claude")` → ClaudeCode
+    /// - `Some("copilot")` → Copilot（将来対応）
+    /// - `Some("codex")` → Codex（将来対応）
+    /// - `None` → ClaudeCode（デフォルト）
+    pub fn command_format(&self) -> CommandFormat {
+        match self.marketplace.as_deref() {
+            Some("claude") => CommandFormat::ClaudeCode,
+            Some("copilot") => CommandFormat::Copilot,
+            Some("codex") => CommandFormat::Codex,
+            // デフォルトは ClaudeCode（現時点で対応しているマーケットプレイスは Claude Code のみ）
+            _ => CommandFormat::ClaudeCode,
+        }
     }
 
     // =========================================================================
