@@ -4,7 +4,7 @@
 //! ソース形式からターゲット形式への自動変換を行う。
 
 use crate::error::{PlmError, Result};
-use crate::parser::{ClaudeCodeCommand, CodexPrompt, CopilotPrompt};
+use crate::parser::{ClaudeCodeCommand, TargetType};
 use std::fs;
 use std::path::Path;
 
@@ -45,13 +45,13 @@ pub struct ConversionResult {
 /// ## 変換ロジック
 ///
 /// - 同一形式: ファイルをそのままコピー
-/// - 異なる形式: パース → 変換 → シリアライズ
+/// - ClaudeCode → 他形式: パース → 変換 → シリアライズ
+/// - 他形式 → 任意: UnsupportedConversion エラー
 ///
-/// ## 多段変換
+/// ## サポートする変換
 ///
-/// Copilot ↔ Codex の変換は ClaudeCode を経由する（メモリ上で変換）：
-/// - Copilot → ClaudeCode → Codex
-/// - Codex → ClaudeCode → Copilot
+/// - `ClaudeCode → Copilot`
+/// - `ClaudeCode → Codex`
 ///
 /// ## アトミック書き込み
 ///
@@ -89,55 +89,29 @@ pub fn convert_and_write(
 }
 
 /// コンテンツを変換する（内部用）
+///
+/// ClaudeCode からのみ変換可能。他の形式からの変換は UnsupportedConversion エラー。
 fn convert_content(
     content: &str,
     source_format: CommandFormat,
     dest_format: CommandFormat,
 ) -> Result<String> {
-    use CommandFormat::*;
+    // ClaudeCode からのみ変換可能
+    if source_format != CommandFormat::ClaudeCode {
+        return Err(PlmError::UnsupportedConversion {
+            from: source_format.to_string(),
+            to: dest_format.to_string(),
+        });
+    }
 
-    let markdown = match (source_format, dest_format) {
-        // ClaudeCode → 他形式
-        (ClaudeCode, Copilot) => {
-            let cmd = ClaudeCodeCommand::parse(content)?;
-            CopilotPrompt::from(&cmd).to_markdown()
-        }
-        (ClaudeCode, Codex) => {
-            let cmd = ClaudeCodeCommand::parse(content)?;
-            CodexPrompt::from(&cmd).to_markdown()
-        }
-
-        // Copilot → 他形式
-        (Copilot, ClaudeCode) => {
-            let prompt = CopilotPrompt::parse(content)?;
-            ClaudeCodeCommand::from(&prompt).to_markdown()
-        }
-        (Copilot, Codex) => {
-            // 多段変換: Copilot → ClaudeCode → Codex
-            let prompt = CopilotPrompt::parse(content)?;
-            let cmd = ClaudeCodeCommand::from(&prompt);
-            CodexPrompt::from(&cmd).to_markdown()
-        }
-
-        // Codex → 他形式
-        (Codex, ClaudeCode) => {
-            let prompt = CodexPrompt::parse(content)?;
-            ClaudeCodeCommand::from(&prompt).to_markdown()
-        }
-        (Codex, Copilot) => {
-            // 多段変換: Codex → ClaudeCode → Copilot
-            let prompt = CodexPrompt::parse(content)?;
-            let cmd = ClaudeCodeCommand::from(&prompt);
-            CopilotPrompt::from(&cmd).to_markdown()
-        }
-
-        // 同一形式（上で処理済み）
-        (ClaudeCode, ClaudeCode) | (Copilot, Copilot) | (Codex, Codex) => {
-            unreachable!("Same format should be handled by caller")
-        }
+    let cmd = ClaudeCodeCommand::parse(content)?;
+    let target_type = match dest_format {
+        CommandFormat::Copilot => TargetType::Copilot,
+        CommandFormat::Codex => TargetType::Codex,
+        CommandFormat::ClaudeCode => unreachable!("Same format should be handled by caller"),
     };
 
-    Ok(markdown)
+    Ok(cmd.to_format(target_type)?.to_markdown())
 }
 
 /// ファイルをコピー（親ディレクトリを作成）

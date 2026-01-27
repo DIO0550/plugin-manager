@@ -1,6 +1,7 @@
 //! Tests for component/convert module
 
 use super::*;
+use crate::error::PlmError;
 use std::fs;
 use tempfile::TempDir;
 
@@ -132,7 +133,7 @@ fn test_claude_code_to_codex() {
 }
 
 #[test]
-fn test_copilot_to_claude_code() {
+fn test_copilot_to_claude_code_unsupported() {
     let tmp = TempDir::new().unwrap();
     let source = tmp.path().join("source.prompt.md");
     let dest = tmp.path().join("dest.md");
@@ -144,21 +145,23 @@ fn test_copilot_to_claude_code() {
         &dest,
         CommandFormat::Copilot,
         CommandFormat::ClaudeCode,
-    )
-    .unwrap();
+    );
 
-    assert!(result.converted);
-    assert!(dest.exists());
-
-    let content = fs::read_to_string(&dest).unwrap();
-    // ClaudeCode 形式の特徴を確認
-    assert!(content.contains("allowed-tools:"));
-    assert!(content.contains("$ARGUMENTS"));
-    assert!(content.contains("sonnet"));
+    // 非 ClaudeCode からの変換はサポートされない
+    assert!(result.is_err());
+    match result.unwrap_err() {
+        PlmError::UnsupportedConversion { from, to } => {
+            assert_eq!(from, "Copilot");
+            assert_eq!(to, "ClaudeCode");
+        }
+        e => panic!("Expected UnsupportedConversion, got {:?}", e),
+    }
+    // 出力ファイルは作成されない
+    assert!(!dest.exists());
 }
 
 #[test]
-fn test_codex_to_claude_code() {
+fn test_codex_to_claude_code_unsupported() {
     let tmp = TempDir::new().unwrap();
     let source = tmp.path().join("source.md");
     let dest = tmp.path().join("dest.md");
@@ -170,51 +173,65 @@ fn test_codex_to_claude_code() {
         &dest,
         CommandFormat::Codex,
         CommandFormat::ClaudeCode,
-    )
-    .unwrap();
+    );
 
-    assert!(result.converted);
-    assert!(dest.exists());
-
-    let content = fs::read_to_string(&dest).unwrap();
-    assert!(content.contains("description:"));
+    // 非 ClaudeCode からの変換はサポートされない
+    assert!(result.is_err());
+    match result.unwrap_err() {
+        PlmError::UnsupportedConversion { from, to } => {
+            assert_eq!(from, "Codex");
+            assert_eq!(to, "ClaudeCode");
+        }
+        e => panic!("Expected UnsupportedConversion, got {:?}", e),
+    }
+    // 出力ファイルは作成されない
+    assert!(!dest.exists());
 }
 
 #[test]
-fn test_copilot_to_codex_multistep() {
+fn test_copilot_to_codex_unsupported() {
     let tmp = TempDir::new().unwrap();
     let source = tmp.path().join("source.prompt.md");
     let dest = tmp.path().join("dest.md");
 
     fs::write(&source, sample_copilot_content()).unwrap();
 
-    let result =
-        convert_and_write(&source, &dest, CommandFormat::Copilot, CommandFormat::Codex).unwrap();
+    let result = convert_and_write(&source, &dest, CommandFormat::Copilot, CommandFormat::Codex);
 
-    // 多段変換: Copilot → ClaudeCode → Codex
-    assert!(result.converted);
-    assert!(dest.exists());
-
-    let content = fs::read_to_string(&dest).unwrap();
-    // Codex 形式になっている
-    assert!(content.contains("description:"));
-    assert!(!content.contains("tools:"));
+    // 非 ClaudeCode からの変換はサポートされない
+    assert!(result.is_err());
+    match result.unwrap_err() {
+        PlmError::UnsupportedConversion { from, to } => {
+            assert_eq!(from, "Copilot");
+            assert_eq!(to, "Codex");
+        }
+        e => panic!("Expected UnsupportedConversion, got {:?}", e),
+    }
+    // 出力ファイルは作成されない
+    assert!(!dest.exists());
 }
 
 #[test]
-fn test_codex_to_copilot_multistep() {
+fn test_codex_to_copilot_unsupported() {
     let tmp = TempDir::new().unwrap();
     let source = tmp.path().join("source.md");
     let dest = tmp.path().join("dest.prompt.md");
 
     fs::write(&source, sample_codex_content()).unwrap();
 
-    let result =
-        convert_and_write(&source, &dest, CommandFormat::Codex, CommandFormat::Copilot).unwrap();
+    let result = convert_and_write(&source, &dest, CommandFormat::Codex, CommandFormat::Copilot);
 
-    // 多段変換: Codex → ClaudeCode → Copilot
-    assert!(result.converted);
-    assert!(dest.exists());
+    // 非 ClaudeCode からの変換はサポートされない
+    assert!(result.is_err());
+    match result.unwrap_err() {
+        PlmError::UnsupportedConversion { from, to } => {
+            assert_eq!(from, "Codex");
+            assert_eq!(to, "Copilot");
+        }
+        e => panic!("Expected UnsupportedConversion, got {:?}", e),
+    }
+    // 出力ファイルは作成されない
+    assert!(!dest.exists());
 }
 
 #[test]

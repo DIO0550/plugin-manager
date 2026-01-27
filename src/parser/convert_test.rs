@@ -1,9 +1,7 @@
 //! Tests for convert module.
 
 use super::claude_code::ClaudeCodeCommand;
-use super::codex::CodexPrompt;
 use super::convert::*;
-use super::copilot::CopilotPrompt;
 
 // ============================================================================
 // Tool name conversion tests
@@ -284,11 +282,11 @@ fn test_escape_yaml_string_backslash_with_special_char() {
 }
 
 // ============================================================================
-// From trait tests
+// to_format conversion tests
 // ============================================================================
 
 #[test]
-fn from_claude_code_to_copilot() {
+fn to_format_claude_code_to_copilot() {
     let cmd = ClaudeCodeCommand {
         name: Some("commit".to_string()),
         description: Some("Create commit".to_string()),
@@ -300,22 +298,18 @@ fn from_claude_code_to_copilot() {
         body: "Commit with $ARGUMENTS".to_string(),
     };
 
-    let copilot = CopilotPrompt::from(&cmd);
+    let md = cmd.to_format(TargetType::Copilot).unwrap().to_markdown();
 
-    assert_eq!(copilot.name, Some("commit".to_string()));
-    assert_eq!(copilot.description, Some("Create commit".to_string()));
-    assert_eq!(
-        copilot.tools,
-        Some(vec!["codebase".to_string(), "terminal".to_string()])
-    );
-    assert_eq!(copilot.hint, Some("Enter message".to_string()));
-    assert_eq!(copilot.model, Some("GPT-4o-mini".to_string()));
-    assert_eq!(copilot.agent, None);
-    assert_eq!(copilot.body, "Commit with ${arguments}");
+    assert!(md.contains("name: commit"));
+    assert!(md.contains("description: Create commit"));
+    assert!(md.contains("tools: ['codebase', 'terminal']"));
+    assert!(md.contains("hint: Enter message"));
+    assert!(md.contains("model: GPT-4o-mini"));
+    assert!(md.contains("Commit with ${arguments}"));
 }
 
 #[test]
-fn from_claude_code_to_codex() {
+fn to_format_claude_code_to_codex() {
     let cmd = ClaudeCodeCommand {
         name: Some("deploy".to_string()),
         description: Some("Deploy app".to_string()),
@@ -327,201 +321,18 @@ fn from_claude_code_to_codex() {
         body: "Deploy to $1".to_string(),
     };
 
-    let codex = CodexPrompt::from(&cmd);
+    let md = cmd.to_format(TargetType::Codex).unwrap().to_markdown();
 
-    assert_eq!(codex.name, Some("deploy".to_string()));
-    assert_eq!(codex.description, Some("Deploy app".to_string()));
-    assert_eq!(codex.body, "Deploy to $1");
+    assert!(md.contains("description: Deploy app"));
+    // Codex doesn't include name in frontmatter
+    assert!(!md.contains("name:"));
+    assert!(md.contains("Deploy to $1"));
 }
 
 #[test]
-fn from_copilot_to_claude_code() {
-    let prompt = CopilotPrompt {
-        name: Some("review".to_string()),
-        description: Some("Review code".to_string()),
-        tools: Some(vec!["codebase".to_string(), "terminal".to_string()]),
-        hint: Some("Enter file path".to_string()),
-        model: Some("GPT-4o".to_string()),
-        agent: Some("code-reviewer".to_string()),
-        body: "Review ${arg1} with ${arguments}".to_string(),
-    };
-
-    let cmd = ClaudeCodeCommand::from(&prompt);
-
-    assert_eq!(cmd.name, Some("review".to_string()));
-    assert_eq!(cmd.description, Some("Review code".to_string()));
-    assert_eq!(cmd.allowed_tools, Some("Read, Bash".to_string()));
-    assert_eq!(cmd.argument_hint, Some("[file path]".to_string()));
-    assert_eq!(cmd.model, Some("sonnet".to_string()));
-    assert_eq!(cmd.body, "Review $1 with $ARGUMENTS");
-}
-
-#[test]
-fn from_copilot_to_codex() {
-    let prompt = CopilotPrompt {
-        name: Some("build".to_string()),
-        description: Some("Build project".to_string()),
-        tools: Some(vec!["terminal".to_string()]),
-        hint: None,
-        model: Some("o1".to_string()),
-        agent: None,
-        body: "Run cargo build".to_string(),
-    };
-
-    let codex = CodexPrompt::from(&prompt);
-
-    assert_eq!(codex.name, Some("build".to_string()));
-    assert_eq!(codex.description, Some("Build project".to_string()));
-    assert_eq!(codex.body, "Run cargo build");
-}
-
-#[test]
-fn from_codex_to_claude_code() {
-    let codex = CodexPrompt {
-        name: Some("test".to_string()),
-        description: Some("Run tests".to_string()),
-        body: "cargo test".to_string(),
-    };
-
-    let cmd = ClaudeCodeCommand::from(&codex);
-
-    assert_eq!(cmd.name, Some("test".to_string()));
-    assert_eq!(cmd.description, Some("Run tests".to_string()));
-    assert_eq!(cmd.allowed_tools, None);
-    assert_eq!(cmd.model, None);
-    assert_eq!(cmd.body, "cargo test");
-}
-
-#[test]
-fn from_codex_to_copilot() {
-    let codex = CodexPrompt {
-        name: Some("lint".to_string()),
-        description: Some("Run linter".to_string()),
-        body: "cargo clippy".to_string(),
-    };
-
-    let prompt = CopilotPrompt::from(&codex);
-
-    assert_eq!(prompt.name, Some("lint".to_string()));
-    assert_eq!(prompt.description, Some("Run linter".to_string()));
-    assert_eq!(prompt.tools, None);
-    assert_eq!(prompt.body, "cargo clippy");
-}
-
-// ============================================================================
-// Into trait tests (auto-implemented from From)
-// ============================================================================
-
-#[test]
-fn into_copilot_from_claude_code() {
-    let cmd = ClaudeCodeCommand {
-        name: Some("test".to_string()),
-        description: None,
-        allowed_tools: None,
-        argument_hint: None,
-        model: None,
-        disable_model_invocation: None,
-        user_invocable: None,
-        body: "Test body".to_string(),
-    };
-
-    let copilot: CopilotPrompt = (&cmd).into();
-
-    assert_eq!(copilot.name, Some("test".to_string()));
-    assert_eq!(copilot.body, "Test body");
-}
-
-// ============================================================================
-// Round-trip tests
-// ============================================================================
-
-#[test]
-fn roundtrip_claude_code_to_copilot_to_claude_code() {
-    let original = ClaudeCodeCommand {
-        name: Some("commit".to_string()),
-        description: Some("Create commit".to_string()),
-        allowed_tools: Some("Bash".to_string()),
-        argument_hint: Some("[message]".to_string()),
-        model: Some("haiku".to_string()),
-        disable_model_invocation: None, // Lost in conversion
-        user_invocable: None,           // Lost in conversion
-        body: "Commit $ARGUMENTS".to_string(),
-    };
-
-    let copilot = CopilotPrompt::from(&original);
-    let restored = ClaudeCodeCommand::from(&copilot);
-
-    // Restorable fields
-    assert_eq!(restored.name, original.name);
-    assert_eq!(restored.description, original.description);
-    assert_eq!(restored.allowed_tools, original.allowed_tools);
-    assert_eq!(restored.argument_hint, original.argument_hint);
-    assert_eq!(restored.model, original.model);
-    assert_eq!(restored.body, original.body);
-
-    // Lost fields
-    assert_eq!(restored.disable_model_invocation, None);
-    assert_eq!(restored.user_invocable, None);
-}
-
-#[test]
-fn roundtrip_claude_code_to_codex_to_claude_code() {
-    let original = ClaudeCodeCommand {
-        name: Some("build".to_string()),
-        description: Some("Build project".to_string()),
-        allowed_tools: Some("Bash".to_string()),     // Lost
-        argument_hint: Some("[target]".to_string()), // Lost
-        model: Some("sonnet".to_string()),           // Lost
-        disable_model_invocation: None,
-        user_invocable: None,
-        body: "Build it".to_string(),
-    };
-
-    let codex = CodexPrompt::from(&original);
-    let restored = ClaudeCodeCommand::from(&codex);
-
-    // Restorable fields
-    assert_eq!(restored.name, original.name);
-    assert_eq!(restored.description, original.description);
-    assert_eq!(restored.body, original.body);
-
-    // Lost fields (Codex doesn't support these)
-    assert_eq!(restored.allowed_tools, None);
-    assert_eq!(restored.argument_hint, None);
-    assert_eq!(restored.model, None);
-}
-
-#[test]
-fn roundtrip_copilot_to_claude_code_to_copilot() {
-    let original = CopilotPrompt {
-        name: Some("review".to_string()),
-        description: Some("Review code".to_string()),
-        tools: Some(vec!["terminal".to_string()]),
-        hint: Some("Enter file".to_string()),
-        model: Some("GPT-4o".to_string()),
-        agent: Some("reviewer".to_string()), // Lost
-        body: "Review ${arguments}".to_string(),
-    };
-
-    let claude = ClaudeCodeCommand::from(&original);
-    let restored = CopilotPrompt::from(&claude);
-
-    // Restorable fields
-    assert_eq!(restored.name, original.name);
-    assert_eq!(restored.description, original.description);
-    assert_eq!(restored.tools, original.tools);
-    assert_eq!(restored.hint, original.hint);
-    assert_eq!(restored.model, original.model);
-    assert_eq!(restored.body, original.body);
-
-    // Lost fields
-    assert_eq!(restored.agent, None);
-}
-
-#[test]
-fn roundtrip_tools_lose_granularity() {
+fn to_format_tools_deduplication() {
     // Multiple Claude Code tools mapping to same Copilot tool
-    let original = ClaudeCodeCommand {
+    let cmd = ClaudeCodeCommand {
         name: Some("test".to_string()),
         description: None,
         allowed_tools: Some("Read, Write, Edit".to_string()),
@@ -532,30 +343,8 @@ fn roundtrip_tools_lose_granularity() {
         body: "Body".to_string(),
     };
 
-    let copilot = CopilotPrompt::from(&original);
+    let md = cmd.to_format(TargetType::Copilot).unwrap().to_markdown();
 
-    // All three map to "codebase"
-    assert_eq!(copilot.tools, Some(vec!["codebase".to_string()]));
-
-    let restored = ClaudeCodeCommand::from(&copilot);
-
-    // Only "Read" is restored (representative value)
-    assert_eq!(restored.allowed_tools, Some("Read".to_string()));
-}
-
-#[test]
-fn roundtrip_codex_to_copilot_to_codex() {
-    let original = CodexPrompt {
-        name: Some("deploy".to_string()),
-        description: Some("Deploy app".to_string()),
-        body: "Run deploy".to_string(),
-    };
-
-    let copilot = CopilotPrompt::from(&original);
-    let restored = CodexPrompt::from(&copilot);
-
-    assert_eq!(restored.name, original.name);
-    assert_eq!(restored.description, original.description);
-    // Body may have variable conversion artifacts but simple text is preserved
-    assert_eq!(restored.body, original.body);
+    // All three map to "codebase" and should be deduplicated
+    assert!(md.contains("tools: ['codebase']"));
 }

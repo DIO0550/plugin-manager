@@ -94,6 +94,9 @@ pub enum PlmError {
 
     #[error("YAML parse error: {0}")]
     Yaml(#[from] serde_yaml::Error),
+
+    #[error("Unsupported conversion: {from} -> {to}")]
+    UnsupportedConversion { from: String, to: String },
 }
 
 pub type Result<T> = std::result::Result<T, PlmError>;
@@ -254,6 +257,11 @@ impl From<PlmError> for RichError {
                 format!("YAML parse error: {}", e),
                 ErrorContext::default(),
             ),
+            PlmError::UnsupportedConversion { from, to } => (
+                ErrorCode::Val001,
+                format!("Unsupported conversion: {} -> {}", from, to),
+                ErrorContext::default(),
+            ),
         };
 
         RichError::new(code, message).with_context(context)
@@ -393,6 +401,10 @@ mod tests {
             PlmError::InvalidSource("test".to_string()),
             PlmError::TargetRegistry("test".to_string()),
             PlmError::ImportRegistry("test".to_string()),
+            PlmError::UnsupportedConversion {
+                from: "Copilot".to_string(),
+                to: "Codex".to_string(),
+            },
         ];
 
         for error in test_cases {

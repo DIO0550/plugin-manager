@@ -1,8 +1,7 @@
 //! Tests for Claude Code Command parser.
 
 use super::claude_code::ClaudeCodeCommand;
-use super::codex::CodexPrompt;
-use super::copilot::CopilotPrompt;
+use super::convert::TargetType;
 use std::io::Write;
 use tempfile::NamedTempFile;
 
@@ -186,157 +185,6 @@ Body."#;
 }
 
 // ============================================================================
-// Conversion tests (using From trait)
-// ============================================================================
-
-#[test]
-fn from_trait_to_copilot_full_command() {
-    let cmd = ClaudeCodeCommand {
-        name: Some("commit".to_string()),
-        description: Some("Create a commit".to_string()),
-        allowed_tools: Some("Read, Write, Bash".to_string()),
-        argument_hint: Some("[message]".to_string()),
-        model: Some("haiku".to_string()),
-        disable_model_invocation: Some(false),
-        user_invocable: Some(true),
-        body: "Commit with $ARGUMENTS".to_string(),
-    };
-
-    let copilot = CopilotPrompt::from(&cmd);
-
-    assert_eq!(copilot.name, Some("commit".to_string()));
-    assert_eq!(copilot.description, Some("Create a commit".to_string()));
-    assert_eq!(
-        copilot.tools,
-        Some(vec!["codebase".to_string(), "terminal".to_string()])
-    );
-    assert_eq!(copilot.hint, Some("Enter message".to_string()));
-    assert_eq!(copilot.model, Some("GPT-4o-mini".to_string()));
-    assert_eq!(copilot.agent, None);
-    assert_eq!(copilot.body, "Commit with ${arguments}");
-}
-
-#[test]
-fn from_trait_to_copilot_minimal_command() {
-    let cmd = ClaudeCodeCommand {
-        name: None,
-        description: None,
-        allowed_tools: None,
-        argument_hint: None,
-        model: None,
-        disable_model_invocation: None,
-        user_invocable: None,
-        body: "Simple body".to_string(),
-    };
-
-    let copilot = CopilotPrompt::from(&cmd);
-
-    assert_eq!(copilot.name, None);
-    assert_eq!(copilot.tools, None);
-    assert_eq!(copilot.body, "Simple body");
-}
-
-#[test]
-fn from_trait_to_copilot_tools_deduplication() {
-    let cmd = ClaudeCodeCommand {
-        name: Some("test".to_string()),
-        description: None,
-        allowed_tools: Some("Read, Write, Edit".to_string()),
-        argument_hint: None,
-        model: None,
-        disable_model_invocation: None,
-        user_invocable: None,
-        body: "Body".to_string(),
-    };
-
-    let copilot = CopilotPrompt::from(&cmd);
-
-    // Read, Write, Edit all map to "codebase"
-    assert_eq!(copilot.tools, Some(vec!["codebase".to_string()]));
-}
-
-#[test]
-fn from_trait_to_codex() {
-    let cmd = ClaudeCodeCommand {
-        name: Some("deploy".to_string()),
-        description: Some("Deploy the app".to_string()),
-        allowed_tools: Some("Bash".to_string()),
-        argument_hint: Some("[env]".to_string()),
-        model: Some("sonnet".to_string()),
-        disable_model_invocation: None,
-        user_invocable: None,
-        body: "Deploy to $1".to_string(),
-    };
-
-    let codex = CodexPrompt::from(&cmd);
-
-    assert_eq!(codex.name, Some("deploy".to_string()));
-    assert_eq!(codex.description, Some("Deploy the app".to_string()));
-    // Codex doesn't support variables, so body is unchanged
-    assert_eq!(codex.body, "Deploy to $1");
-}
-
-#[test]
-fn from_trait_from_copilot() {
-    let copilot = CopilotPrompt {
-        name: Some("review".to_string()),
-        description: Some("Review code".to_string()),
-        tools: Some(vec!["codebase".to_string(), "terminal".to_string()]),
-        hint: Some("Enter file path".to_string()),
-        model: Some("GPT-4o".to_string()),
-        agent: Some("code-reviewer".to_string()), // This should be ignored
-        body: "Review ${arg1} with ${arguments}".to_string(),
-    };
-
-    let cmd = ClaudeCodeCommand::from(&copilot);
-
-    assert_eq!(cmd.name, Some("review".to_string()));
-    assert_eq!(cmd.description, Some("Review code".to_string()));
-    assert_eq!(cmd.allowed_tools, Some("Read, Bash".to_string()));
-    assert_eq!(cmd.argument_hint, Some("[file path]".to_string()));
-    assert_eq!(cmd.model, Some("sonnet".to_string()));
-    assert_eq!(cmd.disable_model_invocation, None);
-    assert_eq!(cmd.user_invocable, None);
-    assert_eq!(cmd.body, "Review $1 with $ARGUMENTS");
-}
-
-#[test]
-fn from_trait_from_copilot_hint_without_enter_prefix() {
-    let copilot = CopilotPrompt {
-        name: Some("test".to_string()),
-        description: None,
-        tools: None,
-        hint: Some("file path".to_string()), // No "Enter " prefix
-        model: None,
-        agent: None,
-        body: "Body".to_string(),
-    };
-
-    let cmd = ClaudeCodeCommand::from(&copilot);
-
-    // Should wrap in brackets
-    assert_eq!(cmd.argument_hint, Some("[file path]".to_string()));
-}
-
-#[test]
-fn from_trait_from_codex() {
-    let codex = CodexPrompt {
-        name: Some("build".to_string()),
-        description: Some("Build the project".to_string()),
-        body: "Run cargo build".to_string(),
-    };
-
-    let cmd = ClaudeCodeCommand::from(&codex);
-
-    assert_eq!(cmd.name, Some("build".to_string()));
-    assert_eq!(cmd.description, Some("Build the project".to_string()));
-    assert_eq!(cmd.allowed_tools, None);
-    assert_eq!(cmd.argument_hint, None);
-    assert_eq!(cmd.model, None);
-    assert_eq!(cmd.body, "Run cargo build");
-}
-
-// ============================================================================
 // to_markdown tests
 // ============================================================================
 
@@ -402,4 +250,94 @@ fn to_markdown_escapes_special_chars() {
 
     // Description with colon should be quoted
     assert!(md.contains("description: \"A: B\""));
+}
+
+// ============================================================================
+// to_format tests
+// ============================================================================
+
+#[test]
+fn to_format_copilot_converts_correctly() {
+    let cmd = ClaudeCodeCommand {
+        name: Some("commit".to_string()),
+        description: Some("Create a commit".to_string()),
+        allowed_tools: Some("Read, Write, Bash".to_string()),
+        argument_hint: Some("[message]".to_string()),
+        model: Some("haiku".to_string()),
+        disable_model_invocation: Some(false),
+        user_invocable: Some(true),
+        body: "Commit with $ARGUMENTS".to_string(),
+    };
+
+    let target = cmd.to_format(TargetType::Copilot).unwrap();
+    let md = target.to_markdown();
+
+    // Copilot format features
+    assert!(md.contains("name: commit"));
+    assert!(md.contains("tools:"));
+    assert!(md.contains("${arguments}"));
+    assert!(md.contains("GPT-4o-mini"));
+}
+
+#[test]
+fn to_format_codex_converts_correctly() {
+    let cmd = ClaudeCodeCommand {
+        name: Some("deploy".to_string()),
+        description: Some("Deploy the app".to_string()),
+        allowed_tools: Some("Bash".to_string()),
+        argument_hint: Some("[env]".to_string()),
+        model: Some("sonnet".to_string()),
+        disable_model_invocation: None,
+        user_invocable: None,
+        body: "Deploy to $1".to_string(),
+    };
+
+    let target = cmd.to_format(TargetType::Codex).unwrap();
+    let md = target.to_markdown();
+
+    // Codex format features
+    assert!(md.contains("description: Deploy the app"));
+    // Codex doesn't include name in frontmatter
+    assert!(!md.contains("name:"));
+    // Codex doesn't support variables
+    assert!(md.contains("Deploy to $1"));
+}
+
+#[test]
+fn to_format_minimal_command() {
+    let cmd = ClaudeCodeCommand {
+        name: None,
+        description: None,
+        allowed_tools: None,
+        argument_hint: None,
+        model: None,
+        disable_model_invocation: None,
+        user_invocable: None,
+        body: "Simple body".to_string(),
+    };
+
+    let copilot = cmd.to_format(TargetType::Copilot).unwrap();
+    assert_eq!(copilot.to_markdown(), "Simple body");
+
+    let codex = cmd.to_format(TargetType::Codex).unwrap();
+    assert_eq!(codex.to_markdown(), "Simple body");
+}
+
+#[test]
+fn to_format_copilot_deduplicates_tools() {
+    let cmd = ClaudeCodeCommand {
+        name: Some("test".to_string()),
+        description: None,
+        allowed_tools: Some("Read, Write, Edit".to_string()),
+        argument_hint: None,
+        model: None,
+        disable_model_invocation: None,
+        user_invocable: None,
+        body: "Body".to_string(),
+    };
+
+    let md = cmd.to_format(TargetType::Copilot).unwrap().to_markdown();
+
+    // Read, Write, Edit all map to "codebase" and should be deduplicated
+    assert!(md.contains("tools: ['codebase']"));
 }
