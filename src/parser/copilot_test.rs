@@ -1,7 +1,6 @@
 //! Tests for Copilot Prompt parser.
 
-use super::claude_code::ClaudeCodeCommand;
-use super::codex::CodexPrompt;
+use super::convert::TargetFormat;
 use super::copilot::CopilotPrompt;
 use std::io::Write;
 use tempfile::NamedTempFile;
@@ -236,95 +235,6 @@ Body."#;
         assert!(!name.ends_with(".prompt.md"));
         assert!(!name.ends_with(".prompt"));
     }
-}
-
-// ============================================================================
-// Conversion tests (using From trait)
-// ============================================================================
-
-#[test]
-fn from_trait_to_claude_code() {
-    let prompt = CopilotPrompt {
-        name: Some("review".to_string()),
-        description: Some("Review code".to_string()),
-        tools: Some(vec!["codebase".to_string(), "terminal".to_string()]),
-        hint: Some("Enter file path".to_string()),
-        model: Some("GPT-4o".to_string()),
-        agent: Some("code-reviewer".to_string()),
-        body: "Review ${arg1} with ${arguments}".to_string(),
-    };
-
-    let cmd = ClaudeCodeCommand::from(&prompt);
-
-    assert_eq!(cmd.name, Some("review".to_string()));
-    assert_eq!(cmd.description, Some("Review code".to_string()));
-    assert_eq!(cmd.allowed_tools, Some("Read, Bash".to_string()));
-    assert_eq!(cmd.argument_hint, Some("[file path]".to_string()));
-    assert_eq!(cmd.model, Some("sonnet".to_string()));
-    assert_eq!(cmd.body, "Review $1 with $ARGUMENTS");
-}
-
-#[test]
-fn from_trait_to_codex() {
-    let prompt = CopilotPrompt {
-        name: Some("build".to_string()),
-        description: Some("Build project".to_string()),
-        tools: Some(vec!["terminal".to_string()]),
-        hint: None,
-        model: Some("o1".to_string()),
-        agent: None,
-        body: "Run cargo build with ${arguments}".to_string(),
-    };
-
-    let codex = CodexPrompt::from(&prompt);
-
-    assert_eq!(codex.name, Some("build".to_string()));
-    assert_eq!(codex.description, Some("Build project".to_string()));
-    // Codex doesn't support variables, so body is unchanged
-    assert_eq!(codex.body, "Run cargo build with ${arguments}");
-}
-
-#[test]
-fn from_trait_from_claude_code() {
-    let cmd = ClaudeCodeCommand {
-        name: Some("commit".to_string()),
-        description: Some("Create a commit".to_string()),
-        allowed_tools: Some("Read, Write, Bash".to_string()),
-        argument_hint: Some("[message]".to_string()),
-        model: Some("haiku".to_string()),
-        disable_model_invocation: Some(false),
-        user_invocable: Some(true),
-        body: "Commit with $ARGUMENTS".to_string(),
-    };
-
-    let prompt = CopilotPrompt::from(&cmd);
-
-    assert_eq!(prompt.name, Some("commit".to_string()));
-    assert_eq!(prompt.description, Some("Create a commit".to_string()));
-    assert_eq!(
-        prompt.tools,
-        Some(vec!["codebase".to_string(), "terminal".to_string()])
-    );
-    assert_eq!(prompt.hint, Some("Enter message".to_string()));
-    assert_eq!(prompt.model, Some("GPT-4o-mini".to_string()));
-    assert_eq!(prompt.agent, None);
-    assert_eq!(prompt.body, "Commit with ${arguments}");
-}
-
-#[test]
-fn from_trait_from_codex() {
-    let codex = CodexPrompt {
-        name: Some("deploy".to_string()),
-        description: Some("Deploy app".to_string()),
-        body: "Run deployment".to_string(),
-    };
-
-    let prompt = CopilotPrompt::from(&codex);
-
-    assert_eq!(prompt.name, Some("deploy".to_string()));
-    assert_eq!(prompt.description, Some("Deploy app".to_string()));
-    // Converted via ClaudeCodeCommand then to Copilot
-    assert_eq!(prompt.body, "Run deployment");
 }
 
 // ============================================================================

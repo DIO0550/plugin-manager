@@ -7,9 +7,8 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 
-use super::claude_code::ClaudeCodeCommand;
 use super::convert;
-use super::copilot::CopilotPrompt;
+use super::convert::TargetFormat;
 use super::frontmatter::{parse_frontmatter, ParsedDocument};
 
 /// Codex Prompt frontmatter fields.
@@ -61,9 +60,10 @@ impl CodexPrompt {
 
         Ok(prompt)
     }
+}
 
-    /// Serializes to Codex Markdown format.
-    pub fn to_markdown(&self) -> String {
+impl TargetFormat for CodexPrompt {
+    fn to_markdown(&self) -> String {
         let mut fields: Vec<String> = Vec::new();
 
         // Codex doesn't include name in frontmatter
@@ -75,30 +75,6 @@ impl CodexPrompt {
             self.body.clone()
         } else {
             format!("---\n{}\n---\n\n{}", fields.join("\n"), self.body)
-        }
-    }
-}
-
-// ============================================================================
-// From trait implementations
-// ============================================================================
-
-impl From<&ClaudeCodeCommand> for CodexPrompt {
-    fn from(cmd: &ClaudeCodeCommand) -> Self {
-        CodexPrompt {
-            name: cmd.name.clone(),
-            description: cmd.description.clone(),
-            body: cmd.body.clone(), // Codex doesn't support variables
-        }
-    }
-}
-
-impl From<&CopilotPrompt> for CodexPrompt {
-    fn from(prompt: &CopilotPrompt) -> Self {
-        CodexPrompt {
-            name: prompt.name.clone(),
-            description: prompt.description.clone(),
-            body: prompt.body.clone(), // Codex doesn't support variables
         }
     }
 }

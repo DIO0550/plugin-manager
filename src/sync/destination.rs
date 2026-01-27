@@ -3,7 +3,7 @@
 use super::options::{SyncOptions, SyncableKind};
 use super::placed::{ComponentIdentity, PlacedComponent};
 use super::source::parse_component_name;
-use crate::component::{ComponentKind, Scope};
+use crate::component::{CommandFormat, ComponentKind, Scope};
 use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
 use crate::error::{PlmError, Result};
 use crate::target::{parse_target, Target, TargetKind};
@@ -46,6 +46,11 @@ impl SyncDestination {
     /// ターゲット名を取得
     pub fn name(&self) -> &'static str {
         self.target.name()
+    }
+
+    /// Command フォーマットを取得
+    pub fn command_format(&self) -> CommandFormat {
+        self.target.command_format()
     }
 
     /// 配置済みコンポーネントを取得

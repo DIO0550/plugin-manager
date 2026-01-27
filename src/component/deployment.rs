@@ -1,5 +1,6 @@
 //! コンポーネントのデプロイ処理
 
+use super::convert::{self, CommandFormat, ConversionResult};
 use crate::component::{Component, ComponentKind, Scope};
 use crate::error::{PlmError, Result};
 use crate::path_ext::PathExt;
@@ -16,6 +17,10 @@ pub struct ComponentDeployment {
     pub scope: Scope,
     source_path: PathBuf,
     target_path: PathBuf,
+    /// ソースの Command フォーマット（Command の場合のみ有効）
+    source_format: Option<CommandFormat>,
+    /// ターゲットの Command フォーマット（Command の場合のみ有効）
+    dest_format: Option<CommandFormat>,
 }
 
 impl ComponentDeployment {
@@ -35,22 +40,47 @@ impl ComponentDeployment {
     }
 
     /// 配置を実行（ファイルコピー）
-    pub fn execute(&self) -> Result<()> {
+    ///
+    /// Command コンポーネントで `source_format` と `dest_format` が設定されている場合、
+    /// フォーマット変換を行う。
+    pub fn execute(&self) -> Result<DeploymentResult> {
         match self.kind {
             ComponentKind::Skill => {
                 // Skills are directories
                 self.source_path.copy_dir_to(&self.target_path)?;
+                Ok(DeploymentResult::Copied)
             }
-            ComponentKind::Agent
-            | ComponentKind::Command
-            | ComponentKind::Instruction
-            | ComponentKind::Hook => {
-                // These are files
+            ComponentKind::Command => {
+                // Command は変換の可能性がある
+                if let (Some(src_fmt), Some(dest_fmt)) = (self.source_format, self.dest_format) {
+                    let result = convert::convert_and_write(
+                        &self.source_path,
+                        &self.target_path,
+                        src_fmt,
+                        dest_fmt,
+                    )?;
+                    Ok(DeploymentResult::Converted(result))
+                } else {
+                    self.source_path.copy_file_to(&self.target_path)?;
+                    Ok(DeploymentResult::Copied)
+                }
+            }
+            ComponentKind::Agent | ComponentKind::Instruction | ComponentKind::Hook => {
+                // These are files (no conversion)
                 self.source_path.copy_file_to(&self.target_path)?;
+                Ok(DeploymentResult::Copied)
             }
         }
-        Ok(())
     }
+}
+
+/// デプロイ結果
+#[derive(Debug)]
+pub enum DeploymentResult {
+    /// ファイルコピーのみ
+    Copied,
+    /// フォーマット変換が行われた
+    Converted(ConversionResult),
 }
 
 /// ComponentDeployment のビルダー
@@ -61,6 +91,8 @@ pub struct ComponentDeploymentBuilder {
     scope: Option<Scope>,
     source_path: Option<PathBuf>,
     target_path: Option<PathBuf>,
+    source_format: Option<CommandFormat>,
+    dest_format: Option<CommandFormat>,
 }
 
 impl ComponentDeploymentBuilder {
@@ -107,6 +139,18 @@ impl ComponentDeploymentBuilder {
         self
     }
 
+    /// ソースの Command フォーマットを設定
+    pub fn source_format(mut self, format: CommandFormat) -> Self {
+        self.source_format = Some(format);
+        self
+    }
+
+    /// ターゲットの Command フォーマットを設定
+    pub fn dest_format(mut self, format: CommandFormat) -> Self {
+        self.dest_format = Some(format);
+        self
+    }
+
     /// ComponentDeployment を構築
     pub fn build(self) -> Result<ComponentDeployment> {
         let kind = self
@@ -131,6 +175,8 @@ impl ComponentDeploymentBuilder {
             scope,
             source_path,
             target_path,
+            source_format: self.source_format,
+            dest_format: self.dest_format,
         })
     }
 }

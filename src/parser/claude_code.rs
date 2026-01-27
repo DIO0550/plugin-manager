@@ -8,7 +8,7 @@ use std::fs;
 use std::path::Path;
 
 use super::codex::CodexPrompt;
-use super::convert;
+use super::convert::{self, TargetFormat, TargetType};
 use super::copilot::CopilotPrompt;
 use super::frontmatter::{parse_frontmatter, ParsedDocument};
 
@@ -135,54 +135,51 @@ impl ClaudeCodeCommand {
             format!("---\n{}\n---\n\n{}", fields.join("\n"), self.body)
         }
     }
-}
 
-// ============================================================================
-// From trait implementations
-// ============================================================================
-
-impl From<&CopilotPrompt> for ClaudeCodeCommand {
-    fn from(prompt: &CopilotPrompt) -> Self {
-        let allowed_tools = prompt.tools.as_ref().map(|tools| {
-            let converted: Vec<_> = tools
-                .iter()
-                .map(|t| convert::tool_copilot_to_claude(t))
-                .collect();
-            convert::format_allowed_tools(&converted)
-        });
-
-        let argument_hint = prompt.hint.as_ref().map(|h| {
-            let inner = h.strip_prefix("Enter ").unwrap_or(h);
-            format!("[{}]", inner)
-        });
-
-        ClaudeCodeCommand {
-            name: prompt.name.clone(),
-            description: prompt.description.clone(),
-            allowed_tools,
-            argument_hint,
-            model: prompt
-                .model
-                .as_ref()
-                .map(|m| convert::model_copilot_to_claude(m)),
-            disable_model_invocation: None,
-            user_invocable: None,
-            body: convert::body_copilot_to_claude(&prompt.body),
+    /// Converts to the specified target format.
+    ///
+    /// Returns a boxed trait object implementing `TargetFormat`.
+    pub fn to_format(&self, target: TargetType) -> Result<Box<dyn TargetFormat>> {
+        match target {
+            TargetType::Copilot => Ok(Box::new(self.to_copilot())),
+            TargetType::Codex => Ok(Box::new(self.to_codex())),
         }
     }
-}
 
-impl From<&CodexPrompt> for ClaudeCodeCommand {
-    fn from(prompt: &CodexPrompt) -> Self {
-        ClaudeCodeCommand {
-            name: prompt.name.clone(),
-            description: prompt.description.clone(),
-            allowed_tools: None,
-            argument_hint: None,
-            model: None,
-            disable_model_invocation: None,
-            user_invocable: None,
-            body: prompt.body.clone(),
+    /// Converts to Copilot format (internal).
+    fn to_copilot(&self) -> CopilotPrompt {
+        // Tool conversion: comma-separated string -> array -> convert -> deduplicate
+        let tools = self
+            .allowed_tools
+            .as_ref()
+            .map(|t| convert::tools_claude_to_copilot(&convert::parse_allowed_tools(t)));
+
+        // Hint conversion: [message] -> "Enter message"
+        let hint = self.argument_hint.as_ref().map(|h| {
+            let inner = h.trim_start_matches('[').trim_end_matches(']');
+            format!("Enter {}", inner)
+        });
+
+        CopilotPrompt {
+            name: self.name.clone(),
+            description: self.description.clone(),
+            tools,
+            hint,
+            model: self
+                .model
+                .as_ref()
+                .map(|m| convert::model_claude_to_copilot(m)),
+            agent: None,
+            body: convert::body_claude_to_copilot(&self.body),
+        }
+    }
+
+    /// Converts to Codex format (internal).
+    fn to_codex(&self) -> CodexPrompt {
+        CodexPrompt {
+            name: self.name.clone(),
+            description: self.description.clone(),
+            body: self.body.clone(), // Codex doesn't support variables
         }
     }
 }

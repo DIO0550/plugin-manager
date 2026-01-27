@@ -2,6 +2,23 @@
 //!
 //! Provides mappings between Claude Code, Copilot, and Codex tool/model names.
 
+/// Target format trait for conversion output.
+///
+/// Implemented by all format types that can be conversion targets.
+pub trait TargetFormat {
+    /// Serialize to Markdown format (infallible).
+    fn to_markdown(&self) -> String;
+}
+
+/// Target type for format conversion.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TargetType {
+    /// Copilot prompt format
+    Copilot,
+    /// Codex prompt format
+    Codex,
+}
+
 /// Claude Code -> Copilot tool name conversion.
 pub fn tool_claude_to_copilot(tool: &str) -> String {
     match tool.trim() {

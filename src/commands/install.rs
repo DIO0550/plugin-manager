@@ -8,7 +8,7 @@
 //! 2. ダウンロード
 //! 3. 配置
 
-use crate::component::{ComponentDeployment, ComponentKind};
+use crate::component::{ComponentDeployment, ComponentKind, DeploymentResult};
 use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
 use crate::output::CommandSummary;
 use crate::source::parse_source;
@@ -149,12 +149,19 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
             };
 
             // デプロイ情報を構築
-            let deployment = match ComponentDeployment::builder()
+            let mut builder = ComponentDeployment::builder()
                 .component(component)
                 .scope(scope)
-                .target_path(target_path)
-                .build()
-            {
+                .target_path(target_path);
+
+            // Command の場合は変換情報を設定
+            if component.kind == ComponentKind::Command {
+                builder = builder
+                    .source_format(cached_plugin.command_format())
+                    .dest_format(target.command_format());
+            }
+
+            let deployment = match builder.build() {
                 Ok(d) => d,
                 Err(e) => {
                     println!(
@@ -172,13 +179,23 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
 
             // デプロイ実行
             match deployment.execute() {
-                Ok(()) => {
+                Ok(result) => {
+                    let suffix = match &result {
+                        DeploymentResult::Converted(conv) if conv.converted => {
+                            format!(
+                                " (Converted: {} → {})",
+                                conv.source_format, conv.dest_format
+                            )
+                        }
+                        _ => String::new(),
+                    };
                     println!(
-                        "  + {} {}: {} -> {}",
+                        "  + {} {}: {} -> {}{}",
                         target.name(),
                         component.kind,
                         component.name,
-                        deployment.path().display()
+                        deployment.path().display(),
+                        suffix
                     );
                     total_success += 1;
                 }

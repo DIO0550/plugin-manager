@@ -1,4 +1,5 @@
 use super::*;
+use crate::component::CommandFormat;
 use std::fs;
 use tempfile::TempDir;
 
@@ -286,4 +287,140 @@ fn test_source_path_returns_source() {
         .unwrap();
 
     assert_eq!(deployment.source_path(), Path::new("/src/test.md"));
+}
+
+// ========================================
+// Conversion tests
+// ========================================
+
+/// テスト用の ClaudeCode コマンドコンテンツ
+fn sample_claude_code_content() -> &'static str {
+    r#"---
+name: commit
+description: Generate a commit message
+allowed-tools: Bash(git:*), Read
+model: sonnet
+---
+
+Please generate a commit message for $ARGUMENTS.
+"#
+}
+
+#[test]
+fn test_execute_command_with_conversion() {
+    let temp = TempDir::new().unwrap();
+    let source = temp.path().join("commit.md");
+    let target = temp.path().join("dest/commit.prompt.md");
+
+    fs::write(&source, sample_claude_code_content()).unwrap();
+
+    let deployment = ComponentDeployment::builder()
+        .kind(ComponentKind::Command)
+        .name("commit")
+        .scope(Scope::Project)
+        .source_path(&source)
+        .target_path(&target)
+        .source_format(CommandFormat::ClaudeCode)
+        .dest_format(CommandFormat::Copilot)
+        .build()
+        .unwrap();
+
+    let result = deployment.execute().unwrap();
+
+    // 変換が行われたことを確認
+    match result {
+        DeploymentResult::Converted(conv) => {
+            assert!(conv.converted);
+            assert_eq!(conv.source_format, CommandFormat::ClaudeCode);
+            assert_eq!(conv.dest_format, CommandFormat::Copilot);
+        }
+        DeploymentResult::Copied => panic!("Expected conversion, got copy"),
+    }
+
+    // ファイルが Copilot 形式になっていることを確認
+    let content = fs::read_to_string(&target).unwrap();
+    assert!(content.contains("tools:"));
+    assert!(content.contains("${arguments}"));
+}
+
+#[test]
+fn test_execute_command_same_format_copies() {
+    let temp = TempDir::new().unwrap();
+    let source = temp.path().join("commit.md");
+    let target = temp.path().join("dest/commit.md");
+
+    fs::write(&source, sample_claude_code_content()).unwrap();
+
+    let deployment = ComponentDeployment::builder()
+        .kind(ComponentKind::Command)
+        .name("commit")
+        .scope(Scope::Project)
+        .source_path(&source)
+        .target_path(&target)
+        .source_format(CommandFormat::ClaudeCode)
+        .dest_format(CommandFormat::ClaudeCode)
+        .build()
+        .unwrap();
+
+    let result = deployment.execute().unwrap();
+
+    // コピーのみ（変換なし）
+    match result {
+        DeploymentResult::Converted(conv) => {
+            assert!(!conv.converted); // converted = false means copy
+        }
+        DeploymentResult::Copied => panic!("Expected Converted with converted=false"),
+    }
+
+    // 内容はそのまま
+    assert_eq!(
+        fs::read_to_string(&target).unwrap(),
+        sample_claude_code_content()
+    );
+}
+
+#[test]
+fn test_execute_command_without_format_copies() {
+    let temp = TempDir::new().unwrap();
+    let source = temp.path().join("commit.md");
+    let target = temp.path().join("dest/commit.md");
+
+    fs::write(&source, "simple content").unwrap();
+
+    // source_format と dest_format を設定しない
+    let deployment = ComponentDeployment::builder()
+        .kind(ComponentKind::Command)
+        .name("commit")
+        .scope(Scope::Project)
+        .source_path(&source)
+        .target_path(&target)
+        .build()
+        .unwrap();
+
+    let result = deployment.execute().unwrap();
+
+    // 変換設定がない場合は Copied
+    match result {
+        DeploymentResult::Copied => {}
+        DeploymentResult::Converted(_) => panic!("Expected copy without format settings"),
+    }
+
+    assert!(target.exists());
+}
+
+#[test]
+fn test_builder_source_format() {
+    let deployment = ComponentDeployment::builder()
+        .kind(ComponentKind::Command)
+        .name("test")
+        .scope(Scope::Project)
+        .source_path("/src/test.md")
+        .target_path("/dest/test.md")
+        .source_format(CommandFormat::ClaudeCode)
+        .dest_format(CommandFormat::Copilot)
+        .build()
+        .unwrap();
+
+    // Builder でフォーマットが設定できることを確認
+    assert_eq!(deployment.kind, ComponentKind::Command);
 }

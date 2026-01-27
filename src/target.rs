@@ -34,7 +34,7 @@ pub use copilot::CopilotTarget;
 pub use effect::{AffectedTargets, OperationResult};
 // PluginOrigin はモジュール内で定義されているのでここでは再エクスポート不要
 
-use crate::component::ComponentKind;
+use crate::component::{CommandFormat, ComponentKind};
 // componentモジュールから再エクスポート
 pub use crate::component::Scope;
 use crate::component::{
@@ -102,6 +102,17 @@ impl TargetKind {
             TargetKind::Copilot => "copilot",
         }
     }
+
+    /// Command コンポーネントのフォーマットを取得
+    ///
+    /// ターゲット環境が期待する Command ファイル形式を返す。
+    pub fn command_format(&self) -> CommandFormat {
+        match self {
+            TargetKind::Antigravity => CommandFormat::ClaudeCode, // Antigravity は Skills のみ
+            TargetKind::Codex => CommandFormat::Codex,
+            TargetKind::Copilot => CommandFormat::Copilot,
+        }
+    }
 }
 
 /// ターゲット環境の抽象化trait
@@ -114,6 +125,14 @@ pub trait Target: Send + Sync {
 
     /// 表示名
     fn display_name(&self) -> &'static str;
+
+    /// ターゲット種別
+    fn kind(&self) -> TargetKind;
+
+    /// Command コンポーネントのフォーマットを取得
+    fn command_format(&self) -> CommandFormat {
+        self.kind().command_format()
+    }
 
     /// サポートするコンポーネント種別
     fn supported_components(&self) -> &[ComponentKind];

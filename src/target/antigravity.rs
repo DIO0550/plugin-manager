@@ -3,7 +3,7 @@
 use crate::component::{ComponentKind, PlacementContext, PlacementLocation, Scope};
 use crate::error::Result;
 use crate::target::scanner::{scan_components, ScannedComponent};
-use crate::target::Target;
+use crate::target::{Target, TargetKind};
 use std::path::{Path, PathBuf};
 
 /// Google Antigravity ターゲット
@@ -66,6 +66,10 @@ impl Target for AntigravityTarget {
 
     fn display_name(&self) -> &'static str {
         "Google Antigravity"
+    }
+
+    fn kind(&self) -> TargetKind {
+        TargetKind::Antigravity
     }
 
     fn supported_components(&self) -> &[ComponentKind] {
