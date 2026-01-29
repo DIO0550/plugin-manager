@@ -4,7 +4,7 @@
 //! ソース形式からターゲット形式への自動変換を行う。
 
 use crate::error::{PlmError, Result};
-use crate::parser::{ClaudeCodeCommand, TargetType};
+use crate::parser::{ClaudeCodeAgent, ClaudeCodeCommand, TargetType};
 use std::fs;
 use std::path::Path;
 
@@ -29,7 +29,28 @@ impl std::fmt::Display for CommandFormat {
     }
 }
 
-/// 変換結果
+/// Agent ファイルのフォーマット種別
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AgentFormat {
+    /// Claude Code: `.claude/agents/<name>.md`
+    ClaudeCode,
+    /// Copilot: `.github/agents/<name>.agent.md`
+    Copilot,
+    /// Codex: `.codex/agents/<name>.agent.md`
+    Codex,
+}
+
+impl std::fmt::Display for AgentFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AgentFormat::ClaudeCode => write!(f, "ClaudeCode"),
+            AgentFormat::Copilot => write!(f, "Copilot"),
+            AgentFormat::Codex => write!(f, "Codex"),
+        }
+    }
+}
+
+/// Command 変換結果
 #[derive(Debug)]
 pub struct ConversionResult {
     /// 変換が行われたか（false = コピーのみ）
@@ -38,6 +59,17 @@ pub struct ConversionResult {
     pub source_format: CommandFormat,
     /// 出力形式
     pub dest_format: CommandFormat,
+}
+
+/// Agent 変換結果
+#[derive(Debug)]
+pub struct AgentConversionResult {
+    /// 変換が行われたか（false = コピーのみ）
+    pub converted: bool,
+    /// ソース形式
+    pub source_format: AgentFormat,
+    /// 出力形式
+    pub dest_format: AgentFormat,
 }
 
 /// Command を変換して書き込む
@@ -112,6 +144,76 @@ fn convert_content(
     };
 
     Ok(cmd.to_format(target_type)?.to_markdown())
+}
+
+/// Agent を変換して書き込む
+///
+/// ## 変換ロジック
+///
+/// - 同一形式: ファイルをそのままコピー
+/// - ClaudeCode → 他形式: パース → 変換 → シリアライズ
+/// - 他形式 → 任意: UnsupportedConversion エラー
+///
+/// ## サポートする変換
+///
+/// - `ClaudeCode → Copilot`
+/// - `ClaudeCode → Codex`
+pub fn convert_agent_and_write(
+    source_path: &Path,
+    dest_path: &Path,
+    source_format: AgentFormat,
+    dest_format: AgentFormat,
+) -> Result<AgentConversionResult> {
+    // 同一形式ならコピーのみ
+    if source_format == dest_format {
+        copy_file(source_path, dest_path)?;
+        return Ok(AgentConversionResult {
+            converted: false,
+            source_format,
+            dest_format,
+        });
+    }
+
+    // 1. ソース読み込み
+    let content = fs::read_to_string(source_path)?;
+
+    // 2. パース & 変換 & シリアライズ
+    let markdown = convert_agent_content(&content, source_format, dest_format)?;
+
+    // 3. アトミック書き込み
+    atomic_write(dest_path, &markdown)?;
+
+    Ok(AgentConversionResult {
+        converted: true,
+        source_format,
+        dest_format,
+    })
+}
+
+/// Agent コンテンツを変換する（内部用）
+///
+/// ClaudeCode からのみ変換可能。他の形式からの変換は UnsupportedConversion エラー。
+fn convert_agent_content(
+    content: &str,
+    source_format: AgentFormat,
+    dest_format: AgentFormat,
+) -> Result<String> {
+    // ClaudeCode からのみ変換可能
+    if source_format != AgentFormat::ClaudeCode {
+        return Err(PlmError::UnsupportedConversion {
+            from: source_format.to_string(),
+            to: dest_format.to_string(),
+        });
+    }
+
+    let agent = ClaudeCodeAgent::parse(content)?;
+    let target_type = match dest_format {
+        AgentFormat::Copilot => TargetType::Copilot,
+        AgentFormat::Codex => TargetType::Codex,
+        AgentFormat::ClaudeCode => unreachable!("Same format should be handled by caller"),
+    };
+
+    Ok(agent.to_format(target_type)?.to_markdown())
 }
 
 /// ファイルをコピー（親ディレクトリを作成）

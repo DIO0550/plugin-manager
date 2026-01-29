@@ -10,6 +10,7 @@ mod copilot_agent;
 mod frontmatter;
 
 pub use claude_code::ClaudeCodeCommand;
+pub use claude_code_agent::ClaudeCodeAgent;
 pub use convert::TargetType;
 
 #[cfg(test)]

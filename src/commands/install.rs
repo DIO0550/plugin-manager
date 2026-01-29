@@ -161,6 +161,13 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
                     .dest_format(target.command_format());
             }
 
+            // Agent の場合は変換情報を設定
+            if component.kind == ComponentKind::Agent {
+                builder = builder
+                    .source_agent_format(cached_plugin.agent_format())
+                    .dest_agent_format(target.agent_format());
+            }
+
             let deployment = match builder.build() {
                 Ok(d) => d,
                 Err(e) => {
@@ -182,6 +189,12 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
                 Ok(result) => {
                     let suffix = match &result {
                         DeploymentResult::Converted(conv) if conv.converted => {
+                            format!(
+                                " (Converted: {} → {})",
+                                conv.source_format, conv.dest_format
+                            )
+                        }
+                        DeploymentResult::AgentConverted(conv) if conv.converted => {
                             format!(
                                 " (Converted: {} → {})",
                                 conv.source_format, conv.dest_format

@@ -50,6 +50,13 @@ fn test_command_format_display() {
 }
 
 #[test]
+fn test_agent_format_display() {
+    assert_eq!(format!("{}", AgentFormat::ClaudeCode), "ClaudeCode");
+    assert_eq!(format!("{}", AgentFormat::Copilot), "Copilot");
+    assert_eq!(format!("{}", AgentFormat::Codex), "Codex");
+}
+
+#[test]
 fn test_same_format_copies_file() {
     let tmp = TempDir::new().unwrap();
     let source = tmp.path().join("source.md");
@@ -320,5 +327,189 @@ fn test_atomic_write_no_partial_file_on_success() {
     // 一時ファイルが残っていない
     assert!(!tmp_file.exists());
     // 出力ファイルが存在する
+    assert!(dest.exists());
+}
+
+// =============================================================================
+// Agent 変換テスト
+// =============================================================================
+
+/// テスト用の ClaudeCode Agent コンテンツ
+fn sample_claude_code_agent_content() -> &'static str {
+    r#"---
+name: code-review
+description: Review code for best practices
+tools: Read, Write, Bash
+model: sonnet
+---
+
+You are a code review agent. Please review the code for best practices.
+"#
+}
+
+/// テスト用の Copilot Agent コンテンツ（変換元として使用）
+fn sample_copilot_agent_content() -> &'static str {
+    r#"---
+name: code-review
+description: Review code for best practices
+tools:
+  - codebase
+model: GPT-4o
+target: vscode
+---
+
+You are a code review agent.
+"#
+}
+
+#[test]
+fn test_agent_same_format_copies_file() {
+    let tmp = TempDir::new().unwrap();
+    let source = tmp.path().join("source.md");
+    let dest = tmp.path().join("dest.md");
+
+    fs::write(&source, sample_claude_code_agent_content()).unwrap();
+
+    let result = convert_agent_and_write(
+        &source,
+        &dest,
+        AgentFormat::ClaudeCode,
+        AgentFormat::ClaudeCode,
+    )
+    .unwrap();
+
+    assert!(!result.converted);
+    assert_eq!(result.source_format, AgentFormat::ClaudeCode);
+    assert_eq!(result.dest_format, AgentFormat::ClaudeCode);
+    assert!(dest.exists());
+    assert_eq!(
+        fs::read_to_string(&dest).unwrap(),
+        sample_claude_code_agent_content()
+    );
+}
+
+#[test]
+fn test_agent_claude_code_to_copilot() {
+    let tmp = TempDir::new().unwrap();
+    let source = tmp.path().join("source.md");
+    let dest = tmp.path().join("dest.agent.md");
+
+    fs::write(&source, sample_claude_code_agent_content()).unwrap();
+
+    let result = convert_agent_and_write(
+        &source,
+        &dest,
+        AgentFormat::ClaudeCode,
+        AgentFormat::Copilot,
+    )
+    .unwrap();
+
+    assert!(result.converted);
+    assert_eq!(result.source_format, AgentFormat::ClaudeCode);
+    assert_eq!(result.dest_format, AgentFormat::Copilot);
+    assert!(dest.exists());
+
+    let content = fs::read_to_string(&dest).unwrap();
+    // Copilot Agent 形式の特徴を確認
+    assert!(content.contains("tools:"));
+    assert!(content.contains("codebase")); // tools 変換
+    assert!(content.contains("GPT-4o")); // model 変換
+    assert!(content.contains("target: vscode")); // target 追加
+}
+
+#[test]
+fn test_agent_claude_code_to_codex() {
+    let tmp = TempDir::new().unwrap();
+    let source = tmp.path().join("source.md");
+    let dest = tmp.path().join("dest.agent.md");
+
+    fs::write(&source, sample_claude_code_agent_content()).unwrap();
+
+    let result =
+        convert_agent_and_write(&source, &dest, AgentFormat::ClaudeCode, AgentFormat::Codex)
+            .unwrap();
+
+    assert!(result.converted);
+    assert_eq!(result.source_format, AgentFormat::ClaudeCode);
+    assert_eq!(result.dest_format, AgentFormat::Codex);
+    assert!(dest.exists());
+
+    let content = fs::read_to_string(&dest).unwrap();
+    // Codex Agent 形式の特徴を確認（description と body のみ、name は frontmatter に含まない）
+    assert!(content.contains("description:"));
+    // Codex は name, tools, model を frontmatter に持たない
+    assert!(!content.contains("name:"));
+    assert!(!content.contains("tools:"));
+    assert!(!content.contains("model:"));
+}
+
+#[test]
+fn test_agent_copilot_to_claude_code_unsupported() {
+    let tmp = TempDir::new().unwrap();
+    let source = tmp.path().join("source.agent.md");
+    let dest = tmp.path().join("dest.md");
+
+    fs::write(&source, sample_copilot_agent_content()).unwrap();
+
+    let result = convert_agent_and_write(
+        &source,
+        &dest,
+        AgentFormat::Copilot,
+        AgentFormat::ClaudeCode,
+    );
+
+    // 非 ClaudeCode からの変換はサポートされない
+    assert!(result.is_err());
+    match result.unwrap_err() {
+        PlmError::UnsupportedConversion { from, to } => {
+            assert_eq!(from, "Copilot");
+            assert_eq!(to, "ClaudeCode");
+        }
+        e => panic!("Expected UnsupportedConversion, got {:?}", e),
+    }
+    // 出力ファイルは作成されない
+    assert!(!dest.exists());
+}
+
+#[test]
+fn test_agent_copilot_to_codex_unsupported() {
+    let tmp = TempDir::new().unwrap();
+    let source = tmp.path().join("source.agent.md");
+    let dest = tmp.path().join("dest.agent.md");
+
+    fs::write(&source, sample_copilot_agent_content()).unwrap();
+
+    let result = convert_agent_and_write(&source, &dest, AgentFormat::Copilot, AgentFormat::Codex);
+
+    // 非 ClaudeCode からの変換はサポートされない
+    assert!(result.is_err());
+    match result.unwrap_err() {
+        PlmError::UnsupportedConversion { from, to } => {
+            assert_eq!(from, "Copilot");
+            assert_eq!(to, "Codex");
+        }
+        e => panic!("Expected UnsupportedConversion, got {:?}", e),
+    }
+    // 出力ファイルは作成されない
+    assert!(!dest.exists());
+}
+
+#[test]
+fn test_agent_creates_parent_directories() {
+    let tmp = TempDir::new().unwrap();
+    let source = tmp.path().join("source.md");
+    let dest = tmp.path().join("nested").join("dir").join("dest.md");
+
+    fs::write(&source, sample_claude_code_agent_content()).unwrap();
+
+    let result = convert_agent_and_write(
+        &source,
+        &dest,
+        AgentFormat::ClaudeCode,
+        AgentFormat::ClaudeCode,
+    )
+    .unwrap();
+
+    assert!(!result.converted);
     assert!(dest.exists());
 }

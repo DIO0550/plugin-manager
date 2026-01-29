@@ -3,6 +3,7 @@
 //! Claude Code Plugin形式のGitHubリポジトリから、
 //! 特定のコンポーネントを選択してインポートする。
 
+use crate::component::convert::AgentFormat;
 use crate::component::{Component, ComponentDeployment, ComponentKind};
 use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
 use crate::import::{ImportRecord, ImportRegistry};
@@ -294,12 +295,20 @@ pub async fn run(args: Args) -> Result<(), String> {
             };
 
             // Build deployment
-            let deployment = match ComponentDeployment::builder()
+            let mut builder = ComponentDeployment::builder()
                 .component(component)
                 .scope(scope)
-                .target_path(target_path.clone())
-                .build()
-            {
+                .target_path(target_path.clone());
+
+            // Agent の場合は変換情報を設定
+            // import は ClaudeCode プラグイン形式からターゲット形式へ変換
+            if component.kind == ComponentKind::Agent {
+                builder = builder
+                    .source_agent_format(AgentFormat::ClaudeCode)
+                    .dest_agent_format(target.agent_format());
+            }
+
+            let deployment = match builder.build() {
                 Ok(d) => d,
                 Err(e) => {
                     println!(
