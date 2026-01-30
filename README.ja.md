@@ -3,17 +3,17 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/rust-2021-orange.svg)](https://www.rust-lang.org/)
 
-AIコーディングアシスタント（OpenAI Codex、VSCode Copilot、Google Antigravity）のプラグインを統合管理するRust製CLIツールです。Claude Code Pluginsをインポートして他の環境にデプロイできます。Skills、Agents、Prompts、Instructionsのダウンロード、インストール、同期をシームレスに行えます。
+AIコーディングアシスタント（OpenAI Codex、VSCode Copilot、Google Antigravity、Gemini CLI）のプラグインを統合管理するRust製CLIツールです。Claude Code Pluginsをインポートして他の環境にデプロイできます。Skills、Agents、Prompts、Instructionsのダウンロード、インストール、同期をシームレスに行えます。
 
 [English README](README.md)
 
 ## 特徴
 
-- **マルチ環境対応**: OpenAI Codex、VSCode Copilot、Google Antigravityにプラグインを単一ツールでデプロイ
+- **マルチ環境対応**: OpenAI Codex、VSCode Copilot、Google Antigravity、Gemini CLIにプラグインを単一ツールでデプロイ
 - **Claude Code Pluginインポート**: 既存のClaude Code Pluginsをインポートして他の環境で使用
 - **コンポーネントタイプ**: Skills、Agents、Prompts、Instructionsに対応
 - **マーケットプレイス連携**: マーケットプレイスからプラグインを検索・インストール
-- **スコープ管理**: 個人レベル（`~/.codex/`、`~/.copilot/`、`~/.gemini/antigravity/`）またはプロジェクトレベル（`.codex/`、`.github/`）でインストール
+- **スコープ管理**: 個人レベル（`~/.codex/`、`~/.copilot/`、`~/.gemini/antigravity/`、`~/.gemini/skills/`）またはプロジェクトレベル（`.codex/`、`.github/`、`.gemini/skills/`）でインストール
 - **TUIインターフェース**: 対話型ターミナルUIでプラグインを管理
 - **環境間同期**: 異なる環境間でプラグインを同期
 
@@ -170,6 +170,7 @@ plm init my-plugin --type skill
 | OpenAI Codex | 対応 | - | - | 対応 |
 | VSCode Copilot | 対応 | 対応 | 対応 | 対応 |
 | Google Antigravity | 対応 | - | - | - |
+| Gemini CLI | 対応 | - | - | 対応 |
 
 ## 設定
 

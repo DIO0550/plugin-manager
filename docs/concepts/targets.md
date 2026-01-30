@@ -9,18 +9,20 @@ PLMがサポートするAI開発環境（ターゲット）について説明し
 | **codex** | OpenAI Codex CLI |
 | **copilot** | VSCode GitHub Copilot |
 | **antigravity** | Google Antigravity IDE |
+| **gemini** | Gemini CLI（ターミナルベースAIエージェント） |
 
 ## サポートするコンポーネント
 
-| コンポーネント | Codex | Copilot | Antigravity |
-|----------------|-------|---------|-------------|
-| Skills | ✅ | ✅ | ✅ |
-| Agents | ✅* | ✅ | ❌ |
-| Prompts | ❌ | ✅ | ❌ |
-| Instructions | ✅ | ✅ | ❌** |
+| コンポーネント | Codex | Copilot | Antigravity | Gemini CLI |
+|----------------|-------|---------|-------------|------------|
+| Skills | ✅ | ✅ | ✅ | ✅ |
+| Agents | ✅* | ✅ | ❌ | ❌ |
+| Prompts | ❌ | ✅ | ❌ | ❌ |
+| Instructions | ✅ | ✅ | ❌** | ✅*** |
 
 > *Codexは現時点で`.agent.md`を公式サポートしていませんが、将来対応を見越して配置します。
 > **AntigravityはSkills専用の設計で、Instructionsは別途設定で管理します。
+> ***Gemini CLIは`GEMINI.md`による階層的な指示システムを持ちます。
 
 ## OpenAI Codex
 
@@ -130,6 +132,76 @@ Google AntigravityはGemini 3 Pro搭載のエージェント指向IDE。2026年1
 - **Skills専用**: Agents、Prompts、Instructionsは別のシステムで管理
 - Skillsはタスク終了後にコンテキストから解放される（エフェメラル）
 
+## Gemini CLI
+
+### 概要
+
+Gemini CLIはGoogleのターミナルベースAIエージェントツール。v0.23.0（2026年1月7日）でAgent Skills（実験的機能）が追加された。Claude Code Skillsと同じ`SKILL.md`形式を採用しており、既存のSkillsをそのまま再利用可能。
+
+公式ドキュメント:
+- [Agent Skills | Gemini CLI](https://geminicli.com/docs/cli/skills/)
+- [Getting Started with Agent Skills](https://geminicli.com/docs/cli/tutorials/skills-getting-started/)
+
+### 読み込みパスと優先順位
+
+| スコープ | パス | 自動読み込み | 備考 |
+|---------|------|--------------|------|
+| Workspace | `.gemini/skills/` | ✅ | プロジェクト固有、VCS管理推奨 |
+| User | `~/.gemini/skills/` | ✅ | 個人用、全ワークスペースで利用可能 |
+| Extension | 拡張機能に同梱 | ✅ | 拡張機能パッケージ内 |
+| Instructions (Global) | `~/.gemini/GEMINI.md` | ✅ | 全プロジェクト共通の指示 |
+| Instructions (Project) | `./GEMINI.md` | ✅ | 親ディレクトリまで走査 |
+
+### 優先順位
+
+同名Skillが複数スコープに存在する場合: Workspace > User > Extension
+
+### Skills のアクティベーション
+
+Gemini CLI SkillsはProgressive Disclosure方式を採用:
+
+1. **Discovery**: セッション開始時にSkillの名前と説明のみをシステムプロンプトに注入
+2. **Activation**: タスクにマッチするSkillを検出すると `activate_skill` ツールを呼び出す
+3. **Consent**: ユーザーにSkill名・目的・ディレクトリパスを表示して確認を求める
+4. **Injection**: `SKILL.md` の本文とフォルダ構造を会話に追加
+5. **Execution**: 専門知識がアクティブな状態でタスクを実行
+
+### 管理コマンド
+
+**セッション内** (`/skills`):
+- `/skills list` - 発見されたSkill一覧
+- `/skills disable <name>` - Skillを無効化
+- `/skills enable <name>` - Skillを再有効化
+- `/skills reload` - Skill検出を再実行
+
+**ターミナル** (`gemini skills`):
+- `gemini skills list` - 全Skill表示
+- `gemini skills install <source>` - Skill追加（Gitリポジトリ、ローカルパス、`.skill`ファイル対応）
+- `gemini skills uninstall <name>` - Skill削除
+- `gemini skills enable/disable <name>` - 有効/無効切替
+
+### Instructions システム（GEMINI.md）
+
+Gemini CLIは `GEMINI.md` ファイルによる階層的な指示システムを持つ:
+
+- **Global**: `~/.gemini/GEMINI.md` - 全プロジェクト共通の指示
+- **Project**: カレントディレクトリからプロジェクトルート（`.git`フォルダ）まで走査し、各ディレクトリの `GEMINI.md` を連結
+- **ファイル名設定**: `.gemini/settings.json` で `contextFileName` を変更可能（例: `"contextFileName": "AGENTS.md"`）
+- **モジュラーインポート**: `@file.md` 構文で他ファイルの内容をインポート可能
+
+### コンポーネント配置場所
+
+| 種別 | ファイル形式 | Personal | Project |
+|------|-------------|----------|---------|
+| Skills | `SKILL.md` | `~/.gemini/skills/<marketplace>/<plugin>/<skill>/` | `.gemini/skills/<marketplace>/<plugin>/<skill>/` |
+| Instructions | `GEMINI.md` | `~/.gemini/GEMINI.md` | `GEMINI.md` |
+
+### 制約事項
+
+- **実験的機能**: `/settings` で Agent Skills を `true` に設定して有効化が必要
+- **Agents非対応**: `.agent.md` 形式はサポートしない
+- **Prompts非対応**: `.prompt.md` 形式はサポートしない
+
 ## PLMでの対応方針
 
 | ターゲット | Personal インストール | 追加アクション |
@@ -137,6 +209,7 @@ Google AntigravityはGemini 3 Pro搭載のエージェント指向IDE。2026年1
 | Codex | `~/.codex/` に配置 | 不要（自動読み込み） |
 | Copilot | ファイル配置 + VSCode設定追記 | `settings.json` への参照追加が必要 |
 | Antigravity | `~/.gemini/antigravity/` に配置 | 不要（自動読み込み） |
+| Gemini CLI | `~/.gemini/skills/` に配置 | 不要（自動読み込み、要Settings有効化） |
 
 ## 将来の拡張候補
 

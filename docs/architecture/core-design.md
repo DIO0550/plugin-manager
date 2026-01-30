@@ -137,6 +137,37 @@ impl Target for AntigravityTarget {
     }
     // ...
 }
+
+pub struct GeminiCliTarget;
+
+impl Target for GeminiCliTarget {
+    fn name(&self) -> &str {
+        "gemini"
+    }
+
+    fn supported_components(&self) -> Vec<ComponentKind> {
+        vec![ComponentKind::Skill, ComponentKind::Instruction]
+    }
+
+    fn component_path(&self, kind: ComponentKind, scope: Scope) -> Option<PathBuf> {
+        match (kind, scope) {
+            (ComponentKind::Skill, Scope::Personal) => {
+                Some(dirs::home_dir()?.join(".gemini/skills"))
+            }
+            (ComponentKind::Skill, Scope::Project) => {
+                Some(PathBuf::from(".gemini/skills"))
+            }
+            (ComponentKind::Instruction, Scope::Personal) => {
+                Some(dirs::home_dir()?.join(".gemini/GEMINI.md"))
+            }
+            (ComponentKind::Instruction, Scope::Project) => {
+                Some(PathBuf::from("GEMINI.md"))
+            }
+            _ => None,  // Agents and Prompts not supported
+        }
+    }
+    // ...
+}
 ```
 
 ## GitRepo 構造体
