@@ -3,8 +3,7 @@
 //! Claude Code Plugin形式のGitHubリポジトリから、
 //! 特定のコンポーネントを選択してインポートする。
 
-use crate::component::convert::AgentFormat;
-use crate::component::{Component, ComponentDeployment, ComponentKind};
+use crate::component::{AgentFormat, Component, ComponentDeployment, ComponentKind};
 use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
 use crate::import::{ImportRecord, ImportRegistry};
 use crate::output::CommandSummary;
