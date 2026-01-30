@@ -334,7 +334,7 @@ fn test_execute_command_with_conversion() {
             assert_eq!(conv.source_format, CommandFormat::ClaudeCode);
             assert_eq!(conv.dest_format, CommandFormat::Copilot);
         }
-        DeploymentResult::Copied => panic!("Expected conversion, got copy"),
+        _ => panic!("Expected Converted result"),
     }
 
     // ファイルが Copilot 形式になっていることを確認
@@ -369,7 +369,7 @@ fn test_execute_command_same_format_copies() {
         DeploymentResult::Converted(conv) => {
             assert!(!conv.converted); // converted = false means copy
         }
-        DeploymentResult::Copied => panic!("Expected Converted with converted=false"),
+        _ => panic!("Expected Converted with converted=false"),
     }
 
     // 内容はそのまま
@@ -402,7 +402,7 @@ fn test_execute_command_without_format_copies() {
     // 変換設定がない場合は Copied
     match result {
         DeploymentResult::Copied => {}
-        DeploymentResult::Converted(_) => panic!("Expected copy without format settings"),
+        _ => panic!("Expected Copied without format settings"),
     }
 
     assert!(target.exists());
@@ -423,4 +423,182 @@ fn test_builder_source_format() {
 
     // Builder でフォーマットが設定できることを確認
     assert_eq!(deployment.kind, ComponentKind::Command);
+}
+
+// ========================================
+// Agent Conversion tests
+// ========================================
+
+/// テスト用の ClaudeCode Agent コンテンツ
+fn sample_claude_code_agent_content() -> &'static str {
+    r#"---
+name: code-review
+description: Review code for best practices
+tools: Read, Write, Bash
+model: sonnet
+---
+
+You are a code review agent. Please review the code for best practices.
+"#
+}
+
+#[test]
+fn test_execute_agent_with_conversion_to_copilot() {
+    let temp = TempDir::new().unwrap();
+    let source = temp.path().join("code-review.md");
+    let target = temp.path().join("dest/code-review.agent.md");
+
+    fs::write(&source, sample_claude_code_agent_content()).unwrap();
+
+    let deployment = ComponentDeployment::builder()
+        .kind(ComponentKind::Agent)
+        .name("code-review")
+        .scope(Scope::Project)
+        .source_path(&source)
+        .target_path(&target)
+        .source_agent_format(AgentFormat::ClaudeCode)
+        .dest_agent_format(AgentFormat::Copilot)
+        .build()
+        .unwrap();
+
+    let result = deployment.execute().unwrap();
+
+    // 変換が行われたことを確認
+    match result {
+        DeploymentResult::AgentConverted(conv) => {
+            assert!(conv.converted);
+            assert_eq!(conv.source_format, AgentFormat::ClaudeCode);
+            assert_eq!(conv.dest_format, AgentFormat::Copilot);
+        }
+        _ => panic!("Expected AgentConverted"),
+    }
+
+    // ファイルが Copilot 形式になっていることを確認
+    let content = fs::read_to_string(&target).unwrap();
+    assert!(content.contains("tools:"));
+    assert!(content.contains("codebase")); // tools 変換
+    assert!(content.contains("GPT-4o")); // model 変換
+    assert!(content.contains("target: vscode")); // target 追加
+}
+
+#[test]
+fn test_execute_agent_with_conversion_to_codex() {
+    let temp = TempDir::new().unwrap();
+    let source = temp.path().join("code-review.md");
+    let target = temp.path().join("dest/code-review.agent.md");
+
+    fs::write(&source, sample_claude_code_agent_content()).unwrap();
+
+    let deployment = ComponentDeployment::builder()
+        .kind(ComponentKind::Agent)
+        .name("code-review")
+        .scope(Scope::Project)
+        .source_path(&source)
+        .target_path(&target)
+        .source_agent_format(AgentFormat::ClaudeCode)
+        .dest_agent_format(AgentFormat::Codex)
+        .build()
+        .unwrap();
+
+    let result = deployment.execute().unwrap();
+
+    // 変換が行われたことを確認
+    match result {
+        DeploymentResult::AgentConverted(conv) => {
+            assert!(conv.converted);
+            assert_eq!(conv.source_format, AgentFormat::ClaudeCode);
+            assert_eq!(conv.dest_format, AgentFormat::Codex);
+        }
+        _ => panic!("Expected AgentConverted"),
+    }
+
+    // ファイルが Codex 形式になっていることを確認
+    let content = fs::read_to_string(&target).unwrap();
+    assert!(content.contains("description:"));
+    // Codex は tools や model を持たない
+    assert!(!content.contains("tools:"));
+    assert!(!content.contains("model:"));
+}
+
+#[test]
+fn test_execute_agent_same_format_copies() {
+    let temp = TempDir::new().unwrap();
+    let source = temp.path().join("code-review.md");
+    let target = temp.path().join("dest/code-review.md");
+
+    fs::write(&source, sample_claude_code_agent_content()).unwrap();
+
+    let deployment = ComponentDeployment::builder()
+        .kind(ComponentKind::Agent)
+        .name("code-review")
+        .scope(Scope::Project)
+        .source_path(&source)
+        .target_path(&target)
+        .source_agent_format(AgentFormat::ClaudeCode)
+        .dest_agent_format(AgentFormat::ClaudeCode)
+        .build()
+        .unwrap();
+
+    let result = deployment.execute().unwrap();
+
+    // コピーのみ（変換なし）
+    match result {
+        DeploymentResult::AgentConverted(conv) => {
+            assert!(!conv.converted); // converted = false means copy
+        }
+        _ => panic!("Expected AgentConverted with converted=false"),
+    }
+
+    // 内容はそのまま
+    assert_eq!(
+        fs::read_to_string(&target).unwrap(),
+        sample_claude_code_agent_content()
+    );
+}
+
+#[test]
+fn test_execute_agent_without_format_copies() {
+    let temp = TempDir::new().unwrap();
+    let source = temp.path().join("agent.md");
+    let target = temp.path().join("dest/agent.md");
+
+    fs::write(&source, "simple agent content").unwrap();
+
+    // source_agent_format と dest_agent_format を設定しない
+    let deployment = ComponentDeployment::builder()
+        .kind(ComponentKind::Agent)
+        .name("agent")
+        .scope(Scope::Project)
+        .source_path(&source)
+        .target_path(&target)
+        .build()
+        .unwrap();
+
+    let result = deployment.execute().unwrap();
+
+    // 変換設定がない場合は Copied
+    match result {
+        DeploymentResult::Copied => {}
+        _ => panic!("Expected Copied without format settings"),
+    }
+
+    assert!(target.exists());
+    assert_eq!(fs::read_to_string(&target).unwrap(), "simple agent content");
+}
+
+#[test]
+fn test_builder_agent_format() {
+    let deployment = ComponentDeployment::builder()
+        .kind(ComponentKind::Agent)
+        .name("test")
+        .scope(Scope::Project)
+        .source_path("/src/test.md")
+        .target_path("/dest/test.md")
+        .source_agent_format(AgentFormat::ClaudeCode)
+        .dest_agent_format(AgentFormat::Copilot)
+        .build()
+        .unwrap();
+
+    // Builder で Agent フォーマットが設定できることを確認
+    assert_eq!(deployment.kind, ComponentKind::Agent);
 }

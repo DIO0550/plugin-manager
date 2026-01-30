@@ -1,6 +1,6 @@
 //! コンポーネントのデプロイ処理
 
-use super::convert::{self, CommandFormat, ConversionResult};
+use super::convert::{self, AgentConversionResult, AgentFormat, CommandFormat, ConversionResult};
 use crate::component::{Component, ComponentKind, Scope};
 use crate::error::{PlmError, Result};
 use crate::path_ext::PathExt;
@@ -21,6 +21,10 @@ pub struct ComponentDeployment {
     source_format: Option<CommandFormat>,
     /// ターゲットの Command フォーマット（Command の場合のみ有効）
     dest_format: Option<CommandFormat>,
+    /// ソースの Agent フォーマット（Agent の場合のみ有効）
+    source_agent_format: Option<AgentFormat>,
+    /// ターゲットの Agent フォーマット（Agent の場合のみ有効）
+    dest_agent_format: Option<AgentFormat>,
 }
 
 impl ComponentDeployment {
@@ -42,7 +46,9 @@ impl ComponentDeployment {
     /// 配置を実行（ファイルコピー）
     ///
     /// Command コンポーネントで `source_format` と `dest_format` が設定されている場合、
-    /// フォーマット変換を行う。
+    /// Command フォーマット変換を行う。
+    /// Agent コンポーネントで `source_agent_format` と `dest_agent_format` が設定されている場合、
+    /// Agent フォーマット変換を行う。
     pub fn execute(&self) -> Result<DeploymentResult> {
         match self.kind {
             ComponentKind::Skill => {
@@ -65,7 +71,24 @@ impl ComponentDeployment {
                     Ok(DeploymentResult::Copied)
                 }
             }
-            ComponentKind::Agent | ComponentKind::Instruction | ComponentKind::Hook => {
+            ComponentKind::Agent => {
+                // Agent は変換の可能性がある
+                if let (Some(src_fmt), Some(dest_fmt)) =
+                    (self.source_agent_format, self.dest_agent_format)
+                {
+                    let result = convert::convert_agent_and_write(
+                        &self.source_path,
+                        &self.target_path,
+                        src_fmt,
+                        dest_fmt,
+                    )?;
+                    Ok(DeploymentResult::AgentConverted(result))
+                } else {
+                    self.source_path.copy_file_to(&self.target_path)?;
+                    Ok(DeploymentResult::Copied)
+                }
+            }
+            ComponentKind::Instruction | ComponentKind::Hook => {
                 // These are files (no conversion)
                 self.source_path.copy_file_to(&self.target_path)?;
                 Ok(DeploymentResult::Copied)
@@ -79,8 +102,10 @@ impl ComponentDeployment {
 pub enum DeploymentResult {
     /// ファイルコピーのみ
     Copied,
-    /// フォーマット変換が行われた
+    /// Command フォーマット変換が行われた
     Converted(ConversionResult),
+    /// Agent フォーマット変換が行われた
+    AgentConverted(AgentConversionResult),
 }
 
 /// ComponentDeployment のビルダー
@@ -93,6 +118,8 @@ pub struct ComponentDeploymentBuilder {
     target_path: Option<PathBuf>,
     source_format: Option<CommandFormat>,
     dest_format: Option<CommandFormat>,
+    source_agent_format: Option<AgentFormat>,
+    dest_agent_format: Option<AgentFormat>,
 }
 
 impl ComponentDeploymentBuilder {
@@ -151,6 +178,18 @@ impl ComponentDeploymentBuilder {
         self
     }
 
+    /// ソースの Agent フォーマットを設定
+    pub fn source_agent_format(mut self, format: AgentFormat) -> Self {
+        self.source_agent_format = Some(format);
+        self
+    }
+
+    /// ターゲットの Agent フォーマットを設定
+    pub fn dest_agent_format(mut self, format: AgentFormat) -> Self {
+        self.dest_agent_format = Some(format);
+        self
+    }
+
     /// ComponentDeployment を構築
     pub fn build(self) -> Result<ComponentDeployment> {
         let kind = self
@@ -177,6 +216,8 @@ impl ComponentDeploymentBuilder {
             target_path,
             source_format: self.source_format,
             dest_format: self.dest_format,
+            source_agent_format: self.source_agent_format,
+            dest_agent_format: self.dest_agent_format,
         })
     }
 }

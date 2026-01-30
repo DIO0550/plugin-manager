@@ -3,7 +3,7 @@
 //! プラグインキャッシュから読み込んだプラグインの情報と、
 //! コンポーネントスキャン機能を提供する。
 
-use crate::component::{CommandFormat, Component, ComponentKind};
+use crate::component::{AgentFormat, CommandFormat, Component, ComponentKind};
 use crate::path_ext::PathExt;
 use crate::plugin::PluginManifest;
 use crate::scan::{scan_components, AGENT_SUFFIX, MARKDOWN_SUFFIX, PROMPT_SUFFIX};
@@ -97,6 +97,23 @@ impl CachedPlugin {
             Some("codex") => CommandFormat::Codex,
             // デフォルトは ClaudeCode（現時点で対応しているマーケットプレイスは Claude Code のみ）
             _ => CommandFormat::ClaudeCode,
+        }
+    }
+
+    /// Agent コンポーネントのソース形式を取得
+    ///
+    /// marketplace フィールドから判定する。
+    /// - `Some("claude")` → ClaudeCode
+    /// - `Some("copilot")` → Copilot（将来対応）
+    /// - `Some("codex")` → Codex（将来対応）
+    /// - `None` → ClaudeCode（デフォルト）
+    pub fn agent_format(&self) -> AgentFormat {
+        match self.marketplace.as_deref() {
+            Some("claude") => AgentFormat::ClaudeCode,
+            Some("copilot") => AgentFormat::Copilot,
+            Some("codex") => AgentFormat::Codex,
+            // デフォルトは ClaudeCode（現時点で対応しているマーケットプレイスは Claude Code のみ）
+            _ => AgentFormat::ClaudeCode,
         }
     }
 

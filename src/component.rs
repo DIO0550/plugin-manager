@@ -8,7 +8,7 @@ mod kind;
 mod placement;
 mod summary;
 
-pub use convert::CommandFormat;
+pub use convert::{AgentFormat, CommandFormat};
 pub use deployment::{ComponentDeployment, DeploymentResult};
 pub use kind::{Component, ComponentKind, Scope};
 pub use placement::{
