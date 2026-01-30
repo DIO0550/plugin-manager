@@ -46,7 +46,9 @@ impl ComponentDeployment {
     /// 配置を実行（ファイルコピー）
     ///
     /// Command コンポーネントで `source_format` と `dest_format` が設定されている場合、
-    /// フォーマット変換を行う。
+    /// Command フォーマット変換を行う。
+    /// Agent コンポーネントで `source_agent_format` と `dest_agent_format` が設定されている場合、
+    /// Agent フォーマット変換を行う。
     pub fn execute(&self) -> Result<DeploymentResult> {
         match self.kind {
             ComponentKind::Skill => {
