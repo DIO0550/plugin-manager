@@ -93,6 +93,8 @@ pub enum TargetKind {
     Antigravity,
     Codex,
     Copilot,
+    #[value(name = "gemini")]
+    #[serde(rename = "gemini")]
     GeminiCli,
 }
 
