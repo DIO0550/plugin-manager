@@ -17,6 +17,14 @@ fn test_parse_component_name_instruction() {
 }
 
 #[test]
+fn test_parse_component_name_gemini_instruction() {
+    let (origin, name) = parse_component_name("GEMINI.md").unwrap();
+    assert_eq!(origin.marketplace, "");
+    assert_eq!(origin.plugin, "");
+    assert_eq!(name, "GEMINI.md");
+}
+
+#[test]
 fn test_parse_component_name_error() {
     let result = parse_component_name("invalid");
     assert!(result.is_err());
