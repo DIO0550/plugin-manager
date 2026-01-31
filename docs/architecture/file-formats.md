@@ -256,7 +256,7 @@ v0.23.0（2026年1月）でAgent Skills（実験的機能）が追加。Claude C
 
 ### Skills
 
-**パス:** `.gemini/skills/<name>/SKILL.md`（Workspace） / `~/.gemini/skills/<name>/SKILL.md`（User）
+**パス:** `.gemini/skills/<marketplace>/<plugin>/<skill>/SKILL.md`（Workspace） / `~/.gemini/skills/<marketplace>/<plugin>/<skill>/SKILL.md`（User）
 
 ```yaml
 ---
