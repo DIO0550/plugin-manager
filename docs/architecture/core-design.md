@@ -89,7 +89,10 @@ pub enum Scope {
 }
 ```
 
-### 実装例
+### 実装例（擬似コード）
+
+> **Note**: 以下は設計意図を示す擬似コードです。実際の `Target` trait API（`placement_location()` 等）とは異なります。
+> 実装の詳細は `src/target/` 配下の各ファイルを参照してください。
 
 ```rust
 pub struct CodexTarget;
