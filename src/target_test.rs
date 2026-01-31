@@ -27,8 +27,15 @@ fn test_parse_target_antigravity() {
 #[test]
 fn test_all_targets() {
     let targets = all_targets();
-    assert_eq!(targets.len(), 3);
+    assert_eq!(targets.len(), 4);
     assert!(targets.iter().any(|t| t.name() == "antigravity"));
     assert!(targets.iter().any(|t| t.name() == "codex"));
     assert!(targets.iter().any(|t| t.name() == "copilot"));
+    assert!(targets.iter().any(|t| t.name() == "gemini"));
+}
+
+#[test]
+fn test_parse_target_gemini() {
+    let target = parse_target("gemini").unwrap();
+    assert_eq!(target.name(), "gemini");
 }

@@ -23,6 +23,7 @@ mod antigravity;
 mod codex;
 mod copilot;
 mod effect;
+mod gemini_cli;
 mod registry;
 pub mod scanner;
 
@@ -32,6 +33,7 @@ pub use antigravity::AntigravityTarget;
 pub use codex::CodexTarget;
 pub use copilot::CopilotTarget;
 pub use effect::{AffectedTargets, OperationResult};
+pub use gemini_cli::GeminiCliTarget;
 // PluginOrigin はモジュール内で定義されているのでここでは再エクスポート不要
 
 use crate::component::{AgentFormat, CommandFormat, ComponentKind};
@@ -91,6 +93,7 @@ pub enum TargetKind {
     Antigravity,
     Codex,
     Copilot,
+    GeminiCli,
 }
 
 impl TargetKind {
@@ -100,6 +103,7 @@ impl TargetKind {
             TargetKind::Antigravity => "antigravity",
             TargetKind::Codex => "codex",
             TargetKind::Copilot => "copilot",
+            TargetKind::GeminiCli => "gemini",
         }
     }
 
@@ -111,6 +115,7 @@ impl TargetKind {
             TargetKind::Antigravity => CommandFormat::ClaudeCode, // Antigravity は Skills のみ
             TargetKind::Codex => CommandFormat::Codex,
             TargetKind::Copilot => CommandFormat::Copilot,
+            TargetKind::GeminiCli => CommandFormat::ClaudeCode, // Gemini CLI は Command 非サポート
         }
     }
 
@@ -122,6 +127,7 @@ impl TargetKind {
             TargetKind::Antigravity => AgentFormat::ClaudeCode, // Antigravity は Agent 非サポート
             TargetKind::Codex => AgentFormat::Codex,
             TargetKind::Copilot => AgentFormat::Copilot,
+            TargetKind::GeminiCli => AgentFormat::ClaudeCode, // Gemini CLI は Agent 非サポート
         }
     }
 }
@@ -217,6 +223,7 @@ pub fn parse_target(name: &str) -> Result<Box<dyn Target>> {
         "antigravity" => Ok(Box::new(AntigravityTarget::new())),
         "codex" => Ok(Box::new(CodexTarget::new())),
         "copilot" => Ok(Box::new(CopilotTarget::new())),
+        "gemini" => Ok(Box::new(GeminiCliTarget::new())),
         _ => Err(PlmError::TargetNotFound(name.to_string())),
     }
 }
@@ -227,6 +234,7 @@ pub fn all_targets() -> Vec<Box<dyn Target>> {
         Box::new(AntigravityTarget::new()),
         Box::new(CodexTarget::new()),
         Box::new(CopilotTarget::new()),
+        Box::new(GeminiCliTarget::new()),
     ]
 }
 
