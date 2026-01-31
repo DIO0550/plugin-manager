@@ -13,6 +13,7 @@ use crate::tui;
 use chrono::Utc;
 use clap::Parser;
 use std::env;
+use std::path::Path;
 
 #[derive(Debug, Parser)]
 pub struct Args {
@@ -182,6 +183,142 @@ pub fn filter_components(
     (filtered, skipped)
 }
 
+struct ImportContext<'a> {
+    origin: &'a PluginOrigin,
+    scope: Scope,
+    project_root: &'a Path,
+    source_repo: &'a str,
+    git_ref: &'a str,
+    commit_sha: &'a str,
+}
+
+enum DeployOutcome {
+    Success,
+    Failure,
+    /// Deploy succeeded but ImportRecord recording skipped (e.g. gemini)
+    Skipped,
+}
+
+fn build_deployment(
+    target: &dyn Target,
+    component: &Component,
+    ctx: &ImportContext,
+) -> Option<Result<ComponentDeployment, String>> {
+    if !target.supports(component.kind) {
+        return None;
+    }
+
+    let placement_ctx = PlacementContext {
+        component: ComponentRef::new(component.kind, &component.name),
+        origin: ctx.origin,
+        scope: PlacementScope(ctx.scope),
+        project: ProjectContext::new(ctx.project_root),
+    };
+
+    let target_path = match target.placement_location(&placement_ctx) {
+        Some(location) => location.into_path(),
+        None => return None,
+    };
+
+    let mut builder = ComponentDeployment::builder()
+        .component(component)
+        .scope(ctx.scope)
+        .target_path(target_path);
+
+    if component.kind == ComponentKind::Agent {
+        builder = builder
+            .source_agent_format(AgentFormat::ClaudeCode)
+            .dest_agent_format(target.agent_format());
+    }
+
+    Some(builder.build().map_err(|e| e.to_string()))
+}
+
+fn deploy_one(
+    deployment: &ComponentDeployment,
+    target_name: &str,
+    ctx: &ImportContext,
+    import_registry: &mut ImportRegistry,
+) -> DeployOutcome {
+    match deployment.execute() {
+        Ok(_result) => {
+            println!(
+                "  + {} {}: {} -> {}",
+                target_name, deployment.kind, deployment.name,
+                deployment.path().display()
+            );
+
+            let target_kind = match target_name {
+                "antigravity" => TargetKind::Antigravity,
+                "codex" => TargetKind::Codex,
+                "copilot" => TargetKind::Copilot,
+                _ => return DeployOutcome::Skipped,
+            };
+
+            let record = ImportRecord {
+                source_repo: ctx.source_repo.to_string(),
+                kind: deployment.kind,
+                name: deployment.name.clone(),
+                target: target_kind,
+                scope: deployment.scope,
+                path: deployment.path().to_path_buf(),
+                imported_at: Utc::now().to_rfc3339(),
+                git_ref: ctx.git_ref.to_string(),
+                commit_sha: ctx.commit_sha.to_string(),
+            };
+            if let Err(e) = import_registry.record(record) {
+                eprintln!("Warning: Failed to record import history: {}", e);
+            }
+
+            DeployOutcome::Success
+        }
+        Err(e) => {
+            println!(
+                "  x {} {}: {} - {}",
+                target_name, deployment.kind, deployment.name, e
+            );
+            DeployOutcome::Failure
+        }
+    }
+}
+
+fn place_components(
+    target_names: &[String],
+    components: &[Component],
+    ctx: &ImportContext,
+    import_registry: &mut ImportRegistry,
+) -> Result<(usize, usize), String> {
+    let mut total_success = 0;
+    let mut total_failure = 0;
+
+    for target_name in target_names {
+        let target = parse_target(target_name).map_err(|e| e.to_string())?;
+
+        for component in components {
+            let deployment = match build_deployment(target.as_ref(), component, ctx) {
+                None => continue,
+                Some(Ok(d)) => d,
+                Some(Err(e)) => {
+                    println!(
+                        "  x {} {}: {} - {}",
+                        target.name(), component.kind, component.name, e
+                    );
+                    total_failure += 1;
+                    continue;
+                }
+            };
+
+            match deploy_one(&deployment, target.name(), ctx, import_registry) {
+                DeployOutcome::Success => total_success += 1,
+                DeployOutcome::Failure => total_failure += 1,
+                DeployOutcome::Skipped => {}
+            }
+        }
+    }
+
+    Ok((total_success, total_failure))
+}
+
 pub async fn run(args: Args) -> Result<(), String> {
     // 1. Parse component paths (validate early, before download)
     let component_paths: Vec<(ComponentKind, String)> = args
@@ -258,122 +395,29 @@ pub async fn run(args: Args) -> Result<(), String> {
         println!("  - {}: {}", c.kind, c.name);
     }
 
-    // 8. Place components
-    println!("\nPlacing to targets...");
-
+    // 8. Build import context
     let project_root = env::current_dir().map_err(|e| e.to_string())?;
     let origin =
         PluginOrigin::from_cached_plugin(cached_plugin.marketplace.as_deref(), &cached_plugin.name);
 
+    let ctx = ImportContext {
+        origin: &origin,
+        scope,
+        project_root: &project_root,
+        source_repo: &args.source,
+        git_ref: &cached_plugin.git_ref,
+        commit_sha: &cached_plugin.commit_sha,
+    };
+
+    // 9. Place components
+    println!("\nPlacing to targets...");
     let mut import_registry = ImportRegistry::new().map_err(|e| e.to_string())?;
-    let mut total_success = 0;
-    let mut total_failure = 0;
 
     println!("\nPlacement Results:");
-    for target_name in &target_names {
-        let target = parse_target(target_name).map_err(|e| e.to_string())?;
+    let (total_success, total_failure) =
+        place_components(&target_names, &filtered_components, &ctx, &mut import_registry)?;
 
-        for component in &filtered_components {
-            // Check if target supports this component
-            if !target.supports(component.kind) {
-                continue;
-            }
-
-            // Build placement context
-            let ctx = PlacementContext {
-                component: ComponentRef::new(component.kind, &component.name),
-                origin: &origin,
-                scope: PlacementScope(scope),
-                project: ProjectContext::new(&project_root),
-            };
-
-            // Get target path
-            let target_path = match target.placement_location(&ctx) {
-                Some(location) => location.into_path(),
-                None => continue,
-            };
-
-            // Build deployment
-            let mut builder = ComponentDeployment::builder()
-                .component(component)
-                .scope(scope)
-                .target_path(target_path.clone());
-
-            // Agent の場合は変換情報を設定
-            // import は ClaudeCode プラグイン形式からターゲット形式へ変換
-            if component.kind == ComponentKind::Agent {
-                builder = builder
-                    .source_agent_format(AgentFormat::ClaudeCode)
-                    .dest_agent_format(target.agent_format());
-            }
-
-            let deployment = match builder.build() {
-                Ok(d) => d,
-                Err(e) => {
-                    println!(
-                        "  x {} {}: {} - {}",
-                        target.name(),
-                        component.kind,
-                        component.name,
-                        e
-                    );
-                    total_failure += 1;
-                    continue;
-                }
-            };
-
-            // Execute deployment
-            match deployment.execute() {
-                Ok(_result) => {
-                    println!(
-                        "  + {} {}: {} -> {}",
-                        target.name(),
-                        component.kind,
-                        component.name,
-                        deployment.path().display()
-                    );
-
-                    // Record import history
-                    let target_kind = match target.name() {
-                        "antigravity" => TargetKind::Antigravity,
-                        "codex" => TargetKind::Codex,
-                        "copilot" => TargetKind::Copilot,
-                        _ => continue,
-                    };
-
-                    let record = ImportRecord {
-                        source_repo: args.source.clone(),
-                        kind: component.kind,
-                        name: component.name.clone(),
-                        target: target_kind,
-                        scope,
-                        path: target_path,
-                        imported_at: Utc::now().to_rfc3339(),
-                        git_ref: cached_plugin.git_ref.clone(),
-                        commit_sha: cached_plugin.commit_sha.clone(),
-                    };
-
-                    if let Err(e) = import_registry.record(record) {
-                        eprintln!("Warning: Failed to record import history: {}", e);
-                    }
-
-                    total_success += 1;
-                }
-                Err(e) => {
-                    println!(
-                        "  x {} {}: {} - {}",
-                        target.name(),
-                        component.kind,
-                        component.name,
-                        e
-                    );
-                    total_failure += 1;
-                }
-            }
-        }
-    }
-
-    // Summary
+    // 10. Summary
     let summary = CommandSummary::format(total_success, total_failure);
     println!("\n{} {}", summary.prefix, summary.message);
 
