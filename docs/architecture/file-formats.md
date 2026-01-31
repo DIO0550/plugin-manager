@@ -1,10 +1,10 @@
 # ファイルフォーマット仕様
 
-各AI開発環境（Claude Code、Copilot、Codex）のコンポーネントファイル形式を定義します。
+各AI開発環境（Claude Code、Copilot、Codex、Gemini CLI）のコンポーネントファイル形式を定義します。
 
 ## 概要
 
-PLMはClaude Code Pluginからコンポーネントをインポートし、Codex/Copilotへ変換・配置します。
+PLMはClaude Code Pluginからコンポーネントをインポートし、Codex/Copilot/Gemini CLIへ変換・配置します。
 各環境でファイル形式が異なるため、変換が必要です。
 
 | コンポーネント | 形式の違い | 変換要否 |
@@ -250,6 +250,53 @@ Codexは現時点で`.agent.md`形式を公式サポートしていない。
 
 ---
 
+## Gemini CLI
+
+v0.23.0（2026年1月）でAgent Skills（実験的機能）が追加。Claude Code Skillsと同じ`SKILL.md`形式を採用。
+
+### Skills
+
+**パス:** `.gemini/skills/<marketplace>/<plugin>/<skill>/SKILL.md`（Workspace） / `~/.gemini/skills/<marketplace>/<plugin>/<skill>/SKILL.md`（User）
+
+```yaml
+---
+name: pdf-processing
+description: Extract text, fill forms, merge PDFs
+---
+
+You are a PDF processing expert...
+```
+
+#### Frontmatter フィールド
+
+| フィールド | 型 | 必須 | 説明 |
+|-----------|-----|------|------|
+| `name` | string | ○ | スキル識別子（小文字英数字、ハイフン） |
+| `description` | string | ○ | スキルの説明（アクティベーション判定に使用） |
+
+> Note: Gemini CLI SkillsのfrontmatterはClaude Code/Codexより最小限。`allowed-tools`、`model`、`context`等のフィールドは非対応。
+
+### Instructions (GEMINI.md)
+
+**パス:** `~/.gemini/GEMINI.md`（Global） / `./GEMINI.md`（Project、階層走査）
+
+```markdown
+# Project Guidelines
+
+プロジェクト固有の指示やコーディング規約...
+```
+
+- frontmatterなし（Markdownのみ）
+- 親ディレクトリからプロジェクトルート（`.git`フォルダ）まで走査して連結
+- `@file.md` 構文で他ファイルの内容をインポート可能
+- `.gemini/settings.json` の `contextFileName` でファイル名を変更可能（例: `"AGENTS.md"`）
+
+### Agents / Prompts
+
+Gemini CLIは `.agent.md`、`.prompt.md` 形式を公式サポートしていない。
+
+---
+
 ## 変換マッピング
 
 Claude Code形式から各環境への変換時のフィールド割り当てを定義します。
@@ -341,6 +388,26 @@ target: vscode
 Codexは`.agent.md`形式を公式サポートしていないため、変換不可。
 `AGENTS.md`への追記として対応する場合は、本文のみを使用。
 
+### Skill → Gemini CLI Skill
+
+| Claude Code | Gemini CLI | 変換方法 |
+|-------------|-----------|----------|
+| `name` | `name` | そのまま |
+| `description` | `description` | そのまま |
+| `allowed-tools` | - | 削除（Gemini CLI非対応） |
+| `model` | - | 削除（Gemini CLI非対応） |
+| `context` | - | 削除（Gemini CLI非対応） |
+
+> Note: Gemini CLI SkillsのfrontmatterはClaude Codeより限定的。`name`と`description`以外のフィールドは削除する。
+
+### Command → Gemini CLI
+
+Gemini CLIはCommand/Prompt相当の機能を持たないため、変換不可。
+
+### Agent → Gemini CLI
+
+Gemini CLIは`.agent.md`形式をサポートしていないため、変換不可。
+
 ---
 
 ## ツール名対応表
@@ -359,11 +426,13 @@ Codexは`.agent.md`形式を公式サポートしていないため、変換不�
 
 ## モデル名対応表
 
-| Claude Code | Copilot | Codex | 特性 |
-|-------------|---------|-------|------|
-| `haiku` | `GPT-4o-mini` | `gpt-4.1-mini` | 高速・低コスト |
-| `sonnet` | `GPT-4o` | `gpt-4.1` | バランス型 |
-| `opus` | `o1` | `o3` | 高性能 |
+| Claude Code | Copilot | Codex | Gemini CLI | 特性 |
+|-------------|---------|-------|------------|------|
+| `haiku` | `GPT-4o-mini` | `gpt-4.1-mini` | `gemini-2.0-flash` | 高速・低コスト |
+| `sonnet` | `GPT-4o` | `gpt-4.1` | `gemini-2.5-pro` | バランス型 |
+| `opus` | `o1` | `o3` | `gemini-2.5-pro` | 高性能 |
+
+> Note: Gemini CLI Skillsはfrontmatterで`model`フィールドを持たないため、モデル変換は参考情報。
 
 ---
 
@@ -381,6 +450,12 @@ Codexは`.agent.md`形式を公式サポートしていないため、変換不�
 - [Custom Prompts](https://developers.openai.com/codex/custom-prompts/)
 - [Agent Skills](https://developers.openai.com/codex/skills/)
 - [AGENTS.md](https://developers.openai.com/codex/guides/agents-md)
+
+### Gemini CLI
+- [Agent Skills](https://geminicli.com/docs/cli/skills/)
+- [Getting Started with Agent Skills](https://geminicli.com/docs/cli/tutorials/skills-getting-started/)
+- [GEMINI.md Context Files](https://geminicli.com/docs/cli/gemini-md/)
+- [Configuration](https://geminicli.com/docs/get-started/configuration/)
 
 ---
 

@@ -4,7 +4,7 @@
 
 ## プロジェクト概要
 
-PLM (Plugin Manager CLI) は、複数のAI開発環境（OpenAI Codex、VSCode Copilot、Google Antigravity、Claude Code）のプラグインを統合管理するRust製CLIツールです。Skills、Agents、Prompts、Instructionsのダウンロード、インストール、同期を行います。
+PLM (Plugin Manager CLI) は、複数のAI開発環境（OpenAI Codex、VSCode Copilot、Google Antigravity、Gemini CLI、Claude Code）のプラグインを統合管理するRust製CLIツールです。Skills、Agents、Prompts、Instructionsのダウンロード、インストール、同期を行います。
 
 ## ビルドコマンド
 
@@ -41,7 +41,7 @@ cargo deny check
 
 ### コマンドディスパッチパターン
 コマンドは `src/commands/mod.rs` を経由して各ハンドラモジュールにルーティングされる：
-- `target.rs` - ターゲット環境管理（codex/copilot/antigravity）
+- `target.rs` - ターゲット環境管理（codex/copilot/antigravity/gemini）
 - `install.rs` - GitHubからコンポーネントをインストール
 - `list.rs`, `info.rs` - インストール済みコンポーネントの照会
 - `enable.rs`, `disable.rs`, `uninstall.rs` - コンポーネント状態管理
@@ -66,6 +66,7 @@ cargo deny check
 | OpenAI Codex | ○ | × | × | ○ |
 | VSCode Copilot | ○ | ○ | ○ | ○ |
 | Google Antigravity | ○ | × | × | × |
+| Gemini CLI | ○ | × | × | ○ |
 
 **Component Trait** - コンポーネントタイプを抽象化：
 - Skills: YAMLフロントマター付き `SKILL.md`
@@ -73,7 +74,7 @@ cargo deny check
 - Prompts: `.prompt.md`
 - Instructions: `copilot-instructions.md`
 
-**スコープ** - Personal（`~/.codex/`, `~/.copilot/`, `~/.gemini/antigravity/`）vs Project（`.codex/`, `.github/`, `.agent/`）
+**スコープ** - Personal（`~/.codex/`, `~/.copilot/`, `~/.gemini/antigravity/`, `~/.gemini/skills/`）vs Project（`.codex/`, `.github/`, `.agent/`, `.gemini/skills/`）
 
 ## 主要依存関係
 - `clap` v4 - deriveマクロによるCLIパース
@@ -126,6 +127,7 @@ src/
 │   ├── codex.rs      # Codex ターゲット実装
 │   ├── copilot.rs    # Copilot ターゲット実装
 │   ├── antigravity.rs # Antigravity ターゲット実装
+│   ├── gemini_cli.rs  # Gemini CLI ターゲット実装
 │   └── effect.rs     # ターゲット操作の結果（値オブジェクト）
 ├── plugin/           # Plugin 関連の全て
 │   ├── cache.rs      # キャッシュ管理

@@ -136,7 +136,7 @@ impl SyncSource {
 /// コンポーネント名をパース (marketplace/plugin/component)
 pub fn parse_component_name(name: &str) -> Result<(PluginOrigin, &str)> {
     // Instruction の特別扱い
-    if name == "AGENTS.md" || name == "copilot-instructions.md" {
+    if name == "AGENTS.md" || name == "copilot-instructions.md" || name == "GEMINI.md" {
         return Ok((PluginOrigin::from_marketplace("", ""), name));
     }
 

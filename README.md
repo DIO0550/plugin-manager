@@ -3,17 +3,17 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/rust-2021-orange.svg)](https://www.rust-lang.org/)
 
-A unified CLI tool for managing plugins across AI coding assistants (OpenAI Codex, VSCode Copilot, Google Antigravity). Import Claude Code Plugins and deploy them to other environments. Download, install, and sync Skills, Agents, Prompts, and Instructions seamlessly.
+A unified CLI tool for managing plugins across AI coding assistants (OpenAI Codex, VSCode Copilot, Google Antigravity, Gemini CLI). Import Claude Code Plugins and deploy them to other environments. Download, install, and sync Skills, Agents, Prompts, and Instructions seamlessly.
 
 [日本語版 README](README.ja.md)
 
 ## Features
 
-- **Multi-Environment Support**: Deploy plugins to OpenAI Codex, VSCode Copilot, and Google Antigravity from a single tool
+- **Multi-Environment Support**: Deploy plugins to OpenAI Codex, VSCode Copilot, Google Antigravity, and Gemini CLI from a single tool
 - **Claude Code Plugin Import**: Import existing Claude Code Plugins and use them in other environments
 - **Component Types**: Handle Skills, Agents, Prompts, and Instructions
 - **Marketplace Integration**: Browse and install plugins from marketplaces
-- **Scope Management**: Install plugins at personal (`~/.codex/`, `~/.copilot/`, `~/.gemini/antigravity/`) or project (`.codex/`, `.github/`) level
+- **Scope Management**: Install plugins at personal (`~/.codex/`, `~/.copilot/`, `~/.gemini/antigravity/`, `~/.gemini/skills/`) or project (`.codex/`, `.github/`, `.gemini/skills/`) level
 - **TUI Interface**: Interactive terminal UI for plugin management
 - **Environment Sync**: Keep plugins synchronized across different environments
 
@@ -193,6 +193,7 @@ plm init my-plugin --type skill
 | OpenAI Codex | Yes | - | - | Yes |
 | VSCode Copilot | Yes | Yes | Yes | Yes |
 | Google Antigravity | Yes | - | - | - |
+| Gemini CLI | Yes | - | - | Yes |
 
 ## Configuration
 

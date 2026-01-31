@@ -89,7 +89,10 @@ pub enum Scope {
 }
 ```
 
-### 実装例
+### 実装例（擬似コード）
+
+> **Note**: 以下は設計意図を示す擬似コードです。実際の `Target` trait API（`placement_location()` 等）とは異なります。
+> 実装の詳細は `src/target/` 配下の各ファイルを参照してください。
 
 ```rust
 pub struct CodexTarget;
@@ -133,6 +136,37 @@ impl Target for AntigravityTarget {
                 Some(PathBuf::from(".agent/skills"))
             }
             _ => None,  // Other components not supported
+        }
+    }
+    // ...
+}
+
+pub struct GeminiCliTarget;
+
+impl Target for GeminiCliTarget {
+    fn name(&self) -> &str {
+        "gemini"
+    }
+
+    fn supported_components(&self) -> Vec<ComponentKind> {
+        vec![ComponentKind::Skill, ComponentKind::Instruction]
+    }
+
+    fn component_path(&self, kind: ComponentKind, scope: Scope) -> Option<PathBuf> {
+        match (kind, scope) {
+            (ComponentKind::Skill, Scope::Personal) => {
+                Some(dirs::home_dir()?.join(".gemini/skills"))
+            }
+            (ComponentKind::Skill, Scope::Project) => {
+                Some(PathBuf::from(".gemini/skills"))
+            }
+            (ComponentKind::Instruction, Scope::Personal) => {
+                Some(dirs::home_dir()?.join(".gemini/GEMINI.md"))
+            }
+            (ComponentKind::Instruction, Scope::Project) => {
+                Some(PathBuf::from("GEMINI.md"))
+            }
+            _ => None,  // Agents and Prompts not supported
         }
     }
     // ...

@@ -19,7 +19,7 @@ PLMが管理するコンポーネントの種類について説明します。
 
 - YAML frontmatterでメタデータを定義
 - 専門的なタスクを実行するための詳細な指示を含む
-- Codex、Copilot両方でサポート
+- Codex、Copilot、Gemini CLIでサポート（Antigravityも対応）
 
 ### ファイル形式
 
@@ -42,6 +42,8 @@ metadata:
 |------------|----------|---------|
 | Codex | `~/.codex/skills/<marketplace>/<plugin>/<skill>/` | `.codex/skills/<marketplace>/<plugin>/<skill>/` |
 | Copilot | - | `.github/skills/<marketplace>/<plugin>/<skill>/` |
+| Antigravity | `~/.gemini/antigravity/skills/<marketplace>/<plugin>/<skill>/` | `.agent/skills/<marketplace>/<plugin>/<skill>/` |
+| Gemini CLI | `~/.gemini/skills/<marketplace>/<plugin>/<skill>/` | `.gemini/skills/<marketplace>/<plugin>/<skill>/` |
 
 ## Agents
 
@@ -112,7 +114,7 @@ description: プロンプトの説明
 
 - AGENTS.md形式のオープン標準（Linux Foundation管轄）
 - プロジェクト全体に適用される指示
-- Codex、Copilot両方でサポート
+- Codex、Copilotでサポート（Gemini CLIは`GEMINI.md`で対応）
 
 ### ファイル形式
 
@@ -128,24 +130,27 @@ description: プロンプトの説明
 |------------|----------|---------|
 | Codex | `~/.codex/AGENTS.md` | `AGENTS.md` |
 | Copilot | - | `.github/copilot-instructions.md`, `AGENTS.md` |
+| Gemini CLI | `~/.gemini/GEMINI.md` | `GEMINI.md` |
 
 ## ターゲット別サポート状況
 
-| コンポーネント | Codex | Copilot |
-|----------------|-------|---------|
-| Skills | ✅ | ✅ |
-| Agents | ✅* | ✅ |
-| Prompts | ❌ | ✅ |
-| Instructions | ✅ | ✅ |
+| コンポーネント | Codex | Copilot | Antigravity | Gemini CLI |
+|----------------|-------|---------|-------------|------------|
+| Skills | ✅ | ✅ | ✅ | ✅ |
+| Agents | ✅* | ✅ | ❌ | ❌ |
+| Prompts | ❌ | ✅ | ❌ | ❌ |
+| Instructions | ✅ | ✅ | ❌ | ✅** |
 
 > *Codexは現時点で`.agent.md`を公式サポートしていませんが、将来対応を見越して配置します。
+> **Gemini CLIは`GEMINI.md`形式で対応（`AGENTS.md`は設定で変更可能）。
 
 ## 共通規格
 
 | 規格 | 説明 | 参照 |
 |------|------|------|
 | **AGENTS.md** | カスタム指示ファイル（Linux Foundation管轄のオープン標準） | https://agents.md |
-| **SKILL.md** | スキル定義（Anthropicがオープン標準として公開、OpenAI/Microsoftが採用） | - |
+| **SKILL.md** | スキル定義（Anthropicがオープン標準として公開、OpenAI/Microsoft/Googleが採用） | - |
+| **GEMINI.md** | Gemini CLI用のコンテキスト・指示ファイル | [Gemini CLI Docs](https://geminicli.com/docs/cli/gemini-md/) |
 
 ## 関連
 
