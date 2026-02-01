@@ -208,27 +208,15 @@ impl Model {
                 KeyCode::Tab if is_top_level => Some(Msg::NextTab),
                 KeyCode::BackTab if is_top_level => Some(Msg::PrevTab),
                 // 画面固有のキー処理に委譲
-                _ => {
-                    let screen_msg = match &self.screen {
-                        Screen::Installed(_) => installed::key_to_msg(key).map(Msg::Installed),
-                        Screen::Discover(_) => discover::key_to_msg(key).map(Msg::Discover),
-                        Screen::Marketplaces(_) => {
-                            marketplaces::key_to_msg(key).map(Msg::Marketplaces)
-                        }
-                        Screen::Errors(_) => errors::key_to_msg(key).map(Msg::Errors),
-                    };
-                    // Installed タブのみ: 画面が処理しなかった Up キーはフィルタへフォーカス移動
-                    // 他のタブではフィルタ機能が未実装のためフォーカスを許可しない
-                    if screen_msg.is_none()
-                        && is_top_level
-                        && key == KeyCode::Up
-                        && matches!(self.screen, Screen::Installed(_))
-                    {
-                        Some(Msg::FilterFocus)
-                    } else {
-                        screen_msg
+                // フィルタへのフォーカス移動は installed::update の返り値で処理される
+                _ => match &self.screen {
+                    Screen::Installed(_) => installed::key_to_msg(key).map(Msg::Installed),
+                    Screen::Discover(_) => discover::key_to_msg(key).map(Msg::Discover),
+                    Screen::Marketplaces(_) => {
+                        marketplaces::key_to_msg(key).map(Msg::Marketplaces)
                     }
-                }
+                    Screen::Errors(_) => errors::key_to_msg(key).map(Msg::Errors),
+                },
             }
         }
     }
