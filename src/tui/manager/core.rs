@@ -12,6 +12,8 @@ mod data;
 pub mod filter;
 
 #[cfg(test)]
+mod app_test;
+#[cfg(test)]
 mod filter_test;
 
 pub use app::{update, view, Model, Tab};
