@@ -340,7 +340,7 @@ fn view_component_types(
     let help_text = if counts.is_empty() {
         " Esc: back | q: quit"
     } else {
-        " up/down: move | Enter: open | Esc: back | q: quit"
+        " ↑↓: move | Enter: open | Esc: back | q: quit"
     };
     let help = Paragraph::new(help_text).style(Style::default().fg(Color::DarkGray));
     f.render_widget(help, chunks[2]);
