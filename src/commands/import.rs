@@ -244,7 +244,9 @@ fn deploy_one(
         Ok(_result) => {
             println!(
                 "  + {} {}: {} -> {}",
-                target.name(), deployment.kind, deployment.name,
+                target.name(),
+                deployment.kind,
+                deployment.name,
                 deployment.path().display()
             );
 
@@ -273,7 +275,10 @@ fn deploy_one(
         Err(e) => {
             println!(
                 "  x {} {}: {} - {}",
-                target.name(), deployment.kind, deployment.name, e
+                target.name(),
+                deployment.kind,
+                deployment.name,
+                e
             );
             DeployOutcome::Failure
         }
@@ -299,7 +304,10 @@ fn place_components(
                 Err(e) => {
                     println!(
                         "  x {} {}: {} - {}",
-                        target.name(), component.kind, component.name, e
+                        target.name(),
+                        component.kind,
+                        component.name,
+                        e
                     );
                     total_failure += 1;
                     continue;
@@ -412,8 +420,12 @@ pub async fn run(args: Args) -> Result<(), String> {
     let mut import_registry = ImportRegistry::new().map_err(|e| e.to_string())?;
 
     println!("\nPlacement Results:");
-    let (total_success, total_failure) =
-        place_components(&target_names, &filtered_components, &ctx, &mut import_registry)?;
+    let (total_success, total_failure) = place_components(
+        &target_names,
+        &filtered_components,
+        &ctx,
+        &mut import_registry,
+    )?;
 
     // 10. Summary
     let summary = CommandSummary::format(total_success, total_failure);
