@@ -6,6 +6,7 @@
 //! - `ScreenCache`: タブ切替時に保持する軽量な状態
 
 use super::data::DataStore;
+use super::filter::filter_plugins;
 use crate::tui::manager::screens::{discover, errors, installed, marketplaces};
 use crossterm::event::KeyCode;
 use ratatui::prelude::*;
@@ -128,6 +129,16 @@ pub enum Msg {
     NextTab,
     /// 前のタブへ
     PrevTab,
+    /// フィルタにフォーカス移動
+    FilterFocus,
+    /// フィルタからフォーカス解除（リストへ戻る）
+    FilterUnfocus,
+    /// フィルタ文字入力
+    FilterInput(char),
+    /// フィルタ文字削除
+    FilterBackspace,
+    /// フィルタクリア
+    FilterClear,
     /// Installed タブのメッセージ
     Installed(installed::Msg),
     /// Discover タブのメッセージ
@@ -152,6 +163,10 @@ pub struct Model {
     pub cache: ScreenCache,
     /// 終了フラグ
     pub should_quit: bool,
+    /// フィルタテキスト（全タブ共通）
+    pub filter_text: String,
+    /// フィルタ入力欄にフォーカスしているか
+    pub filter_focused: bool,
 }
 
 impl Model {
@@ -165,22 +180,49 @@ impl Model {
             screen,
             cache: ScreenCache::default(),
             should_quit: false,
+            filter_text: String::new(),
+            filter_focused: false,
         })
     }
 
     /// キー入力をメッセージに変換
     pub fn key_to_msg(&self, key: KeyCode) -> Option<Msg> {
-        match key {
-            KeyCode::Char('q') => Some(Msg::Quit),
-            KeyCode::Tab if self.screen.is_top_level() => Some(Msg::NextTab),
-            KeyCode::BackTab if self.screen.is_top_level() => Some(Msg::PrevTab),
-            _ => {
-                // 画面固有のキー処理
-                match &self.screen {
-                    Screen::Installed(_) => installed::key_to_msg(key).map(Msg::Installed),
-                    Screen::Discover(_) => discover::key_to_msg(key).map(Msg::Discover),
-                    Screen::Marketplaces(_) => marketplaces::key_to_msg(key).map(Msg::Marketplaces),
-                    Screen::Errors(_) => errors::key_to_msg(key).map(Msg::Errors),
+        let is_top_level = self.screen.is_top_level();
+
+        if self.filter_focused {
+            // フィルタにフォーカス中のキー処理
+            match key {
+                KeyCode::Esc if !self.filter_text.is_empty() => Some(Msg::FilterClear),
+                KeyCode::Esc => Some(Msg::FilterUnfocus),
+                KeyCode::Down | KeyCode::Enter => Some(Msg::FilterUnfocus),
+                KeyCode::Tab if is_top_level => Some(Msg::NextTab),
+                KeyCode::BackTab if is_top_level => Some(Msg::PrevTab),
+                KeyCode::Backspace => Some(Msg::FilterBackspace),
+                KeyCode::Char(c) => Some(Msg::FilterInput(c)),
+                _ => None,
+            }
+        } else {
+            // リスト（通常）フォーカス時のキー処理
+            match key {
+                KeyCode::Char('q') => Some(Msg::Quit),
+                KeyCode::Tab if is_top_level => Some(Msg::NextTab),
+                KeyCode::BackTab if is_top_level => Some(Msg::PrevTab),
+                // 画面固有のキー処理に委譲
+                _ => {
+                    let screen_msg = match &self.screen {
+                        Screen::Installed(_) => installed::key_to_msg(key).map(Msg::Installed),
+                        Screen::Discover(_) => discover::key_to_msg(key).map(Msg::Discover),
+                        Screen::Marketplaces(_) => {
+                            marketplaces::key_to_msg(key).map(Msg::Marketplaces)
+                        }
+                        Screen::Errors(_) => errors::key_to_msg(key).map(Msg::Errors),
+                    };
+                    // 画面が処理しなかった Up キーはフィルタへフォーカス移動
+                    if screen_msg.is_none() && is_top_level && key == KeyCode::Up {
+                        Some(Msg::FilterFocus)
+                    } else {
+                        screen_msg
+                    }
                 }
             }
         }
@@ -198,14 +240,38 @@ pub fn update(model: &mut Model, msg: Msg) {
             model.should_quit = true;
         }
         Msg::NextTab => {
+            model.filter_focused = false;
             switch_tab(model, model.screen.tab().next());
         }
         Msg::PrevTab => {
+            model.filter_focused = false;
             switch_tab(model, model.screen.tab().prev());
+        }
+        Msg::FilterFocus => {
+            model.filter_focused = true;
+        }
+        Msg::FilterUnfocus => {
+            model.filter_focused = false;
+        }
+        Msg::FilterInput(c) => {
+            model.filter_text.push(c);
+            clamp_selection(model);
+        }
+        Msg::FilterBackspace => {
+            model.filter_text.pop();
+            clamp_selection(model);
+        }
+        Msg::FilterClear => {
+            model.filter_text.clear();
+            clamp_selection(model);
         }
         Msg::Installed(msg) => {
             if let Screen::Installed(m) = &mut model.screen {
-                installed::update(m, msg, &mut model.data);
+                let should_focus_filter =
+                    installed::update(m, msg, &mut model.data, &model.filter_text);
+                if should_focus_filter {
+                    model.filter_focused = true;
+                }
             }
         }
         Msg::Discover(msg) => {
@@ -221,6 +287,32 @@ pub fn update(model: &mut Model, msg: Msg) {
         Msg::Errors(msg) => {
             if let Screen::Errors(m) = &mut model.screen {
                 errors::update(m, msg, &model.data);
+            }
+        }
+    }
+}
+
+/// フィルタ変更後に選択状態を整合させる
+fn clamp_selection(model: &mut Model) {
+    if let Screen::Installed(m) = &mut model.screen {
+        let filtered = filter_plugins(&model.data.plugins, &model.filter_text);
+        if let installed::Model::PluginList { selected_id, state } = m {
+            if let Some(id) = selected_id.as_ref() {
+                // 現在の選択が絞り込み結果に含まれるか
+                if let Some(idx) = filtered.iter().position(|p| &p.name == id) {
+                    state.select(Some(idx));
+                } else if !filtered.is_empty() {
+                    state.select(Some(0));
+                    *selected_id = Some(filtered[0].name.clone());
+                } else {
+                    state.select(None);
+                    *selected_id = None;
+                }
+            } else if !filtered.is_empty() {
+                state.select(Some(0));
+                *selected_id = Some(filtered[0].name.clone());
+            } else {
+                state.select(None);
             }
         }
     }
@@ -260,6 +352,11 @@ fn switch_tab(model: &mut Model, new_tab: Tab) {
         )),
         Tab::Errors => Screen::Errors(errors::Model::new(&model.data)),
     };
+
+    // Installed タブ復元後にフィルタ済みリストと選択状態を整合
+    if new_tab == Tab::Installed {
+        clamp_selection(model);
+    }
 }
 
 // ============================================================================
@@ -269,9 +366,17 @@ fn switch_tab(model: &mut Model, new_tab: Tab) {
 /// 画面を描画
 pub fn view(f: &mut Frame, model: &Model) {
     match &model.screen {
-        Screen::Installed(m) => installed::view(f, m, &model.data),
-        Screen::Discover(m) => discover::view(f, m, &model.data),
-        Screen::Marketplaces(m) => marketplaces::view(f, m, &model.data),
-        Screen::Errors(m) => errors::view(f, m, &model.data),
+        Screen::Installed(m) => {
+            installed::view(f, m, &model.data, &model.filter_text, model.filter_focused)
+        }
+        Screen::Discover(m) => {
+            discover::view(f, m, &model.data, &model.filter_text, model.filter_focused)
+        }
+        Screen::Marketplaces(m) => {
+            marketplaces::view(f, m, &model.data, &model.filter_text, model.filter_focused)
+        }
+        Screen::Errors(m) => {
+            errors::view(f, m, &model.data, &model.filter_text, model.filter_focused)
+        }
     }
 }

@@ -4,37 +4,62 @@
 
 use super::actions;
 use super::model::{DetailAction, Model, Msg};
-use crate::tui::manager::core::DataStore;
+use crate::tui::manager::core::{filter_plugins, DataStore};
 use ratatui::widgets::ListState;
 
 /// メッセージに応じて状態を更新
-pub fn update(model: &mut Model, msg: Msg, data: &mut DataStore) {
+///
+/// 戻り値: `true` ならフィルタ入力欄へフォーカス移動すべき
+pub fn update(model: &mut Model, msg: Msg, data: &mut DataStore, filter_text: &str) -> bool {
     match msg {
-        Msg::Up => select_prev(model, data),
-        Msg::Down => select_next(model, data),
-        Msg::Enter => enter(model, data),
-        Msg::Back => back(model),
+        Msg::Up => select_prev(model, data, filter_text),
+        Msg::Down => {
+            select_next(model, data, filter_text);
+            false
+        }
+        Msg::Enter => {
+            enter(model, data);
+            false
+        }
+        Msg::Back => {
+            back(model, filter_text, data);
+            false
+        }
     }
 }
 
 /// 選択を上に移動
-fn select_prev(model: &mut Model, data: &DataStore) {
-    let len = list_len(model, data);
+///
+/// 戻り値: `true` ならリスト先頭で↑が押され、フィルタへフォーカス移動すべき
+fn select_prev(model: &mut Model, data: &DataStore, filter_text: &str) -> bool {
+    let len = list_len(model, data, filter_text);
     if len == 0 {
-        return;
+        // リストが空の場合もフィルタへフォーカス移動
+        if matches!(model, Model::PluginList { .. }) {
+            return true;
+        }
+        return false;
     }
     let state = model.current_state_mut();
     let current = state.selected().unwrap_or(0);
+    if current == 0 {
+        // PluginList の先頭ならフィルタへフォーカス移動
+        if matches!(model, Model::PluginList { .. }) {
+            return true;
+        }
+        return false;
+    }
     let prev = current.saturating_sub(1);
     state.select(Some(prev));
 
     // selected_id を更新
-    update_selected_id(model, data);
+    update_selected_id(model, data, filter_text);
+    false
 }
 
 /// 選択を下に移動
-fn select_next(model: &mut Model, data: &DataStore) {
-    let len = list_len(model, data);
+fn select_next(model: &mut Model, data: &DataStore, filter_text: &str) {
+    let len = list_len(model, data, filter_text);
     if len == 0 {
         return;
     }
@@ -44,7 +69,7 @@ fn select_next(model: &mut Model, data: &DataStore) {
     state.select(Some(next));
 
     // selected_id を更新
-    update_selected_id(model, data);
+    update_selected_id(model, data, filter_text);
 }
 
 /// 次の階層へ遷移
@@ -175,7 +200,7 @@ fn enter(model: &mut Model, data: &mut DataStore) {
 }
 
 /// 前の階層へ戻る
-fn back(model: &mut Model) {
+fn back(model: &mut Model, filter_text: &str, data: &DataStore) {
     match model {
         Model::PluginList { .. } => {
             // PluginList での Back は app.rs で Quit 処理される
@@ -183,10 +208,20 @@ fn back(model: &mut Model) {
         Model::PluginDetail { plugin_id, .. } => {
             // PluginDetail → PluginList へ戻る
             let id = plugin_id.clone();
+            let filtered = filter_plugins(&data.plugins, filter_text);
             let mut new_state = ListState::default();
-            new_state.select(Some(0));
+            let idx = filtered.iter().position(|p| p.name == id);
+            let selected_id = if let Some(idx) = idx {
+                new_state.select(Some(idx));
+                Some(id)
+            } else if !filtered.is_empty() {
+                new_state.select(Some(0));
+                Some(filtered[0].name.clone())
+            } else {
+                None
+            };
             *model = Model::PluginList {
-                selected_id: Some(id),
+                selected_id,
                 state: new_state,
             };
         }
@@ -216,9 +251,9 @@ fn back(model: &mut Model) {
 }
 
 /// 現在の画面のリスト長を取得
-fn list_len(model: &Model, data: &DataStore) -> usize {
+fn list_len(model: &Model, data: &DataStore, filter_text: &str) -> usize {
     match model {
-        Model::PluginList { .. } => data.plugins.len(),
+        Model::PluginList { .. } => filter_plugins(&data.plugins, filter_text).len(),
         Model::PluginDetail { plugin_id, .. } => {
             let enabled = data.find_plugin(plugin_id).is_some_and(|p| p.enabled);
             DetailAction::for_plugin(enabled).len()
@@ -243,10 +278,11 @@ fn list_len(model: &Model, data: &DataStore) -> usize {
 }
 
 /// selected_id を現在のインデックスから更新
-fn update_selected_id(model: &mut Model, data: &DataStore) {
+fn update_selected_id(model: &mut Model, data: &DataStore, filter_text: &str) {
     if let Model::PluginList { selected_id, state } = model {
         if let Some(idx) = state.selected() {
-            *selected_id = data.plugins.get(idx).map(|p| p.name.clone());
+            let filtered = filter_plugins(&data.plugins, filter_text);
+            *selected_id = filtered.get(idx).map(|p| p.name.clone());
         }
     }
 }
