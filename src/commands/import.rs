@@ -203,9 +203,9 @@ fn build_deployment(
     target: &dyn Target,
     component: &Component,
     ctx: &ImportContext,
-) -> Option<Result<ComponentDeployment, String>> {
+) -> Result<Option<ComponentDeployment>, String> {
     if !target.supports(component.kind) {
-        return None;
+        return Ok(None);
     }
 
     let placement_ctx = PlacementContext {
@@ -217,7 +217,7 @@ fn build_deployment(
 
     let target_path = match target.placement_location(&placement_ctx) {
         Some(location) => location.into_path(),
-        None => return None,
+        None => return Ok(None),
     };
 
     let mut builder = ComponentDeployment::builder()
@@ -231,7 +231,7 @@ fn build_deployment(
             .dest_agent_format(target.agent_format());
     }
 
-    Some(builder.build().map_err(|e| e.to_string()))
+    builder.build().map(Some).map_err(|e| e.to_string())
 }
 
 fn deploy_one(
@@ -296,9 +296,9 @@ fn place_components(
 
         for component in components {
             let deployment = match build_deployment(target.as_ref(), component, ctx) {
-                None => continue,
-                Some(Ok(d)) => d,
-                Some(Err(e)) => {
+                Ok(None) => continue,
+                Ok(Some(d)) => d,
+                Err(e) => {
                     println!(
                         "  x {} {}: {} - {}",
                         target.name(), component.kind, component.name, e
