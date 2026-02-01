@@ -217,8 +217,13 @@ impl Model {
                         }
                         Screen::Errors(_) => errors::key_to_msg(key).map(Msg::Errors),
                     };
-                    // 画面が処理しなかった Up キーはフィルタへフォーカス移動
-                    if screen_msg.is_none() && is_top_level && key == KeyCode::Up {
+                    // Installed タブのみ: 画面が処理しなかった Up キーはフィルタへフォーカス移動
+                    // 他のタブではフィルタ機能が未実装のためフォーカスを許可しない
+                    if screen_msg.is_none()
+                        && is_top_level
+                        && key == KeyCode::Up
+                        && matches!(self.screen, Screen::Installed(_))
+                    {
                         Some(Msg::FilterFocus)
                     } else {
                         screen_msg
