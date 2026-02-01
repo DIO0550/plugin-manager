@@ -33,6 +33,21 @@ cargo test <test_name>  # 単一テスト実行
 cargo deny check
 ```
 
+## サブエージェントの活用
+
+以下の操作は直接 Bash で実行せず、専用のサブエージェント（Task tool）を使用すること：
+
+| 操作 | スキル名 | 説明 |
+|------|----------|------|
+| ファイル検索 | `rust-workflow-plugin:file-search` | ファイル名パターン検索、コード内文字列検索、シンボル（関数・構造体・enum・trait・impl）検索 |
+| 型チェック | `rust-workflow-plugin:type-check` | `cargo check` によるコンパイルエラー・型エラーの検出 |
+| テスト実行 | `rust-workflow-plugin:test` | `cargo test` によるユニットテスト・統合テスト・ドキュメントテストの実行 |
+
+**原則:**
+- `cargo check`、`cargo test` を直接 Bash で実行しない
+- 必ず対応するサブエージェントを経由する
+- これによりエラーレポートの構造化と結果の再利用性が向上する
+
 ## アーキテクチャ
 
 ### エントリポイント
