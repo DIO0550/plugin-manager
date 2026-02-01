@@ -201,14 +201,14 @@ pub enum Msg {
 
 /// キーコードをメッセージに変換
 ///
-/// トップレベル（PluginList）では j/k はフィルタ入力として app.rs で処理されるため、
-/// ここでは矢印キーのみ Up/Down にマッピングする。
+/// この関数はフィルタ非フォーカス時にのみ app.rs から呼ばれるため、
+/// j/k キーバインドはフィルタ入力と競合しない。
 /// Esc はフィルタフォーカス中は app.rs 側で FilterClear として処理されるが、
 /// フィルタがフォーカスされていない通常状態では、トップレベルか否かに関わらず Back を返す。
 pub fn key_to_msg(key: KeyCode) -> Option<Msg> {
     match key {
-        KeyCode::Up => Some(Msg::Up),
-        KeyCode::Down => Some(Msg::Down),
+        KeyCode::Up | KeyCode::Char('k') => Some(Msg::Up),
+        KeyCode::Down | KeyCode::Char('j') => Some(Msg::Down),
         KeyCode::Enter => Some(Msg::Enter),
         KeyCode::Esc => Some(Msg::Back),
         _ => None,
