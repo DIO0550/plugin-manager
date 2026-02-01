@@ -403,7 +403,7 @@ fn view_component_list(
     f.render_stateful_widget(list, chunks[1], &mut state);
 
     // ヘルプ
-    let help = Paragraph::new(" up/down: move | Esc: back | q: quit")
+    let help = Paragraph::new(" ↑↓: move | Esc: back | q: quit")
         .style(Style::default().fg(Color::DarkGray));
     f.render_widget(help, chunks[2]);
 }
