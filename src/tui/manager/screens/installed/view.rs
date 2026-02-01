@@ -4,7 +4,9 @@
 
 use super::model::{DetailAction, Model};
 use crate::component::ComponentKind;
-use crate::tui::manager::core::{dialog_rect, DataStore, PluginId, Tab};
+use crate::tui::manager::core::{
+    dialog_rect, filter_plugins, render_filter_bar, DataStore, PluginId, Tab,
+};
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Tabs};
 
@@ -20,20 +22,26 @@ fn component_kind_title(kind: ComponentKind) -> &'static str {
 }
 
 /// 画面を描画
-pub fn view(f: &mut Frame, model: &Model, data: &DataStore) {
+pub fn view(
+    f: &mut Frame,
+    model: &Model,
+    data: &DataStore,
+    filter_text: &str,
+    filter_focused: bool,
+) {
     match model {
         Model::PluginList { state, .. } => {
-            view_plugin_list(f, *state, data);
+            view_plugin_list(f, *state, data, filter_text, filter_focused);
         }
         Model::PluginDetail {
             plugin_id, state, ..
         } => {
-            view_plugin_detail(f, plugin_id, *state, data);
+            view_plugin_detail(f, plugin_id, *state, data, filter_text, filter_focused);
         }
         Model::ComponentTypes {
             plugin_id, state, ..
         } => {
-            view_component_types(f, plugin_id, *state, data);
+            view_component_types(f, plugin_id, *state, data, filter_text, filter_focused);
         }
         Model::ComponentList {
             plugin_id,
@@ -41,16 +49,31 @@ pub fn view(f: &mut Frame, model: &Model, data: &DataStore) {
             state,
             ..
         } => {
-            view_component_list(f, plugin_id, *kind, *state, data);
+            view_component_list(
+                f,
+                plugin_id,
+                *kind,
+                *state,
+                data,
+                filter_text,
+                filter_focused,
+            );
         }
     }
 }
 
 /// プラグイン一覧画面を描画
-fn view_plugin_list(f: &mut Frame, mut state: ListState, data: &DataStore) {
-    let content_height = (data.plugins.len() as u16).max(1) + 6;
+fn view_plugin_list(
+    f: &mut Frame,
+    mut state: ListState,
+    data: &DataStore,
+    filter_text: &str,
+    filter_focused: bool,
+) {
+    let filtered = filter_plugins(&data.plugins, filter_text);
+    let content_height = (filtered.len() as u16).max(1) + 9; // +3 for filter bar
     let dialog_width = 55u16;
-    let dialog_height = content_height.min(22);
+    let dialog_height = content_height.min(24);
 
     let dialog_area = dialog_rect(dialog_width, dialog_height, f.area());
     f.render_widget(Clear, dialog_area);
@@ -59,6 +82,7 @@ fn view_plugin_list(f: &mut Frame, mut state: ListState, data: &DataStore) {
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(1), // タブバー
+            Constraint::Length(3), // フィルタバー
             Constraint::Min(1),    // コンテンツ
             Constraint::Length(1), // ヘルプ
         ])
@@ -77,57 +101,81 @@ fn view_plugin_list(f: &mut Frame, mut state: ListState, data: &DataStore) {
         .divider(" | ");
     f.render_widget(tabs, chunks[0]);
 
-    // プラグインリスト
-    let items: Vec<ListItem> = data
-        .plugins
-        .iter()
-        .map(|p| {
-            let marketplace_str = p
-                .marketplace
-                .as_ref()
-                .map(|m| format!(" @{}", m))
-                .unwrap_or_default();
-            let status_str = if p.enabled { "" } else { " [disabled]" };
-            let text = format!(
-                "  {}{}  v{}{}",
-                p.name, marketplace_str, p.version, status_str
-            );
-            let style = if p.enabled {
+    // フィルタバー
+    render_filter_bar(f, chunks[1], filter_text, filter_focused);
+
+    // プラグインリスト（フィルタ済み）
+    if filtered.is_empty() {
+        let no_match = Paragraph::new("  No matching plugins")
+            .block(
+                Block::default()
+                    .title(" Installed Plugins (0) ")
+                    .borders(Borders::ALL),
+            )
+            .style(Style::default().fg(Color::DarkGray));
+        f.render_widget(no_match, chunks[2]);
+    } else {
+        let items: Vec<ListItem> = filtered
+            .iter()
+            .map(|p| {
+                let marketplace_str = p
+                    .marketplace
+                    .as_ref()
+                    .map(|m| format!(" @{}", m))
+                    .unwrap_or_default();
+                let status_str = if p.enabled { "" } else { " [disabled]" };
+                let text = format!(
+                    "  {}{}  v{}{}",
+                    p.name, marketplace_str, p.version, status_str
+                );
+                let style = if p.enabled {
+                    Style::default()
+                } else {
+                    Style::default().fg(Color::DarkGray)
+                };
+                ListItem::new(text).style(style)
+            })
+            .collect();
+
+        let title = format!(
+            " Installed Plugins ({}/{}) ",
+            filtered.len(),
+            data.plugins.len()
+        );
+        let list = List::new(items)
+            .block(Block::default().title(title).borders(Borders::ALL))
+            .highlight_style(
                 Style::default()
-            } else {
-                Style::default().fg(Color::DarkGray)
-            };
-            ListItem::new(text).style(style)
-        })
-        .collect();
+                    .add_modifier(Modifier::BOLD)
+                    .fg(Color::Green),
+            )
+            .highlight_symbol("> ");
 
-    let title = format!(" Installed Plugins ({}) ", data.plugins.len());
-    let list = List::new(items)
-        .block(Block::default().title(title).borders(Borders::ALL))
-        .highlight_style(
-            Style::default()
-                .add_modifier(Modifier::BOLD)
-                .fg(Color::Green),
-        )
-        .highlight_symbol("> ");
-
-    f.render_stateful_widget(list, chunks[1], &mut state);
+        f.render_stateful_widget(list, chunks[2], &mut state);
+    }
 
     // ヘルプ
-    let help = Paragraph::new(" Tab: switch | up/down: move | Enter: details | q: quit")
+    let help = Paragraph::new(" Tab: switch | ↑↓: move | Enter: details | q: quit")
         .style(Style::default().fg(Color::DarkGray));
-    f.render_widget(help, chunks[2]);
+    f.render_widget(help, chunks[3]);
 }
 
 /// プラグイン詳細画面を描画
-fn view_plugin_detail(f: &mut Frame, plugin_id: &PluginId, mut state: ListState, data: &DataStore) {
+fn view_plugin_detail(
+    f: &mut Frame,
+    plugin_id: &PluginId,
+    mut state: ListState,
+    data: &DataStore,
+    filter_text: &str,
+    filter_focused: bool,
+) {
     let Some(plugin) = data.find_plugin(plugin_id) else {
         return;
     };
 
     // ダイアログサイズ
     let dialog_width = 65u16;
-    let dialog_height = 18u16;
+    let dialog_height = 21u16; // +3 for filter bar
     let dialog_area = dialog_rect(dialog_width, dialog_height, f.area());
     f.render_widget(Clear, dialog_area);
 
@@ -135,6 +183,7 @@ fn view_plugin_detail(f: &mut Frame, plugin_id: &PluginId, mut state: ListState,
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(1), // タブバー
+            Constraint::Length(3), // フィルタバー
             Constraint::Length(7), // プラグイン情報
             Constraint::Min(1),    // アクションメニュー
             Constraint::Length(1), // ヘルプ
@@ -153,6 +202,9 @@ fn view_plugin_detail(f: &mut Frame, plugin_id: &PluginId, mut state: ListState,
         )
         .divider(" | ");
     f.render_widget(tabs, chunks[0]);
+
+    // フィルタバー（read-only）
+    render_filter_bar(f, chunks[1], filter_text, filter_focused);
 
     // プラグイン情報
     let marketplace_str = plugin
@@ -190,7 +242,7 @@ fn view_plugin_detail(f: &mut Frame, plugin_id: &PluginId, mut state: ListState,
 
     let info_block = Block::default().title(title).borders(Borders::ALL);
     let info_para = Paragraph::new(info_lines).block(info_block);
-    f.render_widget(info_para, chunks[1]);
+    f.render_widget(info_para, chunks[2]);
 
     // アクションメニュー（enabled 状態に応じて動的に切り替え）
     let actions = DetailAction::for_plugin(plugin.enabled);
@@ -203,12 +255,12 @@ fn view_plugin_detail(f: &mut Frame, plugin_id: &PluginId, mut state: ListState,
         .highlight_style(Style::default().add_modifier(Modifier::BOLD))
         .highlight_symbol("> ");
 
-    f.render_stateful_widget(list, chunks[2], &mut state);
+    f.render_stateful_widget(list, chunks[3], &mut state);
 
     // ヘルプ
     let help = Paragraph::new(" Navigate: ↑↓ • Select: Enter • Back: Esc")
         .style(Style::default().fg(Color::DarkGray));
-    f.render_widget(help, chunks[3]);
+    f.render_widget(help, chunks[4]);
 }
 
 /// コンポーネント種別選択画面を描画
@@ -217,6 +269,8 @@ fn view_component_types(
     plugin_id: &PluginId,
     mut state: ListState,
     data: &DataStore,
+    filter_text: &str,
+    filter_focused: bool,
 ) {
     let Some(plugin) = data.find_plugin(plugin_id) else {
         return;
@@ -226,17 +280,24 @@ fn view_component_types(
     let has_marketplace = plugin.marketplace.is_some();
     let base_lines = if has_marketplace { 4 } else { 3 };
     let type_lines = if counts.is_empty() { 1 } else { counts.len() };
-    let content_height = (base_lines + type_lines) as u16 + 4;
+    let content_height = (base_lines + type_lines) as u16 + 7; // +3 for filter bar
     let dialog_width = 55u16;
-    let dialog_height = content_height.min(15);
+    let dialog_height = content_height.min(18);
 
     let dialog_area = dialog_rect(dialog_width, dialog_height, f.area());
     f.render_widget(Clear, dialog_area);
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Min(1), Constraint::Length(1)])
+        .constraints([
+            Constraint::Length(3), // フィルタバー
+            Constraint::Min(1),    // コンテンツ
+            Constraint::Length(1), // ヘルプ
+        ])
         .split(dialog_area);
+
+    // フィルタバー（read-only）
+    render_filter_bar(f, chunks[0], filter_text, filter_focused);
 
     let title = format!(" {} ", plugin.name);
 
@@ -252,7 +313,7 @@ fn view_component_types(
 
         let paragraph = Paragraph::new(lines.join("\n"))
             .block(Block::default().title(title).borders(Borders::ALL));
-        f.render_widget(paragraph, chunks[0]);
+        f.render_widget(paragraph, chunks[1]);
     } else {
         // コンポーネントがある場合
         let items: Vec<ListItem> = counts
@@ -272,17 +333,17 @@ fn view_component_types(
             )
             .highlight_symbol("> ");
 
-        f.render_stateful_widget(list, chunks[0], &mut state);
+        f.render_stateful_widget(list, chunks[1], &mut state);
     }
 
     // ヘルプ
     let help_text = if counts.is_empty() {
         " Esc: back | q: quit"
     } else {
-        " up/down: move | Enter: open | Esc: back | q: quit"
+        " ↑↓: move | Enter: open | Esc: back | q: quit"
     };
     let help = Paragraph::new(help_text).style(Style::default().fg(Color::DarkGray));
-    f.render_widget(help, chunks[1]);
+    f.render_widget(help, chunks[2]);
 }
 
 /// コンポーネント一覧画面を描画
@@ -292,6 +353,8 @@ fn view_component_list(
     kind: ComponentKind,
     mut state: ListState,
     data: &DataStore,
+    filter_text: &str,
+    filter_focused: bool,
 ) {
     let Some(plugin) = data.find_plugin(plugin_id) else {
         return;
@@ -303,17 +366,24 @@ fn view_component_list(
         .map(|c| ListItem::new(format!("  {}", c.name)))
         .collect();
 
-    let content_height = (components.len() as u16).max(1) + 4;
+    let content_height = (components.len() as u16).max(1) + 7; // +3 for filter bar
     let dialog_width = 55u16;
-    let dialog_height = content_height.min(20);
+    let dialog_height = content_height.min(23);
 
     let dialog_area = dialog_rect(dialog_width, dialog_height, f.area());
     f.render_widget(Clear, dialog_area);
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Min(1), Constraint::Length(1)])
+        .constraints([
+            Constraint::Length(3), // フィルタバー
+            Constraint::Min(1),    // コンテンツ
+            Constraint::Length(1), // ヘルプ
+        ])
         .split(dialog_area);
+
+    // フィルタバー（read-only）
+    render_filter_bar(f, chunks[0], filter_text, filter_focused);
 
     let title = format!(
         " {} > {} ({}) ",
@@ -330,10 +400,10 @@ fn view_component_list(
         )
         .highlight_symbol("> ");
 
-    f.render_stateful_widget(list, chunks[0], &mut state);
+    f.render_stateful_widget(list, chunks[1], &mut state);
 
     // ヘルプ
-    let help = Paragraph::new(" up/down: move | Esc: back | q: quit")
+    let help = Paragraph::new(" ↑↓: move | Esc: back | q: quit")
         .style(Style::default().fg(Color::DarkGray));
-    f.render_widget(help, chunks[1]);
+    f.render_widget(help, chunks[2]);
 }

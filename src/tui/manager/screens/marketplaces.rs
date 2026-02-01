@@ -2,7 +2,7 @@
 //!
 //! マーケットプレースソースの管理。
 
-use crate::tui::manager::core::{dialog_rect, DataStore, Tab};
+use crate::tui::manager::core::{dialog_rect, render_filter_bar, DataStore, Tab};
 use crossterm::event::KeyCode;
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Clear, ListState, Paragraph, Tabs};
@@ -80,9 +80,15 @@ pub fn update(_model: &mut Model, _msg: Msg, _data: &DataStore) {
 // ============================================================================
 
 /// 画面を描画
-pub fn view(f: &mut Frame, _model: &Model, _data: &DataStore) {
+pub fn view(
+    f: &mut Frame,
+    _model: &Model,
+    _data: &DataStore,
+    filter_text: &str,
+    filter_focused: bool,
+) {
     let dialog_width = 55u16;
-    let dialog_height = 8u16;
+    let dialog_height = 11u16; // +3 for filter bar
 
     let dialog_area = dialog_rect(dialog_width, dialog_height, f.area());
     f.render_widget(Clear, dialog_area);
@@ -91,6 +97,7 @@ pub fn view(f: &mut Frame, _model: &Model, _data: &DataStore) {
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(1), // タブバー
+            Constraint::Length(3), // フィルタバー
             Constraint::Min(1),    // コンテンツ
             Constraint::Length(1), // ヘルプ
         ])
@@ -109,6 +116,9 @@ pub fn view(f: &mut Frame, _model: &Model, _data: &DataStore) {
         .divider(" | ");
     f.render_widget(tabs, chunks[0]);
 
+    // フィルタバー（Marketplaces タブではフィルタ機能は未対応、UI のみ表示）
+    render_filter_bar(f, chunks[1], filter_text, filter_focused);
+
     // プレースホルダーコンテンツ
     let content = Paragraph::new("\n  Manage marketplace sources")
         .block(
@@ -117,9 +127,9 @@ pub fn view(f: &mut Frame, _model: &Model, _data: &DataStore) {
                 .borders(Borders::ALL),
         )
         .style(Style::default().fg(Color::DarkGray));
-    f.render_widget(content, chunks[1]);
+    f.render_widget(content, chunks[2]);
 
     // ヘルプ
     let help = Paragraph::new(" Tab: switch | q: quit").style(Style::default().fg(Color::DarkGray));
-    f.render_widget(help, chunks[2]);
+    f.render_widget(help, chunks[3]);
 }

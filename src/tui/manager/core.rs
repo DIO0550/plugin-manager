@@ -9,7 +9,12 @@
 mod app;
 mod common;
 mod data;
+pub mod filter;
+
+#[cfg(test)]
+mod filter_test;
 
 pub use app::{update, view, Model, Tab};
-pub use common::dialog_rect;
+pub use common::{dialog_rect, render_filter_bar};
 pub use data::{DataStore, PluginId};
+pub use filter::filter_plugins;
