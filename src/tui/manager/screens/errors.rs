@@ -87,7 +87,7 @@ pub fn view(
         .divider(" | ");
     f.render_widget(tabs, chunks[0]);
 
-    // フィルタバー
+    // フィルタバー（Errors タブではフィルタ機能は未対応、UI のみ表示）
     render_filter_bar(f, chunks[1], filter_text, filter_focused);
 
     // エラー表示またはプレースホルダー
