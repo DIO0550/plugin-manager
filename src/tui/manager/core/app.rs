@@ -212,9 +212,7 @@ impl Model {
                 _ => match &self.screen {
                     Screen::Installed(_) => installed::key_to_msg(key).map(Msg::Installed),
                     Screen::Discover(_) => discover::key_to_msg(key).map(Msg::Discover),
-                    Screen::Marketplaces(_) => {
-                        marketplaces::key_to_msg(key).map(Msg::Marketplaces)
-                    }
+                    Screen::Marketplaces(_) => marketplaces::key_to_msg(key).map(Msg::Marketplaces),
                     Screen::Errors(_) => errors::key_to_msg(key).map(Msg::Errors),
                 },
             }
