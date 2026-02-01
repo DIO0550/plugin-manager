@@ -203,8 +203,8 @@ pub enum Msg {
 ///
 /// トップレベル（PluginList）では j/k はフィルタ入力として app.rs で処理されるため、
 /// ここでは矢印キーのみ Up/Down にマッピングする。
-/// Esc もトップレベルでは app.rs が FilterClear として処理するため、
-/// ここでは非トップレベル用の Back のみを返す。
+/// Esc はフィルタフォーカス中は app.rs 側で FilterClear として処理されるが、
+/// フィルタがフォーカスされていない通常状態では、トップレベルか否かに関わらず Back を返す。
 pub fn key_to_msg(key: KeyCode) -> Option<Msg> {
     match key {
         KeyCode::Up => Some(Msg::Up),
