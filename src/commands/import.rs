@@ -236,7 +236,7 @@ fn build_deployment(
 
 fn deploy_one(
     deployment: &ComponentDeployment,
-    target_name: &str,
+    target: &dyn Target,
     ctx: &ImportContext,
     import_registry: &mut ImportRegistry,
 ) -> DeployOutcome {
@@ -244,16 +244,14 @@ fn deploy_one(
         Ok(_result) => {
             println!(
                 "  + {} {}: {} -> {}",
-                target_name, deployment.kind, deployment.name,
+                target.name(), deployment.kind, deployment.name,
                 deployment.path().display()
             );
 
-            let target_kind = match target_name {
-                "antigravity" => TargetKind::Antigravity,
-                "codex" => TargetKind::Codex,
-                "copilot" => TargetKind::Copilot,
-                _ => return DeployOutcome::Skipped,
-            };
+            let target_kind = target.kind();
+            if target_kind == TargetKind::GeminiCli {
+                return DeployOutcome::Skipped;
+            }
 
             let record = ImportRecord {
                 source_repo: ctx.source_repo.to_string(),
@@ -275,7 +273,7 @@ fn deploy_one(
         Err(e) => {
             println!(
                 "  x {} {}: {} - {}",
-                target_name, deployment.kind, deployment.name, e
+                target.name(), deployment.kind, deployment.name, e
             );
             DeployOutcome::Failure
         }
@@ -308,7 +306,7 @@ fn place_components(
                 }
             };
 
-            match deploy_one(&deployment, target.name(), ctx, import_registry) {
+            match deploy_one(&deployment, target.as_ref(), ctx, import_registry) {
                 DeployOutcome::Success => total_success += 1,
                 DeployOutcome::Failure => total_failure += 1,
                 DeployOutcome::Skipped => {}
