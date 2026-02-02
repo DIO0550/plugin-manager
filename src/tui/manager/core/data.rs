@@ -37,6 +37,12 @@ impl DataStore {
         })
     }
 
+    /// データストアをリロード（list_installed_plugins() で全体再取得）
+    pub fn reload(&mut self) -> io::Result<()> {
+        self.plugins = list_installed_plugins().map_err(|e| io::Error::other(e.to_string()))?;
+        Ok(())
+    }
+
     /// プラグインIDでプラグインを検索
     pub fn find_plugin(&self, id: &PluginId) -> Option<&PluginSummary> {
         self.plugins.iter().find(|p| p.name == *id)

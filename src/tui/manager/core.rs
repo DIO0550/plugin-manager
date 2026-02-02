@@ -6,7 +6,7 @@
 //! - `data`: DataStore（共有データ）
 //! - `common`: 共通 UI ユーティリティ
 
-mod app;
+pub mod app;
 mod common;
 mod data;
 pub mod filter;

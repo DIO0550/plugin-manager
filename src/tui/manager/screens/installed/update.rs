@@ -3,28 +3,190 @@
 //! メッセージに応じた画面状態の更新ロジック。
 
 use super::actions;
-use super::model::{DetailAction, Model, Msg};
+use super::model::{DetailAction, Model, Msg, UpdateStatusDisplay};
 use crate::tui::manager::core::{filter_plugins, DataStore};
 use ratatui::widgets::ListState;
+use std::collections::HashMap;
+
+/// update() の戻り値
+///
+/// フィルタフォーカス移動とバッチ更新実行の2つの副作用を伝える。
+pub struct UpdateEffect {
+    /// フィルタ入力欄へフォーカス移動すべき
+    pub should_focus_filter: bool,
+    /// 描画後にバッチ更新を実行すべき（2段階方式の Phase 1 完了後）
+    pub needs_execute_batch: bool,
+}
+
+impl UpdateEffect {
+    fn none() -> Self {
+        Self {
+            should_focus_filter: false,
+            needs_execute_batch: false,
+        }
+    }
+
+    fn focus_filter() -> Self {
+        Self {
+            should_focus_filter: true,
+            needs_execute_batch: false,
+        }
+    }
+
+    fn execute_batch() -> Self {
+        Self {
+            should_focus_filter: false,
+            needs_execute_batch: true,
+        }
+    }
+}
 
 /// メッセージに応じて状態を更新
-///
-/// 戻り値: `true` ならフィルタ入力欄へフォーカス移動すべき
-pub fn update(model: &mut Model, msg: Msg, data: &mut DataStore, filter_text: &str) -> bool {
+pub fn update(
+    model: &mut Model,
+    msg: Msg,
+    data: &mut DataStore,
+    filter_text: &str,
+) -> UpdateEffect {
     match msg {
-        Msg::Up => select_prev(model, data, filter_text),
+        Msg::Up => {
+            if select_prev(model, data, filter_text) {
+                UpdateEffect::focus_filter()
+            } else {
+                UpdateEffect::none()
+            }
+        }
         Msg::Down => {
             select_next(model, data, filter_text);
-            false
+            UpdateEffect::none()
         }
         Msg::Enter => {
             enter(model, data);
-            false
+            UpdateEffect::none()
         }
         Msg::Back => {
             back(model, filter_text, data);
-            false
+            UpdateEffect::none()
         }
+        Msg::ToggleMark => {
+            toggle_mark(model);
+            UpdateEffect::none()
+        }
+        Msg::ToggleAllMarks => {
+            toggle_all_marks(model, data, filter_text);
+            UpdateEffect::none()
+        }
+        Msg::BatchUpdate => batch_update(model),
+        Msg::ExecuteBatch => {
+            execute_batch(model, data);
+            UpdateEffect::none()
+        }
+    }
+}
+
+/// 個別プラグインのマークをトグル
+fn toggle_mark(model: &mut Model) {
+    if let Model::PluginList {
+        selected_id,
+        marked_ids,
+        ..
+    } = model
+    {
+        if let Some(id) = selected_id.as_ref() {
+            if marked_ids.contains(id) {
+                marked_ids.remove(id);
+            } else {
+                marked_ids.insert(id.clone());
+            }
+        }
+    }
+}
+
+/// フィルタ済みプラグインの一括マークトグル
+fn toggle_all_marks(model: &mut Model, data: &DataStore, filter_text: &str) {
+    if let Model::PluginList { marked_ids, .. } = model {
+        let filtered = filter_plugins(&data.plugins, filter_text);
+        let filtered_ids: Vec<String> = filtered.iter().map(|p| p.name.clone()).collect();
+
+        // フィルタ済み全プラグインが既にマーク済みかチェック
+        let all_marked = !filtered_ids.is_empty()
+            && filtered_ids.iter().all(|id| marked_ids.contains(id));
+
+        if all_marked {
+            // フィルタ済み分のみ解除
+            for id in &filtered_ids {
+                marked_ids.remove(id);
+            }
+        } else {
+            // フィルタ済みプラグインを全マーク
+            for id in filtered_ids {
+                marked_ids.insert(id);
+            }
+        }
+    }
+}
+
+/// Phase 1: マーク済みプラグインのステータスを Updating にセット
+fn batch_update(model: &mut Model) -> UpdateEffect {
+    if let Model::PluginList {
+        marked_ids,
+        update_statuses,
+        ..
+    } = model
+    {
+        if marked_ids.is_empty() {
+            return UpdateEffect::none();
+        }
+
+        // 各マーク済みプラグインの update_statuses を Updating にセット
+        for id in marked_ids.iter() {
+            update_statuses.insert(id.clone(), UpdateStatusDisplay::Updating);
+        }
+
+        return UpdateEffect::execute_batch();
+    }
+
+    UpdateEffect::none()
+}
+
+/// Phase 2: 実際のバッチ更新処理を実行
+fn execute_batch(model: &mut Model, data: &mut DataStore) {
+    if let Model::PluginList {
+        marked_ids,
+        update_statuses,
+        ..
+    } = model
+    {
+        // マーク済みプラグインの名前とマーケットプレースを収集
+        let plugins_to_update: Vec<(String, Option<String>)> = marked_ids
+            .iter()
+            .filter_map(|id| {
+                data.find_plugin(id)
+                    .map(|p| (p.name.clone(), p.marketplace.clone()))
+            })
+            .collect();
+
+        // バッチ更新実行
+        let results = actions::batch_update_plugins(&plugins_to_update);
+
+        // 結果を update_statuses に反映
+        let mut new_statuses = HashMap::new();
+        for (name, status) in results {
+            // Failed の詳細は last_error に格納
+            if let UpdateStatusDisplay::Failed(ref reason) = status {
+                data.last_error = Some(format!("Update failed for {}: {}", name, reason));
+            }
+            new_statuses.insert(name, status);
+        }
+        *update_statuses = new_statuses;
+
+        // DataStore を全体リロード
+        if let Err(e) = data.reload() {
+            data.last_error = Some(format!("Failed to reload plugins: {}", e));
+        }
+
+        // マーク済みIDをクリア
+        marked_ids.clear();
     }
 }
 
@@ -139,6 +301,8 @@ fn enter(model: &mut Model, data: &mut DataStore) {
                             *model = Model::PluginList {
                                 selected_id: data.plugins.first().map(|p| p.name.clone()),
                                 state: new_state,
+                                marked_ids: Default::default(),
+                                update_statuses: Default::default(),
                             };
                         }
                         actions::ActionResult::Error(e) => {
@@ -164,6 +328,8 @@ fn enter(model: &mut Model, data: &mut DataStore) {
                     *model = Model::PluginList {
                         selected_id: Some(id),
                         state: new_state,
+                        marked_ids: Default::default(),
+                        update_statuses: Default::default(),
                     };
                 }
                 _ => {
@@ -223,6 +389,8 @@ fn back(model: &mut Model, filter_text: &str, data: &DataStore) {
             *model = Model::PluginList {
                 selected_id,
                 state: new_state,
+                marked_ids: Default::default(),
+                update_statuses: Default::default(),
             };
         }
         Model::ComponentTypes { plugin_id, .. } => {
@@ -279,10 +447,14 @@ fn list_len(model: &Model, data: &DataStore, filter_text: &str) -> usize {
 
 /// selected_id を現在のインデックスから更新
 fn update_selected_id(model: &mut Model, data: &DataStore, filter_text: &str) {
-    if let Model::PluginList { selected_id, state } = model {
+    if let Model::PluginList { selected_id, state, .. } = model {
         if let Some(idx) = state.selected() {
             let filtered = filter_plugins(&data.plugins, filter_text);
             *selected_id = filtered.get(idx).map(|p| p.name.clone());
         }
     }
 }
+
+#[cfg(test)]
+#[path = "update_test.rs"]
+mod update_test;

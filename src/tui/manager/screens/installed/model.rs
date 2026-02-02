@@ -7,6 +7,26 @@ use crate::tui::manager::core::{DataStore, PluginId};
 use crossterm::event::KeyCode;
 use ratatui::prelude::*;
 use ratatui::widgets::ListState;
+use std::collections::{HashMap, HashSet};
+
+// ============================================================================
+// UpdateStatusDisplay（バッチ更新ステータス表示用）
+// ============================================================================
+
+/// バッチ更新時の各プラグインの更新ステータス
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum UpdateStatusDisplay {
+    /// 更新中
+    Updating,
+    /// 更新完了
+    Updated,
+    /// 既に最新
+    AlreadyUpToDate,
+    /// スキップ
+    Skipped(String),
+    /// 失敗
+    Failed(String),
+}
 
 // ============================================================================
 // CacheState（タブ切替時の保持状態）
@@ -16,6 +36,7 @@ use ratatui::widgets::ListState;
 #[derive(Debug, Default)]
 pub struct CacheState {
     pub selected_plugin_id: Option<PluginId>,
+    pub marked_ids: HashSet<PluginId>,
 }
 
 // ============================================================================
@@ -98,6 +119,8 @@ pub enum Model {
     PluginList {
         selected_id: Option<PluginId>,
         state: ListState,
+        marked_ids: HashSet<PluginId>,
+        update_statuses: HashMap<PluginId, UpdateStatusDisplay>,
     },
     /// プラグイン詳細画面
     PluginDetail {
@@ -127,7 +150,12 @@ impl Model {
         if selected_id.is_some() {
             state.select(Some(0));
         }
-        Model::PluginList { selected_id, state }
+        Model::PluginList {
+            selected_id,
+            state,
+            marked_ids: HashSet::new(),
+            update_statuses: HashMap::new(),
+        }
     }
 
     /// キャッシュから復元
@@ -150,23 +178,44 @@ impl Model {
         let mut state = ListState::default();
         state.select(index);
 
-        Model::PluginList { selected_id, state }
+        // マーク状態を復元（DataStore に存在しないプラグインIDは除外）
+        let marked_ids = cache
+            .marked_ids
+            .iter()
+            .filter(|id| data.find_plugin(id).is_some())
+            .cloned()
+            .collect();
+
+        Model::PluginList {
+            selected_id,
+            state,
+            marked_ids,
+            update_statuses: HashMap::new(),
+        }
     }
 
     /// キャッシュ状態を取得
     pub fn to_cache(&self) -> CacheState {
         match self {
-            Model::PluginList { selected_id, .. } => CacheState {
+            Model::PluginList {
+                selected_id,
+                marked_ids,
+                ..
+            } => CacheState {
                 selected_plugin_id: selected_id.clone(),
+                marked_ids: marked_ids.clone(),
             },
             Model::PluginDetail { plugin_id, .. } => CacheState {
                 selected_plugin_id: Some(plugin_id.clone()),
+                marked_ids: HashSet::new(),
             },
             Model::ComponentTypes { plugin_id, .. } => CacheState {
                 selected_plugin_id: Some(plugin_id.clone()),
+                marked_ids: HashSet::new(),
             },
             Model::ComponentList { plugin_id, .. } => CacheState {
                 selected_plugin_id: Some(plugin_id.clone()),
+                marked_ids: HashSet::new(),
             },
         }
     }
@@ -197,6 +246,10 @@ pub enum Msg {
     Down,
     Enter,
     Back,
+    ToggleMark,
+    ToggleAllMarks,
+    BatchUpdate,
+    ExecuteBatch,
 }
 
 /// キーコードをメッセージに変換
@@ -211,6 +264,13 @@ pub fn key_to_msg(key: KeyCode) -> Option<Msg> {
         KeyCode::Down | KeyCode::Char('j') => Some(Msg::Down),
         KeyCode::Enter => Some(Msg::Enter),
         KeyCode::Esc => Some(Msg::Back),
+        KeyCode::Char(' ') => Some(Msg::ToggleMark),
+        KeyCode::Char('a') => Some(Msg::ToggleAllMarks),
+        KeyCode::Char('U') => Some(Msg::BatchUpdate),
         _ => None,
     }
 }
+
+#[cfg(test)]
+#[path = "model_test.rs"]
+mod model_test;
