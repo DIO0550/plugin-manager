@@ -195,8 +195,8 @@ impl Model {
                 KeyCode::Esc if !self.filter_text.is_empty() => Some(Msg::FilterClear),
                 KeyCode::Esc => Some(Msg::FilterUnfocus),
                 KeyCode::Down | KeyCode::Enter => Some(Msg::FilterUnfocus),
-                KeyCode::Tab if is_top_level => Some(Msg::NextTab),
-                KeyCode::BackTab if is_top_level => Some(Msg::PrevTab),
+                KeyCode::Tab | KeyCode::Right if is_top_level => Some(Msg::NextTab),
+                KeyCode::BackTab | KeyCode::Left if is_top_level => Some(Msg::PrevTab),
                 KeyCode::Backspace => Some(Msg::FilterBackspace),
                 KeyCode::Char(c) => Some(Msg::FilterInput(c)),
                 _ => None,
@@ -205,8 +205,8 @@ impl Model {
             // リスト（通常）フォーカス時のキー処理
             match key {
                 KeyCode::Char('q') => Some(Msg::Quit),
-                KeyCode::Tab if is_top_level => Some(Msg::NextTab),
-                KeyCode::BackTab if is_top_level => Some(Msg::PrevTab),
+                KeyCode::Tab | KeyCode::Right if is_top_level => Some(Msg::NextTab),
+                KeyCode::BackTab | KeyCode::Left if is_top_level => Some(Msg::PrevTab),
                 // 画面固有のキー処理に委譲
                 // フィルタへのフォーカス移動は installed::update の返り値で処理される
                 _ => match &self.screen {
