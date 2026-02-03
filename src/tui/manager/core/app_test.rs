@@ -18,6 +18,8 @@ fn make_model(filter_focused: bool, top_level: bool) -> Model {
         Screen::Installed(installed::Model::PluginDetail {
             plugin_id: "dummy".to_string(),
             state: ratatui::widgets::ListState::default(),
+            saved_marked_ids: Default::default(),
+            saved_update_statuses: Default::default(),
         })
     };
 

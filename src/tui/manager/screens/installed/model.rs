@@ -126,6 +126,10 @@ pub enum Model {
     PluginDetail {
         plugin_id: PluginId,
         state: ListState,
+        /// PluginList から遷移時のマーク状態（戻るときに復元）
+        saved_marked_ids: HashSet<PluginId>,
+        /// PluginList から遷移時の更新ステータス（戻るときに復元）
+        saved_update_statuses: HashMap<PluginId, UpdateStatusDisplay>,
     },
     /// コンポーネント種別選択画面
     ComponentTypes {

@@ -252,20 +252,34 @@ fn select_next(model: &mut Model, data: &DataStore, filter_text: &str) {
 /// 次の階層へ遷移
 fn enter(model: &mut Model, data: &mut DataStore) {
     match model {
-        Model::PluginList { selected_id, .. } => {
-            // PluginList → PluginDetail へ遷移
+        Model::PluginList {
+            selected_id,
+            marked_ids,
+            update_statuses,
+            ..
+        } => {
+            // PluginList → PluginDetail へ遷移（マーク状態を保存）
             if let Some(plugin_id) = selected_id.clone() {
                 if data.find_plugin(&plugin_id).is_some() {
+                    let saved_marked = std::mem::take(marked_ids);
+                    let saved_statuses = std::mem::take(update_statuses);
                     let mut new_state = ListState::default();
                     new_state.select(Some(0));
                     *model = Model::PluginDetail {
                         plugin_id,
                         state: new_state,
+                        saved_marked_ids: saved_marked,
+                        saved_update_statuses: saved_statuses,
                     };
                 }
             }
         }
-        Model::PluginDetail { plugin_id, state } => {
+        Model::PluginDetail {
+            plugin_id,
+            state,
+            saved_marked_ids,
+            saved_update_statuses,
+        } => {
             // プラグイン情報を取得
             let plugin = data.find_plugin(plugin_id).cloned();
             let marketplace = plugin.as_ref().and_then(|p| p.marketplace.clone());
@@ -308,7 +322,12 @@ fn enter(model: &mut Model, data: &mut DataStore) {
                     match result {
                         actions::ActionResult::Success => {
                             // 成功 - プラグインを一覧から削除して PluginList に戻る
-                            data.remove_plugin(plugin_id);
+                            let uninstalled_id = plugin_id.clone();
+                            let mut restored_marks = std::mem::take(saved_marked_ids);
+                            let mut restored_statuses = std::mem::take(saved_update_statuses);
+                            restored_marks.remove(&uninstalled_id);
+                            restored_statuses.remove(&uninstalled_id);
+                            data.remove_plugin(&uninstalled_id);
                             let mut new_state = ListState::default();
                             if !data.plugins.is_empty() {
                                 new_state.select(Some(0));
@@ -316,8 +335,8 @@ fn enter(model: &mut Model, data: &mut DataStore) {
                             *model = Model::PluginList {
                                 selected_id: data.plugins.first().map(|p| p.name.clone()),
                                 state: new_state,
-                                marked_ids: Default::default(),
-                                update_statuses: Default::default(),
+                                marked_ids: restored_marks,
+                                update_statuses: restored_statuses,
                             };
                         }
                         actions::ActionResult::Error(e) => {
@@ -336,15 +355,17 @@ fn enter(model: &mut Model, data: &mut DataStore) {
                     };
                 }
                 Some(DetailAction::Back) => {
-                    // PluginList に戻る
+                    // PluginList に戻る（マーク状態を復元）
                     let id = plugin_id.clone();
+                    let restored_marks = std::mem::take(saved_marked_ids);
+                    let restored_statuses = std::mem::take(saved_update_statuses);
                     let mut new_state = ListState::default();
                     new_state.select(Some(0));
                     *model = Model::PluginList {
                         selected_id: Some(id),
                         state: new_state,
-                        marked_ids: Default::default(),
-                        update_statuses: Default::default(),
+                        marked_ids: restored_marks,
+                        update_statuses: restored_statuses,
                     };
                 }
                 _ => {
@@ -386,9 +407,16 @@ fn back(model: &mut Model, filter_text: &str, data: &DataStore) {
         Model::PluginList { .. } => {
             // PluginList での Back は app.rs で Quit 処理される
         }
-        Model::PluginDetail { plugin_id, .. } => {
-            // PluginDetail → PluginList へ戻る
+        Model::PluginDetail {
+            plugin_id,
+            saved_marked_ids,
+            saved_update_statuses,
+            ..
+        } => {
+            // PluginDetail → PluginList へ戻る（マーク状態を復元）
             let id = plugin_id.clone();
+            let restored_marks = std::mem::take(saved_marked_ids);
+            let restored_statuses = std::mem::take(saved_update_statuses);
             let filtered = filter_plugins(&data.plugins, filter_text);
             let mut new_state = ListState::default();
             let idx = filtered.iter().position(|p| p.name == id);
@@ -404,8 +432,8 @@ fn back(model: &mut Model, filter_text: &str, data: &DataStore) {
             *model = Model::PluginList {
                 selected_id,
                 state: new_state,
-                marked_ids: Default::default(),
-                update_statuses: Default::default(),
+                marked_ids: restored_marks,
+                update_statuses: restored_statuses,
             };
         }
         Model::ComponentTypes { plugin_id, .. } => {
@@ -416,6 +444,8 @@ fn back(model: &mut Model, filter_text: &str, data: &DataStore) {
             *model = Model::PluginDetail {
                 plugin_id,
                 state: new_state,
+                saved_marked_ids: Default::default(),
+                saved_update_statuses: Default::default(),
             };
         }
         Model::ComponentList {
