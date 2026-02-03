@@ -58,6 +58,7 @@ pub fn run() -> io::Result<()> {
                         let batch_msg =
                             core::app::Msg::Installed(screens::installed::Msg::ExecuteBatch);
                         update(&mut model, batch_msg);
+                        terminal.draw(|f| view(f, &model))?;
                     }
                 }
             }
