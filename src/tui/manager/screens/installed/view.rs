@@ -220,10 +220,8 @@ fn view_plugin_list(
     }
 
     // ヘルプ
-    let help = Paragraph::new(
-        " Space: mark | a: all | U: update | Tab: switch | ↑↓: move | Enter: details | q: quit",
-    )
-    .style(Style::default().fg(Color::DarkGray));
+    let help = Paragraph::new(" Spc mark | a all | U upd | Tab sw | ↑↓ mv | Ent det | q")
+        .style(Style::default().fg(Color::DarkGray));
     f.render_widget(help, chunks[3]);
 }
 
