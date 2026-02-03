@@ -142,15 +142,20 @@ pub fn batch_update_plugins(
 
     plugins
         .iter()
-        .map(|(name, _marketplace)| {
-            let status = run_update_plugin(name, &project_root);
+        .map(|(name, marketplace)| {
+            let status = run_update_plugin(name, marketplace, &project_root);
             (name.clone(), status)
         })
         .collect()
 }
 
 /// 単一プラグインの更新を同期的に実行
-fn run_update_plugin(plugin_name: &str, project_root: &Path) -> UpdateStatusDisplay {
+fn run_update_plugin(
+    plugin_name: &str,
+    _marketplace: &Option<String>,
+    project_root: &Path,
+) -> UpdateStatusDisplay {
+    // TODO: marketplace を update_plugin に渡す（現在は未対応）
     let result = tokio::task::block_in_place(|| {
         tokio::runtime::Handle::current().block_on(update_plugin(plugin_name, project_root, None))
     });
