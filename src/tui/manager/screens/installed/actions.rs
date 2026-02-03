@@ -63,8 +63,7 @@ impl OutputSuppressGuard {
         use std::os::unix::io::AsRawFd;
 
         let dev_null_path = CString::new("/dev/null").ok()?;
-        let dev_null_fd =
-            unsafe { libc::open(dev_null_path.as_ptr(), libc::O_WRONLY) };
+        let dev_null_fd = unsafe { libc::open(dev_null_path.as_ptr(), libc::O_WRONLY) };
         if dev_null_fd < 0 {
             return None;
         }
@@ -160,10 +159,8 @@ fn run_update_plugin(plugin_name: &str, project_root: &Path) -> UpdateStatusDisp
         UpdateStatus::Updated { .. } => UpdateStatusDisplay::Updated,
         UpdateStatus::AlreadyUpToDate => UpdateStatusDisplay::AlreadyUpToDate,
         UpdateStatus::Skipped { reason } => UpdateStatusDisplay::Skipped(reason),
-        UpdateStatus::Failed => UpdateStatusDisplay::Failed(
-            result
-                .error
-                .unwrap_or_else(|| "Unknown error".to_string()),
-        ),
+        UpdateStatus::Failed => {
+            UpdateStatusDisplay::Failed(result.error.unwrap_or_else(|| "Unknown error".to_string()))
+        }
     }
 }

@@ -316,7 +316,10 @@ pub fn update(model: &mut Model, msg: Msg) -> AppUpdateEffect {
 fn clamp_selection(model: &mut Model) {
     if let Screen::Installed(m) = &mut model.screen {
         let filtered = filter_plugins(&model.data.plugins, &model.filter_text);
-        if let installed::Model::PluginList { selected_id, state, .. } = m {
+        if let installed::Model::PluginList {
+            selected_id, state, ..
+        } = m
+        {
             if let Some(id) = selected_id.as_ref() {
                 // 現在の選択が絞り込み結果に含まれるか
                 if let Some(idx) = filtered.iter().position(|p| &p.name == id) {

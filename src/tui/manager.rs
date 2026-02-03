@@ -55,9 +55,8 @@ pub fn run() -> io::Result<()> {
                     // 2段階方式: BatchUpdate (Phase 1) 後に描画してから ExecuteBatch (Phase 2)
                     if effect.needs_execute_batch {
                         terminal.draw(|f| view(f, &model))?;
-                        let batch_msg = core::app::Msg::Installed(
-                            screens::installed::Msg::ExecuteBatch,
-                        );
+                        let batch_msg =
+                            core::app::Msg::Installed(screens::installed::Msg::ExecuteBatch);
                         update(&mut model, batch_msg);
                     }
                 }

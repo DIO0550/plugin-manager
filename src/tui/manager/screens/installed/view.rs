@@ -82,18 +82,14 @@ fn update_status_span(status: &UpdateStatusDisplay) -> Span<'_> {
         UpdateStatusDisplay::Updating => {
             Span::styled(" Updating...", Style::default().fg(Color::Yellow))
         }
-        UpdateStatusDisplay::Updated => {
-            Span::styled(" Updated", Style::default().fg(Color::Green))
-        }
+        UpdateStatusDisplay::Updated => Span::styled(" Updated", Style::default().fg(Color::Green)),
         UpdateStatusDisplay::AlreadyUpToDate => {
             Span::styled(" Up to date", Style::default().fg(Color::DarkGray))
         }
         UpdateStatusDisplay::Skipped(_) => {
             Span::styled(" Skipped", Style::default().fg(Color::DarkGray))
         }
-        UpdateStatusDisplay::Failed(_) => {
-            Span::styled(" Failed", Style::default().fg(Color::Red))
-        }
+        UpdateStatusDisplay::Failed(_) => Span::styled(" Failed", Style::default().fg(Color::Red)),
     }
 }
 
@@ -164,10 +160,7 @@ fn view_plugin_list(
         let no_match = Paragraph::new("  No matching plugins")
             .block(
                 Block::default()
-                    .title(format!(
-                        " Installed Plugins (0/{}) ",
-                        data.plugins.len()
-                    ))
+                    .title(format!(" Installed Plugins (0/{}) ", data.plugins.len()))
                     .borders(Borders::ALL),
             )
             .style(Style::default().fg(Color::DarkGray));
@@ -192,7 +185,10 @@ fn view_plugin_list(
                 spans.push(Span::raw(format!("  {}", mark_indicator)));
 
                 // プラグイン名
-                let name_text = format!("{}{}  v{}{}", p.name, marketplace_str, p.version, status_str);
+                let name_text = format!(
+                    "{}{}  v{}{}",
+                    p.name, marketplace_str, p.version, status_str
+                );
                 let name_style = if is_marked {
                     Style::default().fg(Color::Yellow)
                 } else if p.enabled {
@@ -224,8 +220,10 @@ fn view_plugin_list(
     }
 
     // ヘルプ
-    let help = Paragraph::new(" Space: mark | a: all | U: update | Tab: switch | ↑↓: move | Enter: details | q: quit")
-        .style(Style::default().fg(Color::DarkGray));
+    let help = Paragraph::new(
+        " Space: mark | a: all | U: update | Tab: switch | ↑↓: move | Enter: details | q: quit",
+    )
+    .style(Style::default().fg(Color::DarkGray));
     f.render_widget(help, chunks[3]);
 }
 
