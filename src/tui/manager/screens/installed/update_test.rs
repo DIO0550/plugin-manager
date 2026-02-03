@@ -1,7 +1,7 @@
-use crate::tui::manager::screens::installed::model::{Model, Msg};
 use super::update;
 use crate::application::PluginSummary;
 use crate::tui::manager::core::DataStore;
+use crate::tui::manager::screens::installed::model::{Model, Msg};
 
 fn make_plugin(name: &str) -> PluginSummary {
     PluginSummary {
@@ -167,10 +167,16 @@ fn batch_update_with_no_marks_is_noop() {
 
     let effect = update(&mut model, Msg::BatchUpdate, &mut data, "");
 
-    assert!(!effect.needs_execute_batch, "Should not trigger batch when no marks");
+    assert!(
+        !effect.needs_execute_batch,
+        "Should not trigger batch when no marks"
+    );
     assert!(!effect.should_focus_filter);
 
-    if let Model::PluginList { update_statuses, .. } = &model {
+    if let Model::PluginList {
+        update_statuses, ..
+    } = &model
+    {
         assert!(update_statuses.is_empty());
     } else {
         panic!("Expected PluginList");
