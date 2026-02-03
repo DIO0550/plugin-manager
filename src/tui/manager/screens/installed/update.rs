@@ -109,8 +109,8 @@ fn toggle_all_marks(model: &mut Model, data: &DataStore, filter_text: &str) {
         let filtered_ids: Vec<String> = filtered.iter().map(|p| p.name.clone()).collect();
 
         // フィルタ済み全プラグインが既にマーク済みかチェック
-        let all_marked = !filtered_ids.is_empty()
-            && filtered_ids.iter().all(|id| marked_ids.contains(id));
+        let all_marked =
+            !filtered_ids.is_empty() && filtered_ids.iter().all(|id| marked_ids.contains(id));
 
         if all_marked {
             // フィルタ済み分のみ解除
@@ -171,12 +171,27 @@ fn execute_batch(model: &mut Model, data: &mut DataStore) {
 
         // 結果を update_statuses に反映
         let mut new_statuses = HashMap::new();
+        let mut batch_errors: Vec<String> = Vec::new();
         for (name, status) in results {
-            // Failed の詳細は last_error に格納
+            // Failed の詳細を収集
             if let UpdateStatusDisplay::Failed(ref reason) = status {
-                data.last_error = Some(format!("Update failed for {}: {}", name, reason));
+                batch_errors.push(format!("Update failed for {}: {}", name, reason));
             }
             new_statuses.insert(name, status);
+        }
+
+        // 収集したエラーを last_error に集約
+        if !batch_errors.is_empty() {
+            let aggregated = if batch_errors.len() == 1 {
+                batch_errors.into_iter().next().unwrap()
+            } else {
+                format!(
+                    "{} plugins failed during batch update:\n{}",
+                    batch_errors.len(),
+                    batch_errors.join("\n")
+                )
+            };
+            data.last_error = Some(aggregated);
         }
         *update_statuses = new_statuses;
 
@@ -447,7 +462,10 @@ fn list_len(model: &Model, data: &DataStore, filter_text: &str) -> usize {
 
 /// selected_id を現在のインデックスから更新
 fn update_selected_id(model: &mut Model, data: &DataStore, filter_text: &str) {
-    if let Model::PluginList { selected_id, state, .. } = model {
+    if let Model::PluginList {
+        selected_id, state, ..
+    } = model
+    {
         if let Some(idx) = state.selected() {
             let filtered = filter_plugins(&data.plugins, filter_text);
             *selected_id = filtered.get(idx).map(|p| p.name.clone());
