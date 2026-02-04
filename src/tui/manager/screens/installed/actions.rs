@@ -138,6 +138,8 @@ pub fn batch_update_plugins(
     let project_root = env::current_dir().unwrap_or_else(|_| ".".into());
 
     // stdout/stderr をリダイレクト
+    // Note: ガード作成失敗時は抑制なしで続行する（TUI 画面が乱れる可能性あり）。
+    // TUI 代替スクリーン上では eprintln! が表示されないため、ログ出力は行わない。
     let _guard = OutputSuppressGuard::new();
 
     plugins
