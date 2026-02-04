@@ -123,9 +123,27 @@ impl Drop for OutputSuppressGuard {
         let stdout_fd = std::io::stdout().as_raw_fd();
         let stderr_fd = std::io::stderr().as_raw_fd();
 
+        // Best-effort restoration of stdout/stderr.
+        // Drop cannot report errors, so failures are logged in debug builds only.
         unsafe {
-            libc::dup2(self.saved_stdout, stdout_fd);
-            libc::dup2(self.saved_stderr, stderr_fd);
+            let stdout_result = libc::dup2(self.saved_stdout, stdout_fd);
+            let stderr_result = libc::dup2(self.saved_stderr, stderr_fd);
+
+            #[cfg(debug_assertions)]
+            if stdout_result == -1 || stderr_result == -1 {
+                eprintln!(
+                    "OutputSuppressGuard: failed to restore stdout/stderr (dup2 error: stdout={}, stderr={})",
+                    stdout_result, stderr_result
+                );
+            }
+
+            // Suppress unused variable warnings in release builds
+            #[cfg(not(debug_assertions))]
+            {
+                let _ = stdout_result;
+                let _ = stderr_result;
+            }
+
             libc::close(self.saved_stdout);
             libc::close(self.saved_stderr);
         }
