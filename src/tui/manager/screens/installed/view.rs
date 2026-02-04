@@ -86,10 +86,14 @@ fn update_status_span(status: &UpdateStatusDisplay) -> Span<'_> {
         UpdateStatusDisplay::AlreadyUpToDate => {
             Span::styled(" Up to date", Style::default().fg(Color::DarkGray))
         }
-        UpdateStatusDisplay::Skipped(_) => {
-            Span::styled(" Skipped", Style::default().fg(Color::DarkGray))
+        UpdateStatusDisplay::Skipped(reason) => {
+            let text = format!(" Skipped: {}", reason);
+            Span::styled(text, Style::default().fg(Color::DarkGray))
         }
-        UpdateStatusDisplay::Failed(_) => Span::styled(" Failed", Style::default().fg(Color::Red)),
+        UpdateStatusDisplay::Failed(reason) => {
+            let text = format!(" Failed: {}", reason);
+            Span::styled(text, Style::default().fg(Color::Red))
+        }
     }
 }
 
