@@ -53,11 +53,16 @@ pub fn run() -> io::Result<()> {
                     let effect = update(&mut model, msg);
 
                     // 2段階方式: BatchUpdate (Phase 1) 後に描画してから ExecuteBatch (Phase 2)
+                    // バッチ更新中のキー入力はキューに溜まるが、完了後に破棄する
                     if effect.needs_execute_batch {
                         terminal.draw(|f| view(f, &model))?;
                         let batch_msg =
                             core::app::Msg::Installed(screens::installed::Msg::ExecuteBatch);
                         update(&mut model, batch_msg);
+                        // バッチ更新中にキューされたキー入力を破棄
+                        while event::poll(std::time::Duration::ZERO)? {
+                            let _ = event::read()?;
+                        }
                         terminal.draw(|f| view(f, &model))?;
                     }
                 }
