@@ -88,8 +88,23 @@ impl OutputSuppressGuard {
         }
 
         unsafe {
-            libc::dup2(dev_null_fd, stdout_fd);
-            libc::dup2(dev_null_fd, stderr_fd);
+            let r_stdout = libc::dup2(dev_null_fd, stdout_fd);
+            let r_stderr = libc::dup2(dev_null_fd, stderr_fd);
+
+            if r_stdout < 0 || r_stderr < 0 {
+                // dup2 失敗時はベストエフォートで復元
+                if r_stdout >= 0 {
+                    libc::dup2(saved_stdout, stdout_fd);
+                }
+                if r_stderr >= 0 {
+                    libc::dup2(saved_stderr, stderr_fd);
+                }
+                libc::close(dev_null_fd);
+                libc::close(saved_stdout);
+                libc::close(saved_stderr);
+                return None;
+            }
+
             libc::close(dev_null_fd);
         }
 
