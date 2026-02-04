@@ -349,13 +349,17 @@ fn enter(model: &mut Model, data: &mut DataStore) {
                     }
                 }
                 Some(DetailAction::ViewComponents) => {
-                    // ComponentTypes に遷移
+                    // ComponentTypes に遷移（マーク状態を引き継ぐ）
+                    let restored_marks = std::mem::take(saved_marked_ids);
+                    let restored_statuses = std::mem::take(saved_update_statuses);
                     let mut new_state = ListState::default();
                     new_state.select(Some(0));
                     *model = Model::ComponentTypes {
                         plugin_id: plugin_id.clone(),
                         selected_kind_idx: 0,
                         state: new_state,
+                        saved_marked_ids: restored_marks,
+                        saved_update_statuses: restored_statuses,
                     };
                 }
                 Some(DetailAction::Back) => {
@@ -378,7 +382,11 @@ fn enter(model: &mut Model, data: &mut DataStore) {
             }
         }
         Model::ComponentTypes {
-            plugin_id, state, ..
+            plugin_id,
+            state,
+            saved_marked_ids,
+            saved_update_statuses,
+            ..
         } => {
             if let Some(plugin) = data.find_plugin(plugin_id) {
                 let counts = data.available_component_kinds(plugin);
@@ -387,6 +395,8 @@ fn enter(model: &mut Model, data: &mut DataStore) {
                     let kind = count.kind;
                     let components = data.component_names(plugin, kind);
                     if !components.is_empty() {
+                        let restored_marks = std::mem::take(saved_marked_ids);
+                        let restored_statuses = std::mem::take(saved_update_statuses);
                         let mut new_state = ListState::default();
                         new_state.select(Some(0));
                         *model = Model::ComponentList {
@@ -394,6 +404,8 @@ fn enter(model: &mut Model, data: &mut DataStore) {
                             kind,
                             selected_idx: 0,
                             state: new_state,
+                            saved_marked_ids: restored_marks,
+                            saved_update_statuses: restored_statuses,
                         };
                     }
                 }
@@ -440,28 +452,43 @@ fn back(model: &mut Model, filter_text: &str, data: &DataStore) {
                 update_statuses: restored_statuses,
             };
         }
-        Model::ComponentTypes { plugin_id, .. } => {
-            // ComponentTypes → PluginDetail へ戻る
+        Model::ComponentTypes {
+            plugin_id,
+            saved_marked_ids,
+            saved_update_statuses,
+            ..
+        } => {
+            // ComponentTypes → PluginDetail へ戻る（マーク状態を復元）
             let plugin_id = plugin_id.clone();
+            let restored_marks = std::mem::take(saved_marked_ids);
+            let restored_statuses = std::mem::take(saved_update_statuses);
             let mut new_state = ListState::default();
             new_state.select(Some(0));
             *model = Model::PluginDetail {
                 plugin_id,
                 state: new_state,
-                saved_marked_ids: Default::default(),
-                saved_update_statuses: Default::default(),
+                saved_marked_ids: restored_marks,
+                saved_update_statuses: restored_statuses,
             };
         }
         Model::ComponentList {
-            plugin_id, kind: _, ..
+            plugin_id,
+            saved_marked_ids,
+            saved_update_statuses,
+            ..
         } => {
+            // ComponentList → ComponentTypes へ戻る（マーク状態を復元）
             let plugin_id = plugin_id.clone();
+            let restored_marks = std::mem::take(saved_marked_ids);
+            let restored_statuses = std::mem::take(saved_update_statuses);
             let mut new_state = ListState::default();
             new_state.select(Some(0));
             *model = Model::ComponentTypes {
                 plugin_id,
                 selected_kind_idx: 0,
                 state: new_state,
+                saved_marked_ids: restored_marks,
+                saved_update_statuses: restored_statuses,
             };
         }
     }

@@ -136,6 +136,10 @@ pub enum Model {
         plugin_id: PluginId,
         selected_kind_idx: usize,
         state: ListState,
+        /// PluginList から遷移チェーンで引き継いだマーク状態
+        saved_marked_ids: HashSet<PluginId>,
+        /// PluginList から遷移チェーンで引き継いだ更新ステータス
+        saved_update_statuses: HashMap<PluginId, UpdateStatusDisplay>,
     },
     /// コンポーネント一覧画面
     ComponentList {
@@ -143,6 +147,10 @@ pub enum Model {
         kind: ComponentKind,
         selected_idx: usize,
         state: ListState,
+        /// PluginList から遷移チェーンで引き継いだマーク状態
+        saved_marked_ids: HashSet<PluginId>,
+        /// PluginList から遷移チェーンで引き継いだ更新ステータス
+        saved_update_statuses: HashMap<PluginId, UpdateStatusDisplay>,
     },
 }
 
