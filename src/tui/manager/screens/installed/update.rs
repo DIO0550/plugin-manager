@@ -197,7 +197,11 @@ fn execute_batch(model: &mut Model, data: &mut DataStore) {
 
         // DataStore を全体リロード
         if let Err(e) = data.reload() {
-            data.last_error = Some(format!("Failed to reload plugins: {}", e));
+            let reload_msg = format!("Failed to reload plugins: {}", e);
+            data.last_error = Some(match data.last_error.take() {
+                Some(prev) => format!("{prev}\n{reload_msg}"),
+                None => reload_msg,
+            });
         }
 
         // マーク済みIDをクリア
