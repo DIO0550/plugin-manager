@@ -57,7 +57,7 @@ pub fn run() -> io::Result<()> {
                     if effect.needs_execute_batch {
                         terminal.draw(|f| view(f, &model))?;
                         let batch_msg =
-                            core::app::Msg::Installed(screens::installed::Msg::ExecuteBatch);
+                            core::Msg::Installed(screens::installed::Msg::ExecuteBatch);
                         update(&mut model, batch_msg);
                         // バッチ更新中にキューされたキー入力を破棄
                         while event::poll(std::time::Duration::ZERO)? {
