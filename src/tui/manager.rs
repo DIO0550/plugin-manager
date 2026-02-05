@@ -62,8 +62,7 @@ pub fn run() -> io::Result<()> {
                     // - 進捗インジケータ（例: "Updating plugin 3 of 10..."）を表示
                     if effect.needs_execute_batch {
                         terminal.draw(|f| view(f, &model))?;
-                        let batch_msg =
-                            core::Msg::Installed(screens::installed::Msg::ExecuteBatch);
+                        let batch_msg = core::Msg::Installed(screens::installed::Msg::ExecuteBatch);
                         update(&mut model, batch_msg);
                         // バッチ更新中にキューされたキー入力を破棄
                         while event::poll(std::time::Duration::ZERO)? {

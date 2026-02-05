@@ -185,8 +185,11 @@ fn run_update_plugin(
     project_root: &Path,
 ) -> UpdateStatusDisplay {
     let result = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current()
-            .block_on(update_plugin(plugin_name, project_root, marketplace.as_deref()))
+        tokio::runtime::Handle::current().block_on(update_plugin(
+            plugin_name,
+            project_root,
+            marketplace.as_deref(),
+        ))
     });
 
     match result.status {
