@@ -74,6 +74,10 @@ impl OutputSuppressGuard {
         let saved_stdout = unsafe { libc::dup(stdout_fd) };
         let saved_stderr = unsafe { libc::dup(stderr_fd) };
 
+        // Ensure all allocated file descriptors are properly cleaned up on error.
+        // Both partial success cases are handled:
+        // - saved_stdout >= 0 && saved_stderr < 0: close saved_stdout
+        // - saved_stdout < 0 && saved_stderr >= 0: close saved_stderr
         if saved_stdout < 0 || saved_stderr < 0 {
             unsafe {
                 libc::close(dev_null_fd);
