@@ -1,7 +1,7 @@
 use super::update;
 use crate::application::PluginSummary;
 use crate::tui::manager::core::DataStore;
-use crate::tui::manager::screens::installed::model::{Model, Msg};
+use crate::tui::manager::screens::installed::model::{Model, Msg, UpdateStatusDisplay};
 
 fn make_plugin(name: &str) -> PluginSummary {
     PluginSummary {
@@ -157,7 +157,7 @@ fn toggle_all_marks_with_filter_only_deselects_filtered() {
 }
 
 // ============================================================================
-// BatchUpdate 空マーク時の no-op テスト
+// BatchUpdate テスト
 // ============================================================================
 
 #[test]
@@ -178,6 +178,100 @@ fn batch_update_with_no_marks_is_noop() {
     } = &model
     {
         assert!(update_statuses.is_empty());
+    } else {
+        panic!("Expected PluginList");
+    }
+}
+
+#[test]
+fn batch_update_phase1_sets_updating_and_returns_execute_batch() {
+    let mut data = make_data(&["plugin-a", "plugin-b", "plugin-c"]);
+    let mut model = Model::new(&data);
+
+    // plugin-a と plugin-c をマーク
+    update(&mut model, Msg::ToggleMark, &mut data, ""); // mark plugin-a
+    update(&mut model, Msg::Down, &mut data, ""); // move to plugin-b
+    update(&mut model, Msg::Down, &mut data, ""); // move to plugin-c
+    update(&mut model, Msg::ToggleMark, &mut data, ""); // mark plugin-c
+
+    // Phase 1: BatchUpdate
+    let effect = update(&mut model, Msg::BatchUpdate, &mut data, "");
+
+    assert!(
+        effect.needs_execute_batch,
+        "BatchUpdate with marks should request execute_batch"
+    );
+    assert!(!effect.should_focus_filter);
+
+    if let Model::PluginList {
+        update_statuses, ..
+    } = &model
+    {
+        assert!(
+            matches!(
+                update_statuses.get("plugin-a"),
+                Some(UpdateStatusDisplay::Updating)
+            ),
+            "plugin-a should be Updating"
+        );
+        assert!(
+            !update_statuses.contains_key("plugin-b"),
+            "plugin-b should have no status (not marked)"
+        );
+        assert!(
+            matches!(
+                update_statuses.get("plugin-c"),
+                Some(UpdateStatusDisplay::Updating)
+            ),
+            "plugin-c should be Updating"
+        );
+    } else {
+        panic!("Expected PluginList");
+    }
+}
+
+#[test]
+fn batch_update_phase1_clears_stale_statuses() {
+    let mut data = make_data(&["plugin-a", "plugin-b"]);
+    let mut model = Model::new(&data);
+
+    // plugin-a をマークして Phase 1 実行（stale ステータスを作る）
+    update(&mut model, Msg::ToggleMark, &mut data, "");
+    update(&mut model, Msg::BatchUpdate, &mut data, "");
+
+    // 手動で stale ステータスを残す（Phase 2 後の状態をシミュレート）
+    if let Model::PluginList {
+        update_statuses,
+        marked_ids,
+        ..
+    } = &mut model
+    {
+        update_statuses.insert("plugin-a".to_string(), UpdateStatusDisplay::Updated);
+        marked_ids.clear();
+        // plugin-b のみマーク
+        marked_ids.insert("plugin-b".to_string());
+    }
+
+    // 新しい BatchUpdate: plugin-a の stale ステータスがクリアされるべき
+    let effect = update(&mut model, Msg::BatchUpdate, &mut data, "");
+
+    assert!(effect.needs_execute_batch);
+
+    if let Model::PluginList {
+        update_statuses, ..
+    } = &model
+    {
+        assert!(
+            !update_statuses.contains_key("plugin-a"),
+            "Stale status for plugin-a should be cleared"
+        );
+        assert!(
+            matches!(
+                update_statuses.get("plugin-b"),
+                Some(UpdateStatusDisplay::Updating)
+            ),
+            "plugin-b should be Updating"
+        );
     } else {
         panic!("Expected PluginList");
     }
