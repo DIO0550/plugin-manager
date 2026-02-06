@@ -160,9 +160,7 @@ impl OutputSuppressGuard {
 ///
 /// 各プラグインを順次 `update_plugin()` で更新し、結果を返す。
 /// stdout/stderr をリダイレクトして TUI 画面の乱れを防ぐ。
-pub fn batch_update_plugins(
-    plugins: &[(String, Option<String>)],
-) -> Vec<(String, UpdateStatusDisplay)> {
+pub fn batch_update_plugins(plugin_names: &[String]) -> Vec<(String, UpdateStatusDisplay)> {
     let project_root = env::current_dir().unwrap_or_else(|_| ".".into());
 
     // stdout/stderr をリダイレクト
@@ -170,27 +168,19 @@ pub fn batch_update_plugins(
     // TUI 代替スクリーン上では eprintln! が表示されないため、ログ出力は行わない。
     let _guard = OutputSuppressGuard::new();
 
-    plugins
+    plugin_names
         .iter()
-        .map(|(name, marketplace)| {
-            let status = run_update_plugin(name, marketplace, &project_root);
+        .map(|name| {
+            let status = run_update_plugin(name, &project_root);
             (name.clone(), status)
         })
         .collect()
 }
 
 /// 単一プラグインの更新を同期的に実行
-fn run_update_plugin(
-    plugin_name: &str,
-    marketplace: &Option<String>,
-    project_root: &Path,
-) -> UpdateStatusDisplay {
+fn run_update_plugin(plugin_name: &str, project_root: &Path) -> UpdateStatusDisplay {
     let result = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current().block_on(update_plugin(
-            plugin_name,
-            project_root,
-            marketplace.as_deref(),
-        ))
+        tokio::runtime::Handle::current().block_on(update_plugin(plugin_name, project_root, None))
     });
 
     match result.status {

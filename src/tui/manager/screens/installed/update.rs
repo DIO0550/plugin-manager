@@ -157,17 +157,15 @@ fn execute_batch(model: &mut Model, data: &mut DataStore) {
         ..
     } = model
     {
-        // マーク済みプラグインの名前とマーケットプレースを収集
-        let plugins_to_update: Vec<(String, Option<String>)> = marked_ids
+        // マーク済みプラグインの名前を収集
+        let plugin_names: Vec<String> = marked_ids
             .iter()
-            .filter_map(|id| {
-                data.find_plugin(id)
-                    .map(|p| (p.name.clone(), p.marketplace.clone()))
-            })
+            .filter(|id| data.find_plugin(id).is_some())
+            .cloned()
             .collect();
 
         // バッチ更新実行
-        let results = actions::batch_update_plugins(&plugins_to_update);
+        let results = actions::batch_update_plugins(&plugin_names);
 
         // 結果を update_statuses に反映
         let mut new_statuses = HashMap::new();
