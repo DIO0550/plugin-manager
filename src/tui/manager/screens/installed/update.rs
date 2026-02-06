@@ -138,7 +138,8 @@ fn batch_update(model: &mut Model) -> UpdateEffect {
             return UpdateEffect::none();
         }
 
-        // 各マーク済みプラグインの update_statuses を Updating にセット
+        // 前回バッチの古いステータスをクリアしてから新バッチの Updating をセット
+        update_statuses.clear();
         for id in marked_ids.iter() {
             update_statuses.insert(id.clone(), UpdateStatusDisplay::Updating);
         }
