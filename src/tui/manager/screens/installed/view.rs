@@ -162,11 +162,7 @@ fn view_plugin_list(
     // プラグインリスト（フィルタ済み）
     if filtered.is_empty() {
         let no_match = Paragraph::new("  No matching plugins")
-            .block(
-                Block::default()
-                    .title(format!(" Installed Plugins (0/{}) ", data.plugins.len()))
-                    .borders(Borders::ALL),
-            )
+            .block(Block::default().title(title).borders(Borders::ALL))
             .style(Style::default().fg(Color::DarkGray));
         f.render_widget(no_match, chunks[2]);
     } else {
