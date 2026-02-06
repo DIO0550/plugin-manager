@@ -50,17 +50,33 @@ pub fn enable_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionResu
 ///
 /// TUI の代替スクリーンが update_plugin の println!/eprintln! で乱れるのを防ぐ。
 /// Drop で確実に復元される。
+///
+/// dup2 によるプロセスグローバルな fd リダイレクションを行うため、
+/// グローバル Mutex で排他制御し、リダイレクト前に flush する。
 #[cfg(unix)]
 struct OutputSuppressGuard {
     saved_stdout: i32,
     saved_stderr: i32,
+    _lock: std::sync::MutexGuard<'static, ()>,
 }
+
+/// OutputSuppressGuard の排他制御用 Mutex
+#[cfg(unix)]
+static OUTPUT_SUPPRESS_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 #[cfg(unix)]
 impl OutputSuppressGuard {
     fn new() -> Option<Self> {
         use std::ffi::CString;
+        use std::io::Write;
         use std::os::unix::io::AsRawFd;
+
+        // グローバル Mutex を取得して排他制御
+        let lock = OUTPUT_SUPPRESS_LOCK.lock().ok()?;
+
+        // リダイレクト前に pending な出力を flush
+        let _ = std::io::stdout().flush();
+        let _ = std::io::stderr().flush();
 
         let dev_null_path = CString::new("/dev/null").ok()?;
         let dev_null_fd = unsafe { libc::open(dev_null_path.as_ptr(), libc::O_WRONLY) };
@@ -116,6 +132,7 @@ impl OutputSuppressGuard {
         Some(Self {
             saved_stdout,
             saved_stderr,
+            _lock: lock,
         })
     }
 }
@@ -142,6 +159,7 @@ impl Drop for OutputSuppressGuard {
             libc::close(self.saved_stdout);
             libc::close(self.saved_stderr);
         }
+        // _lock は Drop 順序により dup2 復元後に自動解放される
     }
 }
 
