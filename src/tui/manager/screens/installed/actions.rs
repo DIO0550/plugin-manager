@@ -96,7 +96,8 @@ impl OutputSuppressGuard {
             let r_stderr = libc::dup2(dev_null_fd, stderr_fd);
 
             if r_stdout < 0 || r_stderr < 0 {
-                // dup2 失敗時はベストエフォートで復元
+                // dup2 が成功した fd は /dev/null にリダイレクト済みなので、
+                // 元の fd に復元する必要がある。失敗した fd は変更されていないため復元不要。
                 if r_stdout >= 0 {
                     libc::dup2(saved_stdout, stdout_fd);
                 }
