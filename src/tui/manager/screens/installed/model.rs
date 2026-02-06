@@ -217,17 +217,29 @@ impl Model {
                 selected_plugin_id: selected_id.clone(),
                 marked_ids: marked_ids.clone(),
             },
-            Model::PluginDetail { plugin_id, .. } => CacheState {
+            Model::PluginDetail {
+                plugin_id,
+                saved_marked_ids,
+                ..
+            } => CacheState {
                 selected_plugin_id: Some(plugin_id.clone()),
-                marked_ids: HashSet::new(),
+                marked_ids: saved_marked_ids.clone(),
             },
-            Model::ComponentTypes { plugin_id, .. } => CacheState {
+            Model::ComponentTypes {
+                plugin_id,
+                saved_marked_ids,
+                ..
+            } => CacheState {
                 selected_plugin_id: Some(plugin_id.clone()),
-                marked_ids: HashSet::new(),
+                marked_ids: saved_marked_ids.clone(),
             },
-            Model::ComponentList { plugin_id, .. } => CacheState {
+            Model::ComponentList {
+                plugin_id,
+                saved_marked_ids,
+                ..
+            } => CacheState {
                 selected_plugin_id: Some(plugin_id.clone()),
-                marked_ids: HashSet::new(),
+                marked_ids: saved_marked_ids.clone(),
             },
         }
     }
