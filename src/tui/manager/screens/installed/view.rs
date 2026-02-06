@@ -183,24 +183,26 @@ fn view_plugin_list(
                     .unwrap_or_default();
                 let status_str = if p.enabled { "" } else { " [disabled]" };
 
-                let mut spans = vec![];
-
-                // マークインジケータ
-                spans.push(Span::raw(format!("  {}", mark_indicator)));
-
-                // プラグイン名
-                let name_text = format!(
-                    "{}{}  v{}{}",
-                    p.name, marketplace_str, p.version, status_str
-                );
-                let name_style = if is_marked {
+                // 行のベーススタイル（マーク・disabled 状態に応じて統一）
+                let base_style = if is_marked {
                     Style::default().fg(Color::Yellow)
                 } else if p.enabled {
                     Style::default()
                 } else {
                     Style::default().fg(Color::DarkGray)
                 };
-                spans.push(Span::styled(name_text, name_style));
+
+                let mut spans = vec![];
+
+                // マークインジケータ（ベーススタイルと統一）
+                spans.push(Span::styled(format!("  {}", mark_indicator), base_style));
+
+                // プラグイン名
+                let name_text = format!(
+                    "{}{}  v{}{}",
+                    p.name, marketplace_str, p.version, status_str
+                );
+                spans.push(Span::styled(name_text, base_style));
 
                 // 更新ステータス
                 if let Some(update_status) = update_statuses.get(&p.name) {
