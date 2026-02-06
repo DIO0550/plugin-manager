@@ -106,21 +106,22 @@ fn toggle_mark(model: &mut Model) {
 fn toggle_all_marks(model: &mut Model, data: &DataStore, filter_text: &str) {
     if let Model::PluginList { marked_ids, .. } = model {
         let filtered = filter_plugins(&data.plugins, filter_text);
-        let filtered_ids: Vec<String> = filtered.iter().map(|p| p.name.clone()).collect();
 
         // フィルタ済み全プラグインが既にマーク済みかチェック
-        let all_marked =
-            !filtered_ids.is_empty() && filtered_ids.iter().all(|id| marked_ids.contains(id));
+        let all_marked = !filtered.is_empty()
+            && filtered
+                .iter()
+                .all(|plugin| marked_ids.contains(&plugin.name));
 
         if all_marked {
             // フィルタ済み分のみ解除
-            for id in &filtered_ids {
-                marked_ids.remove(id);
+            for plugin in &filtered {
+                marked_ids.remove(&plugin.name);
             }
         } else {
             // フィルタ済みプラグインを全マーク
-            for id in filtered_ids {
-                marked_ids.insert(id);
+            for plugin in &filtered {
+                marked_ids.insert(plugin.name.clone());
             }
         }
     }
