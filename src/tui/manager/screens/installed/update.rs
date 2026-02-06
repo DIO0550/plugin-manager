@@ -78,7 +78,7 @@ pub fn update(
         }
         Msg::BatchUpdate => batch_update(model),
         Msg::ExecuteBatch => {
-            execute_batch(model, data);
+            execute_batch(model, data, filter_text);
             UpdateEffect::none()
         }
     }
@@ -151,11 +151,12 @@ fn batch_update(model: &mut Model) -> UpdateEffect {
 }
 
 /// Phase 2: 実際のバッチ更新処理を実行
-fn execute_batch(model: &mut Model, data: &mut DataStore) {
+fn execute_batch(model: &mut Model, data: &mut DataStore, filter_text: &str) {
     if let Model::PluginList {
         marked_ids,
         update_statuses,
-        ..
+        selected_id,
+        state,
     } = model
     {
         // マーク済みプラグインの名前を収集
@@ -205,6 +206,16 @@ fn execute_batch(model: &mut Model, data: &mut DataStore) {
 
         // マーク済みIDをクリア
         marked_ids.clear();
+
+        // reload 後にフィルタ済みリストに対して選択状態を再同期
+        let filtered = filter_plugins(&data.plugins, filter_text);
+        let current_selected = selected_id.as_ref();
+        let new_idx = current_selected
+            .and_then(|id| filtered.iter().position(|p| &p.name == id))
+            .or_else(|| if filtered.is_empty() { None } else { Some(0) });
+
+        state.select(new_idx);
+        *selected_id = new_idx.and_then(|idx| filtered.get(idx).map(|p| p.name.clone()));
     }
 }
 
