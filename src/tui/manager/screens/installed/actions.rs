@@ -179,8 +179,15 @@ pub fn batch_update_plugins(plugin_names: &[String]) -> Vec<(String, UpdateStatu
 
 /// 単一プラグインの更新を同期的に実行
 fn run_update_plugin(plugin_name: &str, project_root: &Path) -> UpdateStatusDisplay {
+    let handle = match tokio::runtime::Handle::try_current() {
+        Ok(h) => h,
+        Err(_) => {
+            return UpdateStatusDisplay::Failed("No Tokio runtime available".to_string());
+        }
+    };
+
     let result = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current().block_on(update_plugin(plugin_name, project_root, None))
+        handle.block_on(update_plugin(plugin_name, project_root, None))
     });
 
     match result.status {
