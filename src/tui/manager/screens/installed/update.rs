@@ -212,7 +212,7 @@ fn execute_batch(model: &mut Model, data: &mut DataStore, filter_text: &str) {
         let current_selected = selected_id.as_ref();
         let new_idx = current_selected
             .and_then(|id| filtered.iter().position(|p| &p.name == id))
-            .or_else(|| if filtered.is_empty() { None } else { Some(0) });
+            .or(if filtered.is_empty() { None } else { Some(0) });
 
         state.select(new_idx);
         *selected_id = new_idx.and_then(|idx| filtered.get(idx).map(|p| p.name.clone()));
