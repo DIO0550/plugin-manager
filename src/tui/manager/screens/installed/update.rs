@@ -61,7 +61,7 @@ pub fn update(
             UpdateEffect::none()
         }
         Msg::Enter => {
-            enter(model, data);
+            enter(model, data, filter_text);
             UpdateEffect::none()
         }
         Msg::Back => {
@@ -265,7 +265,7 @@ fn select_next(model: &mut Model, data: &DataStore, filter_text: &str) {
 }
 
 /// 次の階層へ遷移
-fn enter(model: &mut Model, data: &mut DataStore) {
+fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) {
     match model {
         Model::PluginList {
             selected_id,
@@ -343,12 +343,17 @@ fn enter(model: &mut Model, data: &mut DataStore) {
                             restored_marks.remove(&uninstalled_id);
                             restored_statuses.remove(&uninstalled_id);
                             data.remove_plugin(&uninstalled_id);
+                            // フィルタ済みリストに対して選択を同期
+                            let filtered = filter_plugins(&data.plugins, filter_text);
                             let mut new_state = ListState::default();
-                            if !data.plugins.is_empty() {
+                            let selected_id = if !filtered.is_empty() {
                                 new_state.select(Some(0));
-                            }
+                                Some(filtered[0].name.clone())
+                            } else {
+                                None
+                            };
                             *model = Model::PluginList {
-                                selected_id: data.plugins.first().map(|p| p.name.clone()),
+                                selected_id,
                                 state: new_state,
                                 marked_ids: restored_marks,
                                 update_statuses: restored_statuses,
