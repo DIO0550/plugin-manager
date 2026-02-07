@@ -226,6 +226,9 @@ fn execute_batch(model: &mut Model, data: &mut DataStore, filter_text: &str) {
             });
         }
 
+        // reload 後に存在しなくなったプラグインをマークから除去
+        marked_ids.retain(|id| data.find_plugin(id).is_some());
+
         // マーク済みIDの条件付きクリア:
         // marked_ids 内の全プラグインが update_statuses に含まれている場合のみクリア
         if marked_ids
