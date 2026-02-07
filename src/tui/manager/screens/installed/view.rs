@@ -76,6 +76,20 @@ pub fn view(
     }
 }
 
+/// reason テキストをリスト行表示用にサニタイズ（改行除去・長さ制限）
+fn sanitize_reason(reason: &str) -> String {
+    let single_line: String = reason
+        .chars()
+        .map(|c| if c == '\n' || c == '\r' { ' ' } else { c })
+        .collect();
+    const MAX_LEN: usize = 40;
+    if single_line.len() > MAX_LEN {
+        format!("{}...", &single_line[..MAX_LEN])
+    } else {
+        single_line
+    }
+}
+
 /// 更新ステータスの表示文字列とスタイルを取得
 fn update_status_span(status: &UpdateStatusDisplay) -> Span<'_> {
     match status {
@@ -87,11 +101,11 @@ fn update_status_span(status: &UpdateStatusDisplay) -> Span<'_> {
             Span::styled(" Up to date", Style::default().fg(Color::DarkGray))
         }
         UpdateStatusDisplay::Skipped(reason) => {
-            let text = format!(" Skipped: {}", reason);
+            let text = format!(" Skipped: {}", sanitize_reason(reason));
             Span::styled(text, Style::default().fg(Color::DarkGray))
         }
         UpdateStatusDisplay::Failed(reason) => {
-            let text = format!(" Failed: {}", reason);
+            let text = format!(" Failed: {}", sanitize_reason(reason));
             Span::styled(text, Style::default().fg(Color::Red))
         }
     }
