@@ -379,14 +379,24 @@ fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) {
                     };
                 }
                 Some(DetailAction::Back) => {
-                    // PluginList に戻る（マーク状態を復元）
+                    // PluginList に戻る（マーク状態を復元、選択をフィルタ済みリストと同期）
                     let id = plugin_id.clone();
                     let restored_marks = std::mem::take(saved_marked_ids);
                     let restored_statuses = std::mem::take(saved_update_statuses);
+                    let filtered = filter_plugins(&data.plugins, filter_text);
                     let mut new_state = ListState::default();
-                    new_state.select(Some(0));
+                    let idx = filtered.iter().position(|p| p.name == id);
+                    let selected_id = if let Some(idx) = idx {
+                        new_state.select(Some(idx));
+                        Some(id)
+                    } else if !filtered.is_empty() {
+                        new_state.select(Some(0));
+                        Some(filtered[0].name.clone())
+                    } else {
+                        None
+                    };
                     *model = Model::PluginList {
-                        selected_id: Some(id),
+                        selected_id,
                         state: new_state,
                         marked_ids: restored_marks,
                         update_statuses: restored_statuses,
