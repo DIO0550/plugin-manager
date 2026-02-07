@@ -50,7 +50,26 @@ pub fn run() -> io::Result<()> {
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
                 if let Some(msg) = model.key_to_msg(key.code) {
-                    update(&mut model, msg);
+                    let effect = update(&mut model, msg);
+
+                    // 2段階方式: BatchUpdate (Phase 1) 後に描画してから ExecuteBatch (Phase 2)
+                    // バッチ更新中のキー入力はキューに溜まるが、完了後に破棄する
+                    //
+                    // Note: バッチ更新中は入力がブロックされるため、'q' を押しても終了しない。
+                    // 将来的な改善案:
+                    // - 更新中であることを示すメッセージを表示
+                    // - 'q' や Escape でキャンセル可能にする
+                    // - 進捗インジケータ（例: "Updating plugin 3 of 10..."）を表示
+                    if effect.needs_execute_batch {
+                        terminal.draw(|f| view(f, &model))?;
+                        let batch_msg = core::Msg::Installed(screens::installed::Msg::ExecuteBatch);
+                        update(&mut model, batch_msg);
+                        // バッチ更新中にキューされたキー入力を破棄
+                        while event::poll(std::time::Duration::ZERO)? {
+                            let _ = event::read()?;
+                        }
+                        terminal.draw(|f| view(f, &model))?;
+                    }
                 }
             }
         }

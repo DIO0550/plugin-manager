@@ -2,13 +2,14 @@
 //!
 //! 各画面状態に応じた描画ロジック。
 
-use super::model::{DetailAction, Model};
+use super::model::{DetailAction, Model, UpdateStatusDisplay};
 use crate::component::ComponentKind;
 use crate::tui::manager::core::{
     dialog_rect, filter_plugins, render_filter_bar, DataStore, PluginId, Tab,
 };
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Tabs};
+use std::collections::{HashMap, HashSet};
 
 /// ComponentKind の表示用タイトルを取得（複数形）
 fn component_kind_title(kind: ComponentKind) -> &'static str {
@@ -30,8 +31,21 @@ pub fn view(
     filter_focused: bool,
 ) {
     match model {
-        Model::PluginList { state, .. } => {
-            view_plugin_list(f, *state, data, filter_text, filter_focused);
+        Model::PluginList {
+            state,
+            marked_ids,
+            update_statuses,
+            ..
+        } => {
+            view_plugin_list(
+                f,
+                *state,
+                data,
+                filter_text,
+                filter_focused,
+                marked_ids,
+                update_statuses,
+            );
         }
         Model::PluginDetail {
             plugin_id, state, ..
@@ -62,13 +76,53 @@ pub fn view(
     }
 }
 
+/// reason テキストをリスト行表示用にサニタイズ（改行除去・長さ制限）
+fn sanitize_reason(reason: &str) -> String {
+    let single_line: String = reason
+        .chars()
+        .map(|c| if c == '\n' || c == '\r' { ' ' } else { c })
+        .collect();
+    const MAX_LEN: usize = 40;
+    let char_count = single_line.chars().count();
+    if char_count > MAX_LEN {
+        let truncated: String = single_line.chars().take(MAX_LEN).collect();
+        format!("{truncated}...")
+    } else {
+        single_line
+    }
+}
+
+/// 更新ステータスの表示文字列とスタイルを取得
+fn update_status_span(status: &UpdateStatusDisplay) -> Span<'_> {
+    match status {
+        UpdateStatusDisplay::Updating => {
+            Span::styled(" Updating...", Style::default().fg(Color::Yellow))
+        }
+        UpdateStatusDisplay::Updated => Span::styled(" Updated", Style::default().fg(Color::Green)),
+        UpdateStatusDisplay::AlreadyUpToDate => {
+            Span::styled(" Up to date", Style::default().fg(Color::DarkGray))
+        }
+        UpdateStatusDisplay::Skipped(reason) => {
+            let text = format!(" Skipped: {}", sanitize_reason(reason));
+            Span::styled(text, Style::default().fg(Color::DarkGray))
+        }
+        UpdateStatusDisplay::Failed(reason) => {
+            let text = format!(" Failed: {}", sanitize_reason(reason));
+            Span::styled(text, Style::default().fg(Color::Red))
+        }
+    }
+}
+
 /// プラグイン一覧画面を描画
+#[allow(clippy::too_many_arguments)]
 fn view_plugin_list(
     f: &mut Frame,
     mut state: ListState,
     data: &DataStore,
     filter_text: &str,
     filter_focused: bool,
+    marked_ids: &HashSet<PluginId>,
+    update_statuses: &HashMap<PluginId, UpdateStatusDisplay>,
 ) {
     let filtered = filter_plugins(&data.plugins, filter_text);
     let content_height = (filtered.len() as u16).max(1) + 9; // +3 for filter bar
@@ -104,44 +158,73 @@ fn view_plugin_list(
     // フィルタバー
     render_filter_bar(f, chunks[1], filter_text, filter_focused);
 
+    // タイトル（マーク数表示付き）
+    let marked_count = marked_ids.len();
+    let title = if marked_count > 0 {
+        format!(
+            " Installed Plugins ({}/{}) [{} marked] ",
+            filtered.len(),
+            data.plugins.len(),
+            marked_count
+        )
+    } else {
+        format!(
+            " Installed Plugins ({}/{}) ",
+            filtered.len(),
+            data.plugins.len()
+        )
+    };
+
     // プラグインリスト（フィルタ済み）
     if filtered.is_empty() {
         let no_match = Paragraph::new("  No matching plugins")
-            .block(
-                Block::default()
-                    .title(" Installed Plugins (0) ")
-                    .borders(Borders::ALL),
-            )
+            .block(Block::default().title(title).borders(Borders::ALL))
             .style(Style::default().fg(Color::DarkGray));
         f.render_widget(no_match, chunks[2]);
     } else {
         let items: Vec<ListItem> = filtered
             .iter()
             .map(|p| {
+                let is_marked = marked_ids.contains(&p.name);
+                let mark_indicator = if is_marked { "[x] " } else { "[ ] " };
+
                 let marketplace_str = p
                     .marketplace
                     .as_ref()
                     .map(|m| format!(" @{}", m))
                     .unwrap_or_default();
                 let status_str = if p.enabled { "" } else { " [disabled]" };
-                let text = format!(
-                    "  {}{}  v{}{}",
-                    p.name, marketplace_str, p.version, status_str
-                );
-                let style = if p.enabled {
+
+                // 行のベーススタイル（マーク・disabled 状態に応じて統一）
+                let base_style = if is_marked {
+                    Style::default().fg(Color::Yellow)
+                } else if p.enabled {
                     Style::default()
                 } else {
                     Style::default().fg(Color::DarkGray)
                 };
-                ListItem::new(text).style(style)
+
+                let mut spans = vec![];
+
+                // マークインジケータ（ベーススタイルと統一）
+                spans.push(Span::styled(format!("  {}", mark_indicator), base_style));
+
+                // プラグイン名
+                let name_text = format!(
+                    "{}{}  v{}{}",
+                    p.name, marketplace_str, p.version, status_str
+                );
+                spans.push(Span::styled(name_text, base_style));
+
+                // 更新ステータス
+                if let Some(update_status) = update_statuses.get(&p.name) {
+                    spans.push(update_status_span(update_status));
+                }
+
+                ListItem::new(Line::from(spans))
             })
             .collect();
 
-        let title = format!(
-            " Installed Plugins ({}/{}) ",
-            filtered.len(),
-            data.plugins.len()
-        );
         let list = List::new(items)
             .block(Block::default().title(title).borders(Borders::ALL))
             .highlight_style(
@@ -155,8 +238,10 @@ fn view_plugin_list(
     }
 
     // ヘルプ
-    let help = Paragraph::new(" Tab: switch | ↑↓: move | Enter: details | q: quit")
-        .style(Style::default().fg(Color::DarkGray));
+    let help = Paragraph::new(
+        " Space: mark | a: all | U: update | Tab: switch | ↑↓: move | Enter: details | q: quit",
+    )
+    .style(Style::default().fg(Color::DarkGray));
     f.render_widget(help, chunks[3]);
 }
 

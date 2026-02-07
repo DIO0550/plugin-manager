@@ -224,61 +224,90 @@ impl Model {
 // update（状態更新）
 // ============================================================================
 
+/// app::update() の戻り値
+pub struct AppUpdateEffect {
+    /// 描画後にバッチ更新を実行すべき
+    pub needs_execute_batch: bool,
+}
+
+impl AppUpdateEffect {
+    fn none() -> Self {
+        Self {
+            needs_execute_batch: false,
+        }
+    }
+}
+
 /// メッセージに応じて状態を更新
-pub fn update(model: &mut Model, msg: Msg) {
+pub fn update(model: &mut Model, msg: Msg) -> AppUpdateEffect {
     match msg {
         Msg::Quit => {
             model.should_quit = true;
+            AppUpdateEffect::none()
         }
         Msg::NextTab => {
             model.filter_focused = false;
             switch_tab(model, model.screen.tab().next());
+            AppUpdateEffect::none()
         }
         Msg::PrevTab => {
             model.filter_focused = false;
             switch_tab(model, model.screen.tab().prev());
+            AppUpdateEffect::none()
         }
         Msg::FilterFocus => {
             model.filter_focused = true;
+            AppUpdateEffect::none()
         }
         Msg::FilterUnfocus => {
             model.filter_focused = false;
+            AppUpdateEffect::none()
         }
         Msg::FilterInput(c) => {
             model.filter_text.push(c);
             clamp_selection(model);
+            AppUpdateEffect::none()
         }
         Msg::FilterBackspace => {
             model.filter_text.pop();
             clamp_selection(model);
+            AppUpdateEffect::none()
         }
         Msg::FilterClear => {
             model.filter_text.clear();
             clamp_selection(model);
+            AppUpdateEffect::none()
         }
         Msg::Installed(msg) => {
             if let Screen::Installed(m) = &mut model.screen {
-                let should_focus_filter =
-                    installed::update(m, msg, &mut model.data, &model.filter_text);
-                if should_focus_filter {
+                let effect = installed::update(m, msg, &mut model.data, &model.filter_text);
+                if effect.should_focus_filter {
                     model.filter_focused = true;
                 }
+                AppUpdateEffect {
+                    needs_execute_batch: effect.needs_execute_batch,
+                }
+            } else {
+                AppUpdateEffect::none()
             }
         }
         Msg::Discover(msg) => {
             if let Screen::Discover(m) = &mut model.screen {
                 discover::update(m, msg, &model.data);
             }
+            AppUpdateEffect::none()
         }
         Msg::Marketplaces(msg) => {
             if let Screen::Marketplaces(m) = &mut model.screen {
                 marketplaces::update(m, msg, &model.data);
             }
+            AppUpdateEffect::none()
         }
         Msg::Errors(msg) => {
             if let Screen::Errors(m) = &mut model.screen {
                 errors::update(m, msg, &model.data);
             }
+            AppUpdateEffect::none()
         }
     }
 }
@@ -287,7 +316,10 @@ pub fn update(model: &mut Model, msg: Msg) {
 fn clamp_selection(model: &mut Model) {
     if let Screen::Installed(m) = &mut model.screen {
         let filtered = filter_plugins(&model.data.plugins, &model.filter_text);
-        if let installed::Model::PluginList { selected_id, state } = m {
+        if let installed::Model::PluginList {
+            selected_id, state, ..
+        } = m
+        {
             if let Some(id) = selected_id.as_ref() {
                 // 現在の選択が絞り込み結果に含まれるか
                 if let Some(idx) = filtered.iter().position(|p| &p.name == id) {
