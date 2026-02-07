@@ -83,8 +83,10 @@ fn sanitize_reason(reason: &str) -> String {
         .map(|c| if c == '\n' || c == '\r' { ' ' } else { c })
         .collect();
     const MAX_LEN: usize = 40;
-    if single_line.len() > MAX_LEN {
-        format!("{}...", &single_line[..MAX_LEN])
+    let char_count = single_line.chars().count();
+    if char_count > MAX_LEN {
+        let truncated: String = single_line.chars().take(MAX_LEN).collect();
+        format!("{truncated}...")
     } else {
         single_line
     }
