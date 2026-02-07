@@ -251,10 +251,7 @@ fn execute_batch_with(
 
         // マーク済みIDの条件付きクリア:
         // marked_ids 内の全プラグインが update_statuses に含まれている場合のみクリア
-        if marked_ids
-            .iter()
-            .all(|id| update_statuses.contains_key(id))
-        {
+        if marked_ids.iter().all(|id| update_statuses.contains_key(id)) {
             marked_ids.clear();
         }
 
@@ -460,8 +457,7 @@ fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) -> UpdateEf
                     let mut restored_statuses = std::mem::take(saved_update_statuses);
                     // 古いステータスをクリアして対象プラグインに Updating をセット
                     restored_statuses.clear();
-                    restored_statuses
-                        .insert(target_id.clone(), UpdateStatusDisplay::Updating);
+                    restored_statuses.insert(target_id.clone(), UpdateStatusDisplay::Updating);
                     // PluginList に遷移（フィルタ済みリストで選択位置を同期）
                     let filtered = filter_plugins(&data.plugins, filter_text);
                     let mut new_state = ListState::default();
