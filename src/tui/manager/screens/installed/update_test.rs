@@ -1,7 +1,20 @@
-use super::update;
+use super::{execute_batch_with, update};
 use crate::application::PluginSummary;
 use crate::tui::manager::core::DataStore;
 use crate::tui::manager::screens::installed::model::{Model, Msg, UpdateStatusDisplay};
+
+/// スタブ: 全プラグインを Updated として返す
+fn stub_run_updates(names: &[String]) -> Vec<(String, UpdateStatusDisplay)> {
+    names
+        .iter()
+        .map(|name| (name.clone(), UpdateStatusDisplay::Updated))
+        .collect()
+}
+
+/// スタブ: reload を何もしない（プラグインリストを維持）
+fn stub_reload(_data: &mut DataStore) -> std::io::Result<()> {
+    Ok(())
+}
 
 fn make_plugin(name: &str) -> PluginSummary {
     PluginSummary {
@@ -546,7 +559,7 @@ fn update_all_clears_stale_statuses() {
 }
 
 // ============================================================================
-// execute_batch: stale marked_ids の正規化テスト
+// execute_batch: stale marked_ids の正規化テスト（密閉テスト）
 // ============================================================================
 
 #[test]
@@ -567,7 +580,7 @@ fn execute_batch_removes_stale_marks_for_nonexistent_plugins() {
         update_statuses.insert("plugin-a".to_string(), UpdateStatusDisplay::Updating);
     }
 
-    update(&mut model, Msg::ExecuteBatch, &mut data, "");
+    execute_batch_with(&mut model, &mut data, "", stub_run_updates, stub_reload);
 
     if let Model::PluginList { marked_ids, .. } = &model {
         assert!(
@@ -580,7 +593,7 @@ fn execute_batch_removes_stale_marks_for_nonexistent_plugins() {
 }
 
 // ============================================================================
-// execute_batch 変更のテスト
+// execute_batch 変更のテスト（密閉テスト）
 // ============================================================================
 
 #[test]
@@ -597,23 +610,31 @@ fn execute_batch_collects_from_update_statuses() {
         update_statuses.insert("plugin-c".to_string(), UpdateStatusDisplay::Updating);
     }
 
-    // ExecuteBatch を実行
-    update(&mut model, Msg::ExecuteBatch, &mut data, "");
+    execute_batch_with(&mut model, &mut data, "", stub_run_updates, stub_reload);
 
-    // plugin-a と plugin-c に結果が反映されていること（Updating ではなくなっている）
+    // plugin-a と plugin-c に結果が反映されていること（Updated になっている）
     if let Model::PluginList {
         update_statuses, ..
     } = &model
     {
-        // batch_update_plugins は実際のプラグインがないので結果は空か失敗になるが、
-        // 少なくとも Updating のままではないことを確認
-        for (name, status) in update_statuses.iter() {
-            assert!(
-                !matches!(status, UpdateStatusDisplay::Updating),
-                "{} should not be Updating after execute_batch",
-                name
-            );
-        }
+        assert!(
+            matches!(
+                update_statuses.get("plugin-a"),
+                Some(UpdateStatusDisplay::Updated)
+            ),
+            "plugin-a should be Updated"
+        );
+        assert!(
+            matches!(
+                update_statuses.get("plugin-c"),
+                Some(UpdateStatusDisplay::Updated)
+            ),
+            "plugin-c should be Updated"
+        );
+        assert!(
+            !update_statuses.contains_key("plugin-b"),
+            "plugin-b should have no status (was not Updating)"
+        );
     } else {
         panic!("Expected PluginList");
     }
@@ -637,15 +658,16 @@ fn execute_batch_preserves_marks_when_not_all_marked_are_updated() {
         update_statuses.insert("plugin-a".to_string(), UpdateStatusDisplay::Updating);
     }
 
-    update(&mut model, Msg::ExecuteBatch, &mut data, "");
+    execute_batch_with(&mut model, &mut data, "", stub_run_updates, stub_reload);
 
-    // NOTE: reload() が実ファイルシステムを読むため、テスト環境ではプラグインが消える。
-    // reload 後の retain で存在しないプラグインのマークが除去される。
-    // 実運用環境ではプラグインが残るためマークは保持される（指摘2で密閉テストに改善予定）。
     if let Model::PluginList { marked_ids, .. } = &model {
         assert!(
-            marked_ids.is_empty(),
-            "Marks should be cleared because reload() empties plugins in test environment"
+            !marked_ids.is_empty(),
+            "Marks should be preserved when not all marked plugins are updated"
+        );
+        assert!(
+            marked_ids.contains("plugin-b"),
+            "plugin-b mark should be preserved"
         );
     } else {
         panic!("Expected PluginList");
@@ -670,7 +692,7 @@ fn execute_batch_clears_marks_when_all_marked_are_updated() {
         update_statuses.insert("plugin-b".to_string(), UpdateStatusDisplay::Updating);
     }
 
-    update(&mut model, Msg::ExecuteBatch, &mut data, "");
+    execute_batch_with(&mut model, &mut data, "", stub_run_updates, stub_reload);
 
     if let Model::PluginList { marked_ids, .. } = &model {
         assert!(
@@ -680,4 +702,85 @@ fn execute_batch_clears_marks_when_all_marked_are_updated() {
     } else {
         panic!("Expected PluginList");
     }
+}
+
+#[test]
+fn execute_batch_sets_error_on_failed_updates() {
+    let mut data = make_data(&["plugin-a"]);
+    let mut model = Model::new(&data);
+
+    if let Model::PluginList {
+        update_statuses, ..
+    } = &mut model
+    {
+        update_statuses.insert("plugin-a".to_string(), UpdateStatusDisplay::Updating);
+    }
+
+    // スタブ: 全プラグインを Failed として返す
+    let fail_updates = |names: &[String]| -> Vec<(String, UpdateStatusDisplay)> {
+        names
+            .iter()
+            .map(|name| {
+                (
+                    name.clone(),
+                    UpdateStatusDisplay::Failed("test error".to_string()),
+                )
+            })
+            .collect()
+    };
+
+    execute_batch_with(&mut model, &mut data, "", fail_updates, stub_reload);
+
+    assert!(
+        data.last_error.is_some(),
+        "last_error should be set on failed update"
+    );
+    assert!(
+        data.last_error.as_ref().unwrap().contains("test error"),
+        "Error message should contain the failure reason"
+    );
+
+    if let Model::PluginList {
+        update_statuses, ..
+    } = &model
+    {
+        assert!(
+            matches!(
+                update_statuses.get("plugin-a"),
+                Some(UpdateStatusDisplay::Failed(_))
+            ),
+            "plugin-a should be Failed"
+        );
+    } else {
+        panic!("Expected PluginList");
+    }
+}
+
+#[test]
+fn execute_batch_handles_reload_error() {
+    let mut data = make_data(&["plugin-a"]);
+    let mut model = Model::new(&data);
+
+    if let Model::PluginList {
+        update_statuses, ..
+    } = &mut model
+    {
+        update_statuses.insert("plugin-a".to_string(), UpdateStatusDisplay::Updating);
+    }
+
+    // スタブ: reload がエラーを返す
+    let fail_reload = |_data: &mut DataStore| -> std::io::Result<()> {
+        Err(std::io::Error::other("reload failed"))
+    };
+
+    execute_batch_with(&mut model, &mut data, "", stub_run_updates, fail_reload);
+
+    assert!(
+        data.last_error.is_some(),
+        "last_error should be set on reload failure"
+    );
+    assert!(
+        data.last_error.as_ref().unwrap().contains("reload failed"),
+        "Error message should contain the reload failure reason"
+    );
 }

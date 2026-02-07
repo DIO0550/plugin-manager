@@ -173,6 +173,26 @@ fn update_all(model: &mut Model, data: &DataStore) -> UpdateEffect {
 
 /// Phase 2: 実際のバッチ更新処理を実行
 fn execute_batch(model: &mut Model, data: &mut DataStore, filter_text: &str) {
+    execute_batch_with(
+        model,
+        data,
+        filter_text,
+        |names| actions::batch_update_plugins(names),
+        |d| d.reload(),
+    );
+}
+
+/// Phase 2 の実装本体（依存関数を注入可能）
+///
+/// テストでは `run_updates` と `reload` にスタブを注入して
+/// ファイルシステムアクセスなしで密閉的にテストできる。
+fn execute_batch_with(
+    model: &mut Model,
+    data: &mut DataStore,
+    filter_text: &str,
+    run_updates: impl FnOnce(&[String]) -> Vec<(String, UpdateStatusDisplay)>,
+    reload: impl FnOnce(&mut DataStore) -> std::io::Result<()>,
+) {
     if let Model::PluginList {
         marked_ids,
         update_statuses,
@@ -189,7 +209,7 @@ fn execute_batch(model: &mut Model, data: &mut DataStore, filter_text: &str) {
             .collect();
 
         // バッチ更新実行
-        let results = actions::batch_update_plugins(&plugin_names);
+        let results = run_updates(&plugin_names);
 
         // 結果を update_statuses に反映
         let mut new_statuses = HashMap::new();
@@ -218,7 +238,7 @@ fn execute_batch(model: &mut Model, data: &mut DataStore, filter_text: &str) {
         *update_statuses = new_statuses;
 
         // DataStore を全体リロード
-        if let Err(e) = data.reload() {
+        if let Err(e) = reload(data) {
             let reload_msg = format!("Failed to reload plugins: {}", e);
             data.last_error = Some(match data.last_error.take() {
                 Some(prev) => format!("{prev}\n{reload_msg}"),
