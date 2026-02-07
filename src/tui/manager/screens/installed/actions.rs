@@ -72,7 +72,11 @@ impl OutputSuppressGuard {
         use std::os::unix::io::AsRawFd;
 
         // グローバル Mutex を取得して排他制御
-        let lock = OUTPUT_SUPPRESS_LOCK.lock().ok()?;
+        // poison されていてもガードを取得して処理を継続する
+        let lock = match OUTPUT_SUPPRESS_LOCK.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
 
         // リダイレクト前に pending な出力を flush
         let _ = std::io::stdout().flush();
