@@ -124,13 +124,19 @@ impl OutputSuppressGuard {
                 if r_stderr >= 0 {
                     libc::dup2(saved_stderr, stderr_fd);
                 }
-                libc::close(dev_null_fd);
+                // dev_null_fd が stdout/stderr と同じ場合（元々閉じられていた場合）は
+                // close すると dup2 済みの fd を壊すため、異なる場合のみ close する
+                if dev_null_fd != stdout_fd && dev_null_fd != stderr_fd {
+                    libc::close(dev_null_fd);
+                }
                 libc::close(saved_stdout);
                 libc::close(saved_stderr);
                 return None;
             }
 
-            libc::close(dev_null_fd);
+            if dev_null_fd != stdout_fd && dev_null_fd != stderr_fd {
+                libc::close(dev_null_fd);
+            }
         }
 
         Some(Self {
