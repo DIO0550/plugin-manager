@@ -72,6 +72,7 @@ impl DetailAction {
     pub fn for_disabled() -> Vec<DetailAction> {
         vec![
             DetailAction::EnablePlugin,
+            DetailAction::UpdateNow,
             DetailAction::Uninstall,
             DetailAction::ViewComponents,
             DetailAction::Back,
@@ -273,6 +274,7 @@ pub enum Msg {
     ToggleMark,
     ToggleAllMarks,
     BatchUpdate,
+    UpdateAll,
     ExecuteBatch,
 }
 
@@ -291,6 +293,7 @@ pub fn key_to_msg(key: KeyCode) -> Option<Msg> {
         KeyCode::Char(' ') => Some(Msg::ToggleMark),
         KeyCode::Char('a') => Some(Msg::ToggleAllMarks),
         KeyCode::Char('U') => Some(Msg::BatchUpdate),
+        KeyCode::Char('A') => Some(Msg::UpdateAll),
         _ => None,
     }
 }
