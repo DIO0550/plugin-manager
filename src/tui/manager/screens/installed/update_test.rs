@@ -33,6 +33,7 @@ fn make_plugin(name: &str) -> PluginSummary {
 fn make_data(names: &[&str]) -> DataStore {
     DataStore {
         plugins: names.iter().map(|n| make_plugin(n)).collect(),
+        marketplaces: vec![],
         last_error: None,
     }
 }

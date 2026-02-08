@@ -5,6 +5,7 @@
 
 use crate::application::{list_installed_plugins, PluginSummary};
 use crate::component::{ComponentKind, ComponentName, ComponentTypeCount};
+use crate::marketplace::{to_display_source, MarketplaceConfig, MarketplaceRegistry};
 use std::io;
 
 // ============================================================================
@@ -15,6 +16,20 @@ use std::io;
 pub type PluginId = String;
 
 // ============================================================================
+// MarketplaceItem（TUI表示用）
+// ============================================================================
+
+/// マーケットプレイスアイテム（TUI表示用）
+#[derive(Debug, Clone)]
+pub struct MarketplaceItem {
+    pub name: String,
+    pub source: String,
+    pub source_path: Option<String>,
+    pub plugin_count: Option<usize>,
+    pub last_updated: Option<String>,
+}
+
+// ============================================================================
 // DataStore（共有データストア）
 // ============================================================================
 
@@ -22,6 +37,8 @@ pub type PluginId = String;
 pub struct DataStore {
     /// インストール済みプラグイン一覧
     pub plugins: Vec<PluginSummary>,
+    /// マーケットプレイス一覧
+    pub marketplaces: Vec<MarketplaceItem>,
     /// 最後のエラー
     pub last_error: Option<String>,
 }
@@ -30,9 +47,11 @@ impl DataStore {
     /// 新しいデータストアを作成
     pub fn new() -> io::Result<Self> {
         let plugins = list_installed_plugins().map_err(|e| io::Error::other(e.to_string()))?;
+        let marketplaces = load_marketplaces();
 
         Ok(Self {
             plugins,
+            marketplaces,
             last_error: None,
         })
     }
@@ -40,6 +59,7 @@ impl DataStore {
     /// データストアをリロード（list_installed_plugins() で全体再取得）
     pub fn reload(&mut self) -> io::Result<()> {
         self.plugins = list_installed_plugins().map_err(|e| io::Error::other(e.to_string()))?;
+        self.marketplaces = load_marketplaces();
         Ok(())
     }
 
@@ -78,4 +98,71 @@ impl DataStore {
             plugin.enabled = enabled;
         }
     }
+
+    /// マーケットプレイスデータをリロード
+    pub fn reload_marketplaces(&mut self) {
+        self.marketplaces = load_marketplaces();
+    }
+
+    /// マーケットプレイス名で検索
+    pub fn find_marketplace(&self, name: &str) -> Option<&MarketplaceItem> {
+        self.marketplaces.iter().find(|m| m.name == name)
+    }
+
+    /// マーケットプレイス名でインデックスを検索
+    pub fn marketplace_index(&self, name: &str) -> Option<usize> {
+        self.marketplaces.iter().position(|m| m.name == name)
+    }
+
+    /// マーケットプレイスを一覧から削除
+    pub fn remove_marketplace(&mut self, name: &str) {
+        self.marketplaces.retain(|m| m.name != name);
+    }
+}
+
+/// マーケットプレイスデータを読み込み
+fn load_marketplaces() -> Vec<MarketplaceItem> {
+    let config = match MarketplaceConfig::load() {
+        Ok(c) => c,
+        Err(_) => return Vec::new(),
+    };
+
+    let registry = match MarketplaceRegistry::new() {
+        Ok(r) => r,
+        Err(_) => {
+            // レジストリが作成できない場合はキャッシュなしで一覧だけ返す
+            return config
+                .list()
+                .iter()
+                .map(|entry| MarketplaceItem {
+                    name: entry.name.clone(),
+                    source: to_display_source(&entry.source),
+                    source_path: entry.source_path.clone(),
+                    plugin_count: None,
+                    last_updated: None,
+                })
+                .collect();
+        }
+    };
+
+    config
+        .list()
+        .iter()
+        .map(|entry| {
+            let (plugin_count, last_updated) = match registry.get(&entry.name) {
+                Ok(Some(cache)) => (
+                    Some(cache.plugins.len()),
+                    Some(cache.fetched_at.format("%Y-%m-%d %H:%M").to_string()),
+                ),
+                _ => (None, None),
+            };
+            MarketplaceItem {
+                name: entry.name.clone(),
+                source: to_display_source(&entry.source),
+                source_path: entry.source_path.clone(),
+                plugin_count,
+                last_updated,
+            }
+        })
+        .collect()
 }
