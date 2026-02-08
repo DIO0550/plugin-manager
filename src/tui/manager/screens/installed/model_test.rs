@@ -49,6 +49,12 @@ fn shift_u_key_returns_batch_update() {
 }
 
 #[test]
+fn shift_a_key_returns_update_all() {
+    let msg = key_to_msg(KeyCode::Char('A'));
+    assert!(matches!(msg, Some(Msg::UpdateAll)));
+}
+
+#[test]
 fn existing_keys_still_work() {
     assert!(matches!(key_to_msg(KeyCode::Up), Some(Msg::Up)));
     assert!(matches!(key_to_msg(KeyCode::Down), Some(Msg::Down)));

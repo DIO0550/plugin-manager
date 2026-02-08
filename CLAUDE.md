@@ -37,16 +37,27 @@ cargo deny check
 
 以下の操作は直接 Bash で実行せず、専用のサブエージェント（Task tool）を使用すること：
 
-| 操作 | スキル名 | 説明 |
-|------|----------|------|
+| 操作 | スキル名 / エージェント | 説明 |
+|------|--------------------------|------|
 | ファイル検索 | `rust-workflow-plugin:file-search` | ファイル名パターン検索、コード内文字列検索、シンボル（関数・構造体・enum・trait・impl）検索 |
 | 型チェック | `rust-workflow-plugin:type-check` | `cargo check` によるコンパイルエラー・型エラーの検出 |
 | テスト実行 | `rust-workflow-plugin:test` | `cargo test` によるユニットテスト・統合テスト・ドキュメントテストの実行 |
+| フォーマット | Task tool（Bash エージェント） | `cargo fmt` によるコードフォーマット |
 
 **原則:**
-- `cargo check`、`cargo test` を直接 Bash で実行しない
-- 必ず対応するサブエージェントを経由する
+- `cargo check`、`cargo test`、`cargo fmt` を直接 Bash で実行しない
+- 必ず対応するサブエージェント（Task tool）を経由する
 - これによりエラーレポートの構造化と結果の再利用性が向上する
+
+### コード修正後の検証（コミット前に必須）
+
+コードを修正した後、**コミットする前に**以下を必ず実行すること：
+
+1. **フォーマット**: Task tool（Bash エージェント）で `cargo fmt` を実行してフォーマットを適用する
+2. **型チェック**: `rust-workflow-plugin:type-check` スキルでコンパイルエラーがないことを確認する
+3. **テスト**: `rust-workflow-plugin:test` スキルで関連テストが通ることを確認する
+
+この順序で実行し、全てパスしてからコミットする。
 
 ## アーキテクチャ
 

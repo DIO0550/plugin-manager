@@ -6,7 +6,7 @@ use super::actions;
 use super::model::{DetailAction, Model, Msg, UpdateStatusDisplay};
 use crate::tui::manager::core::{filter_plugins, DataStore};
 use ratatui::widgets::ListState;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// update() の戻り値
 ///
@@ -60,10 +60,7 @@ pub fn update(
             select_next(model, data, filter_text);
             UpdateEffect::none()
         }
-        Msg::Enter => {
-            enter(model, data, filter_text);
-            UpdateEffect::none()
-        }
+        Msg::Enter => enter(model, data, filter_text),
         Msg::Back => {
             back(model, filter_text, data);
             UpdateEffect::none()
@@ -77,6 +74,7 @@ pub fn update(
             UpdateEffect::none()
         }
         Msg::BatchUpdate => batch_update(model),
+        Msg::UpdateAll => update_all(model, data),
         Msg::ExecuteBatch => {
             execute_batch(model, data, filter_text);
             UpdateEffect::none()
@@ -151,8 +149,50 @@ fn batch_update(model: &mut Model) -> UpdateEffect {
     UpdateEffect::none()
 }
 
+/// Phase 1: 全プラグインのステータスを Updating にセット
+fn update_all(model: &mut Model, data: &DataStore) -> UpdateEffect {
+    if let Model::PluginList {
+        update_statuses, ..
+    } = model
+    {
+        if data.plugins.is_empty() {
+            return UpdateEffect::none();
+        }
+
+        // 前回の古いステータスをクリアしてから全プラグインに Updating をセット
+        update_statuses.clear();
+        for plugin in &data.plugins {
+            update_statuses.insert(plugin.name.clone(), UpdateStatusDisplay::Updating);
+        }
+
+        return UpdateEffect::execute_batch();
+    }
+
+    UpdateEffect::none()
+}
+
 /// Phase 2: 実際のバッチ更新処理を実行
 fn execute_batch(model: &mut Model, data: &mut DataStore, filter_text: &str) {
+    execute_batch_with(
+        model,
+        data,
+        filter_text,
+        |names| actions::batch_update_plugins(names),
+        |d| d.reload(),
+    );
+}
+
+/// Phase 2 の実装本体（依存関数を注入可能）
+///
+/// テストでは `run_updates` と `reload` にスタブを注入して
+/// ファイルシステムアクセスなしで密閉的にテストできる。
+fn execute_batch_with(
+    model: &mut Model,
+    data: &mut DataStore,
+    filter_text: &str,
+    run_updates: impl FnOnce(&[String]) -> Vec<(String, UpdateStatusDisplay)>,
+    reload: impl FnOnce(&mut DataStore) -> std::io::Result<()>,
+) {
     if let Model::PluginList {
         marked_ids,
         update_statuses,
@@ -160,15 +200,18 @@ fn execute_batch(model: &mut Model, data: &mut DataStore, filter_text: &str) {
         state,
     } = model
     {
-        // マーク済みプラグインの名前を収集
-        let plugin_names: Vec<String> = marked_ids
+        // update_statuses から Updating のプラグイン名を収集
+        // O(n) の HashSet で存在チェックし、find_plugin の線形探索 O(n^2) を回避
+        let existing_names: HashSet<&str> = data.plugins.iter().map(|p| p.name.as_str()).collect();
+        let plugin_names: Vec<String> = update_statuses
             .iter()
-            .filter(|id| data.find_plugin(id).is_some())
-            .cloned()
+            .filter(|(_, status)| matches!(status, UpdateStatusDisplay::Updating))
+            .map(|(name, _)| name.clone())
+            .filter(|name| existing_names.contains(name.as_str()))
             .collect();
 
         // バッチ更新実行
-        let results = actions::batch_update_plugins(&plugin_names);
+        let results = run_updates(&plugin_names);
 
         // 結果を update_statuses に反映
         let mut new_statuses = HashMap::new();
@@ -197,7 +240,7 @@ fn execute_batch(model: &mut Model, data: &mut DataStore, filter_text: &str) {
         *update_statuses = new_statuses;
 
         // DataStore を全体リロード
-        if let Err(e) = data.reload() {
+        if let Err(e) = reload(data) {
             let reload_msg = format!("Failed to reload plugins: {}", e);
             data.last_error = Some(match data.last_error.take() {
                 Some(prev) => format!("{prev}\n{reload_msg}"),
@@ -205,8 +248,14 @@ fn execute_batch(model: &mut Model, data: &mut DataStore, filter_text: &str) {
             });
         }
 
-        // マーク済みIDをクリア
-        marked_ids.clear();
+        // reload 後に存在しなくなったプラグインをマークから除去
+        marked_ids.retain(|id| data.find_plugin(id).is_some());
+
+        // マーク済みIDの条件付きクリア:
+        // marked_ids 内の全プラグインが update_statuses に含まれている場合のみクリア
+        if marked_ids.iter().all(|id| update_statuses.contains_key(id)) {
+            marked_ids.clear();
+        }
 
         // reload 後にフィルタ済みリストに対して選択状態を再同期
         let filtered = filter_plugins(&data.plugins, filter_text);
@@ -265,7 +314,7 @@ fn select_next(model: &mut Model, data: &DataStore, filter_text: &str) {
 }
 
 /// 次の階層へ遷移
-fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) {
+fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) -> UpdateEffect {
     match model {
         Model::PluginList {
             selected_id,
@@ -288,6 +337,7 @@ fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) {
                     };
                 }
             }
+            UpdateEffect::none()
         }
         Model::PluginDetail {
             plugin_id,
@@ -402,10 +452,40 @@ fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) {
                         update_statuses: restored_statuses,
                     };
                 }
+                Some(DetailAction::UpdateNow) => {
+                    // UpdateNow: 単一プラグインを即時更新
+                    let target_id = plugin_id.clone();
+                    let restored_marks = std::mem::take(saved_marked_ids);
+                    let mut restored_statuses = std::mem::take(saved_update_statuses);
+                    // 古いステータスをクリアして対象プラグインに Updating をセット
+                    restored_statuses.clear();
+                    restored_statuses.insert(target_id.clone(), UpdateStatusDisplay::Updating);
+                    // PluginList に遷移（フィルタ済みリストで選択位置を同期）
+                    let filtered = filter_plugins(&data.plugins, filter_text);
+                    let mut new_state = ListState::default();
+                    let idx = filtered.iter().position(|p| p.name == target_id);
+                    let selected_id = if let Some(idx) = idx {
+                        new_state.select(Some(idx));
+                        Some(target_id)
+                    } else if !filtered.is_empty() {
+                        new_state.select(Some(0));
+                        Some(filtered[0].name.clone())
+                    } else {
+                        None
+                    };
+                    *model = Model::PluginList {
+                        selected_id,
+                        state: new_state,
+                        marked_ids: restored_marks,
+                        update_statuses: restored_statuses,
+                    };
+                    return UpdateEffect::execute_batch();
+                }
                 _ => {
-                    // 他のアクションは現時点では何もしない（UI表示のみ）
+                    // MarkForUpdate は UI 表示のみ（BatchUpdate 経由で処理）
                 }
             }
+            UpdateEffect::none()
         }
         Model::ComponentTypes {
             plugin_id,
@@ -436,9 +516,11 @@ fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) {
                     }
                 }
             }
+            UpdateEffect::none()
         }
         Model::ComponentList { .. } => {
             // 最下層なので何もしない
+            UpdateEffect::none()
         }
     }
 }
