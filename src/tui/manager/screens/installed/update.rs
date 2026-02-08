@@ -202,8 +202,7 @@ fn execute_batch_with(
     {
         // update_statuses から Updating のプラグイン名を収集
         // O(n) の HashSet で存在チェックし、find_plugin の線形探索 O(n^2) を回避
-        let existing_names: HashSet<&str> =
-            data.plugins.iter().map(|p| p.name.as_str()).collect();
+        let existing_names: HashSet<&str> = data.plugins.iter().map(|p| p.name.as_str()).collect();
         let plugin_names: Vec<String> = update_statuses
             .iter()
             .filter(|(_, status)| matches!(status, UpdateStatusDisplay::Updating))
