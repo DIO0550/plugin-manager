@@ -47,19 +47,21 @@ impl DataStore {
     /// 新しいデータストアを作成
     pub fn new() -> io::Result<Self> {
         let plugins = list_installed_plugins().map_err(|e| io::Error::other(e.to_string()))?;
-        let marketplaces = load_marketplaces();
+        let LoadMarketplacesResult { items, error } = load_marketplaces();
 
         Ok(Self {
             plugins,
-            marketplaces,
-            last_error: None,
+            marketplaces: items,
+            last_error: error,
         })
     }
 
     /// データストアをリロード（list_installed_plugins() で全体再取得）
     pub fn reload(&mut self) -> io::Result<()> {
         self.plugins = list_installed_plugins().map_err(|e| io::Error::other(e.to_string()))?;
-        self.marketplaces = load_marketplaces();
+        let result = load_marketplaces();
+        self.marketplaces = result.items;
+        self.last_error = result.error;
         Ok(())
     }
 
@@ -101,7 +103,9 @@ impl DataStore {
 
     /// マーケットプレイスデータをリロード
     pub fn reload_marketplaces(&mut self) {
-        self.marketplaces = load_marketplaces();
+        let result = load_marketplaces();
+        self.marketplaces = result.items;
+        self.last_error = result.error;
     }
 
     /// マーケットプレイス名で検索
@@ -120,18 +124,29 @@ impl DataStore {
     }
 }
 
+/// マーケットプレイスデータ読み込み結果
+struct LoadMarketplacesResult {
+    items: Vec<MarketplaceItem>,
+    error: Option<String>,
+}
+
 /// マーケットプレイスデータを読み込み
-fn load_marketplaces() -> Vec<MarketplaceItem> {
+fn load_marketplaces() -> LoadMarketplacesResult {
     let config = match MarketplaceConfig::load() {
         Ok(c) => c,
-        Err(_) => return Vec::new(),
+        Err(e) => {
+            return LoadMarketplacesResult {
+                items: Vec::new(),
+                error: Some(format!("Failed to load marketplace config: {}", e)),
+            }
+        }
     };
 
     let registry = match MarketplaceRegistry::new() {
         Ok(r) => r,
-        Err(_) => {
+        Err(e) => {
             // レジストリが作成できない場合はキャッシュなしで一覧だけ返す
-            return config
+            let items = config
                 .list()
                 .iter()
                 .map(|entry| MarketplaceItem {
@@ -142,10 +157,14 @@ fn load_marketplaces() -> Vec<MarketplaceItem> {
                     last_updated: None,
                 })
                 .collect();
+            return LoadMarketplacesResult {
+                items,
+                error: Some(format!("Failed to load marketplace registry: {}", e)),
+            };
         }
     };
 
-    config
+    let items = config
         .list()
         .iter()
         .map(|entry| {
@@ -164,5 +183,7 @@ fn load_marketplaces() -> Vec<MarketplaceItem> {
                 last_updated,
             }
         })
-        .collect()
+        .collect();
+
+    LoadMarketplacesResult { items, error: None }
 }
