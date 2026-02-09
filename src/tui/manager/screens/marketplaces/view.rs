@@ -1,6 +1,5 @@
 //! Marketplaces タブの view（描画）
 
-use super::actions;
 use super::model::{AddFormModel, DetailAction, Model, OperationStatus};
 use crate::tui::manager::core::{dialog_rect, render_filter_bar, DataStore, Tab};
 use ratatui::prelude::*;
@@ -49,9 +48,17 @@ pub fn view(
         Model::PluginList {
             marketplace_name,
             state,
+            plugins,
             ..
         } => {
-            view_plugin_list(f, marketplace_name, *state, filter_text, filter_focused);
+            view_plugin_list(
+                f,
+                marketplace_name,
+                *state,
+                plugins,
+                filter_text,
+                filter_focused,
+            );
         }
         Model::AddForm(form) => {
             view_add_form(f, form, filter_text, filter_focused);
@@ -307,11 +314,10 @@ fn view_plugin_list(
     f: &mut Frame,
     marketplace_name: &str,
     mut state: ListState,
+    plugins: &[(String, Option<String>)],
     filter_text: &str,
     filter_focused: bool,
 ) {
-    let plugins = actions::get_marketplace_plugins(marketplace_name);
-
     let content_height = (plugins.len() as u16).max(1) + 2; // +2 for borders
     let dialog_width = 65u16;
     let dialog_height = (content_height + 5).min(24);

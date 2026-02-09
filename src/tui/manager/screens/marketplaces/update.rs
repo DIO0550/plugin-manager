@@ -113,9 +113,9 @@ fn select_prev(model: &mut Model, data: &DataStore) {
         Model::PluginList {
             selected_idx,
             state,
-            marketplace_name,
+            plugins,
+            ..
         } => {
-            let plugins = actions::get_marketplace_plugins(marketplace_name);
             if plugins.is_empty() {
                 return;
             }
@@ -152,9 +152,9 @@ fn select_next(model: &mut Model, data: &DataStore) {
         Model::PluginList {
             selected_idx,
             state,
-            marketplace_name,
+            plugins,
+            ..
         } => {
-            let plugins = actions::get_marketplace_plugins(marketplace_name);
             if plugins.is_empty() {
                 return;
             }
@@ -240,6 +240,7 @@ fn enter(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
                         marketplace_name: name,
                         selected_idx: 0,
                         state: new_state,
+                        plugins,
                     };
                     UpdateEffect::none()
                 }

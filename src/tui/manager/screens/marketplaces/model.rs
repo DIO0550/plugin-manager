@@ -120,6 +120,8 @@ pub enum Model {
         marketplace_name: String,
         selected_idx: usize,
         state: ListState,
+        /// キャッシュ済みプラグインリスト（ディスクI/O回避）
+        plugins: Vec<(String, Option<String>)>,
     },
     /// 新規マーケットプレイス追加フォーム
     AddForm(AddFormModel),
