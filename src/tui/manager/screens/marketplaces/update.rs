@@ -596,18 +596,25 @@ fn execute_remove_with(
         state,
     } = model
     {
-        if let Some(OperationStatus::Removing(name)) = operation_status.take() {
-            match run_remove(&name) {
-                Ok(()) => {
-                    reload(data);
-                    // 先頭にクランプ
-                    let new_selected = data.marketplaces.first().map(|m| m.name.clone());
-                    *selected_id = new_selected;
-                    state.select(Some(0));
+        match operation_status.take() {
+            Some(OperationStatus::Removing(name)) => {
+                match run_remove(&name) {
+                    Ok(()) => {
+                        reload(data);
+                        // 先頭にクランプ
+                        let new_selected = data.marketplaces.first().map(|m| m.name.clone());
+                        *selected_id = new_selected;
+                        state.select(Some(0));
+                        *error_message = None;
+                    }
+                    Err(e) => {
+                        *error_message = Some(format!("Failed to remove '{}': {}", name, e));
+                    }
                 }
-                Err(e) => {
-                    *error_message = Some(format!("Failed to remove '{}': {}", name, e));
-                }
+            }
+            other => {
+                // Removing 以外の状態だった場合は元に戻す
+                *operation_status = other;
             }
         }
     }
