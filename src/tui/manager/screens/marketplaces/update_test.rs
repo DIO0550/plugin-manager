@@ -1162,6 +1162,152 @@ fn error_message_cleared_on_back() {
     }
 }
 
+#[test]
+fn stale_error_cleared_on_update_market_start() {
+    let mut data = make_data(&["mp-a"]);
+    let mut model = Model::MarketList {
+        selected_id: Some("mp-a".to_string()),
+        state: {
+            let mut s = ListState::default();
+            s.select(Some(0));
+            s
+        },
+        operation_status: None,
+        error_message: Some("previous error".to_string()),
+    };
+
+    let effect = update(&mut model, Msg::UpdateMarket, &mut data);
+
+    assert!(effect.phase2_msg.is_some());
+    if let Model::MarketList { error_message, .. } = &model {
+        assert!(
+            error_message.is_none(),
+            "Stale error should be cleared when starting update"
+        );
+    }
+}
+
+#[test]
+fn stale_error_cleared_on_update_all_start() {
+    let mut data = make_data(&["mp-a"]);
+    let mut model = Model::MarketList {
+        selected_id: Some("mp-a".to_string()),
+        state: {
+            let mut s = ListState::default();
+            s.select(Some(0));
+            s
+        },
+        operation_status: None,
+        error_message: Some("previous error".to_string()),
+    };
+
+    let effect = update(&mut model, Msg::UpdateAll, &mut data);
+
+    assert!(effect.phase2_msg.is_some());
+    if let Model::MarketList { error_message, .. } = &model {
+        assert!(
+            error_message.is_none(),
+            "Stale error should be cleared when starting update all"
+        );
+    }
+}
+
+#[test]
+fn stale_error_cleared_on_successful_update_retry() {
+    let mut data = make_data(&["mp-a"]);
+    let mut state = ListState::default();
+    state.select(Some(0));
+    let mut model = Model::MarketList {
+        selected_id: Some("mp-a".to_string()),
+        state,
+        operation_status: Some(OperationStatus::Updating("mp-a".to_string())),
+        error_message: Some("previous failure".to_string()),
+    };
+
+    execute_update_with(
+        &mut model,
+        &mut data,
+        |_name| Ok(make_marketplace("mp-a")),
+        |_| vec![],
+        |_d| {},
+    );
+
+    if let Model::MarketList { error_message, .. } = &model {
+        assert!(
+            error_message.is_none(),
+            "Stale error should be cleared after successful update"
+        );
+    } else {
+        panic!("Expected MarketList");
+    }
+}
+
+#[test]
+fn stale_error_cleared_on_successful_remove_retry() {
+    let mut data = make_data(&["mp-a"]);
+    let mut state = ListState::default();
+    state.select(Some(0));
+    let mut model = Model::MarketList {
+        selected_id: Some("mp-a".to_string()),
+        state,
+        operation_status: Some(OperationStatus::Removing("mp-a".to_string())),
+        error_message: Some("previous failure".to_string()),
+    };
+
+    execute_remove_with(
+        &mut model,
+        &mut data,
+        |_name| Ok(()),
+        |d| {
+            d.marketplaces.clear();
+        },
+    );
+
+    if let Model::MarketList { error_message, .. } = &model {
+        assert!(
+            error_message.is_none(),
+            "Stale error should be cleared after successful remove"
+        );
+    } else {
+        panic!("Expected MarketList");
+    }
+}
+
+#[test]
+fn stale_error_cleared_on_successful_update_all_retry() {
+    let mut data = make_data(&["mp-a", "mp-b"]);
+    let mut state = ListState::default();
+    state.select(Some(0));
+    let mut model = Model::MarketList {
+        selected_id: Some("mp-a".to_string()),
+        state,
+        operation_status: Some(OperationStatus::UpdatingAll),
+        error_message: Some("previous failure".to_string()),
+    };
+
+    execute_update_with(
+        &mut model,
+        &mut data,
+        |_name| Ok(make_marketplace("unused")),
+        |_| {
+            vec![
+                ("mp-a".to_string(), Ok(make_marketplace("mp-a"))),
+                ("mp-b".to_string(), Ok(make_marketplace("mp-b"))),
+            ]
+        },
+        |_d| {},
+    );
+
+    if let Model::MarketList { error_message, .. } = &model {
+        assert!(
+            error_message.is_none(),
+            "Stale error should be cleared after successful update all"
+        );
+    } else {
+        panic!("Expected MarketList");
+    }
+}
+
 // ============================================================================
 // Helper
 // ============================================================================
