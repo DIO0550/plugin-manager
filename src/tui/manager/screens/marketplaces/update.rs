@@ -10,21 +10,21 @@ use ratatui::widgets::ListState;
 /// update() の戻り値
 pub struct UpdateEffect {
     pub should_focus_filter: bool,
-    pub needs_execute_batch: bool,
+    pub phase2_msg: Option<Msg>,
 }
 
 impl UpdateEffect {
     pub fn none() -> Self {
         Self {
             should_focus_filter: false,
-            needs_execute_batch: false,
+            phase2_msg: None,
         }
     }
 
-    fn execute_batch() -> Self {
+    fn phase2(msg: Msg) -> Self {
         Self {
             should_focus_filter: false,
-            needs_execute_batch: true,
+            phase2_msg: Some(msg),
         }
     }
 }
@@ -215,7 +215,7 @@ fn enter(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
                         operation_status: Some(OperationStatus::Updating(name)),
                         error_message: None,
                     };
-                    UpdateEffect::execute_batch()
+                    UpdateEffect::phase2(Msg::ExecuteUpdate)
                 }
                 Some(DetailAction::Remove) => {
                     let name = marketplace_name.clone();
@@ -227,7 +227,7 @@ fn enter(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
                         operation_status: Some(OperationStatus::Removing(name)),
                         error_message: None,
                     };
-                    UpdateEffect::execute_batch()
+                    UpdateEffect::phase2(Msg::ExecuteRemove)
                 }
                 Some(DetailAction::ShowPlugins) => {
                     let name = marketplace_name.clone();
@@ -505,7 +505,7 @@ fn update_market(model: &mut Model) -> UpdateEffect {
         }
         if let Some(name) = selected_id.clone() {
             *operation_status = Some(OperationStatus::Updating(name));
-            return UpdateEffect::execute_batch();
+            return UpdateEffect::phase2(Msg::ExecuteUpdate);
         }
     }
     UpdateEffect::none()
@@ -524,7 +524,7 @@ fn update_all(model: &mut Model, data: &DataStore) -> UpdateEffect {
             return UpdateEffect::none();
         }
         *operation_status = Some(OperationStatus::UpdatingAll);
-        return UpdateEffect::execute_batch();
+        return UpdateEffect::phase2(Msg::ExecuteUpdate);
     }
     UpdateEffect::none()
 }

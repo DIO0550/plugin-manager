@@ -231,15 +231,13 @@ impl Model {
 
 /// app::update() の戻り値
 pub struct AppUpdateEffect {
-    /// 描画後にバッチ更新を実行すべき
-    pub needs_execute_batch: bool,
+    /// 描画後に実行すべきフォローアップメッセージ
+    pub phase2_msg: Option<Msg>,
 }
 
 impl AppUpdateEffect {
     fn none() -> Self {
-        Self {
-            needs_execute_batch: false,
-        }
+        Self { phase2_msg: None }
     }
 }
 
@@ -290,7 +288,11 @@ pub fn update(model: &mut Model, msg: Msg) -> AppUpdateEffect {
                     model.filter_focused = true;
                 }
                 AppUpdateEffect {
-                    needs_execute_batch: effect.needs_execute_batch,
+                    phase2_msg: if effect.needs_execute_batch {
+                        Some(Msg::Installed(installed::Msg::ExecuteBatch))
+                    } else {
+                        None
+                    },
                 }
             } else {
                 AppUpdateEffect::none()
@@ -309,7 +311,7 @@ pub fn update(model: &mut Model, msg: Msg) -> AppUpdateEffect {
                     model.filter_focused = true;
                 }
                 AppUpdateEffect {
-                    needs_execute_batch: effect.needs_execute_batch,
+                    phase2_msg: effect.phase2_msg.map(Msg::Marketplaces),
                 }
             } else {
                 AppUpdateEffect::none()

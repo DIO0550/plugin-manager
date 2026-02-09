@@ -272,8 +272,8 @@ fn detail_update_action_returns_execute_batch() {
     let effect = update(&mut model, Msg::Enter, &mut data);
 
     assert!(
-        effect.needs_execute_batch,
-        "Update action should trigger execute_batch"
+        effect.phase2_msg.is_some(),
+        "Update action should trigger phase2"
     );
 
     if let Model::MarketList {
@@ -302,8 +302,8 @@ fn detail_remove_action_returns_execute_batch() {
     let effect = update(&mut model, Msg::Enter, &mut data);
 
     assert!(
-        effect.needs_execute_batch,
-        "Remove action should trigger execute_batch"
+        effect.phase2_msg.is_some(),
+        "Remove action should trigger phase2"
     );
 
     if let Model::MarketList {
@@ -332,7 +332,7 @@ fn detail_show_plugins_transitions_to_plugin_list() {
     update(&mut model, Msg::Down, &mut data);
     let effect = update(&mut model, Msg::Enter, &mut data);
 
-    assert!(!effect.needs_execute_batch);
+    assert!(effect.phase2_msg.is_none());
 
     if let Model::PluginList {
         marketplace_name, ..
@@ -977,7 +977,7 @@ fn update_market_sets_updating_and_returns_execute_batch() {
 
     let effect = update(&mut model, Msg::UpdateMarket, &mut data);
 
-    assert!(effect.needs_execute_batch);
+    assert!(effect.phase2_msg.is_some());
 
     if let Model::MarketList {
         operation_status, ..
@@ -1000,7 +1000,7 @@ fn update_market_ignored_on_add_new() {
     update(&mut model, Msg::Down, &mut data);
     let effect = update(&mut model, Msg::UpdateMarket, &mut data);
 
-    assert!(!effect.needs_execute_batch, "Should not trigger on Add new");
+    assert!(effect.phase2_msg.is_none(), "Should not trigger on Add new");
 }
 
 #[test]
@@ -1017,7 +1017,7 @@ fn update_market_ignored_when_operation_in_progress() {
 
     let effect = update(&mut model, Msg::UpdateMarket, &mut data);
 
-    assert!(!effect.needs_execute_batch, "Should not double-trigger");
+    assert!(effect.phase2_msg.is_none(), "Should not double-trigger");
 }
 
 #[test]
@@ -1027,7 +1027,7 @@ fn update_all_sets_updating_all_and_returns_execute_batch() {
 
     let effect = update(&mut model, Msg::UpdateAll, &mut data);
 
-    assert!(effect.needs_execute_batch);
+    assert!(effect.phase2_msg.is_some());
 
     if let Model::MarketList {
         operation_status, ..
@@ -1049,7 +1049,7 @@ fn update_all_on_empty_list_does_nothing() {
 
     let effect = update(&mut model, Msg::UpdateAll, &mut data);
 
-    assert!(!effect.needs_execute_batch);
+    assert!(effect.phase2_msg.is_none());
 }
 
 #[test]
@@ -1066,7 +1066,7 @@ fn update_all_ignored_when_operation_in_progress() {
 
     let effect = update(&mut model, Msg::UpdateAll, &mut data);
 
-    assert!(!effect.needs_execute_batch, "Should not double-trigger");
+    assert!(effect.phase2_msg.is_none(), "Should not double-trigger");
 }
 
 // ============================================================================
