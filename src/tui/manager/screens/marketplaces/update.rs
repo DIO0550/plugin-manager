@@ -537,6 +537,7 @@ fn execute_update_with(
                     let idx = data.marketplace_index(&name).unwrap_or(0);
                     state.select(Some(idx));
                     *selected_id = Some(name);
+                    *error_message = None;
                 }
                 Err(e) => {
                     *error_message = Some(format!("Failed to update '{}': {}", name, e));
@@ -551,7 +552,9 @@ fn execute_update_with(
                     }
                 }
                 reload(data);
-                if !errors.is_empty() {
+                if errors.is_empty() {
+                    *error_message = None;
+                } else {
                     *error_message = Some(format!("Failed to update: {}", errors.join(", ")));
                 }
                 // 選択状態を維持
