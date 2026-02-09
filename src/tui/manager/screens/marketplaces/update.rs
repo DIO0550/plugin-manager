@@ -472,6 +472,7 @@ fn update_market(model: &mut Model) -> UpdateEffect {
     if let Model::MarketList {
         selected_id,
         operation_status,
+        error_message,
         ..
     } = model
     {
@@ -479,6 +480,7 @@ fn update_market(model: &mut Model) -> UpdateEffect {
             return UpdateEffect::none();
         }
         if let Some(name) = selected_id.clone() {
+            *error_message = None;
             *operation_status = Some(OperationStatus::Updating(name));
             return UpdateEffect::phase2(Msg::ExecuteUpdate);
         }
@@ -489,7 +491,9 @@ fn update_market(model: &mut Model) -> UpdateEffect {
 /// 'U' キー: 全マーケットプレイスを更新
 fn update_all(model: &mut Model, data: &DataStore) -> UpdateEffect {
     if let Model::MarketList {
-        operation_status, ..
+        operation_status,
+        error_message,
+        ..
     } = model
     {
         if operation_status.is_some() {
@@ -498,6 +502,7 @@ fn update_all(model: &mut Model, data: &DataStore) -> UpdateEffect {
         if data.marketplaces.is_empty() {
             return UpdateEffect::none();
         }
+        *error_message = None;
         *operation_status = Some(OperationStatus::UpdatingAll);
         return UpdateEffect::phase2(Msg::ExecuteUpdate);
     }
