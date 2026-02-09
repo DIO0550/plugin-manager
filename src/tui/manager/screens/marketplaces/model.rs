@@ -12,7 +12,6 @@ use ratatui::widgets::ListState;
 
 /// 非同期操作の状態
 pub enum OperationStatus {
-    Adding(String),
     Updating(String),
     UpdatingAll,
     Removing(String),
@@ -217,7 +216,6 @@ pub enum Msg {
     FormBackspace,
     UpdateMarket,
     UpdateAll,
-    ExecuteAdd,
     ExecuteUpdate,
     ExecuteRemove,
 }

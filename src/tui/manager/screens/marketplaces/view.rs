@@ -174,7 +174,6 @@ fn view_market_list(
         let mut lines = Vec::new();
         if let Some(status) = operation_status {
             let status_text = match status {
-                OperationStatus::Adding(name) => format!(" Adding marketplace '{}'...", name),
                 OperationStatus::Updating(name) => format!(" Updating marketplace '{}'...", name),
                 OperationStatus::UpdatingAll => " Updating all marketplaces...".to_string(),
                 OperationStatus::Removing(name) => format!(" Removing marketplace '{}'...", name),

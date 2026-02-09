@@ -61,12 +61,6 @@ pub fn update(model: &mut Model, msg: Msg, data: &mut DataStore) -> UpdateEffect
         }
         Msg::UpdateMarket => update_market(model),
         Msg::UpdateAll => update_all(model, data),
-        Msg::ExecuteAdd => {
-            // Add は enter_form の Confirm ステップで直接実行するため、
-            // ここに到達することは通常ない。安全のため状態をクリアする。
-            execute_add_fallback(model, data);
-            UpdateEffect::none()
-        }
         Msg::ExecuteUpdate => execute_update(model, data),
         Msg::ExecuteRemove => execute_remove(model, data),
     }
@@ -381,26 +375,6 @@ fn execute_add_with(
         }
     }
     UpdateEffect::none()
-}
-
-/// ExecuteAdd のフォールバック（通常到達しない）
-fn execute_add_fallback(model: &mut Model, data: &mut DataStore) {
-    if let Model::MarketList {
-        operation_status: Some(OperationStatus::Adding(_)),
-        ..
-    } = model
-    {
-        data.reload_marketplaces();
-        let selected_id = data.marketplaces.first().map(|m| m.name.clone());
-        let mut state = ListState::default();
-        state.select(Some(0));
-        *model = Model::MarketList {
-            selected_id,
-            state,
-            operation_status: None,
-            error_message: None,
-        };
-    }
 }
 
 /// Back 処理
