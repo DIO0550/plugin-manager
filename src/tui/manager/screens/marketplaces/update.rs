@@ -86,10 +86,6 @@ fn select_prev(model: &mut Model, data: &DataStore) {
         Model::MarketList {
             state, selected_id, ..
         } => {
-            let len = market_list_len(data);
-            if len == 0 {
-                return;
-            }
             let current = state.selected().unwrap_or(0);
             if current == 0 {
                 return;
@@ -129,9 +125,6 @@ fn select_next(model: &mut Model, data: &DataStore) {
             state, selected_id, ..
         } => {
             let len = market_list_len(data);
-            if len == 0 {
-                return;
-            }
             let current = state.selected().unwrap_or(0);
             let next = (current + 1).min(len - 1);
             state.select(Some(next));
