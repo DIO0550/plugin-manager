@@ -508,7 +508,7 @@ fn execute_update(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
         model,
         data,
         |name| actions::update_marketplace(name),
-        |_name| actions::update_all_marketplaces(),
+        || actions::update_all_marketplaces(),
         |d| d.reload_marketplaces(),
     )
 }
@@ -518,7 +518,7 @@ fn execute_update_with(
     model: &mut Model,
     data: &mut DataStore,
     run_update: impl FnOnce(&str) -> Result<MarketplaceItem, String>,
-    run_update_all: impl FnOnce(&str) -> Vec<(String, Result<MarketplaceItem, String>)>,
+    run_update_all: impl FnOnce() -> Vec<(String, Result<MarketplaceItem, String>)>,
     reload: impl FnOnce(&mut DataStore),
 ) -> UpdateEffect {
     if let Model::MarketList {
@@ -542,7 +542,7 @@ fn execute_update_with(
                 }
             },
             Some(OperationStatus::UpdatingAll) => {
-                let results = run_update_all("");
+                let results = run_update_all();
                 let mut errors = Vec::new();
                 for (name, result) in &results {
                     if let Err(e) = result {

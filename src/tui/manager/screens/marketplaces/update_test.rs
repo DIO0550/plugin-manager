@@ -750,7 +750,7 @@ fn execute_update_success_clears_status() {
         &mut model,
         &mut data,
         |_name| Ok(make_marketplace("mp-a")),
-        |_| vec![],
+        || vec![],
         |_d| {},
     );
 
@@ -785,7 +785,7 @@ fn execute_update_failure_sets_error_message() {
         &mut model,
         &mut data,
         |_name| Err("network error".to_string()),
-        |_| vec![],
+        || vec![],
         |_d| {},
     );
 
@@ -822,7 +822,7 @@ fn execute_update_all_success() {
         &mut model,
         &mut data,
         |_name| Ok(make_marketplace("unused")),
-        |_| {
+        || {
             vec![
                 ("mp-a".to_string(), Ok(make_marketplace("mp-a"))),
                 ("mp-b".to_string(), Ok(make_marketplace("mp-b"))),
@@ -860,7 +860,7 @@ fn execute_update_all_partial_failure_sets_error() {
         &mut model,
         &mut data,
         |_name| Ok(make_marketplace("unused")),
-        |_| {
+        || {
             vec![
                 ("mp-a".to_string(), Ok(make_marketplace("mp-a"))),
                 ("mp-b".to_string(), Err("fetch failed".to_string())),
@@ -1228,7 +1228,7 @@ fn stale_error_cleared_on_successful_update_retry() {
         &mut model,
         &mut data,
         |_name| Ok(make_marketplace("mp-a")),
-        |_| vec![],
+        || vec![],
         |_d| {},
     );
 
@@ -1289,7 +1289,7 @@ fn stale_error_cleared_on_successful_update_all_retry() {
         &mut model,
         &mut data,
         |_name| Ok(make_marketplace("unused")),
-        |_| {
+        || {
             vec![
                 ("mp-a".to_string(), Ok(make_marketplace("mp-a"))),
                 ("mp-b".to_string(), Ok(make_marketplace("mp-b"))),
