@@ -61,7 +61,8 @@ impl DataStore {
         self.plugins = list_installed_plugins().map_err(|e| io::Error::other(e.to_string()))?;
         let result = load_marketplaces();
         self.marketplaces = result.items;
-        self.last_error = result.error;
+        // 既存の last_error を上書きせず、マーケットプレイス読み込みエラーを追記/保存する
+        self.last_error = merge_errors(self.last_error.take(), result.error);
         Ok(())
     }
 
@@ -105,7 +106,8 @@ impl DataStore {
     pub fn reload_marketplaces(&mut self) {
         let result = load_marketplaces();
         self.marketplaces = result.items;
-        self.last_error = result.error;
+        // 既存の last_error を上書きせず、マーケットプレイス読み込みエラーを追記/保存する
+        self.last_error = merge_errors(self.last_error.take(), result.error);
     }
 
     /// マーケットプレイス名で検索
@@ -186,4 +188,13 @@ fn load_marketplaces() -> LoadMarketplacesResult {
         .collect();
 
     LoadMarketplacesResult { items, error: None }
+}
+
+/// 2つのエラーをマージする（既存エラーを保持しつつ新しいエラーを追記）
+fn merge_errors(existing: Option<String>, new: Option<String>) -> Option<String> {
+    match (existing, new) {
+        (Some(prev), Some(next)) => Some(format!("{}\n{}", prev, next)),
+        (Some(prev), None) => Some(prev),
+        (None, next) => next,
+    }
 }
