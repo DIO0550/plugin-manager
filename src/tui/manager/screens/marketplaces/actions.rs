@@ -47,10 +47,11 @@ pub fn add_marketplace(
     })
     .map_err(|e| e.to_string())?;
 
+    // config.save() を先に実行し、失敗時に孤立キャッシュが残らないようにする
+    config.save()?;
+
     let registry = MarketplaceRegistry::new().map_err(|e| e.to_string())?;
     registry.store(&cache).map_err(|e| e.to_string())?;
-
-    config.save()?;
 
     Ok(AddResult {
         marketplace: MarketplaceItem {
