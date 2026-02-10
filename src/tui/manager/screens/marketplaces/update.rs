@@ -415,10 +415,11 @@ fn back(model: &mut Model, data: &DataStore) {
 /// MarketList に戻る
 fn back_to_market_list(model: &mut Model, data: &DataStore, marketplace_name: String) {
     let idx = data.marketplace_index(&marketplace_name).unwrap_or(0);
+    let selected_id = data.marketplaces.get(idx).map(|m| m.name.clone());
     let mut state = ListState::default();
     state.select(Some(idx));
     *model = Model::MarketList {
-        selected_id: Some(marketplace_name),
+        selected_id,
         state,
         operation_status: None,
         error_message: None,
