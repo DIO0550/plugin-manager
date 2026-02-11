@@ -16,6 +16,8 @@ PLMのコマンド一覧と使い分けガイド。
 | [init](./init.md) | コンポーネントテンプレートの作成 |
 | [pack](./pack.md) | コンポーネントのパッケージ化 |
 | [import](./import.md) | Claude Code Pluginからのインポート |
+| [link](./link.md) | シンボリックリンクの作成 |
+| [unlink](./link.md#plm-unlink) | シンボリックリンクの削除 |
 
 ## CLI vs TUI の使い分け
 
@@ -84,4 +86,9 @@ plm sync --from codex --to copilot --type skill
 # Claude Code Plugin からのインポート
 plm import owner/claude-plugin --component skills/pdf
 plm import owner/claude-plugin --type skill
+
+# シンボリックリンク
+plm link CLAUDE.md .github/copilot-instructions.md     # シンボリックリンク作成
+plm link --force CLAUDE.md .gemini/GEMINI.md            # 既存を上書き
+plm unlink .github/copilot-instructions.md              # シンボリックリンク削除
 ```
