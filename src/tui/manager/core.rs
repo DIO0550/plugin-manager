@@ -16,7 +16,7 @@ mod app_test;
 #[cfg(test)]
 mod filter_test;
 
-pub use app::{update, view, Model, Msg, Tab};
+pub use app::{update, view, Model, Tab};
 pub use common::{dialog_rect, render_filter_bar};
-pub use data::{DataStore, PluginId};
+pub use data::{DataStore, MarketplaceItem, PluginId};
 pub use filter::filter_plugins;

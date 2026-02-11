@@ -8,6 +8,7 @@ use crate::tui::manager::screens::installed;
 fn make_model(filter_focused: bool, top_level: bool) -> Model {
     let data = DataStore {
         plugins: vec![],
+        marketplaces: vec![],
         last_error: None,
     };
 

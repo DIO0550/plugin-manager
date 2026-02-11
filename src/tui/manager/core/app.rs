@@ -111,7 +111,7 @@ impl Screen {
         match self {
             Screen::Installed(m) => m.is_top_level(),
             Screen::Discover(_) => true,
-            Screen::Marketplaces(_) => true,
+            Screen::Marketplaces(m) => m.is_top_level(),
             Screen::Errors(_) => true,
         }
     }
@@ -202,9 +202,12 @@ impl Model {
                 _ => None,
             }
         } else {
+            // フォームがアクティブな場合は 'q' を画面に委譲
+            let form_active = matches!(&self.screen, Screen::Marketplaces(m) if m.is_form_active());
+
             // リスト（通常）フォーカス時のキー処理
             match key {
-                KeyCode::Char('q') => Some(Msg::Quit),
+                KeyCode::Char('q') if !form_active => Some(Msg::Quit),
                 KeyCode::Tab | KeyCode::Right if is_top_level => Some(Msg::NextTab),
                 KeyCode::BackTab | KeyCode::Left if is_top_level => Some(Msg::PrevTab),
                 // 画面固有のキー処理に委譲
@@ -212,7 +215,9 @@ impl Model {
                 _ => match &self.screen {
                     Screen::Installed(_) => installed::key_to_msg(key).map(Msg::Installed),
                     Screen::Discover(_) => discover::key_to_msg(key).map(Msg::Discover),
-                    Screen::Marketplaces(_) => marketplaces::key_to_msg(key).map(Msg::Marketplaces),
+                    Screen::Marketplaces(m) => {
+                        marketplaces::key_to_msg(key, m).map(Msg::Marketplaces)
+                    }
                     Screen::Errors(_) => errors::key_to_msg(key).map(Msg::Errors),
                 },
             }
@@ -226,15 +231,13 @@ impl Model {
 
 /// app::update() の戻り値
 pub struct AppUpdateEffect {
-    /// 描画後にバッチ更新を実行すべき
-    pub needs_execute_batch: bool,
+    /// 描画後に実行すべきフォローアップメッセージ
+    pub phase2_msg: Option<Msg>,
 }
 
 impl AppUpdateEffect {
     fn none() -> Self {
-        Self {
-            needs_execute_batch: false,
-        }
+        Self { phase2_msg: None }
     }
 }
 
@@ -285,7 +288,11 @@ pub fn update(model: &mut Model, msg: Msg) -> AppUpdateEffect {
                     model.filter_focused = true;
                 }
                 AppUpdateEffect {
-                    needs_execute_batch: effect.needs_execute_batch,
+                    phase2_msg: if effect.needs_execute_batch {
+                        Some(Msg::Installed(installed::Msg::ExecuteBatch))
+                    } else {
+                        None
+                    },
                 }
             } else {
                 AppUpdateEffect::none()
@@ -299,9 +306,16 @@ pub fn update(model: &mut Model, msg: Msg) -> AppUpdateEffect {
         }
         Msg::Marketplaces(msg) => {
             if let Screen::Marketplaces(m) = &mut model.screen {
-                marketplaces::update(m, msg, &model.data);
+                let effect = marketplaces::update(m, msg, &mut model.data);
+                if effect.should_focus_filter {
+                    model.filter_focused = true;
+                }
+                AppUpdateEffect {
+                    phase2_msg: effect.phase2_msg.map(Msg::Marketplaces),
+                }
+            } else {
+                AppUpdateEffect::none()
             }
-            AppUpdateEffect::none()
         }
         Msg::Errors(msg) => {
             if let Screen::Errors(m) = &mut model.screen {
