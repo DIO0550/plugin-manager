@@ -56,6 +56,13 @@ mod relative_path_from_tests {
         let result = relative_path_from(Path::new("/a/b/c/file.txt"), Path::new("/a/b"));
         assert_eq!(result, PathBuf::from("c/file.txt"));
     }
+
+    #[test]
+    fn returns_dot_when_src_and_dest_parent_are_identical() {
+        // src=/a/b, dest_parent=/a/b -> "."
+        let result = relative_path_from(Path::new("/a/b"), Path::new("/a/b"));
+        assert_eq!(result, PathBuf::from("."));
+    }
 }
 
 // ---------------------------------------------------------------

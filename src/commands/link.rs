@@ -172,7 +172,13 @@ pub(crate) fn relative_path_from(src: &Path, dest_parent: &Path) -> PathBuf {
         result.push(component.as_os_str());
     }
 
-    result
+    // If src and dest_parent are identical, result would be empty.
+    // Return "." to avoid creating a symlink with an empty target.
+    if result.as_os_str().is_empty() {
+        PathBuf::from(".")
+    } else {
+        result
+    }
 }
 
 #[cfg(test)]
