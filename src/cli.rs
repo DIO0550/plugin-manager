@@ -156,7 +156,8 @@ ARGUMENTS:
   <DEST>  Destination path (where the symlink will be created)
 
 OPTIONS:
-  --force  Overwrite existing file/symlink at dest"#)]
+  --force  Overwrite existing file/symlink at dest. If an empty directory exists at dest,
+           it will be removed and replaced. Fails if a non-empty directory exists."#)]
     Link(link::Args),
 
     /// Remove a symbolic link
