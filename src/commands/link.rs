@@ -99,9 +99,12 @@ pub async fn run(args: Args) -> Result<(), String> {
 /// the path to exist. It cleans up `.` and `..` components.
 pub(crate) fn absolutize(path: &Path) -> PathBuf {
     let abs = if path.is_relative() {
-        std::env::current_dir()
-            .expect("Failed to get current directory")
-            .join(path)
+        match std::env::current_dir() {
+            Ok(cwd) => cwd.join(path),
+            // If we cannot determine the current directory, fall back to the
+            // original path instead of panicking.
+            Err(_) => path.to_path_buf(),
+        }
     } else {
         path.to_path_buf()
     };
