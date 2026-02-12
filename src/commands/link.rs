@@ -116,11 +116,17 @@ pub(crate) fn absolutize(path: &Path) -> PathBuf {
                 // Skip `.`
             }
             Component::ParentDir => {
-                // Pop the last normal component if possible
-                if let Some(Component::Normal(_)) = components.last() {
-                    components.pop();
-                } else {
-                    components.push(component);
+                // Pop the last normal component if possible, and clamp at root.
+                match components.last() {
+                    Some(Component::Normal(_)) => {
+                        components.pop();
+                    }
+                    Some(Component::RootDir) => {
+                        // Don't allow `..` to go above filesystem root.
+                    }
+                    _ => {
+                        components.push(component);
+                    }
                 }
             }
             _ => {

@@ -91,6 +91,20 @@ mod absolutize_tests {
     }
 
     #[test]
+    fn clamps_at_root_when_parent_exceeds_root() {
+        // /foo/../../bar should resolve to /bar (not /../bar)
+        let result = absolutize(Path::new("/foo/../../bar"));
+        assert_eq!(result, PathBuf::from("/bar"));
+    }
+
+    #[test]
+    fn clamps_at_root_with_only_parent_dirs() {
+        // /.. should resolve to /
+        let result = absolutize(Path::new("/.."));
+        assert_eq!(result, PathBuf::from("/"));
+    }
+
+    #[test]
     fn relative_path_becomes_absolute() {
         let result = absolutize(Path::new("relative/path"));
         assert!(result.is_absolute());
