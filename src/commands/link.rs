@@ -181,6 +181,6 @@ pub(crate) fn relative_path_from(src: &Path, dest_parent: &Path) -> PathBuf {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 #[path = "link_test.rs"]
 mod tests;

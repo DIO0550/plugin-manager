@@ -34,6 +34,6 @@ pub async fn run(args: Args) -> Result<(), String> {
     Ok(())
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 #[path = "unlink_test.rs"]
 mod tests;
