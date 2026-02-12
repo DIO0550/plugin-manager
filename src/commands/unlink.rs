@@ -11,8 +11,13 @@ pub async fn run(args: Args) -> Result<(), String> {
     let path = &args.path;
 
     // Use symlink_metadata() to check path exists (detects broken symlinks too)
-    let metadata =
-        fs::symlink_metadata(path).map_err(|_| format!("Path not found: {}", path.display()))?;
+    let metadata = fs::symlink_metadata(path).map_err(|e| {
+        if e.kind() == std::io::ErrorKind::NotFound {
+            format!("Path not found: {}", path.display())
+        } else {
+            format!("Cannot access {}: {}", path.display(), e)
+        }
+    })?;
 
     // Check that it is actually a symlink
     if !metadata.is_symlink() {
