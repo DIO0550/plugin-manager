@@ -1,8 +1,8 @@
 use clap::{Parser, Subcommand};
 
 use crate::commands::{
-    disable, enable, import, info, init, install, list, marketplace, pack, sync, target, uninstall,
-    update,
+    disable, enable, import, info, init, install, link, list, marketplace, pack, sync, target,
+    uninstall, unlink, update,
 };
 
 #[derive(Debug, Parser)]
@@ -145,6 +145,27 @@ OPTIONS:
 
     /// Create distribution package
     Pack(pack::Args),
+
+    /// Create a symbolic link
+    #[command(long_about = r#"Create a symbolic link from dest to src.
+
+The symlink uses a relative path so it remains valid when the project is moved.
+
+ARGUMENTS:
+  <SRC>   Source path (the actual file/directory)
+  <DEST>  Destination path (where the symlink will be created)
+
+OPTIONS:
+  --force  Overwrite existing file/symlink at dest. If an empty directory exists at dest,
+           it will be removed and replaced. Fails if a non-empty directory exists."#)]
+    Link(link::Args),
+
+    /// Remove a symbolic link
+    #[command(long_about = r#"Remove a symbolic link.
+
+Only removes symbolic links. Refuses to remove regular files or directories
+to prevent accidental data loss. Also removes broken symlinks."#)]
+    Unlink(unlink::Args),
 
     /// Sync between environments
     #[command(
