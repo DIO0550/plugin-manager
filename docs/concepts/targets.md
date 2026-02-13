@@ -16,13 +16,13 @@ PLMがサポートするAI開発環境（ターゲット）について説明し
 | コンポーネント | Codex | Copilot | Antigravity | Gemini CLI |
 |----------------|-------|---------|-------------|------------|
 | Skills | ✅ | ✅ | ✅ | ✅ |
-| Agents | ✅* | ✅ | ❌ | ❌ |
-| Prompts | ❌ | ✅ | ❌ | ❌ |
-| Instructions | ✅ | ✅ | ❌** | ✅*** |
+| Agents | ✅ | ✅ | ❌ | ❌ |
+| Commands | ❌ | ✅ | ❌ | ❌ |
+| Instructions | ✅ | ✅ | ❌* | ✅** |
+| Hooks | ❌ | ❌ | ❌ | ❌ |
 
-> *Codexは現時点で`.agent.md`を公式サポートしていませんが、将来対応を見越して配置します。
-> **AntigravityはSkills専用の設計で、Instructionsは別途設定で管理します。
-> ***Gemini CLIは`GEMINI.md`による階層的な指示システムを持ちます。
+> *AntigravityはSkills専用の設計で、Instructionsは別途設定で管理します。
+> **Gemini CLIは`GEMINI.md`による階層的な指示システムを持ちます。
 
 ## OpenAI Codex
 

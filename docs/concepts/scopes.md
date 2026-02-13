@@ -25,8 +25,21 @@ PLMのインストールスコープについて説明します。
 |------|----------|---------|
 | Skills | - | `.github/skills/` |
 | Agents | `~/.copilot/agents/` | `.github/agents/` |
-| Prompts | - | `.github/prompts/` |
+| Commands | - | `.github/prompts/` |
 | Instructions | - | `.github/copilot-instructions.md` |
+
+### Antigravity
+
+| 種別 | Personal | Project |
+|------|----------|---------|
+| Skills | `~/.gemini/antigravity/skills/` | `.agent/skills/` |
+
+### Gemini CLI
+
+| 種別 | Personal | Project |
+|------|----------|---------|
+| Skills | `~/.gemini/skills/` | `.gemini/skills/` |
+| Instructions | `~/.gemini/GEMINI.md` | `GEMINI.md` |
 
 ## スコープの選択
 

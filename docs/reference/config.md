@@ -15,7 +15,11 @@ PLMの設定ファイル（`~/.plm/config.toml`）について説明します。
 default_scope = "personal"  # personal | project
 
 [targets]
-enabled = ["codex", "copilot"]
+enabled = ["antigravity", "codex", "copilot", "gemini"]
+
+[targets.antigravity]
+skills_personal = "~/.gemini/antigravity/skills"
+skills_project = ".agent/skills"
 
 [targets.codex]
 skills_personal = "~/.codex/skills"
@@ -29,8 +33,14 @@ instructions_project = "AGENTS.md"
 skills_project = ".github/skills"
 agents_personal = "~/.copilot/agents"
 agents_project = ".github/agents"
-prompts_project = ".github/prompts"
+commands_project = ".github/prompts"
 instructions_project = ".github/copilot-instructions.md"
+
+[targets.gemini]
+skills_personal = "~/.gemini/skills"
+skills_project = ".gemini/skills"
+instructions_personal = "~/.gemini/GEMINI.md"
+instructions_project = "GEMINI.md"
 
 [marketplaces]
 
@@ -67,8 +77,25 @@ default_scope = "personal"  # または "project"
 
 ```toml
 [targets]
-enabled = ["codex", "copilot"]
+enabled = ["antigravity", "codex", "copilot", "gemini"]
 ```
+
+### [targets.antigravity]
+
+Antigravityターゲットのパス設定。
+
+| キー | 型 | デフォルト |
+|------|-----|------------|
+| `skills_personal` | string | `"~/.gemini/antigravity/skills"` |
+| `skills_project` | string | `".agent/skills"` |
+
+```toml
+[targets.antigravity]
+skills_personal = "~/.gemini/antigravity/skills"
+skills_project = ".agent/skills"
+```
+
+> 注: AntigravityはSkillsのみサポートしています。
 
 ### [targets.codex]
 
@@ -102,7 +129,7 @@ Copilotターゲットのパス設定。
 | `skills_project` | string | `".github/skills"` |
 | `agents_personal` | string | `"~/.copilot/agents"` |
 | `agents_project` | string | `".github/agents"` |
-| `prompts_project` | string | `".github/prompts"` |
+| `commands_project` | string | `".github/prompts"` |
 | `instructions_project` | string | `".github/copilot-instructions.md"` |
 
 ```toml
@@ -110,11 +137,30 @@ Copilotターゲットのパス設定。
 skills_project = ".github/skills"
 agents_personal = "~/.copilot/agents"
 agents_project = ".github/agents"
-prompts_project = ".github/prompts"
+commands_project = ".github/prompts"
 instructions_project = ".github/copilot-instructions.md"
 ```
 
 > 注: CopilotはPersonalスコープでのSkillsをサポートしていません。
+
+### [targets.gemini]
+
+Gemini CLIターゲットのパス設定。
+
+| キー | 型 | デフォルト |
+|------|-----|------------|
+| `skills_personal` | string | `"~/.gemini/skills"` |
+| `skills_project` | string | `".gemini/skills"` |
+| `instructions_personal` | string | `"~/.gemini/GEMINI.md"` |
+| `instructions_project` | string | `"GEMINI.md"` |
+
+```toml
+[targets.gemini]
+skills_personal = "~/.gemini/skills"
+skills_project = ".gemini/skills"
+instructions_personal = "~/.gemini/GEMINI.md"
+instructions_project = "GEMINI.md"
+```
 
 ### [marketplaces]
 

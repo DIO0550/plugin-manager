@@ -59,11 +59,30 @@ Copilot: .github/prompts/company-tools/code-formatter/format-prompt.prompt.md
 Codex:   展開対象外（未サポート）
 ```
 
+### Antigravity
+
+```
+展開先:
+Antigravity (Personal): ~/.gemini/antigravity/skills/company-tools/code-formatter/formatter-skill/SKILL.md
+Antigravity (Project):  .agent/skills/company-tools/code-formatter/formatter-skill/SKILL.md
+```
+
+### Gemini CLI
+
+```
+展開先（Skills）:
+Gemini (Personal): ~/.gemini/skills/company-tools/code-formatter/formatter-skill/SKILL.md
+Gemini (Project):  .gemini/skills/company-tools/code-formatter/formatter-skill/SKILL.md
+
+展開先（Instructions）:
+Gemini (Personal): ~/.gemini/GEMINI.md
+Gemini (Project):  GEMINI.md
+```
+
 ### 展開対象外
 
 以下のコンポーネントはClaude Code専用のため、展開対象外です:
 
-- `commands/` - スラッシュコマンド
 - `hooks/` - イベントハンドラ
 - `.mcp.json` - MCPサーバー設定
 - `.lsp.json` - LSPサーバー設定
@@ -133,8 +152,21 @@ Codex/Copilotがネストしたディレクトリを読み込むかは公式ド�
 |----------------|----------|---------|
 | Skills | - | `.github/skills/<marketplace>/<plugin>/<skill>/` |
 | Agents | `~/.copilot/agents/<marketplace>/<plugin>/` | `.github/agents/<marketplace>/<plugin>/` |
-| Prompts | - | `.github/prompts/<marketplace>/<plugin>/` |
+| Commands | - | `.github/prompts/<marketplace>/<plugin>/` |
 | Instructions | - | `.github/copilot-instructions.md` |
+
+### Antigravity
+
+| コンポーネント | Personal | Project |
+|----------------|----------|---------|
+| Skills | `~/.gemini/antigravity/skills/<marketplace>/<plugin>/<skill>/` | `.agent/skills/<marketplace>/<plugin>/<skill>/` |
+
+### Gemini CLI
+
+| コンポーネント | Personal | Project |
+|----------------|----------|---------|
+| Skills | `~/.gemini/skills/<marketplace>/<plugin>/<skill>/` | `.gemini/skills/<marketplace>/<plugin>/<skill>/` |
+| Instructions | `~/.gemini/GEMINI.md` | `GEMINI.md` |
 
 ## 関連
 

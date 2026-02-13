@@ -27,7 +27,15 @@ $ plm target add codex
 
 $ plm target add copilot
 ✅ Added target: copilot
-   Supports: skills, agents, prompts, instructions
+   Supports: skills, agents, commands, instructions
+
+$ plm target add antigravity
+✅ Added target: antigravity
+   Supports: skills
+
+$ plm target add gemini
+✅ Added target: gemini
+   Supports: skills, instructions
 ```
 
 ターゲットの確認:
@@ -35,8 +43,10 @@ $ plm target add copilot
 ```bash
 $ plm target list
 📍 Active targets:
-   • codex   (skills, agents, instructions)
-   • copilot (skills, agents, prompts, instructions)
+   • antigravity (skills)
+   • codex       (skills, agents, instructions)
+   • copilot     (skills, agents, commands, instructions)
+   • gemini      (skills, instructions)
 ```
 
 ### 2. マーケットプレイスの登録（オプション）

@@ -63,42 +63,52 @@ cargo deny check
 
 ### エントリポイント
 - `src/main.rs` - tokioランタイムを使用した非同期エントリポイント
-- `src/cli.rs` - Clapベースの12コマンドを持つCLI定義
+- `src/cli.rs` - Clapベースの16コマンドを持つCLI定義
 
 ### コマンドディスパッチパターン
-コマンドは `src/commands/mod.rs` を経由して各ハンドラモジュールにルーティングされる：
+コマンドは `src/commands.rs` を経由して各ハンドラモジュールにルーティングされる：
 - `target.rs` - ターゲット環境管理（codex/copilot/antigravity/gemini）
+- `marketplace.rs` - マーケットプレイス管理
 - `install.rs` - GitHubからコンポーネントをインストール
 - `list.rs`, `info.rs` - インストール済みコンポーネントの照会
 - `enable.rs`, `disable.rs`, `uninstall.rs` - コンポーネント状態管理
 - `update.rs` - コンポーネント更新
 - `init.rs`, `pack.rs` - コンポーネント作成とパッケージング
+- `link.rs`, `unlink.rs` - シンボリックリンク管理
 - `sync.rs` - 環境間同期
 - `import.rs` - Claude Code Pluginsからインポート
+- `managed.rs` - TUI管理画面
 
-### 計画中のモジュール構成（docs/plm-plan-v3.md参照）
-- `targets/` - Target traitを実装する環境アダプター
-- `components/` - Component traitを実装するコンポーネントタイプハンドラー
-- `registry/` - `components.json`による状態管理
-- `github/` - GitHub API連携
+### モジュール構成
+- `target/` - Target traitを実装する環境アダプター（codex, copilot, antigravity, gemini_cli）
+- `component/` - コンポーネント種別・配置・デプロイメント
+- `plugin/` - プラグインキャッシュ・マニフェスト・更新管理
 - `parser/` - ファイル形式パーサー・変換（詳細は `docs/architecture/file-formats.md` 参照）
+- `source/` - プラグインソース（GitHub, マーケットプレイス, 検索）
+- `marketplace/` - マーケットプレイス設定・レジストリ
+- `sync/` - 環境間同期ロジック
+- `scan/` - コンポーネントスキャン
+- `import/` - Claude Code Pluginインポート
+- `tui/` - TUI管理画面
+- `application.rs` - アプリケーションサービス層
 - `config.rs` - 設定管理（`~/.plm/config.toml`）
 
 ### コア設計パターン
 
 **Target Trait** - 環境差異を抽象化：
-| 環境 | Skills | Agents | Prompts | Instructions |
-|------------|--------|--------|---------|--------------|
-| OpenAI Codex | ○ | × | × | ○ |
+| 環境 | Skills | Agents | Commands | Instructions |
+|------------|--------|--------|----------|--------------|
+| OpenAI Codex | ○ | ○ | × | ○ |
 | VSCode Copilot | ○ | ○ | ○ | ○ |
 | Google Antigravity | ○ | × | × | × |
 | Gemini CLI | ○ | × | × | ○ |
 
-**Component Trait** - コンポーネントタイプを抽象化：
+**Component** - コンポーネントタイプを抽象化（`ComponentKind` enum）：
 - Skills: YAMLフロントマター付き `SKILL.md`
-- Agents: `.agent.md` または `AGENTS.md`
-- Prompts: `.prompt.md`
-- Instructions: `copilot-instructions.md`
+- Agents: `.agent.md`
+- Commands: `.prompt.md`（スラッシュコマンド）
+- Instructions: `AGENTS.md` / `copilot-instructions.md` / `GEMINI.md`
+- Hooks: イベントハンドラ
 
 **スコープ** - Personal（`~/.codex/`, `~/.copilot/`, `~/.gemini/antigravity/`, `~/.gemini/skills/`）vs Project（`.codex/`, `.github/`, `.agent/`, `.gemini/skills/`）
 

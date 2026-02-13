@@ -9,6 +9,10 @@ PLMのコマンド一覧と使い分けガイド。
 | [install](./install.md) | GitHubまたはマーケットプレイスからプラグインをインストール |
 | [list](./list.md) | インストール済みコンポーネントの一覧表示 |
 | [info](./info.md) | プラグインの詳細情報を表示 |
+| [enable](./managed.md) | コンポーネントを有効化（ターゲットへ展開） |
+| [disable](./managed.md) | コンポーネントを無効化（ターゲットから除去、キャッシュは保持） |
+| [uninstall](./managed.md) | コンポーネントを完全削除（キャッシュ含む） |
+| [update](./managed.md) | コンポーネントの更新チェック・適用 |
 | [target](./target.md) | ターゲット環境の管理 |
 | [marketplace](./marketplace.md) | マーケットプレイスの管理 |
 | [managed](./managed.md) | TUI管理画面を起動 |
@@ -24,9 +28,10 @@ PLMのコマンド一覧と使い分けガイド。
 | 操作 | CLI直接 | TUI管理画面 |
 |------|---------|-------------|
 | インストール | `plm install` | Discoverタブ |
-| 更新 | - | ○ |
-| 有効/無効 | - | ○ |
-| 削除 | - | ○ |
+| 更新 | `plm update` | ○ |
+| 有効化 | `plm enable` | ○ |
+| 無効化 | `plm disable` | ○ |
+| 削除 | `plm uninstall` | ○ |
 | 状態確認 | `plm list` | ○ |
 | GitHub参照 | - | ○ "View on GitHub" |
 | 詳細表示 | `plm info` | ○ |

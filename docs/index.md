@@ -22,7 +22,7 @@ GitHubからAI開発環境向けのプラグインをダウンロードし、複
 
 | 機能 | 説明 |
 |------|------|
-| マルチターゲット対応 | OpenAI Codex、VSCode Copilotに対応 |
+| マルチターゲット対応 | OpenAI Codex、VSCode Copilot、Google Antigravity、Gemini CLIに対応 |
 | 統一管理 | 複数環境のプラグインを一元管理 |
 | 自動展開 | コンポーネント種別に応じて適切な場所へ配置 |
 | マーケットプレイス | GitHubリポジトリをマーケットプレイスとして登録 |
@@ -42,7 +42,8 @@ GitHubからAI開発環境向けのプラグインをダウンロードし、複
 | 規格 | 説明 | 参照 |
 |------|------|------|
 | **AGENTS.md** | カスタム指示ファイル（Linux Foundation管轄のオープン標準） | https://agents.md |
-| **SKILL.md** | スキル定義（Anthropicがオープン標準として公開、OpenAI/Microsoftが採用） | - |
+| **SKILL.md** | スキル定義（Anthropicがオープン標準として公開、OpenAI/Microsoft/Googleが採用） | - |
+| **GEMINI.md** | Gemini CLI用のコンテキスト・指示ファイル | [Gemini CLI Docs](https://geminicli.com/docs/cli/gemini-md/) |
 
 ## 参考リンク
 

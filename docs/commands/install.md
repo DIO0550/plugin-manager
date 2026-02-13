@@ -20,6 +20,8 @@ plm install <source> [options]
 |------------|------|------------|
 | `--target` | ターゲット環境を指定 | 全ての有効なターゲット |
 | `--scope` | スコープを指定（personal/project） | `project` |
+| `--type` | コンポーネント種別でフィルタ（skill, agent, command, instruction） | 全種別 |
+| `--force` | キャッシュ済みでも再ダウンロード | - |
 
 ## 使用例
 

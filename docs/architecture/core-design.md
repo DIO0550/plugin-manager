@@ -7,53 +7,27 @@ PLMのコア設計（Traits, 構造体）について説明します。
 コンポーネント種別の共通インターフェース。
 
 ```rust
-/// コンポーネント種別の共通インターフェース
-pub trait Component {
-    /// 種別名（"skill", "agent", "prompt", "instruction"）
-    fn kind(&self) -> ComponentKind;
-
-    /// ファイル名パターン
-    fn file_pattern(&self) -> &str;
-
-    /// メタデータをパース
-    fn parse_metadata(&self, content: &str) -> Result<ComponentMetadata>;
-
-    /// バリデーション
-    fn validate(&self, path: &Path) -> Result<()>;
-}
-
-#[derive(Debug, Clone, Copy)]
+/// コンポーネント種別
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, ValueEnum, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum ComponentKind {
+    /// スキル（SKILL.md形式）
     Skill,
+    /// エージェント（.agent.md形式）
     Agent,
-    Prompt,
+    /// コマンド（.prompt.md形式）
+    Command,
+    /// インストラクション（AGENTS.md, copilot-instructions.md形式）
     Instruction,
+    /// フック（任意のスクリプト）
+    Hook,
 }
-```
 
-### 実装例
-
-```rust
-pub struct SkillComponent;
-
-impl Component for SkillComponent {
-    fn kind(&self) -> ComponentKind {
-        ComponentKind::Skill
-    }
-
-    fn file_pattern(&self) -> &str {
-        "SKILL.md"
-    }
-
-    fn parse_metadata(&self, content: &str) -> Result<ComponentMetadata> {
-        // YAML frontmatterをパース
-        // ...
-    }
-
-    fn validate(&self, path: &Path) -> Result<()> {
-        // SKILL.mdの存在確認など
-        // ...
-    }
+/// プラグイン内のコンポーネント
+pub struct Component {
+    pub kind: ComponentKind,
+    pub name: String,
+    pub path: PathBuf,
 }
 ```
 
@@ -62,25 +36,31 @@ impl Component for SkillComponent {
 AI環境の共通インターフェース。
 
 ```rust
-/// AI環境の共通インターフェース
-pub trait Target {
-    /// ターゲット名（"codex", "copilot"）
-    fn name(&self) -> &str;
+/// ターゲット環境の抽象化trait
+pub trait Target: Send + Sync {
+    /// ターゲット識別子（"codex", "copilot", "antigravity", "gemini"）
+    fn name(&self) -> &'static str;
+
+    /// 表示名
+    fn display_name(&self) -> &'static str;
+
+    /// ターゲット種別
+    fn kind(&self) -> TargetKind;
 
     /// サポートするコンポーネント種別
-    fn supported_components(&self) -> Vec<ComponentKind>;
+    fn supported_components(&self) -> &[ComponentKind];
 
-    /// コンポーネントのインストール先パス
-    fn component_path(&self, kind: ComponentKind, scope: Scope) -> Option<PathBuf>;
+    /// 指定コンポーネント種別をサポートするか
+    fn supports(&self, kind: ComponentKind) -> bool;
 
-    /// コンポーネントをインストール
-    fn install(&self, component: &InstalledComponent, scope: Scope) -> Result<()>;
+    /// 配置先ロケーションを取得
+    fn placement_location(&self, context: &PlacementContext) -> Option<PlacementLocation>;
 
     /// コンポーネントを削除
-    fn uninstall(&self, name: &str, kind: ComponentKind, scope: Scope) -> Result<()>;
+    fn remove(&self, context: &PlacementContext) -> Result<()>;
 
-    /// インストール済み一覧
-    fn list(&self, kind: Option<ComponentKind>, scope: Scope) -> Result<Vec<InstalledComponent>>;
+    /// 配置済みコンポーネント一覧を取得
+    fn list_placed(&self, kind: ComponentKind, scope: Scope, project_root: &Path) -> Result<Vec<String>>;
 }
 
 pub enum Scope {
@@ -91,27 +71,24 @@ pub enum Scope {
 
 ### 実装例（擬似コード）
 
-> **Note**: 以下は設計意図を示す擬似コードです。実際の `Target` trait API（`placement_location()` 等）とは異なります。
+> **Note**: 以下は設計意図を示す擬似コードです。
 > 実装の詳細は `src/target/` 配下の各ファイルを参照してください。
 
 ```rust
 pub struct CodexTarget;
 
 impl Target for CodexTarget {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "codex"
     }
 
-    fn supported_components(&self) -> Vec<ComponentKind> {
-        vec![ComponentKind::Skill, ComponentKind::Agent, ComponentKind::Instruction]
+    fn supported_components(&self) -> &[ComponentKind] {
+        &[ComponentKind::Skill, ComponentKind::Agent, ComponentKind::Instruction]
     }
 
-    fn component_path(&self, kind: ComponentKind, scope: Scope) -> Option<PathBuf> {
-        match (kind, scope) {
-            (ComponentKind::Skill, Scope::Personal) => Some(dirs::home_dir()?.join(".codex/skills")),
-            (ComponentKind::Skill, Scope::Project) => Some(PathBuf::from(".codex/skills")),
-            // ...
-        }
+    fn placement_location(&self, context: &PlacementContext) -> Option<PlacementLocation> {
+        // PlacementContextに基づいて配置先を決定
+        // ...
     }
     // ...
 }
@@ -119,24 +96,17 @@ impl Target for CodexTarget {
 pub struct AntigravityTarget;
 
 impl Target for AntigravityTarget {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "antigravity"
     }
 
-    fn supported_components(&self) -> Vec<ComponentKind> {
-        vec![ComponentKind::Skill]  // Antigravity only supports Skills
+    fn supported_components(&self) -> &[ComponentKind] {
+        &[ComponentKind::Skill]  // Antigravity only supports Skills
     }
 
-    fn component_path(&self, kind: ComponentKind, scope: Scope) -> Option<PathBuf> {
-        match (kind, scope) {
-            (ComponentKind::Skill, Scope::Personal) => {
-                Some(dirs::home_dir()?.join(".gemini/antigravity/skills"))
-            }
-            (ComponentKind::Skill, Scope::Project) => {
-                Some(PathBuf::from(".agent/skills"))
-            }
-            _ => None,  // Other components not supported
-        }
+    fn placement_location(&self, context: &PlacementContext) -> Option<PlacementLocation> {
+        // Skills のみサポート、Personal/Project で配置先が異なる
+        // ...
     }
     // ...
 }
@@ -144,30 +114,17 @@ impl Target for AntigravityTarget {
 pub struct GeminiCliTarget;
 
 impl Target for GeminiCliTarget {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "gemini"
     }
 
-    fn supported_components(&self) -> Vec<ComponentKind> {
-        vec![ComponentKind::Skill, ComponentKind::Instruction]
+    fn supported_components(&self) -> &[ComponentKind] {
+        &[ComponentKind::Skill, ComponentKind::Instruction]
     }
 
-    fn component_path(&self, kind: ComponentKind, scope: Scope) -> Option<PathBuf> {
-        match (kind, scope) {
-            (ComponentKind::Skill, Scope::Personal) => {
-                Some(dirs::home_dir()?.join(".gemini/skills"))
-            }
-            (ComponentKind::Skill, Scope::Project) => {
-                Some(PathBuf::from(".gemini/skills"))
-            }
-            (ComponentKind::Instruction, Scope::Personal) => {
-                Some(dirs::home_dir()?.join(".gemini/GEMINI.md"))
-            }
-            (ComponentKind::Instruction, Scope::Project) => {
-                Some(PathBuf::from("GEMINI.md"))
-            }
-            _ => None,  // Agents and Prompts not supported
-        }
+    fn placement_location(&self, context: &PlacementContext) -> Option<PlacementLocation> {
+        // Skills と Instructions をサポート
+        // ...
     }
     // ...
 }

@@ -44,15 +44,28 @@ PLMのTUI（ターミナルユーザーインターフェース）設計につ�
 
 ```
 src/tui/
-├── app.rs                # アプリケーション状態
-├── ui.rs                 # UI描画
-├── tabs/                 # 各タブ
-│   ├── discover.rs       # マーケットプレイス検索
-│   ├── installed.rs      # インストール済み管理
-│   ├── marketplaces.rs   # マーケットプレイス管理
-│   └── errors.rs         # エラー一覧
-└── widgets/              # 再利用可能ウィジェット
-    └── plugin_select.rs  # プラグイン選択ダイアログ
+├── dialog.rs                # ダイアログコンポーネント
+├── manager.rs               # TUIマネージャー
+│   ├── core/                # コア機能
+│   │   ├── app.rs           # アプリケーション状態
+│   │   ├── common.rs        # 共通ユーティリティ
+│   │   ├── data.rs          # データ構造
+│   │   └── filter.rs        # フィルタリング
+│   └── screens/             # 各画面
+│       ├── discover.rs      # マーケットプレイス検索
+│       ├── errors.rs        # エラー一覧
+│       ├── installed/       # インストール済み管理
+│       │   ├── actions.rs   # アクション処理
+│       │   ├── model.rs     # データモデル
+│       │   ├── update.rs    # 状態更新
+│       │   └── view.rs      # 表示
+│       └── marketplaces/    # マーケットプレイス管理
+│           ├── actions.rs
+│           ├── model.rs
+│           ├── update.rs
+│           └── view.rs
+├── scope_select.rs          # スコープ選択ダイアログ
+└── target_select.rs         # ターゲット選択ダイアログ
 ```
 
 ## アプリケーション状態
