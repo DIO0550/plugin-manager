@@ -8,8 +8,9 @@ PLMの内部アーキテクチャについて説明します。
 plm/
 ├── Cargo.toml
 ├── src/
-│   ├── main.rs
-│   ├── cli.rs                    # Clap CLI定義
+│   ├── main.rs                   # tokio非同期エントリポイント
+│   ├── cli.rs                    # Clap CLI定義（16コマンド）
+│   ├── commands.rs               # コマンドディスパッチャー
 │   ├── commands/
 │   │   ├── install.rs            # インストール処理
 │   │   ├── uninstall.rs          # 削除処理
@@ -22,45 +23,99 @@ plm/
 │   │   ├── marketplace.rs        # マーケットプレイス管理
 │   │   ├── init.rs               # テンプレート作成
 │   │   ├── pack.rs               # パッケージ化
+│   │   ├── link.rs               # シンボリックリンク作成
+│   │   ├── unlink.rs             # シンボリックリンク削除
 │   │   ├── sync.rs               # 環境間同期
-│   │   └── import.rs             # Claude Plugin インポート
-│   ├── tui/                      # TUI管理画面
-│   │   ├── app.rs                # アプリケーション状態
-│   │   ├── ui.rs                 # UI描画
-│   │   ├── tabs/                 # 各タブ
-│   │   │   ├── discover.rs
-│   │   │   ├── installed.rs
-│   │   │   ├── marketplaces.rs
-│   │   │   └── errors.rs
-│   │   └── widgets/              # 再利用可能ウィジェット
-│   │       └── plugin_select.rs  # プラグイン選択ダイアログ
-│   ├── targets/                  # AI環境アダプター
-│   │   ├── trait.rs              # 共通インターフェース
+│   │   ├── import.rs             # Claude Plugin インポート
+│   │   └── managed.rs            # TUI管理画面起動
+│   ├── target.rs                 # Target trait定義
+│   ├── target/                   # AI環境アダプター
+│   │   ├── antigravity.rs        # Google Antigravity
 │   │   ├── codex.rs              # OpenAI Codex
-│   │   └── copilot.rs            # VSCode Copilot
-│   ├── components/               # コンポーネント種別
-│   │   ├── trait.rs              # 共通インターフェース
-│   │   ├── skill.rs              # Skills
-│   │   ├── agent.rs              # Agents
-│   │   ├── prompt.rs             # Prompts
-│   │   └── instruction.rs        # Instructions
-│   ├── marketplace/              # マーケットプレイス
-│   │   ├── registry.rs           # マーケットプレイス登録管理
-│   │   └── fetcher.rs            # marketplace.json取得
-│   ├── plugin/                   # プラグイン
-│   │   ├── manifest.rs           # plugin.json パーサー
+│   │   ├── copilot.rs            # VSCode Copilot
+│   │   ├── gemini_cli.rs         # Gemini CLI
+│   │   ├── effect.rs             # ターゲット操作結果
+│   │   ├── registry.rs           # ターゲットレジストリ
+│   │   └── scanner.rs            # ターゲットスキャン
+│   ├── component.rs              # コンポーネントモジュール定義
+│   ├── component/                # コンポーネント種別
+│   │   ├── kind.rs               # ComponentKind enum
+│   │   ├── deployment.rs         # デプロイメント情報
+│   │   ├── convert.rs            # コンポーネント変換
+│   │   ├── placement.rs          # 配置ロジック
+│   │   └── summary.rs            # コンポーネントサマリー
+│   ├── plugin.rs                 # プラグインモジュール定義
+│   ├── plugin/                   # プラグイン管理
 │   │   ├── cache.rs              # プラグインキャッシュ管理
-│   │   └── deployer.rs           # 自動展開ロジック
-│   ├── source/                   # プラグインソース
-│   │   ├── trait.rs              # PluginSource トレイト
-│   │   └── github.rs             # GitHub実装
+│   │   ├── cached_plugin.rs      # キャッシュ済みプラグイン
+│   │   ├── manifest.rs           # plugin.json パーサー
+│   │   ├── manifest_resolve.rs   # マニフェスト解決
+│   │   ├── meta.rs               # プラグインメタデータ
+│   │   ├── update.rs             # 更新ロジック
+│   │   └── version.rs            # バージョン管理
+│   ├── parser.rs                 # パーサーモジュール定義
 │   ├── parser/                   # ファイルパーサー
-│   │   ├── skill_md.rs           # SKILL.md パーサー
-│   │   ├── agent_md.rs           # .agent.md パーサー
-│   │   ├── prompt_md.rs          # .prompt.md パーサー
-│   │   └── plugin_json.rs        # plugin.json パーサー
-│   └── config.rs                 # 設定管理
-├── tests/
+│   │   ├── claude_code.rs        # Claude Code形式
+│   │   ├── claude_code_agent.rs  # Claude Code Agent形式
+│   │   ├── codex.rs              # Codex形式
+│   │   ├── codex_agent.rs        # Codex Agent形式
+│   │   ├── copilot.rs            # Copilot形式
+│   │   ├── copilot_agent.rs      # Copilot Agent形式
+│   │   ├── convert.rs            # フォーマット変換
+│   │   └── frontmatter.rs        # YAML frontmatterパーサー
+│   ├── source.rs                 # ソースモジュール定義
+│   ├── source/                   # プラグインソース
+│   │   ├── github_source.rs      # GitHub実装
+│   │   ├── marketplace_source.rs # マーケットプレイス実装
+│   │   └── search_source.rs      # 検索実装
+│   ├── marketplace.rs            # マーケットプレイスモジュール定義
+│   ├── marketplace/              # マーケットプレイス
+│   │   ├── config.rs             # マーケットプレイス設定
+│   │   ├── fetcher.rs            # marketplace.json取得
+│   │   ├── plugin_source_path.rs # プラグインソースパス
+│   │   ├── registry.rs           # マーケットプレイスレジストリ
+│   │   └── windows_path.rs       # Windowsパス処理
+│   ├── sync.rs                   # 同期モジュール定義
+│   ├── sync/                     # 環境間同期
+│   │   ├── action.rs             # 同期アクション
+│   │   ├── destination.rs        # 同期先
+│   │   ├── options.rs            # 同期オプション
+│   │   ├── placed.rs             # 配置済みコンポーネント
+│   │   ├── result.rs             # 同期結果
+│   │   └── source.rs             # 同期元
+│   ├── scan.rs                   # スキャンモジュール定義
+│   ├── scan/                     # コンポーネントスキャン
+│   │   ├── components.rs         # コンポーネントスキャン
+│   │   ├── constants.rs          # スキャン定数
+│   │   └── placement.rs          # 配置スキャン
+│   ├── import.rs                 # インポートモジュール定義
+│   ├── import/                   # Claude Code Pluginインポート
+│   │   └── registry.rs           # インポートレジストリ
+│   ├── tui.rs                    # TUIモジュール定義
+│   ├── tui/                      # TUI管理画面
+│   │   ├── dialog.rs             # ダイアログコンポーネント
+│   │   ├── manager.rs            # TUIマネージャー
+│   │   │   ├── core/             # コア機能
+│   │   │   │   ├── app.rs        # アプリケーション状態
+│   │   │   │   ├── common.rs     # 共通ユーティリティ
+│   │   │   │   ├── data.rs       # データ構造
+│   │   │   │   └── filter.rs     # フィルタリング
+│   │   │   └── screens/          # 画面
+│   │   │       ├── discover.rs   # マーケットプレイス検索
+│   │   │       ├── errors.rs     # エラー一覧
+│   │   │       ├── installed/    # インストール済み管理
+│   │   │       └── marketplaces/ # マーケットプレイス管理
+│   │   ├── scope_select.rs       # スコープ選択ダイアログ
+│   │   └── target_select.rs      # ターゲット選択ダイアログ
+│   ├── application.rs            # アプリケーションサービス層
+│   ├── config.rs                 # 設定管理
+│   ├── env.rs                    # 環境検出
+│   ├── error.rs                  # エラーハンドリング
+│   ├── fs.rs                     # ファイルシステム操作
+│   ├── http.rs                   # HTTPクライアント
+│   ├── output.rs                 # 出力フォーマット
+│   ├── path_ext.rs               # パスユーティリティ
+│   └── repo.rs                   # リポジトリ参照
 └── README.md
 ```
 
@@ -71,15 +126,24 @@ Featureベースのモジュール構成を採用。レイヤーベース（doma
 ```
 src/
 ├── target/           # Target 関連の全て
+│   ├── antigravity.rs # Antigravity ターゲット実装
 │   ├── codex.rs      # Codex ターゲット実装
 │   ├── copilot.rs    # Copilot ターゲット実装
-│   └── effect.rs     # ターゲット操作の結果
+│   ├── gemini_cli.rs # Gemini CLI ターゲット実装
+│   ├── effect.rs     # ターゲット操作の結果
+│   ├── registry.rs   # ターゲットレジストリ
+│   └── scanner.rs    # ターゲットスキャン
 ├── plugin/           # Plugin 関連の全て
 │   ├── cache.rs      # キャッシュ管理
-│   └── manifest.rs   # マニフェスト
+│   ├── cached_plugin.rs # キャッシュ済みプラグイン
+│   ├── manifest.rs   # マニフェスト
+│   ├── update.rs     # 更新ロジック
+│   └── version.rs    # バージョン管理
 └── component/        # Component 関連の全て
     ├── kind.rs       # コンポーネント種別
-    └── deployment.rs # デプロイメント
+    ├── deployment.rs # デプロイメント
+    ├── convert.rs    # コンポーネント変換
+    └── placement.rs  # 配置ロジック
 ```
 
 ## 依存クレート

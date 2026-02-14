@@ -26,7 +26,7 @@ plm init <name> --type <type>
 |------|------|
 | `skill` | SKILL.md テンプレートを作成 |
 | `agent` | *.agent.md テンプレートを作成 |
-| `prompt` | *.prompt.md テンプレートを作成 |
+| `command` | *.prompt.md テンプレートを作成 |
 
 ## 使用例
 
@@ -74,24 +74,24 @@ tools: ['search', 'fetch', 'edit']
 エージェントの指示をここに記述...
 ```
 
-### Promptの作成
+### Commandの作成
 
 ```bash
-$ plm init my-prompt --type prompt
-📁 Created my-prompt.prompt.md
+$ plm init my-command --type command
+📁 Created my-command.prompt.md
 ```
 
 生成されるファイル:
 
 ```markdown
 ---
-name: my-prompt
-description: プロンプトの説明
+name: my-command
+description: コマンドの説明
 ---
 
-# my-prompt
+# my-command
 
-プロンプトの内容をここに記述...
+コマンドの内容をここに記述...
 ```
 
 ## 関連

@@ -8,8 +8,9 @@ PLMが管理するコンポーネントの種類について説明します。
 |------|------|-------------|
 | **Skills** | 専門的な知識・ワークフロー | `SKILL.md` (YAML frontmatter) |
 | **Agents** | カスタムエージェント定義 | `*.agent.md` |
-| **Prompts** | 再利用可能なプロンプト | `*.prompt.md` |
-| **Instructions** | コーディング規約・カスタム指示 | `AGENTS.md` / `copilot-instructions.md` |
+| **Commands** | スラッシュコマンド | `*.prompt.md` |
+| **Instructions** | コーディング規約・カスタム指示 | `AGENTS.md` / `copilot-instructions.md` / `GEMINI.md` |
+| **Hooks** | イベントハンドラ | 任意のスクリプト |
 
 ## Skills
 
@@ -76,27 +77,27 @@ tools: ['search', 'fetch', 'edit']
 | Codex | `~/.codex/agents/<marketplace>/<plugin>/` | `.codex/agents/<marketplace>/<plugin>/` |
 | Copilot | `~/.copilot/agents/<marketplace>/<plugin>/` | `.github/agents/<marketplace>/<plugin>/` |
 
-## Prompts
+## Commands
 
-再利用可能なプロンプトを定義するコンポーネントです。
+スラッシュコマンドを定義するコンポーネントです。
 
 ### 特徴
 
-- よく使うプロンプトをテンプレート化
-- Copilotでのみサポート
+- Claude Code のスラッシュコマンド（`.prompt.md`形式）を他ターゲットにも展開
+- Copilotでのみサポート（Copilot Prompt Files として配置）
 - 手動で呼び出して使用
 
 ### ファイル形式
 
 ```markdown
 ---
-name: prompt-name
-description: プロンプトの説明
+name: command-name
+description: コマンドの説明
 ---
 
-# Prompt
+# Command
 
-プロンプトの内容...
+コマンドの内容...
 ```
 
 ### 配置場所
@@ -114,7 +115,7 @@ description: プロンプトの説明
 
 - AGENTS.md形式のオープン標準（Linux Foundation管轄）
 - プロジェクト全体に適用される指示
-- Codex、Copilotでサポート（Gemini CLIは`GEMINI.md`で対応）
+- Codex、Copilot、Gemini CLIでサポート（Gemini CLIは`GEMINI.md`で対応）
 
 ### ファイル形式
 
@@ -137,12 +138,12 @@ description: プロンプトの説明
 | コンポーネント | Codex | Copilot | Antigravity | Gemini CLI |
 |----------------|-------|---------|-------------|------------|
 | Skills | ✅ | ✅ | ✅ | ✅ |
-| Agents | ✅* | ✅ | ❌ | ❌ |
-| Prompts | ❌ | ✅ | ❌ | ❌ |
-| Instructions | ✅ | ✅ | ❌ | ✅** |
+| Agents | ✅ | ✅ | ❌ | ❌ |
+| Commands | ❌ | ✅ | ❌ | ❌ |
+| Instructions | ✅ | ✅ | ❌ | ✅* |
+| Hooks | ❌ | ❌ | ❌ | ❌ |
 
-> *Codexは現時点で`.agent.md`を公式サポートしていませんが、将来対応を見越して配置します。
-> **Gemini CLIは`GEMINI.md`形式で対応（`AGENTS.md`は設定で変更可能）。
+> *Gemini CLIは`GEMINI.md`形式で対応（`AGENTS.md`は設定で変更可能）。
 
 ## 共通規格
 

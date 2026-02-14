@@ -12,8 +12,10 @@ use crate::commands::{
     long_about = r#"PLM (Plugin Manager CLI) is a unified tool for managing plugins across AI coding assistants.
 
 Supported environments:
-  - OpenAI Codex: Skills, Instructions
-  - VSCode Copilot: Skills, Agents, Prompts, Instructions
+  - OpenAI Codex: Skills, Agents, Instructions
+  - VSCode Copilot: Skills, Agents, Commands, Instructions
+  - Google Antigravity: Skills
+  - Gemini CLI: Skills, Instructions
 
 Install plugins from GitHub or marketplaces, manage their lifecycle, and keep them synchronized across environments."#
 )]
