@@ -6,7 +6,7 @@ mod windows_path;
 
 pub use config::{
     normalize_name, normalize_source_path, to_display_source, to_internal_source,
-    MarketplaceConfig, MarketplaceEntry,
+    MarketplaceConfig, MarketplaceRegistration,
 };
 // Re-exported for tests
 #[cfg(test)]

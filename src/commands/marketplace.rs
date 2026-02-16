@@ -1,6 +1,6 @@
 use crate::marketplace::{
-    normalize_name, normalize_source_path, to_display_source, MarketplaceConfig, MarketplaceEntry,
-    MarketplaceFetcher, MarketplaceRegistry,
+    normalize_name, normalize_source_path, to_display_source, MarketplaceConfig,
+    MarketplaceFetcher, MarketplaceRegistration, MarketplaceRegistry,
 };
 use crate::repo;
 use clap::{Parser, Subcommand};
@@ -152,7 +152,7 @@ async fn run_add(source: String, name: Option<String>, path: Option<String>) -> 
     let plugin_count = cache.plugins.len();
 
     // 7. Add to config
-    let entry = MarketplaceEntry {
+    let entry = MarketplaceRegistration {
         name: normalized_name.clone(),
         source: parsed_repo.full_name(),
         source_path,
