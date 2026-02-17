@@ -89,7 +89,7 @@ pub fn update_marketplace(name: &str) -> Result<MarketplaceItem, String> {
     update_marketplace_registration(&entry)
 }
 
-/// マーケットプレイスエントリを更新（config再読み込み不要）
+/// マーケットプレイス登録情報を更新（config再読み込み不要）
 fn update_marketplace_registration(
     entry: &MarketplaceRegistration,
 ) -> Result<MarketplaceItem, String> {
