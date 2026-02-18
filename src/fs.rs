@@ -15,14 +15,14 @@ pub enum FsFileType {
     Symlink,
 }
 
-/// ファイルシステム抽象化のための独自 DirEntry
+/// ファイルシステムのノード（ファイル、ディレクトリ、シンボリックリンク）
 #[derive(Debug, Clone)]
-pub struct FsDirEntry {
+pub struct FsNode {
     pub path: PathBuf,
     pub file_type: FsFileType,
 }
 
-impl FsDirEntry {
+impl FsNode {
     /// ディレクトリかどうか
     pub fn is_dir(&self) -> bool {
         self.file_type == FsFileType::Dir
@@ -108,11 +108,11 @@ pub trait FileSystem: Send + Sync {
 
     /// ディレクトリ内のエントリを取得
     ///
-    /// - FsDirEntry のベクタを返す
+    /// - FsNode のベクタを返す
     /// - 順序は未定義
     /// - symlink_metadata を使用（シンボリックリンク非追従）
     /// - 引数がディレクトリでない場合は Err
-    fn read_dir(&self, path: &Path) -> Result<Vec<FsDirEntry>>;
+    fn read_dir(&self, path: &Path) -> Result<Vec<FsNode>>;
 }
 
 /// 本番用ファイルシステム実装
@@ -231,7 +231,7 @@ impl FileSystem for RealFs {
         Ok(())
     }
 
-    fn read_dir(&self, path: &Path) -> Result<Vec<FsDirEntry>> {
+    fn read_dir(&self, path: &Path) -> Result<Vec<FsNode>> {
         let mut entries = Vec::new();
         for entry in std::fs::read_dir(path)? {
             let entry = entry?;
@@ -243,7 +243,7 @@ impl FileSystem for RealFs {
             } else {
                 FsFileType::File
             };
-            entries.push(FsDirEntry {
+            entries.push(FsNode {
                 path: entry.path(),
                 file_type,
             });

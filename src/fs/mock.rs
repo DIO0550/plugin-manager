@@ -239,7 +239,7 @@ impl FileSystem for MockFs {
         Ok(())
     }
 
-    fn read_dir(&self, path: &Path) -> Result<Vec<FsDirEntry>> {
+    fn read_dir(&self, path: &Path) -> Result<Vec<FsNode>> {
         let path_str = path.to_string_lossy().to_string();
         let files = self.files.read().unwrap();
 
@@ -269,7 +269,7 @@ impl FileSystem for MockFs {
                 let remainder = &k[prefix.len()..];
                 !remainder.contains('/')
             })
-            .map(|(k, v)| FsDirEntry {
+            .map(|(k, v)| FsNode {
                 path: PathBuf::from(k),
                 file_type: v.file_type,
             })

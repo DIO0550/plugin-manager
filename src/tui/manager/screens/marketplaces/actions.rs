@@ -3,8 +3,8 @@
 //! マーケットプレイスの追加・削除・更新操作を実行する。
 
 use crate::marketplace::{
-    to_display_source, to_internal_source, MarketplaceConfig, MarketplaceEntry, MarketplaceFetcher,
-    MarketplaceRegistry,
+    to_display_source, to_internal_source, MarketplaceConfig, MarketplaceFetcher,
+    MarketplaceRegistration, MarketplaceRegistry,
 };
 use crate::repo;
 use crate::tui::manager::core::MarketplaceItem;
@@ -32,7 +32,7 @@ pub fn add_marketplace(
         return Err(format!("Marketplace '{}' already exists", name));
     }
 
-    let entry = MarketplaceEntry {
+    let entry = MarketplaceRegistration {
         name: name.to_string(),
         source: internal_source.clone(),
         source_path: source_path.map(|s| s.to_string()),
@@ -86,11 +86,13 @@ pub fn update_marketplace(name: &str) -> Result<MarketplaceItem, String> {
         .ok_or_else(|| format!("Marketplace '{}' not found", name))?
         .clone();
 
-    update_marketplace_entry(&entry)
+    update_marketplace_registration(&entry)
 }
 
-/// マーケットプレイスエントリを更新（config再読み込み不要）
-fn update_marketplace_entry(entry: &MarketplaceEntry) -> Result<MarketplaceItem, String> {
+/// マーケットプレイス登録情報を更新（config再読み込み不要）
+fn update_marketplace_registration(
+    entry: &MarketplaceRegistration,
+) -> Result<MarketplaceItem, String> {
     let handle = tokio::runtime::Handle::try_current()
         .map_err(|_| "No Tokio runtime available".to_string())?;
 
@@ -125,7 +127,7 @@ pub fn update_all_marketplaces() -> Vec<(String, Result<MarketplaceItem, String>
         .list()
         .iter()
         .map(|entry| {
-            let result = update_marketplace_entry(entry);
+            let result = update_marketplace_registration(entry);
             (entry.name.clone(), result)
         })
         .collect()

@@ -4,9 +4,9 @@ use std::path::PathBuf;
 /// 名前の最大長
 const MAX_NAME_LENGTH: usize = 64;
 
-/// マーケットプレイス登録エントリ
+/// マーケットプレイス登録情報
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MarketplaceEntry {
+pub struct MarketplaceRegistration {
     pub name: String,
     pub source: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -16,13 +16,13 @@ pub struct MarketplaceEntry {
 /// marketplaces.json のルート構造
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct MarketplacesFile {
-    marketplaces: Vec<MarketplaceEntry>,
+    marketplaces: Vec<MarketplaceRegistration>,
 }
 
 /// マーケットプレイス設定（marketplaces.json）
 pub struct MarketplaceConfig {
     path: PathBuf,
-    marketplaces: Vec<MarketplaceEntry>,
+    marketplaces: Vec<MarketplaceRegistration>,
 }
 
 impl MarketplaceConfig {
@@ -72,7 +72,7 @@ impl MarketplaceConfig {
         Ok(())
     }
 
-    pub fn add(&mut self, entry: MarketplaceEntry) -> Result<(), String> {
+    pub fn add(&mut self, entry: MarketplaceRegistration) -> Result<(), String> {
         if self.exists(&entry.name) {
             return Err(format!(
                 "Marketplace '{}' already exists. Use --name to specify a different name.",
@@ -93,11 +93,11 @@ impl MarketplaceConfig {
         Ok(())
     }
 
-    pub fn get(&self, name: &str) -> Option<&MarketplaceEntry> {
+    pub fn get(&self, name: &str) -> Option<&MarketplaceRegistration> {
         self.marketplaces.iter().find(|e| e.name == name)
     }
 
-    pub fn list(&self) -> &[MarketplaceEntry] {
+    pub fn list(&self) -> &[MarketplaceRegistration] {
         &self.marketplaces
     }
 

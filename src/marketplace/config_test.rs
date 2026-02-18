@@ -2,7 +2,7 @@
 mod tests {
     use crate::marketplace::{
         normalize_name, normalize_source_path, to_display_source, to_internal_source,
-        validate_name, MarketplaceConfig, MarketplaceEntry,
+        validate_name, MarketplaceConfig, MarketplaceRegistration,
     };
     use tempfile::TempDir;
 
@@ -200,7 +200,7 @@ mod tests {
         let path = temp_dir.path().join("marketplaces.json");
         let mut config = MarketplaceConfig::load_from(path.clone()).unwrap();
 
-        let entry = MarketplaceEntry {
+        let entry = MarketplaceRegistration {
             name: "my-mp".to_string(),
             source: "owner/repo".to_string(),
             source_path: None,
@@ -219,7 +219,7 @@ mod tests {
         let path = temp_dir.path().join("marketplaces.json");
         let mut config = MarketplaceConfig::load_from(path).unwrap();
 
-        let entry = MarketplaceEntry {
+        let entry = MarketplaceRegistration {
             name: "test-mp".to_string(),
             source: "owner/repo".to_string(),
             source_path: None,
@@ -236,14 +236,14 @@ mod tests {
         let path = temp_dir.path().join("marketplaces.json");
         let mut config = MarketplaceConfig::load_from(path).unwrap();
 
-        let entry1 = MarketplaceEntry {
+        let entry1 = MarketplaceRegistration {
             name: "test-mp".to_string(),
             source: "owner/repo1".to_string(),
             source_path: None,
         };
         config.add(entry1).unwrap();
 
-        let entry2 = MarketplaceEntry {
+        let entry2 = MarketplaceRegistration {
             name: "test-mp".to_string(),
             source: "owner/repo2".to_string(),
             source_path: None,
@@ -257,7 +257,7 @@ mod tests {
         let path = temp_dir.path().join("marketplaces.json");
         let mut config = MarketplaceConfig::load_from(path).unwrap();
 
-        let entry = MarketplaceEntry {
+        let entry = MarketplaceRegistration {
             name: "test-mp".to_string(),
             source: "owner/repo".to_string(),
             source_path: None,
@@ -284,7 +284,7 @@ mod tests {
         let path = temp_dir.path().join("marketplaces.json");
         let mut config = MarketplaceConfig::load_from(path).unwrap();
 
-        let entry = MarketplaceEntry {
+        let entry = MarketplaceRegistration {
             name: "test-mp".to_string(),
             source: "owner/repo".to_string(),
             source_path: Some("plugins".to_string()),
@@ -313,14 +313,14 @@ mod tests {
         let mut config = MarketplaceConfig::load_from(path).unwrap();
 
         config
-            .add(MarketplaceEntry {
+            .add(MarketplaceRegistration {
                 name: "mp1".to_string(),
                 source: "owner/repo1".to_string(),
                 source_path: None,
             })
             .unwrap();
         config
-            .add(MarketplaceEntry {
+            .add(MarketplaceRegistration {
                 name: "mp2".to_string(),
                 source: "owner/repo2".to_string(),
                 source_path: None,
