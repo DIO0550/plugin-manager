@@ -1,5 +1,4 @@
 use super::*;
-use crate::application::plugin_action::PluginAction;
 
 #[test]
 fn test_plugin_plan_expand_empty() {

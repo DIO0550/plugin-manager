@@ -3,6 +3,10 @@
 //! PluginIntent は事前スキャン済みデータを保持し、
 //! 低レベルファイル操作への展開と実行を担う。
 
+// Re-exported for tests
+#[cfg(test)]
+pub use super::plugin_action::PluginAction;
+#[cfg(not(test))]
 use super::plugin_action::PluginAction;
 use super::plugin_action_types::{FileOperation, ScopedPath, TargetId};
 use crate::component::{
