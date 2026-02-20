@@ -46,26 +46,18 @@ impl ScopedPath {
     /// # Errors
     /// - パスが project_root 配下でない場合
     pub fn new(path: PathBuf, project_root: &Path) -> Result<Self> {
-        // 絶対パスに変換して比較
         let canonical_root = project_root
             .canonicalize()
-            .unwrap_or_else(|_| project_root.to_path_buf());
+            .unwrap_or_else(|_| normalize_path(project_root));
 
-        // パスがproject_root配下かチェック（パスが存在しない場合は親ディレクトリで判断）
         let check_path = if path.exists() {
-            path.canonicalize().unwrap_or_else(|_| path.clone())
+            path.canonicalize()
+                .unwrap_or_else(|_| normalize_path(&path))
         } else {
-            // 存在しないパスの場合、親が存在するか確認
-            let mut ancestors = path.ancestors();
-            let _ = ancestors.next(); // 自分自身をスキップ
-            ancestors
-                .find(|p| p.exists())
-                .and_then(|p| p.canonicalize().ok())
-                .unwrap_or_else(|| path.clone())
+            resolve_nonexistent_path(&path)
         };
 
-        // project_root配下であることを確認
-        if !check_path.starts_with(&canonical_root) && !path.starts_with(project_root) {
+        if !check_path.starts_with(&canonical_root) {
             return Err(PlmError::Validation(format!(
                 "Path '{}' is not under project root '{}'",
                 path.display(),
@@ -85,6 +77,45 @@ impl ScopedPath {
     pub fn into_path(self) -> PathBuf {
         self.path
     }
+}
+
+/// `..` や `.` を論理的に正規化する（ファイルシステムを参照しない）
+pub(crate) fn normalize_path(path: &Path) -> PathBuf {
+    use std::path::Component;
+    let mut normalized = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::ParentDir => {
+                normalized.pop();
+            }
+            Component::CurDir => {}
+            other => normalized.push(other),
+        }
+    }
+    normalized
+}
+
+/// 存在しないパスを、既存の祖先ディレクトリを基点に正規化する
+fn resolve_nonexistent_path(path: &Path) -> PathBuf {
+    let mut ancestors = path.ancestors();
+    let _ = ancestors.next(); // 自分自身をスキップ
+
+    for ancestor in ancestors {
+        if !ancestor.exists() {
+            continue;
+        }
+        let canonical_ancestor = match ancestor.canonicalize() {
+            Ok(p) => p,
+            Err(_) => continue,
+        };
+        if let Ok(relative) = path.strip_prefix(ancestor) {
+            let mut full = canonical_ancestor;
+            full.push(relative);
+            return normalize_path(&full);
+        }
+    }
+
+    normalize_path(path)
 }
 
 /// 低レベルファイル操作（内部用）

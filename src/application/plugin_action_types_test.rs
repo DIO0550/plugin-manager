@@ -1,5 +1,5 @@
 use super::*;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[test]
 fn test_target_id() {
@@ -32,4 +32,84 @@ fn test_file_operation_kind() {
 
     let remove = FileOperation::RemoveFile { path: scoped };
     assert_eq!(remove.kind(), "remove_file");
+}
+
+#[test]
+fn test_scoped_path_rejects_traversal_with_dotdot() {
+    let temp_dir = std::env::temp_dir().join("plm_test_root");
+    std::fs::create_dir_all(&temp_dir).unwrap();
+
+    // /tmp/plm_test_root/../outside_file はroot外に出るため拒否される
+    let malicious_path = temp_dir.join("..").join("outside_file");
+    let result = ScopedPath::new(malicious_path, &temp_dir);
+    assert!(
+        result.is_err(),
+        "Path with .. escaping root should be rejected"
+    );
+
+    std::fs::remove_dir_all(&temp_dir).ok();
+}
+
+#[test]
+fn test_scoped_path_allows_dotdot_within_root() {
+    let temp_dir = std::env::temp_dir().join("plm_test_root2");
+    let sub_dir = temp_dir.join("sub");
+    std::fs::create_dir_all(&sub_dir).unwrap();
+
+    // /tmp/plm_test_root2/sub/../file はroot内に留まるため許可される
+    let valid_path = sub_dir.join("..").join("file.txt");
+    let result = ScopedPath::new(valid_path, &temp_dir);
+    assert!(
+        result.is_ok(),
+        "Path with .. staying within root should be accepted"
+    );
+
+    std::fs::remove_dir_all(&temp_dir).ok();
+}
+
+#[cfg(unix)]
+#[test]
+fn test_scoped_path_rejects_symlink_escaping_root() {
+    use std::os::unix::fs::symlink;
+
+    let temp_dir = std::env::temp_dir().join("plm_test_symlink");
+    let inside = temp_dir.join("inside");
+    std::fs::create_dir_all(&inside).unwrap();
+
+    // root外のディレクトリを作成
+    let outside = std::env::temp_dir().join("plm_test_outside_target");
+    std::fs::create_dir_all(&outside).unwrap();
+    let outside_file = outside.join("secret.txt");
+    std::fs::write(&outside_file, "secret").unwrap();
+
+    // root内にroot外を指すシンボリックリンクを作成
+    let link_path = inside.join("escape_link");
+    symlink(&outside, &link_path).unwrap();
+
+    // シンボリックリンク経由のパスはcanonicalizeでroot外と判定される
+    let malicious_path = link_path.join("secret.txt");
+    let result = ScopedPath::new(malicious_path, &temp_dir);
+    assert!(
+        result.is_err(),
+        "Path through symlink escaping root should be rejected"
+    );
+
+    std::fs::remove_dir_all(&temp_dir).ok();
+    std::fs::remove_dir_all(&outside).ok();
+}
+
+#[test]
+fn test_normalize_path() {
+    assert_eq!(
+        normalize_path(Path::new("/a/b/../c")),
+        PathBuf::from("/a/c")
+    );
+    assert_eq!(
+        normalize_path(Path::new("/a/./b/c")),
+        PathBuf::from("/a/b/c")
+    );
+    assert_eq!(
+        normalize_path(Path::new("/a/b/../../c")),
+        PathBuf::from("/c")
+    );
 }
