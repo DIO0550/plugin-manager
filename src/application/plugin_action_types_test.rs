@@ -36,35 +36,32 @@ fn test_file_operation_kind() {
 
 #[test]
 fn test_scoped_path_rejects_traversal_with_dotdot() {
-    let temp_dir = std::env::temp_dir().join("plm_test_root");
-    std::fs::create_dir_all(&temp_dir).unwrap();
+    let temp_dir = tempfile::tempdir().unwrap();
+    let root = temp_dir.path();
 
-    // /tmp/plm_test_root/../outside_file はroot外に出るため拒否される
-    let malicious_path = temp_dir.join("..").join("outside_file");
-    let result = ScopedPath::new(malicious_path, &temp_dir);
+    // root/../outside_file はroot外に出るため拒否される
+    let malicious_path = root.join("..").join("outside_file");
+    let result = ScopedPath::new(malicious_path, root);
     assert!(
         result.is_err(),
         "Path with .. escaping root should be rejected"
     );
-
-    std::fs::remove_dir_all(&temp_dir).ok();
 }
 
 #[test]
 fn test_scoped_path_allows_dotdot_within_root() {
-    let temp_dir = std::env::temp_dir().join("plm_test_root2");
-    let sub_dir = temp_dir.join("sub");
+    let temp_dir = tempfile::tempdir().unwrap();
+    let root = temp_dir.path();
+    let sub_dir = root.join("sub");
     std::fs::create_dir_all(&sub_dir).unwrap();
 
-    // /tmp/plm_test_root2/sub/../file はroot内に留まるため許可される
+    // root/sub/../file はroot内に留まるため許可される
     let valid_path = sub_dir.join("..").join("file.txt");
-    let result = ScopedPath::new(valid_path, &temp_dir);
+    let result = ScopedPath::new(valid_path, root);
     assert!(
         result.is_ok(),
         "Path with .. staying within root should be accepted"
     );
-
-    std::fs::remove_dir_all(&temp_dir).ok();
 }
 
 #[cfg(unix)]
