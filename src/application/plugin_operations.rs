@@ -6,7 +6,7 @@
 //!
 //! このモジュールは以下のフローで動作する：
 //! 1. Imperative Shell: プラグインのスキャン（I/O）
-//! 2. Functional Core: `PluginIntent::expand()` で操作を展開（純粋関数）
+//! 2. Functional Core: `PluginIntent::expand()` で操作を展開（パス検証時にFS参照あり）
 //! 3. Imperative Shell: `PluginIntent::apply()` で実行（I/O）
 
 use super::plugin_action::PluginAction;
