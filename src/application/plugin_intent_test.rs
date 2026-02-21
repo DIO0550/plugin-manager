@@ -1,8 +1,8 @@
 use super::*;
 
 #[test]
-fn test_plugin_plan_expand_empty() {
-    let plan = PluginIntent::new(
+fn test_plugin_intent_expand_empty() {
+    let intent = PluginIntent::new(
         PluginAction::Enable {
             plugin_name: "test-plugin".to_string(),
             marketplace: None,
@@ -11,6 +11,6 @@ fn test_plugin_plan_expand_empty() {
         std::env::temp_dir(),
     );
 
-    let ops = plan.expand();
+    let ops = intent.expand();
     assert!(ops.is_empty());
 }
