@@ -49,8 +49,8 @@ pub(super) fn load_plugin_deployment(
         .map_err(|e| format!("Failed to load manifest: {}", e))?;
 
     let origin = match marketplace {
-        Some(mp) => PluginOrigin::from_marketplace(mp, &manifest.name),
-        None => PluginOrigin::from_marketplace("github", &manifest.name),
+        Some(mp) => PluginOrigin::from_marketplace(mp, plugin_name),
+        None => PluginOrigin::from_marketplace("github", plugin_name),
     };
 
     let plugin_path = cache.plugin_path(marketplace, plugin_name);
