@@ -69,30 +69,26 @@ fn test_scoped_path_allows_dotdot_within_root() {
 fn test_scoped_path_rejects_symlink_escaping_root() {
     use std::os::unix::fs::symlink;
 
-    let temp_dir = std::env::temp_dir().join("plm_test_symlink");
-    let inside = temp_dir.join("inside");
+    let root_dir = tempfile::tempdir().unwrap();
+    let inside = root_dir.path().join("inside");
     std::fs::create_dir_all(&inside).unwrap();
 
     // root外のディレクトリを作成
-    let outside = std::env::temp_dir().join("plm_test_outside_target");
-    std::fs::create_dir_all(&outside).unwrap();
-    let outside_file = outside.join("secret.txt");
+    let outside_dir = tempfile::tempdir().unwrap();
+    let outside_file = outside_dir.path().join("secret.txt");
     std::fs::write(&outside_file, "secret").unwrap();
 
     // root内にroot外を指すシンボリックリンクを作成
     let link_path = inside.join("escape_link");
-    symlink(&outside, &link_path).unwrap();
+    symlink(outside_dir.path(), &link_path).unwrap();
 
     // シンボリックリンク経由のパスはcanonicalizeでroot外と判定される
     let malicious_path = link_path.join("secret.txt");
-    let result = ScopedPath::new(malicious_path, &temp_dir);
+    let result = ScopedPath::new(malicious_path, root_dir.path());
     assert!(
         result.is_err(),
         "Path through symlink escaping root should be rejected"
     );
-
-    std::fs::remove_dir_all(&temp_dir).ok();
-    std::fs::remove_dir_all(&outside).ok();
 }
 
 #[test]
