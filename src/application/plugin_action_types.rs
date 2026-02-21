@@ -46,13 +46,22 @@ impl ScopedPath {
     /// # Errors
     /// - パスが project_root 配下でない場合
     pub fn new(path: PathBuf, project_root: &Path) -> Result<Self> {
-        let canonical_root = project_root
-            .canonicalize()
-            .unwrap_or_else(|_| normalize_path(project_root));
+        let canonical_root = project_root.canonicalize().map_err(|e| {
+            PlmError::Validation(format!(
+                "Failed to canonicalize project root '{}': {}",
+                project_root.display(),
+                e
+            ))
+        })?;
 
         let check_path = if path.exists() {
-            path.canonicalize()
-                .unwrap_or_else(|_| normalize_path(&path))
+            path.canonicalize().map_err(|e| {
+                PlmError::Validation(format!(
+                    "Failed to canonicalize path '{}': {}",
+                    path.display(),
+                    e
+                ))
+            })?
         } else {
             resolve_nonexistent_path(&path)
         };
