@@ -93,6 +93,7 @@ fn test_scoped_path_rejects_symlink_escaping_root() {
 
 #[test]
 fn test_normalize_path() {
+    // 絶対パスの .. 正規化
     assert_eq!(
         normalize_path(Path::new("/a/b/../c")),
         PathBuf::from("/a/c")
@@ -104,5 +105,16 @@ fn test_normalize_path() {
     assert_eq!(
         normalize_path(Path::new("/a/b/../../c")),
         PathBuf::from("/c")
+    );
+    // ルートを越える .. は無視される
+    assert_eq!(
+        normalize_path(Path::new("/a/../../../c")),
+        PathBuf::from("/c")
+    );
+    // 相対パスの先頭の .. は保持される
+    assert_eq!(normalize_path(Path::new("../a/b")), PathBuf::from("../a/b"));
+    assert_eq!(
+        normalize_path(Path::new("../../a")),
+        PathBuf::from("../../a")
     );
 }

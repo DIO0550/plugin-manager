@@ -91,14 +91,33 @@ impl ScopedPath {
 /// `..` や `.` を論理的に正規化する（ファイルシステムを参照しない）
 pub(crate) fn normalize_path(path: &Path) -> PathBuf {
     use std::path::Component;
+
     let mut normalized = PathBuf::new();
+    let mut has_physical_root = false;
+    let mut normal_depth: usize = 0;
+
     for component in path.components() {
         match component {
-            Component::ParentDir => {
-                normalized.pop();
+            Component::Prefix(_) | Component::RootDir => {
+                normalized.push(component.as_os_str());
+                has_physical_root = true;
             }
             Component::CurDir => {}
-            other => normalized.push(other),
+            Component::Normal(_) => {
+                normalized.push(component.as_os_str());
+                normal_depth += 1;
+            }
+            Component::ParentDir => {
+                if normal_depth > 0 {
+                    if normalized.pop() {
+                        normal_depth -= 1;
+                    }
+                } else if !has_physical_root {
+                    // 相対パスの先頭付近では `..` を保持する
+                    normalized.push(component.as_os_str());
+                }
+                // ルートを越える `..` は無視する
+            }
         }
     }
     normalized
