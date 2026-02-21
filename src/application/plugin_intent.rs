@@ -61,9 +61,10 @@ impl PluginIntent {
         self.components.len()
     }
 
-    /// Functional Core: 低レベルファイル操作に展開（完全に純粋）
+    /// Functional Core: 低レベルファイル操作に展開する。
     ///
-    /// ファイルシステムにアクセスしない。保持済みデータのみ使用。
+    /// 主に保持済みデータを使用して展開を行うが、`create_operation` 内での
+    /// パスの検証や正規化などに伴い、ファイルシステムを参照することがある。
     /// target_filter が設定されている場合は、そのターゲットのみを対象とする。
     pub fn expand(&self) -> Vec<(TargetId, FileOperation)> {
         let targets = all_targets();
