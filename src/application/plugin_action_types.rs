@@ -63,7 +63,7 @@ impl ScopedPath {
                 ))
             })?
         } else {
-            resolve_nonexistent_path(&path)
+            resolve_nonexistent_path(&path)?
         };
 
         if !check_path.starts_with(&canonical_root) {
@@ -124,26 +124,55 @@ pub(crate) fn normalize_path(path: &Path) -> PathBuf {
 }
 
 /// 存在しないパスを、既存の祖先ディレクトリを基点に正規化する
-fn resolve_nonexistent_path(path: &Path) -> PathBuf {
+///
+/// `symlink_metadata` を使用してダングリングシンボリックリンクを検出し、
+/// 発見した場合はエラーを返す（fail closed）。
+fn resolve_nonexistent_path(path: &Path) -> Result<PathBuf> {
+    // パス自体がダングリングシンボリックリンクかチェック
+    if let Ok(meta) = std::fs::symlink_metadata(path) {
+        if meta.is_symlink() {
+            return Err(PlmError::Validation(format!(
+                "Dangling symlink detected at '{}'",
+                path.display()
+            )));
+        }
+    }
+
     let mut ancestors = path.ancestors();
     let _ = ancestors.next(); // 自分自身をスキップ
 
     for ancestor in ancestors {
-        if !ancestor.exists() {
-            continue;
-        }
-        let canonical_ancestor = match ancestor.canonicalize() {
-            Ok(p) => p,
-            Err(_) => continue,
-        };
-        if let Ok(relative) = path.strip_prefix(ancestor) {
-            let mut full = canonical_ancestor;
-            full.push(relative);
-            return normalize_path(&full);
+        match std::fs::symlink_metadata(ancestor) {
+            Ok(meta) => {
+                // ダングリングシンボリックリンクを検出
+                if meta.is_symlink() && !ancestor.exists() {
+                    return Err(PlmError::Validation(format!(
+                        "Dangling symlink detected at '{}' in path '{}'",
+                        ancestor.display(),
+                        path.display()
+                    )));
+                }
+
+                // 既存の祖先を正規化（IO/権限エラーは伝播）
+                let canonical_ancestor = ancestor.canonicalize().map_err(|e| {
+                    PlmError::Validation(format!(
+                        "Failed to canonicalize ancestor '{}': {}",
+                        ancestor.display(),
+                        e
+                    ))
+                })?;
+
+                if let Ok(relative) = path.strip_prefix(ancestor) {
+                    let mut full = canonical_ancestor;
+                    full.push(relative);
+                    return Ok(normalize_path(&full));
+                }
+            }
+            Err(_) => continue, // ファイルシステム上に存在しない
         }
     }
 
-    normalize_path(path)
+    Ok(normalize_path(path))
 }
 
 /// 低レベルファイル操作（内部用）
