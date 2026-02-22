@@ -64,6 +64,34 @@ fn test_scoped_path_allows_dotdot_within_root() {
     );
 }
 
+#[test]
+fn test_scoped_path_stores_validated_path() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let root = temp_dir.path();
+    let sub_dir = root.join("sub");
+    std::fs::create_dir_all(&sub_dir).unwrap();
+
+    // root/sub/../file.txt を渡すと、正規化された root/file.txt が保存される
+    let input_path = sub_dir.join("..").join("file.txt");
+    let scoped = ScopedPath::new(input_path.clone(), root).unwrap();
+    let stored = scoped.as_path();
+
+    // 保存されたパスに ".." が含まれていないことを確認（正規化済み）
+    assert!(
+        !stored
+            .components()
+            .any(|c| c == std::path::Component::ParentDir),
+        "Stored path should not contain '..' components, got: {}",
+        stored.display()
+    );
+    // 正規化後のパスがルート直下の file.txt を指すことを確認
+    assert!(
+        stored.ends_with("file.txt"),
+        "Stored path should end with file.txt, got: {}",
+        stored.display()
+    );
+}
+
 #[cfg(unix)]
 #[test]
 fn test_scoped_path_rejects_symlink_escaping_root() {

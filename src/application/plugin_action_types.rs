@@ -74,7 +74,7 @@ impl ScopedPath {
             )));
         }
 
-        Ok(Self { path })
+        Ok(Self { path: check_path })
     }
 
     /// パスを取得
