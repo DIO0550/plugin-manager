@@ -16,6 +16,15 @@ use crate::fs::{FileSystem, RealFs};
 use crate::target::{all_targets, AffectedTargets, OperationResult, PluginOrigin, Target};
 use std::path::{Path, PathBuf};
 
+/// `expand()` の結果
+#[derive(Debug)]
+pub struct ExpandResult {
+    /// 正常に生成されたファイル操作
+    pub operations: Vec<(TargetId, FileOperation)>,
+    /// パス検証エラー（ターゲットID, エラーメッセージ）
+    pub validation_errors: Vec<(TargetId, String)>,
+}
+
 /// プラグイン操作意図（事前スキャン済みデータを保持）
 #[derive(Debug)]
 pub struct PluginIntent {
@@ -66,33 +75,37 @@ impl PluginIntent {
     /// 主に保持済みデータを使用して展開を行うが、`create_operation` 内での
     /// パスの検証や正規化などに伴い、ファイルシステムを参照することがある。
     /// target_filter が設定されている場合は、そのターゲットのみを対象とする。
-    pub fn expand(&self) -> Vec<(TargetId, FileOperation)> {
+    ///
+    /// パス検証エラーが発生した場合は `ExpandResult::validation_errors` に記録される。
+    pub fn expand(&self) -> ExpandResult {
         let targets = all_targets();
         let origin =
             PluginOrigin::from_cached_plugin(self.action.marketplace(), self.action.plugin_name());
 
-        targets
-            .iter()
-            .filter(|target| {
-                // ターゲットフィルタが指定されている場合は一致するもののみ
-                match &self.target_filter {
-                    Some(filter) => target.name() == filter,
-                    None => true,
+        let mut operations = Vec::new();
+        let mut validation_errors = Vec::new();
+
+        for target in targets.iter().filter(|target| match &self.target_filter {
+            Some(filter) => target.name() == filter,
+            None => true,
+        }) {
+            for component in self.components.iter().filter(|c| target.supports(c.kind)) {
+                match self.create_operation(target.as_ref(), component, &origin) {
+                    Ok(Some(op)) => operations.push(op),
+                    Ok(None) => {} // placement not applicable
+                    Err((target_id, msg)) => validation_errors.push((target_id, msg)),
                 }
-            })
-            .flat_map(|target| {
-                self.components
-                    .iter()
-                    .filter(|component| target.supports(component.kind))
-                    .filter_map(|component| {
-                        self.create_operation(target.as_ref(), component, &origin)
-                    })
-            })
-            .collect()
+            }
+        }
+
+        ExpandResult {
+            operations,
+            validation_errors,
+        }
     }
 
     /// ドライラン: 実行予定の操作を確認
-    pub fn dry_run(&self) -> Vec<(TargetId, FileOperation)> {
+    pub fn dry_run(&self) -> ExpandResult {
         self.expand()
     }
 
@@ -113,12 +126,16 @@ impl PluginIntent {
     }
 
     /// 単一コンポーネントの操作を生成
+    ///
+    /// - `Ok(None)`: ターゲットがこのコンポーネントの配置場所を持たない（正常）
+    /// - `Ok(Some(...))`: 操作を正常に生成
+    /// - `Err(...)`: パス検証エラー（ディレクトリトラバーサル等）
     fn create_operation(
         &self,
         target: &dyn Target,
         component: &Component,
         origin: &PluginOrigin,
-    ) -> Option<(TargetId, FileOperation)> {
+    ) -> Result<Option<(TargetId, FileOperation)>, (TargetId, String)> {
         let context = PlacementContext {
             component: ComponentRef::new(component.kind, &component.name),
             origin,
@@ -126,36 +143,46 @@ impl PluginIntent {
             project: ProjectContext::new(&self.project_root),
         };
 
-        let location = target.placement_location(&context)?;
+        let location = match target.placement_location(&context) {
+            Some(loc) => loc,
+            None => return Ok(None),
+        };
         let target_path = location.into_path();
-        let scoped = ScopedPath::new(target_path, &self.project_root).ok()?;
+        let scoped = ScopedPath::new(target_path, &self.project_root).map_err(|e| {
+            (
+                TargetId::new(target.name()),
+                format!("Path validation failed: {}", e),
+            )
+        })?;
 
         let op = self.build_file_operation(component, scoped);
-        Some((TargetId::new(target.name()), op))
+        Ok(Some((TargetId::new(target.name()), op)))
     }
 
     /// Imperative Shell: 実行（副作用）
     pub fn apply(self) -> OperationResult {
-        let operations = self.expand();
-        execute_file_operations(operations, &self.project_root)
+        let result = self.expand();
+        execute_file_operations(result, &self.project_root)
     }
 }
 
 /// ファイル操作を実行
-fn execute_file_operations(
-    operations: Vec<(TargetId, FileOperation)>,
-    _project_root: &Path,
-) -> OperationResult {
+fn execute_file_operations(expand_result: ExpandResult, _project_root: &Path) -> OperationResult {
     use crate::path_ext::PathExt;
 
     let fs = RealFs;
     let mut affected = AffectedTargets::new();
 
+    // 検証エラーを記録
+    for (target_id, msg) in expand_result.validation_errors {
+        affected.record_error(target_id.as_str(), msg);
+    }
+
     // ターゲットごとにグループ化
     let mut by_target: std::collections::HashMap<TargetId, Vec<FileOperation>> =
         std::collections::HashMap::new();
 
-    for (target_id, op) in operations {
+    for (target_id, op) in expand_result.operations {
         by_target.entry(target_id).or_default().push(op);
     }
 

@@ -11,6 +11,7 @@ fn test_plugin_intent_expand_empty() {
         std::env::temp_dir(),
     );
 
-    let ops = intent.expand();
-    assert!(ops.is_empty());
+    let result = intent.expand();
+    assert!(result.operations.is_empty());
+    assert!(result.validation_errors.is_empty());
 }
