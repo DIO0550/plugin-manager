@@ -119,6 +119,54 @@ fn test_scoped_path_rejects_symlink_escaping_root() {
     );
 }
 
+#[cfg(unix)]
+#[test]
+fn test_scoped_path_rejects_dangling_symlink() {
+    use std::os::unix::fs::symlink;
+
+    let root_dir = tempfile::tempdir().unwrap();
+    let root = root_dir.path();
+
+    // 存在しないターゲットを指すダングリングシンボリックリンクを作成
+    let dangling_link = root.join("dangling_link");
+    symlink("/nonexistent/target", &dangling_link).unwrap();
+
+    // ダングリングシンボリックリンク自体がパスの場合
+    let result = ScopedPath::new(dangling_link.clone(), root);
+    assert!(result.is_err(), "Dangling symlink should be rejected");
+
+    // ダングリングシンボリックリンク配下のパスの場合
+    let path_through_dangling = dangling_link.join("file.txt");
+    let result = ScopedPath::new(path_through_dangling, root);
+    assert!(
+        result.is_err(),
+        "Path through dangling symlink should be rejected"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn test_scoped_path_rejects_dangling_symlink_in_ancestor() {
+    use std::os::unix::fs::symlink;
+
+    let root_dir = tempfile::tempdir().unwrap();
+    let root = root_dir.path();
+    let sub_dir = root.join("sub");
+    std::fs::create_dir_all(&sub_dir).unwrap();
+
+    // sub配下にダングリングシンボリックリンクを作成
+    let dangling_link = sub_dir.join("dangling");
+    symlink("/nonexistent/target", &dangling_link).unwrap();
+
+    // ダングリングシンボリックリンクを経由するパス
+    let path = dangling_link.join("subdir").join("file.txt");
+    let result = ScopedPath::new(path, root);
+    assert!(
+        result.is_err(),
+        "Path with dangling symlink ancestor should be rejected"
+    );
+}
+
 #[test]
 fn test_normalize_path() {
     // 絶対パスの .. 正規化
