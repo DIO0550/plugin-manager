@@ -5,12 +5,14 @@
 
 use super::constants::{AGENT_SUFFIX, MARKDOWN_SUFFIX, PROMPT_SUFFIX, SKILL_MANIFEST};
 use crate::path_ext::PathExt;
+use std::ffi::OsStr;
 use std::path::Path;
 
 /// スキル名一覧を取得
 ///
 /// 指定されたディレクトリ配下で `SKILL.md` を持つサブディレクトリを列挙し、
-/// そのディレクトリ名を返す。
+/// そのディレクトリ名を返す。ファイル名の判定はファイルシステムのケース感度に
+/// 依存しない厳密一致で行う。
 ///
 /// # Arguments
 /// * `skills_dir` - スキルディレクトリのパス
@@ -30,9 +32,24 @@ pub fn list_skill_names(skills_dir: &Path) -> Vec<String> {
     skills_dir
         .read_dir_entries()
         .into_iter()
-        .filter(|path| path.is_dir() && path.join(SKILL_MANIFEST).exists())
+        .filter(|path| path.is_dir() && has_exact_skill_manifest(path))
         .filter_map(|path| path.file_name().and_then(|n| n.to_str()).map(String::from))
         .collect()
+}
+
+/// サブディレクトリ内に正確に `SKILL.md` という名前のファイルが存在するか判定する。
+///
+/// `Path::exists()` はファイルシステムのケース感度に依存するため、
+/// `read_dir` で実際のファイル名を取得し、`OsStr` レベルで厳密比較する。
+/// `read_dir` が失敗した場合（権限エラー等）は `false` を返す。
+fn has_exact_skill_manifest(dir: &Path) -> bool {
+    let expected = OsStr::new(SKILL_MANIFEST);
+    std::fs::read_dir(dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter(|entry| entry.file_type().map_or(false, |ft| ft.is_file()))
+        .any(|entry| entry.file_name() == expected)
 }
 
 /// エージェント名一覧を取得

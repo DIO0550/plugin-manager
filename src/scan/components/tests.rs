@@ -333,6 +333,46 @@ fn test_list_skill_names_ignores_files() {
     assert!(names.is_empty());
 }
 
+#[test]
+fn test_list_skill_names_skill_md_uppercase_extension_rejected() {
+    // "SKILL.MD"（拡張子大文字）は認識されない
+    let temp_dir = TempDir::new().unwrap();
+    let skills_dir = temp_dir.path();
+
+    let skill = skills_dir.join("skill1");
+    fs::create_dir(&skill).unwrap();
+    fs::write(skill.join("SKILL.MD"), "# Skill").unwrap();
+
+    let names = list_skill_names(skills_dir);
+    assert!(names.is_empty());
+}
+
+#[test]
+fn test_list_skill_names_empty_subdir_not_detected() {
+    // 空のサブディレクトリはスキルとして検出されない
+    let temp_dir = TempDir::new().unwrap();
+    let skills_dir = temp_dir.path();
+
+    fs::create_dir(skills_dir.join("empty_skill")).unwrap();
+
+    let names = list_skill_names(skills_dir);
+    assert!(names.is_empty());
+}
+
+#[test]
+fn test_list_skill_names_skill_md_directory_rejected() {
+    // "SKILL.md" という名前のディレクトリはスキルとして検出されない
+    let temp_dir = TempDir::new().unwrap();
+    let skills_dir = temp_dir.path();
+
+    let skill = skills_dir.join("skill1");
+    fs::create_dir(&skill).unwrap();
+    fs::create_dir(skill.join("SKILL.md")).unwrap(); // ファイルではなくディレクトリ
+
+    let names = list_skill_names(skills_dir);
+    assert!(names.is_empty());
+}
+
 // =========================================================================
 // 境界値テスト: list_agent_names
 // =========================================================================
