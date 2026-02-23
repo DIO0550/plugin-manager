@@ -359,6 +359,20 @@ fn test_list_skill_names_empty_subdir_not_detected() {
     assert!(names.is_empty());
 }
 
+#[test]
+fn test_list_skill_names_skill_md_directory_rejected() {
+    // "SKILL.md" という名前のディレクトリはスキルとして検出されない
+    let temp_dir = TempDir::new().unwrap();
+    let skills_dir = temp_dir.path();
+
+    let skill = skills_dir.join("skill1");
+    fs::create_dir(&skill).unwrap();
+    fs::create_dir(skill.join("SKILL.md")).unwrap(); // ファイルではなくディレクトリ
+
+    let names = list_skill_names(skills_dir);
+    assert!(names.is_empty());
+}
+
 // =========================================================================
 // 境界値テスト: list_agent_names
 // =========================================================================
