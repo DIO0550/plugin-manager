@@ -7,7 +7,6 @@ use crate::application::{enable_plugin, OperationResult};
 use crate::plugin::{meta, PluginCache};
 use clap::{Parser, ValueEnum};
 use std::env;
-use std::process;
 
 #[derive(Debug, Clone, ValueEnum)]
 pub enum TargetKind {
@@ -43,11 +42,10 @@ pub async fn run(args: Args) -> Result<(), String> {
 
     // プラグインがキャッシュに存在するか確認
     if !cache.is_cached(Some(&args.marketplace), &args.name) {
-        eprintln!(
+        return Err(format!(
             "Error: Plugin '{}' not found in cache (marketplace: {})",
             args.name, args.marketplace
-        );
-        process::exit(1);
+        ));
     }
 
     let project_root = env::current_dir().unwrap_or_else(|_| ".".into());
@@ -65,14 +63,28 @@ pub async fn run(args: Args) -> Result<(), String> {
     let plugin_path = cache.plugin_path(Some(&args.marketplace), &args.name);
     update_status_after_enable(&plugin_path, &result);
 
-    // 結果表示
-    display_result(&args.name, &result, target_filter);
-
-    // 終了コード
+    // 結果表示と終了コード
     if result.success {
+        display_result(&args.name, &result, target_filter);
         Ok(())
     } else {
-        process::exit(1);
+        // 部分成功の場合は先に表示
+        let successful_targets = result.affected_targets.target_names();
+        if !successful_targets.is_empty() {
+            println!(
+                "  Partially enabled: {} target(s) succeeded",
+                successful_targets.len()
+            );
+        }
+        // エラーメッセージを Err に格納
+        if let Some(error) = &result.error {
+            Err(format!(
+                "Error: Failed to enable plugin '{}': {}",
+                args.name, error
+            ))
+        } else {
+            Err(format!("Error: Failed to enable plugin '{}'", args.name))
+        }
     }
 }
 
@@ -96,45 +108,28 @@ fn update_status_after_enable(plugin_path: &std::path::Path, result: &OperationR
     }
 }
 
-/// 結果を表示
+/// 成功時の結果を表示
 fn display_result(plugin_name: &str, result: &OperationResult, target_filter: Option<&str>) {
-    if result.success {
-        let targets = result.affected_targets.target_names();
-        if targets.is_empty() {
-            // ターゲット指定で未対応の場合
-            if let Some(filter) = target_filter {
-                println!(
-                    "Skipped: Plugin '{}' has no components for target '{}'",
-                    plugin_name, filter
-                );
-            } else {
-                println!("Enabled: Plugin '{}' (no components deployed)", plugin_name);
-            }
-        } else {
-            let target_list = targets.join(", ");
-            let component_count = result.affected_targets.total_components();
+    let targets = result.affected_targets.target_names();
+    if targets.is_empty() {
+        if let Some(filter) = target_filter {
             println!(
-                "Enabled: Plugin '{}' ({} component(s) deployed to {})",
-                plugin_name, component_count, target_list
+                "Skipped: Plugin '{}' has no components for target '{}'",
+                plugin_name, filter
             );
+        } else {
+            println!("Enabled: Plugin '{}' (no components deployed)", plugin_name);
         }
     } else {
-        if let Some(error) = &result.error {
-            eprintln!(
-                "Error: Failed to enable plugin '{}': {}",
-                plugin_name, error
-            );
-        } else {
-            eprintln!("Error: Failed to enable plugin '{}'", plugin_name);
-        }
-
-        // 部分成功の場合
-        let successful_targets = result.affected_targets.target_names();
-        if !successful_targets.is_empty() {
-            println!(
-                "  Partially enabled: {} target(s) succeeded",
-                successful_targets.len()
-            );
-        }
+        let target_list = targets.join(", ");
+        let component_count = result.affected_targets.total_components();
+        println!(
+            "Enabled: Plugin '{}' ({} component(s) deployed to {})",
+            plugin_name, component_count, target_list
+        );
     }
 }
+
+#[cfg(test)]
+#[path = "enable_test.rs"]
+mod tests;
