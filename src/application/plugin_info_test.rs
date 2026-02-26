@@ -1,6 +1,7 @@
 use super::*;
 use crate::plugin::PluginCache;
 use std::fs;
+use std::path::Path;
 use tempfile::TempDir;
 
 fn create_test_cache() -> (TempDir, PluginCache) {
