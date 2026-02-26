@@ -128,7 +128,9 @@ impl PluginCacheAccess for PluginCache {
     }
 
     fn is_cached(&self, marketplace: Option<&str>, name: &str) -> bool {
-        self.plugin_path(marketplace, name).exists()
+        let fs = RealFs;
+        let plugin_path = self.plugin_path(marketplace, name);
+        fs.exists(&plugin_path)
     }
 
     fn store_from_archive(
