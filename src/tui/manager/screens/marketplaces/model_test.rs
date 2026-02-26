@@ -13,11 +13,11 @@ fn make_marketplace(name: &str) -> MarketplaceItem {
 }
 
 fn make_data(names: &[&str]) -> DataStore {
-    DataStore {
-        plugins: vec![],
-        marketplaces: names.iter().map(|n| make_marketplace(n)).collect(),
-        last_error: None,
-    }
+    DataStore::for_test(
+        vec![],
+        names.iter().map(|n| make_marketplace(n)).collect(),
+        None,
+    )
 }
 
 // ============================================================================

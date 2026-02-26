@@ -36,6 +36,8 @@ pub struct MarketplaceItem {
 
 /// 共有データストア
 pub struct DataStore {
+    /// プラグインキャッシュ（再利用のため保持）
+    cache: PluginCache,
     /// インストール済みプラグイン一覧
     pub plugins: Vec<PluginSummary>,
     /// マーケットプレイス一覧
@@ -53,6 +55,7 @@ impl DataStore {
         let LoadMarketplacesResult { items, error } = load_marketplaces();
 
         Ok(Self {
+            cache,
             plugins,
             marketplaces: items,
             last_error: error,
@@ -61,9 +64,8 @@ impl DataStore {
 
     /// データストアをリロード（list_installed_plugins() で全体再取得）
     pub fn reload(&mut self) -> io::Result<()> {
-        let cache = PluginCache::new().map_err(|e| io::Error::other(e.to_string()))?;
         self.plugins =
-            list_installed_plugins(&cache).map_err(|e| io::Error::other(e.to_string()))?;
+            list_installed_plugins(&self.cache).map_err(|e| io::Error::other(e.to_string()))?;
         let result = load_marketplaces();
         self.marketplaces = result.items;
         // 既存の last_error を上書きせず、マーケットプレイス読み込みエラーを追記/保存する
@@ -201,5 +203,26 @@ fn merge_errors(existing: Option<String>, new: Option<String>) -> Option<String>
         (Some(prev), Some(next)) => Some(format!("{}\n{}", prev, next)),
         (Some(prev), None) => Some(prev),
         (None, next) => next,
+    }
+}
+
+#[cfg(test)]
+impl DataStore {
+    /// テスト用コンストラクタ（PluginCache を使わない軽量版）
+    pub fn for_test(
+        plugins: Vec<PluginSummary>,
+        marketplaces: Vec<MarketplaceItem>,
+        last_error: Option<String>,
+    ) -> Self {
+        // テスト用に一時ディレクトリでキャッシュを構築
+        let cache_dir = std::env::temp_dir().join("plm-test-cache");
+        let cache =
+            PluginCache::with_cache_dir(cache_dir).expect("Failed to create test PluginCache");
+        Self {
+            cache,
+            plugins,
+            marketplaces,
+            last_error,
+        }
     }
 }
