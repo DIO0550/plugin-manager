@@ -5,7 +5,7 @@
 
 use super::model::UpdateStatusDisplay;
 use crate::application;
-use crate::plugin::{update_plugin, UpdateStatus};
+use crate::plugin::{update_plugin, PluginCache, UpdateStatus};
 use std::env;
 use std::path::Path;
 
@@ -30,20 +30,32 @@ impl From<application::OperationResult> for ActionResult {
 
 /// プラグインを Disable（デプロイ先から削除、キャッシュは残す）
 pub fn disable_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionResult {
+    let cache = match PluginCache::new() {
+        Ok(c) => c,
+        Err(e) => return ActionResult::Error(format!("Failed to access cache: {}", e)),
+    };
     let project_root = env::current_dir().unwrap_or_else(|_| ".".into());
-    application::disable_plugin(plugin_name, marketplace, &project_root, None).into()
+    application::disable_plugin(&cache, plugin_name, marketplace, &project_root, None).into()
 }
 
 /// プラグインを Uninstall（デプロイ先 + キャッシュ削除）
 pub fn uninstall_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionResult {
+    let cache = match PluginCache::new() {
+        Ok(c) => c,
+        Err(e) => return ActionResult::Error(format!("Failed to access cache: {}", e)),
+    };
     let project_root = env::current_dir().unwrap_or_else(|_| ".".into());
-    application::uninstall_plugin(plugin_name, marketplace, &project_root).into()
+    application::uninstall_plugin(&cache, plugin_name, marketplace, &project_root).into()
 }
 
 /// プラグインを Enable（キャッシュからデプロイ先に配置）
 pub fn enable_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionResult {
+    let cache = match PluginCache::new() {
+        Ok(c) => c,
+        Err(e) => return ActionResult::Error(format!("Failed to access cache: {}", e)),
+    };
     let project_root = env::current_dir().unwrap_or_else(|_| ".".into());
-    application::enable_plugin(plugin_name, marketplace, &project_root, None).into()
+    application::enable_plugin(&cache, plugin_name, marketplace, &project_root, None).into()
 }
 
 /// stdout/stderr を一時的に抑制する RAII ガード
@@ -214,8 +226,15 @@ fn run_update_plugin(plugin_name: &str, project_root: &Path) -> UpdateStatusDisp
         }
     };
 
+    let cache = match PluginCache::new() {
+        Ok(c) => c,
+        Err(e) => {
+            return UpdateStatusDisplay::Failed(format!("Failed to access cache: {}", e));
+        }
+    };
+
     let result = tokio::task::block_in_place(|| {
-        handle.block_on(update_plugin(plugin_name, project_root, None))
+        handle.block_on(update_plugin(&cache, plugin_name, project_root, None))
     });
 
     match result.status {

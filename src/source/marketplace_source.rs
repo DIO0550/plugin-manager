@@ -2,7 +2,7 @@
 
 use crate::error::{PlmError, Result};
 use crate::marketplace::{MarketplaceRegistry, PluginSource as MpPluginSource, PluginSourcePath};
-use crate::plugin::CachedPlugin;
+use crate::plugin::{CachedPlugin, PluginCacheAccess};
 use crate::repo;
 use std::future::Future;
 use std::pin::Pin;
@@ -25,10 +25,11 @@ impl MarketplaceSource {
 }
 
 impl PluginSource for MarketplaceSource {
-    fn download(
-        &self,
+    fn download<'a>(
+        &'a self,
+        cache: &'a dyn PluginCacheAccess,
         force: bool,
-    ) -> Pin<Box<dyn Future<Output = Result<CachedPlugin>> + Send + '_>> {
+    ) -> Pin<Box<dyn Future<Output = Result<CachedPlugin>> + Send + 'a>> {
         Box::pin(async move {
             let registry = MarketplaceRegistry::new()?;
 
@@ -70,14 +71,14 @@ impl PluginSource for MarketplaceSource {
                         self.marketplace.clone(),
                         source_path.into(),
                     )
-                    .download(force)
+                    .download(cache, force)
                     .await
                 }
                 MpPluginSource::External { repo: repo_url, .. } => {
                     let repo = repo::from_url(repo_url)?;
                     // Git ソースに委譲（marketplace 情報を渡す）
                     GitHubSource::with_marketplace(repo, self.marketplace.clone())
-                        .download(force)
+                        .download(cache, force)
                         .await
                 }
             }

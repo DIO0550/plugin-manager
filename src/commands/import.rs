@@ -7,6 +7,7 @@ use crate::component::{AgentFormat, Component, ComponentDeployment, ComponentKin
 use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
 use crate::import::{ImportRecord, ImportRegistry};
 use crate::output::CommandSummary;
+use crate::plugin::PluginCache;
 use crate::source::parse_source;
 use crate::target::{all_targets, parse_target, PluginOrigin, Scope, Target, TargetKind};
 use crate::tui;
@@ -363,8 +364,9 @@ pub async fn run(args: Args) -> Result<(), String> {
 
     // 5. Download plugin
     println!("\nDownloading plugin...");
+    let cache = PluginCache::new().map_err(|e| e.to_string())?;
     let cached_plugin = source
-        .download(args.force)
+        .download(&cache, args.force)
         .await
         .map_err(|e| e.to_string())?;
 

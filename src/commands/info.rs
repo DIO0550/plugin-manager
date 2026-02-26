@@ -3,6 +3,7 @@
 //! インストール済みプラグインの詳細情報を表示する。
 
 use crate::application::{get_plugin_info, PluginDetail, PluginSource};
+use crate::plugin::PluginCache;
 use clap::{Parser, ValueEnum};
 use comfy_table::{presets::UTF8_FULL, Table};
 
@@ -25,7 +26,8 @@ pub struct Args {
 }
 
 pub async fn run(args: Args) -> Result<(), String> {
-    let detail = get_plugin_info(&args.name).map_err(|e| e.to_string())?;
+    let cache = PluginCache::new().map_err(|e| e.to_string())?;
+    let detail = get_plugin_info(&cache, &args.name).map_err(|e| e.to_string())?;
 
     match args.format {
         OutputFormat::Table => print_table(&detail),

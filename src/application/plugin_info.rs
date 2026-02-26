@@ -5,7 +5,7 @@
 use super::plugin_catalog::list_all_placed;
 pub(super) use super::plugin_info_types::{AuthorInfo, ComponentInfo, PluginDetail, PluginSource};
 use crate::error::{PlmError, Result};
-use crate::plugin::{has_manifest, meta, PluginCache, PluginManifest};
+use crate::plugin::{has_manifest, meta, PluginCacheAccess, PluginManifest};
 use crate::scan::scan_components;
 use std::path::{Path, PathBuf};
 
@@ -22,9 +22,9 @@ struct PluginCandidate {
 ///
 /// # Arguments
 /// * `name` - プラグイン名（"plugin" または "marketplace/plugin" 形式）
-pub fn get_plugin_info(name: &str) -> Result<PluginDetail> {
+pub fn get_plugin_info(cache: &dyn PluginCacheAccess, name: &str) -> Result<PluginDetail> {
     let (marketplace_filter, plugin_name) = parse_plugin_name(name)?;
-    let candidates = find_plugin_candidates(&plugin_name)?;
+    let candidates = find_plugin_candidates(cache, &plugin_name)?;
     let resolved = resolve_single_plugin(candidates, marketplace_filter.as_deref(), &plugin_name)?;
     build_plugin_detail(resolved)
 }
@@ -80,8 +80,10 @@ fn parse_plugin_name(name: &str) -> Result<(Option<String>, String)> {
 }
 
 /// キャッシュ全体をスキャンし、manifest.name が一致するプラグインを列挙
-fn find_plugin_candidates(name: &str) -> Result<Vec<PluginCandidate>> {
-    let cache = PluginCache::new()?;
+fn find_plugin_candidates(
+    cache: &dyn PluginCacheAccess,
+    name: &str,
+) -> Result<Vec<PluginCandidate>> {
     let plugin_list = cache.list()?;
 
     let mut candidates = Vec::new();

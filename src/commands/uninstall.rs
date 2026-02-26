@@ -1,4 +1,5 @@
 use crate::application::{self, UninstallInfo};
+use crate::plugin::PluginCache;
 use clap::Parser;
 use owo_colors::OwoColorize;
 use std::env;
@@ -19,11 +20,12 @@ pub struct Args {
 }
 
 pub async fn run(args: Args) -> Result<(), String> {
+    let cache = PluginCache::new().map_err(|e| format!("Failed to access cache: {}", e))?;
     let project_root =
         env::current_dir().map_err(|e| format!("Failed to get current dir: {}", e))?;
 
     // 1. 事前チェック: プラグイン存在確認 & 情報取得
-    let info = application::get_uninstall_info(&args.name, args.marketplace.as_deref())?;
+    let info = application::get_uninstall_info(&cache, &args.name, args.marketplace.as_deref())?;
 
     // 2. 削除対象の情報表示
     display_uninstall_info(&info);
@@ -35,8 +37,12 @@ pub async fn run(args: Args) -> Result<(), String> {
     }
 
     // 4. 削除実行
-    let result =
-        application::uninstall_plugin(&args.name, args.marketplace.as_deref(), &project_root);
+    let result = application::uninstall_plugin(
+        &cache,
+        &args.name,
+        args.marketplace.as_deref(),
+        &project_root,
+    );
 
     // 5. 結果表示
     if result.success {

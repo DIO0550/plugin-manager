@@ -1,4 +1,84 @@
 use super::*;
+use crate::plugin::PluginCache;
+use std::fs;
+use tempfile::TempDir;
+
+fn create_test_cache() -> (TempDir, PluginCache) {
+    let temp_dir = TempDir::new().unwrap();
+    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+    (temp_dir, cache)
+}
+
+/// tempdir cache 内にプラグインフィクスチャを作成
+fn setup_plugin_fixture(cache_dir: &Path, marketplace: &str, name: &str, version: &str) {
+    let plugin_dir = cache_dir.join(marketplace).join(name);
+    fs::create_dir_all(&plugin_dir).unwrap();
+
+    let manifest = format!(r#"{{"name":"{}","version":"{}"}}"#, name, version);
+    fs::write(plugin_dir.join("plugin.json"), manifest).unwrap();
+}
+
+// ========================================
+// find_plugin_candidates tests (cache-based)
+// ========================================
+
+#[test]
+fn test_find_plugin_candidates_empty_cache() {
+    let (_temp_dir, cache) = create_test_cache();
+    let result = find_plugin_candidates(&cache, "nonexistent").unwrap();
+    assert!(result.is_empty());
+}
+
+#[test]
+fn test_find_plugin_candidates_found() {
+    let (temp_dir, cache) = create_test_cache();
+    setup_plugin_fixture(temp_dir.path(), "github", "my-plugin", "1.0.0");
+
+    let result = find_plugin_candidates(&cache, "my-plugin").unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].marketplace, "github");
+    assert_eq!(result[0].manifest.name, "my-plugin");
+}
+
+#[test]
+fn test_find_plugin_candidates_multiple_marketplaces() {
+    let (temp_dir, cache) = create_test_cache();
+    setup_plugin_fixture(temp_dir.path(), "github", "common-plugin", "1.0.0");
+    setup_plugin_fixture(temp_dir.path(), "my-market", "common-plugin", "2.0.0");
+
+    let result = find_plugin_candidates(&cache, "common-plugin").unwrap();
+    assert_eq!(result.len(), 2);
+}
+
+// ========================================
+// get_plugin_info tests (cache-based)
+// ========================================
+
+#[test]
+fn test_get_plugin_info_found() {
+    let (temp_dir, cache) = create_test_cache();
+    setup_plugin_fixture(temp_dir.path(), "github", "test-plugin", "1.2.3");
+
+    let result = get_plugin_info(&cache, "test-plugin").unwrap();
+    assert_eq!(result.name, "test-plugin");
+    assert_eq!(result.version, "1.2.3");
+}
+
+#[test]
+fn test_get_plugin_info_not_found() {
+    let (_temp_dir, cache) = create_test_cache();
+    let result = get_plugin_info(&cache, "nonexistent");
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_get_plugin_info_with_marketplace_prefix() {
+    let (temp_dir, cache) = create_test_cache();
+    setup_plugin_fixture(temp_dir.path(), "my-market", "my-plugin", "1.0.0");
+
+    let result = get_plugin_info(&cache, "my-market/my-plugin").unwrap();
+    assert_eq!(result.name, "my-plugin");
+}
 
 // ========================================
 // parse_plugin_name tests

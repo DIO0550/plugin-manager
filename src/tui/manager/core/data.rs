@@ -6,6 +6,7 @@
 use crate::application::{list_installed_plugins, PluginSummary};
 use crate::component::{ComponentKind, ComponentName, ComponentTypeCount};
 use crate::marketplace::{to_display_source, MarketplaceConfig, MarketplaceRegistry};
+use crate::plugin::PluginCache;
 use std::io;
 
 // ============================================================================
@@ -46,7 +47,9 @@ pub struct DataStore {
 impl DataStore {
     /// 新しいデータストアを作成
     pub fn new() -> io::Result<Self> {
-        let plugins = list_installed_plugins().map_err(|e| io::Error::other(e.to_string()))?;
+        let cache = PluginCache::new().map_err(|e| io::Error::other(e.to_string()))?;
+        let plugins =
+            list_installed_plugins(&cache).map_err(|e| io::Error::other(e.to_string()))?;
         let LoadMarketplacesResult { items, error } = load_marketplaces();
 
         Ok(Self {
@@ -58,7 +61,9 @@ impl DataStore {
 
     /// データストアをリロード（list_installed_plugins() で全体再取得）
     pub fn reload(&mut self) -> io::Result<()> {
-        self.plugins = list_installed_plugins().map_err(|e| io::Error::other(e.to_string()))?;
+        let cache = PluginCache::new().map_err(|e| io::Error::other(e.to_string()))?;
+        self.plugins =
+            list_installed_plugins(&cache).map_err(|e| io::Error::other(e.to_string()))?;
         let result = load_marketplaces();
         self.marketplaces = result.items;
         // 既存の last_error を上書きせず、マーケットプレイス読み込みエラーを追記/保存する

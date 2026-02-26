@@ -4,7 +4,8 @@
 //!
 //! ```ignore
 //! let source = parse_source("owner/repo")?;
-//! let plugin = source.download(false).await?;
+//! let cache = PluginCache::new()?;
+//! let plugin = source.download(&cache, false).await?;
 //! ```
 
 mod github_source;
@@ -16,7 +17,7 @@ pub use marketplace_source::MarketplaceSource;
 pub use search_source::SearchSource;
 
 use crate::error::Result;
-use crate::plugin::CachedPlugin;
+use crate::plugin::{CachedPlugin, PluginCacheAccess};
 use crate::repo;
 use std::future::Future;
 use std::pin::Pin;
@@ -27,10 +28,11 @@ use std::pin::Pin;
 /// 使う側は具体的なソースタイプを意識せず `download()` を呼ぶだけ。
 pub trait PluginSource: Send + Sync {
     /// プラグインをダウンロードする
-    fn download(
-        &self,
+    fn download<'a>(
+        &'a self,
+        cache: &'a dyn PluginCacheAccess,
         force: bool,
-    ) -> Pin<Box<dyn Future<Output = Result<CachedPlugin>> + Send + '_>>;
+    ) -> Pin<Box<dyn Future<Output = Result<CachedPlugin>> + Send + 'a>>;
 }
 
 /// 入力文字列をパースして適切な PluginSource を返す

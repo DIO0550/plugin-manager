@@ -2,7 +2,7 @@
 
 use crate::error::Result;
 use crate::host::HostClientFactory;
-use crate::plugin::{meta, CachedPlugin, PluginCache};
+use crate::plugin::{meta, CachedPlugin, PluginCacheAccess};
 use crate::repo::Repo;
 use std::future::Future;
 use std::pin::Pin;
@@ -55,14 +55,14 @@ impl GitHubSource {
 }
 
 impl PluginSource for GitHubSource {
-    fn download(
-        &self,
+    fn download<'a>(
+        &'a self,
+        cache: &'a dyn PluginCacheAccess,
         force: bool,
-    ) -> Pin<Box<dyn Future<Output = Result<CachedPlugin>> + Send + '_>> {
+    ) -> Pin<Box<dyn Future<Output = Result<CachedPlugin>> + Send + 'a>> {
         Box::pin(async move {
             let factory = HostClientFactory::with_defaults();
             let client = factory.create(self.repo.host());
-            let cache = PluginCache::new()?;
             let plugin_name = self.repo.name();
             let marketplace = self.marketplace.as_deref();
 

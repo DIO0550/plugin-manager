@@ -7,6 +7,10 @@ fn plm() -> Command {
     Command::cargo_bin("plm").unwrap()
 }
 
+// Note: HOME 環境変数の設定は統合テストで必要。
+// CLI バイナリ内部で PluginCache::new() が HOME に基づいてキャッシュパスを解決するため、
+// ユニットテストの DI とは無関係にこの操作が必要。
+
 #[test]
 fn test_enable_cache_not_found_shows_error_once() {
     let home = TempDir::new().unwrap();
