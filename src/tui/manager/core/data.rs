@@ -208,7 +208,7 @@ fn merge_errors(existing: Option<String>, new: Option<String>) -> Option<String>
 
 #[cfg(test)]
 impl DataStore {
-    /// テスト用コンストラクタ（PluginCache を使わない軽量版）
+    /// テスト用コンストラクタ（一時キャッシュ使用）
     pub fn for_test(
         plugins: Vec<PluginSummary>,
         marketplaces: Vec<MarketplaceItem>,
