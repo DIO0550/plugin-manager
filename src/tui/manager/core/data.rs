@@ -214,8 +214,12 @@ impl DataStore {
         marketplaces: Vec<MarketplaceItem>,
         last_error: Option<String>,
     ) -> Self {
-        // テスト用に一時ディレクトリでキャッシュを構築
-        let cache_dir = std::env::temp_dir().join("plm-test-cache");
+        // テスト用に一時ディレクトリでキャッシュを構築（テストごとにユニークなディレクトリを使用）
+        let unique_suffix = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let cache_dir = std::env::temp_dir().join(format!("plm-test-cache-{unique_suffix}"));
         let cache =
             PluginCache::with_cache_dir(cache_dir).expect("Failed to create test PluginCache");
         Self {
