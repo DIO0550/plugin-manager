@@ -231,11 +231,10 @@ fn run_update_plugin(plugin_name: &str, project_root: &Path) -> UpdateStatusDisp
         }
     };
 
-    let cache = match PluginCache::new() {
+    let cache = match new_cache() {
         Ok(c) => c,
-        Err(e) => {
-            return UpdateStatusDisplay::Failed(format!("Failed to access cache: {}", e));
-        }
+        Err(ActionResult::Error(msg)) => return UpdateStatusDisplay::Failed(msg),
+        Err(_) => return UpdateStatusDisplay::Failed("Failed to access cache".to_string()),
     };
 
     let result = tokio::task::block_in_place(|| {
