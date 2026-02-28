@@ -1,7 +1,7 @@
 //! 共有データストア
 //!
 //! 全タブで共有されるデータを一元管理する。
-//! Application層のDTOのみを保持する。
+//! Application層のDTOとプラグインキャッシュを保持する。
 
 use crate::application::{list_installed_plugins, PluginSummary};
 use crate::component::{ComponentKind, ComponentName, ComponentTypeCount};
