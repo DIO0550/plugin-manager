@@ -19,7 +19,7 @@ fn make_plugin(name: &str) -> PluginSummary {
     }
 }
 
-fn make_data(names: &[&str]) -> DataStore {
+fn make_data(names: &[&str]) -> (tempfile::TempDir, DataStore) {
     DataStore::for_test(names.iter().map(|n| make_plugin(n)).collect(), vec![], None)
 }
 
@@ -65,7 +65,7 @@ fn existing_keys_still_work() {
 
 #[test]
 fn to_cache_preserves_marked_ids() {
-    let data = make_data(&["plugin-a", "plugin-b"]);
+    let (_temp_dir, data) = make_data(&["plugin-a", "plugin-b"]);
     let mut model = Model::new(&data);
 
     // マーク状態を設定
@@ -80,7 +80,7 @@ fn to_cache_preserves_marked_ids() {
 
 #[test]
 fn from_cache_restores_marked_ids() {
-    let data = make_data(&["plugin-a", "plugin-b"]);
+    let (_temp_dir, data) = make_data(&["plugin-a", "plugin-b"]);
     let mut marked = HashSet::new();
     marked.insert("plugin-a".to_string());
 
@@ -104,7 +104,7 @@ fn from_cache_restores_marked_ids() {
 
 #[test]
 fn from_cache_excludes_missing_plugins_from_marked_ids() {
-    let data = make_data(&["plugin-a"]);
+    let (_temp_dir, data) = make_data(&["plugin-a"]);
     let mut marked = HashSet::new();
     marked.insert("plugin-a".to_string());
     marked.insert("deleted-plugin".to_string());

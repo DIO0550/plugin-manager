@@ -6,7 +6,7 @@ use crate::tui::manager::screens::installed;
 
 /// テスト用の最小構成 Model を構築するヘルパー
 fn make_model(filter_focused: bool, top_level: bool) -> Model {
-    let data = DataStore::for_test(vec![], vec![], None);
+    let (_temp_dir, data) = DataStore::for_test(vec![], vec![], None);
 
     let screen = if top_level {
         Screen::Installed(installed::Model::new(&data))

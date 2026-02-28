@@ -44,8 +44,6 @@ pub struct DataStore {
     pub marketplaces: Vec<MarketplaceItem>,
     /// 最後のエラー
     pub last_error: Option<String>,
-    /// テスト用一時ディレクトリ（ライフタイム保持用、Dropで自動クリーンアップ）
-    _temp_dir: Option<tempfile::TempDir>,
 }
 
 impl DataStore {
@@ -61,7 +59,6 @@ impl DataStore {
             plugins,
             marketplaces: items,
             last_error: error,
-            _temp_dir: None,
         })
     }
 
@@ -213,23 +210,25 @@ fn merge_errors(existing: Option<String>, new: Option<String>) -> Option<String>
 impl DataStore {
     /// テスト用コンストラクタ（一時キャッシュ使用）
     ///
-    /// `tempfile::TempDir` を使用してユニークな一時ディレクトリを作成し、
-    /// DataStore に保持することで Drop 時に自動クリーンアップされる。
+    /// `tempfile::TempDir` を使用してユニークな一時ディレクトリを作成する。
+    /// 呼び出し側で `TempDir` をスコープに保持し、Drop で自動クリーンアップされる。
     pub fn for_test(
         plugins: Vec<PluginSummary>,
         marketplaces: Vec<MarketplaceItem>,
         last_error: Option<String>,
-    ) -> Self {
+    ) -> (tempfile::TempDir, Self) {
         let temp_dir = tempfile::TempDir::new().expect("Failed to create temp directory for test");
         let cache_dir = temp_dir.path().to_path_buf();
         let cache =
             PluginCache::with_cache_dir(cache_dir).expect("Failed to create test PluginCache");
-        Self {
-            cache,
-            plugins,
-            marketplaces,
-            last_error,
-            _temp_dir: Some(temp_dir),
-        }
+        (
+            temp_dir,
+            Self {
+                cache,
+                plugins,
+                marketplaces,
+                last_error,
+            },
+        )
     }
 }

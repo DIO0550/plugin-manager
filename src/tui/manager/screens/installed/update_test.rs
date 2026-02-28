@@ -30,7 +30,7 @@ fn make_plugin(name: &str) -> PluginSummary {
     }
 }
 
-fn make_data(names: &[&str]) -> DataStore {
+fn make_data(names: &[&str]) -> (tempfile::TempDir, DataStore) {
     DataStore::for_test(names.iter().map(|n| make_plugin(n)).collect(), vec![], None)
 }
 
@@ -40,7 +40,7 @@ fn make_data(names: &[&str]) -> DataStore {
 
 #[test]
 fn toggle_mark_adds_selected_plugin() {
-    let mut data = make_data(&["plugin-a", "plugin-b"]);
+    let (_temp_dir, mut data) = make_data(&["plugin-a", "plugin-b"]);
     let mut model = Model::new(&data);
     let effect = update(&mut model, Msg::ToggleMark, &mut data, "");
 
@@ -56,7 +56,7 @@ fn toggle_mark_adds_selected_plugin() {
 
 #[test]
 fn toggle_mark_removes_already_marked_plugin() {
-    let mut data = make_data(&["plugin-a", "plugin-b"]);
+    let (_temp_dir, mut data) = make_data(&["plugin-a", "plugin-b"]);
     let mut model = Model::new(&data);
 
     // 1回目: マーク
@@ -77,7 +77,7 @@ fn toggle_mark_removes_already_marked_plugin() {
 
 #[test]
 fn toggle_all_marks_selects_all_filtered_plugins() {
-    let mut data = make_data(&["plugin-a", "plugin-b", "plugin-c"]);
+    let (_temp_dir, mut data) = make_data(&["plugin-a", "plugin-b", "plugin-c"]);
     let mut model = Model::new(&data);
 
     update(&mut model, Msg::ToggleAllMarks, &mut data, "");
@@ -93,7 +93,7 @@ fn toggle_all_marks_selects_all_filtered_plugins() {
 
 #[test]
 fn toggle_all_marks_deselects_when_all_marked() {
-    let mut data = make_data(&["plugin-a", "plugin-b"]);
+    let (_temp_dir, mut data) = make_data(&["plugin-a", "plugin-b"]);
     let mut model = Model::new(&data);
 
     // 全選択
@@ -110,7 +110,7 @@ fn toggle_all_marks_deselects_when_all_marked() {
 
 #[test]
 fn toggle_all_marks_preserves_marks_outside_filter() {
-    let mut data = make_data(&["alpha", "beta", "gamma"]);
+    let (_temp_dir, mut data) = make_data(&["alpha", "beta", "gamma"]);
     let mut model = Model::new(&data);
 
     // "alpha" を個別にマーク
@@ -139,7 +139,7 @@ fn toggle_all_marks_preserves_marks_outside_filter() {
 
 #[test]
 fn toggle_all_marks_with_filter_only_deselects_filtered() {
-    let mut data = make_data(&["alpha", "beta", "gamma"]);
+    let (_temp_dir, mut data) = make_data(&["alpha", "beta", "gamma"]);
     let mut model = Model::new(&data);
 
     // 全てマーク（フィルタなし）
@@ -172,7 +172,7 @@ fn toggle_all_marks_with_filter_only_deselects_filtered() {
 
 #[test]
 fn batch_update_with_no_marks_is_noop() {
-    let mut data = make_data(&["plugin-a"]);
+    let (_temp_dir, mut data) = make_data(&["plugin-a"]);
     let mut model = Model::new(&data);
 
     let effect = update(&mut model, Msg::BatchUpdate, &mut data, "");
@@ -195,7 +195,7 @@ fn batch_update_with_no_marks_is_noop() {
 
 #[test]
 fn batch_update_phase1_sets_updating_and_returns_execute_batch() {
-    let mut data = make_data(&["plugin-a", "plugin-b", "plugin-c"]);
+    let (_temp_dir, mut data) = make_data(&["plugin-a", "plugin-b", "plugin-c"]);
     let mut model = Model::new(&data);
 
     // plugin-a と plugin-c をマーク
@@ -242,7 +242,7 @@ fn batch_update_phase1_sets_updating_and_returns_execute_batch() {
 
 #[test]
 fn batch_update_phase1_clears_stale_statuses() {
-    let mut data = make_data(&["plugin-a", "plugin-b"]);
+    let (_temp_dir, mut data) = make_data(&["plugin-a", "plugin-b"]);
     let mut model = Model::new(&data);
 
     // plugin-a をマークして Phase 1 実行（stale ステータスを作る）
@@ -293,7 +293,7 @@ fn batch_update_phase1_clears_stale_statuses() {
 
 #[test]
 fn update_now_transitions_to_plugin_list_with_updating_status() {
-    let mut data = make_data(&["plugin-a", "plugin-b"]);
+    let (_temp_dir, mut data) = make_data(&["plugin-a", "plugin-b"]);
     let mut model = Model::new(&data);
 
     // PluginList → PluginDetail に遷移
@@ -345,7 +345,7 @@ fn update_now_transitions_to_plugin_list_with_updating_status() {
 
 #[test]
 fn update_now_restores_saved_marks() {
-    let mut data = make_data(&["plugin-a", "plugin-b", "plugin-c"]);
+    let (_temp_dir, mut data) = make_data(&["plugin-a", "plugin-b", "plugin-c"]);
     let mut model = Model::new(&data);
 
     // plugin-a をマーク
@@ -374,7 +374,7 @@ fn update_now_restores_saved_marks() {
 
 #[test]
 fn update_now_returns_execute_batch_effect() {
-    let mut data = make_data(&["plugin-a"]);
+    let (_temp_dir, mut data) = make_data(&["plugin-a"]);
     let mut model = Model::new(&data);
 
     // PluginList → PluginDetail に遷移
@@ -395,7 +395,7 @@ fn update_now_returns_execute_batch_effect() {
 
 #[test]
 fn update_now_clears_stale_statuses() {
-    let mut data = make_data(&["plugin-a", "plugin-b"]);
+    let (_temp_dir, mut data) = make_data(&["plugin-a", "plugin-b"]);
     let mut model = Model::new(&data);
 
     // PluginList → PluginDetail に遷移
@@ -442,7 +442,7 @@ fn update_now_clears_stale_statuses() {
 
 #[test]
 fn update_all_sets_all_plugins_to_updating() {
-    let mut data = make_data(&["plugin-a", "plugin-b", "plugin-c"]);
+    let (_temp_dir, mut data) = make_data(&["plugin-a", "plugin-b", "plugin-c"]);
     let mut model = Model::new(&data);
 
     let effect = update(&mut model, Msg::UpdateAll, &mut data, "");
@@ -476,7 +476,7 @@ fn update_all_sets_all_plugins_to_updating() {
 
 #[test]
 fn update_all_ignores_filter() {
-    let mut data = make_data(&["alpha", "beta", "gamma"]);
+    let (_temp_dir, mut data) = make_data(&["alpha", "beta", "gamma"]);
     let mut model = Model::new(&data);
 
     // フィルタありでも全プラグインが Updating になること
@@ -503,7 +503,7 @@ fn update_all_ignores_filter() {
 
 #[test]
 fn update_all_on_empty_list_does_nothing() {
-    let mut data = make_data(&[]);
+    let (_temp_dir, mut data) = make_data(&[]);
     let mut model = Model::new(&data);
 
     let effect = update(&mut model, Msg::UpdateAll, &mut data, "");
@@ -516,7 +516,7 @@ fn update_all_on_empty_list_does_nothing() {
 
 #[test]
 fn update_all_clears_stale_statuses() {
-    let mut data = make_data(&["plugin-a", "plugin-b"]);
+    let (_temp_dir, mut data) = make_data(&["plugin-a", "plugin-b"]);
     let mut model = Model::new(&data);
 
     // stale ステータスを手動でセット
@@ -561,7 +561,7 @@ fn update_all_clears_stale_statuses() {
 
 #[test]
 fn execute_batch_removes_stale_marks_for_nonexistent_plugins() {
-    let mut data = make_data(&["plugin-a", "plugin-b"]);
+    let (_temp_dir, mut data) = make_data(&["plugin-a", "plugin-b"]);
     let mut model = Model::new(&data);
 
     // plugin-a と "plugin-removed"（存在しない）をマーク
@@ -595,7 +595,7 @@ fn execute_batch_removes_stale_marks_for_nonexistent_plugins() {
 
 #[test]
 fn execute_batch_collects_from_update_statuses() {
-    let mut data = make_data(&["plugin-a", "plugin-b", "plugin-c"]);
+    let (_temp_dir, mut data) = make_data(&["plugin-a", "plugin-b", "plugin-c"]);
     let mut model = Model::new(&data);
 
     // update_statuses に直接 Updating をセット（execute_batch はここから収集する）
@@ -639,7 +639,7 @@ fn execute_batch_collects_from_update_statuses() {
 
 #[test]
 fn execute_batch_preserves_marks_when_not_all_marked_are_updated() {
-    let mut data = make_data(&["plugin-a", "plugin-b", "plugin-c"]);
+    let (_temp_dir, mut data) = make_data(&["plugin-a", "plugin-b", "plugin-c"]);
     let mut model = Model::new(&data);
 
     // plugin-a と plugin-b をマーク
@@ -673,7 +673,7 @@ fn execute_batch_preserves_marks_when_not_all_marked_are_updated() {
 
 #[test]
 fn execute_batch_clears_marks_when_all_marked_are_updated() {
-    let mut data = make_data(&["plugin-a", "plugin-b"]);
+    let (_temp_dir, mut data) = make_data(&["plugin-a", "plugin-b"]);
     let mut model = Model::new(&data);
 
     // plugin-a と plugin-b をマーク、両方 Updating
@@ -703,7 +703,7 @@ fn execute_batch_clears_marks_when_all_marked_are_updated() {
 
 #[test]
 fn execute_batch_sets_error_on_failed_updates() {
-    let mut data = make_data(&["plugin-a"]);
+    let (_temp_dir, mut data) = make_data(&["plugin-a"]);
     let mut model = Model::new(&data);
 
     if let Model::PluginList {
@@ -755,7 +755,7 @@ fn execute_batch_sets_error_on_failed_updates() {
 
 #[test]
 fn execute_batch_handles_reload_error() {
-    let mut data = make_data(&["plugin-a"]);
+    let (_temp_dir, mut data) = make_data(&["plugin-a"]);
     let mut model = Model::new(&data);
 
     if let Model::PluginList {

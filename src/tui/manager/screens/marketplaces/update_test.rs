@@ -20,7 +20,7 @@ fn make_marketplace(name: &str) -> MarketplaceItem {
     }
 }
 
-fn make_data(names: &[&str]) -> DataStore {
+fn make_data(names: &[&str]) -> (tempfile::TempDir, DataStore) {
     DataStore::for_test(
         vec![],
         names.iter().map(|n| make_marketplace(n)).collect(),
@@ -40,7 +40,7 @@ fn make_add_result(name: &str) -> AddResult {
 
 #[test]
 fn down_moves_selection_in_market_list() {
-    let mut data = make_data(&["mp-a", "mp-b"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a", "mp-b"]);
     let mut model = Model::new(&data);
 
     // 初期状態: index 0 (mp-a), selected_id = Some("mp-a")
@@ -67,7 +67,7 @@ fn down_moves_selection_in_market_list() {
 
 #[test]
 fn down_past_last_marketplace_selects_add_new() {
-    let mut data = make_data(&["mp-a"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
     let mut model = Model::new(&data);
 
     // Move past mp-a to "+ Add new" (index 1)
@@ -89,7 +89,7 @@ fn down_past_last_marketplace_selects_add_new() {
 
 #[test]
 fn down_does_not_go_past_add_new() {
-    let mut data = make_data(&["mp-a"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
     let mut model = Model::new(&data);
 
     // list len = 2 (mp-a + Add new)
@@ -105,7 +105,7 @@ fn down_does_not_go_past_add_new() {
 
 #[test]
 fn up_does_not_go_past_zero() {
-    let mut data = make_data(&["mp-a"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
     let mut model = Model::new(&data);
 
     update(&mut model, Msg::Up, &mut data);
@@ -119,7 +119,7 @@ fn up_does_not_go_past_zero() {
 
 #[test]
 fn up_from_add_new_returns_to_last_marketplace() {
-    let mut data = make_data(&["mp-a", "mp-b"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a", "mp-b"]);
     let mut model = Model::new(&data);
 
     // Move to Add new (index 2)
@@ -142,7 +142,7 @@ fn up_from_add_new_returns_to_last_marketplace() {
 
 #[test]
 fn down_in_detail_moves_action_selection() {
-    let mut data = make_data(&["mp-a"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
     let mut model = Model::new(&data);
 
     // Enter -> MarketDetail
@@ -163,7 +163,7 @@ fn down_in_detail_moves_action_selection() {
 
 #[test]
 fn down_in_detail_does_not_exceed_action_count() {
-    let mut data = make_data(&["mp-a"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
     let mut model = Model::new(&data);
 
     // Enter -> MarketDetail
@@ -187,7 +187,7 @@ fn down_in_detail_does_not_exceed_action_count() {
 
 #[test]
 fn enter_on_marketplace_transitions_to_detail() {
-    let mut data = make_data(&["mp-a"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
     let mut model = Model::new(&data);
 
     update(&mut model, Msg::Enter, &mut data);
@@ -207,7 +207,7 @@ fn enter_on_marketplace_transitions_to_detail() {
 
 #[test]
 fn enter_on_add_new_transitions_to_add_form() {
-    let mut data = make_data(&["mp-a"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
     let mut model = Model::new(&data);
 
     // Move to Add new
@@ -222,7 +222,7 @@ fn enter_on_add_new_transitions_to_add_form() {
 
 #[test]
 fn enter_on_empty_list_transitions_to_add_form() {
-    let mut data = make_data(&[]);
+    let (_temp_dir, mut data) = make_data(&[]);
     let mut model = Model::new(&data);
 
     // With 0 marketplaces, index 0 is Add new (selected_id = None)
@@ -236,7 +236,7 @@ fn enter_on_empty_list_transitions_to_add_form() {
 
 #[test]
 fn enter_ignored_when_operation_in_progress() {
-    let mut data = make_data(&["mp-a"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
     let mut model = Model::new(&data);
 
     // Set operation_status
@@ -262,7 +262,7 @@ fn enter_ignored_when_operation_in_progress() {
 
 #[test]
 fn detail_update_action_returns_execute_batch() {
-    let mut data = make_data(&["mp-a"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
     let mut model = Model::new(&data);
 
     // Enter -> MarketDetail
@@ -291,7 +291,7 @@ fn detail_update_action_returns_execute_batch() {
 
 #[test]
 fn detail_remove_action_returns_execute_batch() {
-    let mut data = make_data(&["mp-a"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
     let mut model = Model::new(&data);
 
     // Enter -> MarketDetail
@@ -321,7 +321,7 @@ fn detail_remove_action_returns_execute_batch() {
 
 #[test]
 fn detail_show_plugins_transitions_to_plugin_list() {
-    let mut data = make_data(&["mp-a"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
     let mut model = Model::new(&data);
 
     // Enter -> MarketDetail
@@ -346,7 +346,7 @@ fn detail_show_plugins_transitions_to_plugin_list() {
 
 #[test]
 fn detail_back_action_returns_to_market_list() {
-    let mut data = make_data(&["mp-a"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
     let mut model = Model::new(&data);
 
     // Enter -> MarketDetail
@@ -371,7 +371,7 @@ fn detail_back_action_returns_to_market_list() {
 
 #[test]
 fn back_from_detail_returns_to_market_list() {
-    let mut data = make_data(&["mp-a", "mp-b"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a", "mp-b"]);
     let mut model = Model::new(&data);
 
     // Enter -> MarketDetail
@@ -390,7 +390,7 @@ fn back_from_detail_returns_to_market_list() {
 
 #[test]
 fn back_from_plugin_list_returns_to_detail() {
-    let mut data = make_data(&["mp-a"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
     let mut model = Model::new(&data);
 
     // Enter -> MarketDetail
@@ -417,7 +417,7 @@ fn back_from_plugin_list_returns_to_detail() {
 
 #[test]
 fn back_from_add_form_returns_to_market_list() {
-    let mut data = make_data(&["mp-a"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
     let mut model = Model::new(&data);
 
     // Move to Add new and enter
@@ -440,7 +440,7 @@ fn back_from_add_form_returns_to_market_list() {
 
 #[test]
 fn form_input_appends_to_source() {
-    let mut data = make_data(&[]);
+    let (_temp_dir, mut data) = make_data(&[]);
     let mut model = Model::new(&data);
 
     // Enter on Add new
@@ -458,7 +458,7 @@ fn form_input_appends_to_source() {
 
 #[test]
 fn form_backspace_removes_from_source() {
-    let mut data = make_data(&[]);
+    let (_temp_dir, mut data) = make_data(&[]);
     let mut model = Model::new(&data);
 
     update(&mut model, Msg::Enter, &mut data);
@@ -475,7 +475,7 @@ fn form_backspace_removes_from_source() {
 
 #[test]
 fn form_input_clears_error_message() {
-    let mut data = make_data(&[]);
+    let (_temp_dir, mut data) = make_data(&[]);
     let mut model = Model::new(&data);
 
     update(&mut model, Msg::Enter, &mut data);
@@ -503,7 +503,7 @@ fn form_input_clears_error_message() {
 
 #[test]
 fn enter_empty_source_shows_error() {
-    let mut data = make_data(&[]);
+    let (_temp_dir, mut data) = make_data(&[]);
     let mut model = Model::new(&data);
 
     update(&mut model, Msg::Enter, &mut data);
@@ -522,7 +522,7 @@ fn enter_empty_source_shows_error() {
 
 #[test]
 fn enter_invalid_source_shows_error() {
-    let mut data = make_data(&[]);
+    let (_temp_dir, mut data) = make_data(&[]);
     let mut model = Model::new(&data);
 
     update(&mut model, Msg::Enter, &mut data);
@@ -549,7 +549,7 @@ fn enter_invalid_source_shows_error() {
 
 #[test]
 fn enter_valid_source_transitions_to_name_step() {
-    let mut data = make_data(&[]);
+    let (_temp_dir, mut data) = make_data(&[]);
     let mut model = Model::new(&data);
 
     update(&mut model, Msg::Enter, &mut data);
@@ -575,7 +575,7 @@ fn enter_valid_source_transitions_to_name_step() {
 
 #[test]
 fn enter_name_step_with_empty_input_uses_default() {
-    let mut data = make_data(&[]);
+    let (_temp_dir, mut data) = make_data(&[]);
     let mut model = Model::new(&data);
 
     // Source step
@@ -598,7 +598,7 @@ fn enter_name_step_with_empty_input_uses_default() {
 
 #[test]
 fn enter_name_step_with_custom_name() {
-    let mut data = make_data(&[]);
+    let (_temp_dir, mut data) = make_data(&[]);
     let mut model = Model::new(&data);
 
     // Source step
@@ -623,7 +623,7 @@ fn enter_name_step_with_custom_name() {
 
 #[test]
 fn enter_name_step_duplicate_shows_error() {
-    let mut data = make_data(&["existing"]);
+    let (_temp_dir, mut data) = make_data(&["existing"]);
     let mut model = Model::new(&data);
 
     // Navigate to Add new
@@ -662,7 +662,7 @@ fn enter_name_step_duplicate_shows_error() {
 
 #[test]
 fn execute_add_success_transitions_to_market_list() {
-    let mut data = make_data(&[]);
+    let (_temp_dir, mut data) = make_data(&[]);
     let mut model = Model::AddForm(AddFormModel::Confirm {
         source: "owner/repo".to_string(),
         name: "my-repo".to_string(),
@@ -695,7 +695,7 @@ fn execute_add_success_transitions_to_market_list() {
 
 #[test]
 fn execute_add_failure_returns_to_confirm_with_error() {
-    let mut data = make_data(&[]);
+    let (_temp_dir, mut data) = make_data(&[]);
     let mut model = Model::AddForm(AddFormModel::Confirm {
         source: "owner/repo".to_string(),
         name: "my-repo".to_string(),
@@ -736,7 +736,7 @@ fn execute_add_failure_returns_to_confirm_with_error() {
 
 #[test]
 fn execute_update_success_clears_status() {
-    let mut data = make_data(&["mp-a"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
     let mut state = ListState::default();
     state.select(Some(0));
     let mut model = Model::MarketList {
@@ -771,7 +771,7 @@ fn execute_update_success_clears_status() {
 
 #[test]
 fn execute_update_failure_sets_error_message() {
-    let mut data = make_data(&["mp-a"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
     let mut state = ListState::default();
     state.select(Some(0));
     let mut model = Model::MarketList {
@@ -808,7 +808,7 @@ fn execute_update_failure_sets_error_message() {
 
 #[test]
 fn execute_update_all_success() {
-    let mut data = make_data(&["mp-a", "mp-b"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a", "mp-b"]);
     let mut state = ListState::default();
     state.select(Some(0));
     let mut model = Model::MarketList {
@@ -846,7 +846,7 @@ fn execute_update_all_success() {
 
 #[test]
 fn execute_update_all_partial_failure_sets_error() {
-    let mut data = make_data(&["mp-a", "mp-b"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a", "mp-b"]);
     let mut state = ListState::default();
     state.select(Some(0));
     let mut model = Model::MarketList {
@@ -893,7 +893,7 @@ fn execute_update_all_partial_failure_sets_error() {
 
 #[test]
 fn execute_remove_success_reloads_and_clamps() {
-    let mut data = make_data(&["mp-a", "mp-b"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a", "mp-b"]);
     let mut state = ListState::default();
     state.select(Some(0));
     let mut model = Model::MarketList {
@@ -929,7 +929,7 @@ fn execute_remove_success_reloads_and_clamps() {
 
 #[test]
 fn execute_remove_failure_sets_error() {
-    let mut data = make_data(&["mp-a"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
     let mut state = ListState::default();
     state.select(Some(0));
     let mut model = Model::MarketList {
@@ -972,7 +972,7 @@ fn execute_remove_failure_sets_error() {
 
 #[test]
 fn update_market_sets_updating_and_returns_execute_batch() {
-    let mut data = make_data(&["mp-a"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
     let mut model = Model::new(&data);
 
     let effect = update(&mut model, Msg::UpdateMarket, &mut data);
@@ -993,7 +993,7 @@ fn update_market_sets_updating_and_returns_execute_batch() {
 
 #[test]
 fn update_market_ignored_on_add_new() {
-    let mut data = make_data(&["mp-a"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
     let mut model = Model::new(&data);
 
     // Move to Add new
@@ -1005,7 +1005,7 @@ fn update_market_ignored_on_add_new() {
 
 #[test]
 fn update_market_ignored_when_operation_in_progress() {
-    let mut data = make_data(&["mp-a"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
     let mut model = Model::new(&data);
 
     if let Model::MarketList {
@@ -1022,7 +1022,7 @@ fn update_market_ignored_when_operation_in_progress() {
 
 #[test]
 fn update_all_sets_updating_all_and_returns_execute_batch() {
-    let mut data = make_data(&["mp-a", "mp-b"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a", "mp-b"]);
     let mut model = Model::new(&data);
 
     let effect = update(&mut model, Msg::UpdateAll, &mut data);
@@ -1044,7 +1044,7 @@ fn update_all_sets_updating_all_and_returns_execute_batch() {
 
 #[test]
 fn update_all_on_empty_list_does_nothing() {
-    let mut data = make_data(&[]);
+    let (_temp_dir, mut data) = make_data(&[]);
     let mut model = Model::new(&data);
 
     let effect = update(&mut model, Msg::UpdateAll, &mut data);
@@ -1054,7 +1054,7 @@ fn update_all_on_empty_list_does_nothing() {
 
 #[test]
 fn update_all_ignored_when_operation_in_progress() {
-    let mut data = make_data(&["mp-a"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
     let mut model = Model::new(&data);
 
     if let Model::MarketList {
@@ -1075,7 +1075,7 @@ fn update_all_ignored_when_operation_in_progress() {
 
 #[test]
 fn error_message_cleared_on_up() {
-    let mut data = make_data(&["mp-a", "mp-b"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a", "mp-b"]);
     let mut state = ListState::default();
     state.select(Some(1));
     let mut model = Model::MarketList {
@@ -1094,7 +1094,7 @@ fn error_message_cleared_on_up() {
 
 #[test]
 fn error_message_cleared_on_down() {
-    let mut data = make_data(&["mp-a", "mp-b"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a", "mp-b"]);
     let mut model = Model::MarketList {
         selected_id: Some("mp-a".to_string()),
         state: {
@@ -1115,7 +1115,7 @@ fn error_message_cleared_on_down() {
 
 #[test]
 fn error_message_cleared_on_enter() {
-    let mut data = make_data(&["mp-a"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
     let mut model = Model::MarketList {
         selected_id: Some("mp-a".to_string()),
         state: {
@@ -1141,7 +1141,7 @@ fn error_message_cleared_on_enter() {
 
 #[test]
 fn error_message_cleared_on_back() {
-    let mut data = make_data(&["mp-a"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
     let mut model = Model::MarketDetail {
         marketplace_name: "mp-a".to_string(),
         state: {
@@ -1164,7 +1164,7 @@ fn error_message_cleared_on_back() {
 
 #[test]
 fn stale_error_cleared_on_update_market_start() {
-    let mut data = make_data(&["mp-a"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
     let mut model = Model::MarketList {
         selected_id: Some("mp-a".to_string()),
         state: {
@@ -1189,7 +1189,7 @@ fn stale_error_cleared_on_update_market_start() {
 
 #[test]
 fn stale_error_cleared_on_update_all_start() {
-    let mut data = make_data(&["mp-a"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
     let mut model = Model::MarketList {
         selected_id: Some("mp-a".to_string()),
         state: {
@@ -1214,7 +1214,7 @@ fn stale_error_cleared_on_update_all_start() {
 
 #[test]
 fn stale_error_cleared_on_successful_update_retry() {
-    let mut data = make_data(&["mp-a"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
     let mut state = ListState::default();
     state.select(Some(0));
     let mut model = Model::MarketList {
@@ -1244,7 +1244,7 @@ fn stale_error_cleared_on_successful_update_retry() {
 
 #[test]
 fn stale_error_cleared_on_successful_remove_retry() {
-    let mut data = make_data(&["mp-a"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
     let mut state = ListState::default();
     state.select(Some(0));
     let mut model = Model::MarketList {
@@ -1275,7 +1275,7 @@ fn stale_error_cleared_on_successful_remove_retry() {
 
 #[test]
 fn stale_error_cleared_on_successful_update_all_retry() {
-    let mut data = make_data(&["mp-a", "mp-b"]);
+    let (_temp_dir, mut data) = make_data(&["mp-a", "mp-b"]);
     let mut state = ListState::default();
     state.select(Some(0));
     let mut model = Model::MarketList {
