@@ -6,7 +6,8 @@ use crate::application::{list_installed_plugins, PluginSummary};
 use crate::component::ComponentKind;
 use crate::host::{HostClientFactory, HostKind};
 use crate::plugin::{
-    fetch_remote_versions, meta, needs_update, PluginCache, PluginMeta, VersionQueryResult,
+    fetch_remote_versions, meta, needs_update, PluginCache, PluginCacheAccess, PluginMeta,
+    VersionQueryResult,
 };
 use crate::target::TargetKind;
 use clap::Parser;
@@ -52,7 +53,9 @@ struct PluginWithUpdateInfo {
 
 pub async fn run(args: Args) -> Result<(), String> {
     // 1. プラグイン一覧を取得
-    let mut plugins = list_installed_plugins().map_err(|e| e.to_string())?;
+    let cache = PluginCache::new().map_err(|e| format!("Failed to access cache: {e}"))?;
+    let mut plugins = list_installed_plugins(&cache)
+        .map_err(|e| format!("Failed to list installed plugins: {e}"))?;
 
     let total_count = plugins.len();
 
@@ -64,7 +67,7 @@ pub async fn run(args: Args) -> Result<(), String> {
 
     // 4. 出力（--outdated の場合は更新チェックを実行）
     if args.outdated {
-        run_outdated_check(&filtered, &args, total_count).await?;
+        run_outdated_check(&cache, &filtered, &args, total_count).await?;
     } else if args.json {
         print_json(&filtered)?;
     } else if args.simple {
@@ -78,6 +81,7 @@ pub async fn run(args: Args) -> Result<(), String> {
 
 /// --outdated 用の更新チェック処理
 async fn run_outdated_check(
+    cache: &dyn PluginCacheAccess,
     plugins: &[PluginSummary],
     args: &Args,
     total_count: usize,
@@ -92,7 +96,6 @@ async fn run_outdated_check(
     }
 
     // PluginMeta を収集
-    let cache = PluginCache::new().map_err(|e| e.to_string())?;
     let mut plugin_metas: Vec<(String, PluginMeta)> = Vec::new();
 
     for plugin in plugins {

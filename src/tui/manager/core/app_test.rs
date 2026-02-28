@@ -5,12 +5,11 @@ use super::data::DataStore;
 use crate::tui::manager::screens::installed;
 
 /// テスト用の最小構成 Model を構築するヘルパー
-fn make_model(filter_focused: bool, top_level: bool) -> Model {
-    let data = DataStore {
-        plugins: vec![],
-        marketplaces: vec![],
-        last_error: None,
-    };
+///
+/// 返り値の `TempDir` は呼び出し側でスコープに保持し、
+/// テスト終了時に自動クリーンアップされるようにする。
+fn make_model(filter_focused: bool, top_level: bool) -> (tempfile::TempDir, Model) {
+    let (temp_dir, data) = DataStore::for_test(vec![], vec![], None);
 
     let screen = if top_level {
         Screen::Installed(installed::Model::new(&data))
@@ -24,14 +23,17 @@ fn make_model(filter_focused: bool, top_level: bool) -> Model {
         })
     };
 
-    Model {
-        data,
-        screen,
-        cache: ScreenCache::default(),
-        should_quit: false,
-        filter_text: String::new(),
-        filter_focused,
-    }
+    (
+        temp_dir,
+        Model {
+            data,
+            screen,
+            cache: ScreenCache::default(),
+            should_quit: false,
+            filter_text: String::new(),
+            filter_focused,
+        },
+    )
 }
 
 // ============================================================================
@@ -40,14 +42,14 @@ fn make_model(filter_focused: bool, top_level: bool) -> Model {
 
 #[test]
 fn right_key_returns_next_tab_at_top_level() {
-    let model = make_model(false, true);
+    let (_temp_dir, model) = make_model(false, true);
     let msg = model.key_to_msg(KeyCode::Right);
     assert!(matches!(msg, Some(Msg::NextTab)));
 }
 
 #[test]
 fn left_key_returns_prev_tab_at_top_level() {
-    let model = make_model(false, true);
+    let (_temp_dir, model) = make_model(false, true);
     let msg = model.key_to_msg(KeyCode::Left);
     assert!(matches!(msg, Some(Msg::PrevTab)));
 }
@@ -58,14 +60,14 @@ fn left_key_returns_prev_tab_at_top_level() {
 
 #[test]
 fn right_key_returns_none_at_sub_screen() {
-    let model = make_model(false, false);
+    let (_temp_dir, model) = make_model(false, false);
     let msg = model.key_to_msg(KeyCode::Right);
     assert!(msg.is_none());
 }
 
 #[test]
 fn left_key_returns_none_at_sub_screen() {
-    let model = make_model(false, false);
+    let (_temp_dir, model) = make_model(false, false);
     let msg = model.key_to_msg(KeyCode::Left);
     assert!(msg.is_none());
 }
@@ -76,14 +78,14 @@ fn left_key_returns_none_at_sub_screen() {
 
 #[test]
 fn right_key_returns_next_tab_when_filter_focused() {
-    let model = make_model(true, true);
+    let (_temp_dir, model) = make_model(true, true);
     let msg = model.key_to_msg(KeyCode::Right);
     assert!(matches!(msg, Some(Msg::NextTab)));
 }
 
 #[test]
 fn left_key_returns_prev_tab_when_filter_focused() {
-    let model = make_model(true, true);
+    let (_temp_dir, model) = make_model(true, true);
     let msg = model.key_to_msg(KeyCode::Left);
     assert!(matches!(msg, Some(Msg::PrevTab)));
 }
@@ -94,14 +96,14 @@ fn left_key_returns_prev_tab_when_filter_focused() {
 
 #[test]
 fn tab_key_still_returns_next_tab() {
-    let model = make_model(false, true);
+    let (_temp_dir, model) = make_model(false, true);
     let msg = model.key_to_msg(KeyCode::Tab);
     assert!(matches!(msg, Some(Msg::NextTab)));
 }
 
 #[test]
 fn backtab_key_still_returns_prev_tab() {
-    let model = make_model(false, true);
+    let (_temp_dir, model) = make_model(false, true);
     let msg = model.key_to_msg(KeyCode::BackTab);
     assert!(matches!(msg, Some(Msg::PrevTab)));
 }

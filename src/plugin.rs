@@ -6,7 +6,7 @@ pub mod meta;
 mod update;
 mod version;
 
-pub use cache::{has_manifest, CachedPlugin, PluginCache};
+pub use cache::{has_manifest, CachedPlugin, PluginCache, PluginCacheAccess};
 pub use manifest::PluginManifest;
 pub use meta::PluginMeta;
 pub use update::{update_all_plugins, update_plugin, UpdateResult, UpdateStatus};

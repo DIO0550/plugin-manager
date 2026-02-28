@@ -2,7 +2,7 @@
 
 use crate::error::{PlmError, Result};
 use crate::marketplace::{MarketplaceConfig, MarketplaceRegistry};
-use crate::plugin::CachedPlugin;
+use crate::plugin::{CachedPlugin, PluginCacheAccess};
 use std::future::Future;
 use std::pin::Pin;
 
@@ -22,10 +22,11 @@ impl SearchSource {
 }
 
 impl PluginSource for SearchSource {
-    fn download(
-        &self,
+    fn download<'a>(
+        &'a self,
+        cache: &'a dyn PluginCacheAccess,
         force: bool,
-    ) -> Pin<Box<dyn Future<Output = Result<CachedPlugin>> + Send + '_>> {
+    ) -> Pin<Box<dyn Future<Output = Result<CachedPlugin>> + Send + 'a>> {
         Box::pin(async move {
             let registry = MarketplaceRegistry::new()?;
 
@@ -87,7 +88,7 @@ impl PluginSource for SearchSource {
             // Single match - proceed
             let plugin_match = &matches[0];
             MarketplaceSource::new(&self.query, &plugin_match.marketplace)
-                .download(force)
+                .download(cache, force)
                 .await
         })
     }

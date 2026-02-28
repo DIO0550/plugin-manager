@@ -11,6 +11,7 @@
 use crate::component::{ComponentDeployment, ComponentKind, DeploymentResult};
 use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
 use crate::output::CommandSummary;
+use crate::plugin::PluginCache;
 use crate::source::parse_source;
 use crate::target::{all_targets, parse_target, PluginOrigin, Scope, Target, TargetKind};
 use crate::tui;
@@ -74,8 +75,9 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
 
     // 4. ダウンロード
     println!("\nDownloading plugin...");
+    let cache = PluginCache::new().map_err(|e| format!("Failed to access cache: {e}"))?;
     let cached_plugin = source
-        .download(args.force)
+        .download(&cache, args.force)
         .await
         .map_err(|e| e.to_string())?;
 

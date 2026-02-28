@@ -2,6 +2,84 @@ use super::*;
 use std::fs;
 use tempfile::TempDir;
 
+// =============================================================================
+// Trait-based tests: &dyn PluginCacheAccess
+// =============================================================================
+
+#[test]
+fn test_trait_object_can_be_used_as_dyn() {
+    let temp_dir = TempDir::new().unwrap();
+    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+    // &dyn PluginCacheAccess として使用できることを検証
+    let cache_ref: &dyn PluginCacheAccess = &cache;
+    let path = cache_ref.plugin_path(None, "test-plugin");
+    assert!(path.ends_with("github/test-plugin"));
+    assert!(!cache_ref.is_cached(None, "test-plugin"));
+}
+
+#[test]
+fn test_trait_list_via_dyn() {
+    let temp_dir = TempDir::new().unwrap();
+    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+    let cache_ref: &dyn PluginCacheAccess = &cache;
+
+    let plugins = cache_ref.list().unwrap();
+    assert!(plugins.is_empty());
+}
+
+#[test]
+fn test_trait_is_cached_via_dyn() {
+    let temp_dir = TempDir::new().unwrap();
+    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+    let cache_ref: &dyn PluginCacheAccess = &cache;
+
+    // 空のキャッシュでは未キャッシュ
+    assert!(!cache_ref.is_cached(Some("github"), "test-plugin"));
+
+    // ディレクトリを作ると cached
+    let plugin_dir = temp_dir.path().join("github").join("test-plugin");
+    fs::create_dir_all(&plugin_dir).unwrap();
+    assert!(cache_ref.is_cached(Some("github"), "test-plugin"));
+}
+
+#[test]
+fn test_trait_load_manifest_via_dyn() {
+    let temp_dir = TempDir::new().unwrap();
+    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+    let cache_ref: &dyn PluginCacheAccess = &cache;
+
+    // plugin.json を配置
+    let plugin_dir = temp_dir.path().join("github").join("test-plugin");
+    fs::create_dir_all(&plugin_dir).unwrap();
+    fs::write(
+        plugin_dir.join("plugin.json"),
+        r#"{"name":"test-plugin","version":"1.0.0"}"#,
+    )
+    .unwrap();
+
+    let manifest = cache_ref
+        .load_manifest(Some("github"), "test-plugin")
+        .unwrap();
+    assert_eq!(manifest.name, "test-plugin");
+    assert_eq!(manifest.version, "1.0.0");
+}
+
+#[test]
+fn test_trait_plugin_path_via_dyn() {
+    let temp_dir = TempDir::new().unwrap();
+    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+    let cache_ref: &dyn PluginCacheAccess = &cache;
+
+    // marketplace 指定
+    let path = cache_ref.plugin_path(Some("my-market"), "my-plugin");
+    assert!(path.ends_with("my-market/my-plugin"));
+
+    // marketplace = None → "github"
+    let path_default = cache_ref.plugin_path(None, "my-plugin");
+    assert!(path_default.ends_with("github/my-plugin"));
+}
+
 /// テスト用のzipアーカイブを作成するヘルパー
 fn create_test_archive(entries: &[(&str, &str)]) -> Vec<u8> {
     use std::io::Write;

@@ -4,7 +4,7 @@
 //! `.plm-meta.json` の `statusByTarget` を更新する。
 
 use crate::application::{enable_plugin, OperationResult};
-use crate::plugin::{meta, PluginCache};
+use crate::plugin::{meta, PluginCache, PluginCacheAccess};
 use clap::{Parser, ValueEnum};
 use std::env;
 
@@ -53,6 +53,7 @@ pub async fn run(args: Args) -> Result<(), String> {
 
     // enable_plugin を実行
     let result = enable_plugin(
+        &cache,
         &args.name,
         Some(&args.marketplace),
         &project_root,

@@ -14,6 +14,78 @@ use zip::ZipArchive;
 pub use super::cached_plugin::CachedPlugin;
 pub use super::manifest_resolve::has_manifest;
 
+/// プラグインキャッシュアクセスの抽象化トレイト
+///
+/// 消費者はこの trait 経由でキャッシュ操作を行う。
+/// テスト時は `PluginCache::with_cache_dir(tempdir)` で tempdir ベースの
+/// 本番実装を注入する。
+pub trait PluginCacheAccess: Send + Sync {
+    /// プラグインのキャッシュパスを取得（階層型: marketplace/plugin）
+    ///
+    /// # Arguments
+    /// * `marketplace` - マーケットプレイス名（None の場合は "github" を使用）
+    /// * `name` - プラグイン名またはリポジトリ識別子（owner--repo 形式）
+    fn plugin_path(&self, marketplace: Option<&str>, name: &str) -> PathBuf;
+
+    /// キャッシュ済みかチェック
+    fn is_cached(&self, marketplace: Option<&str>, name: &str) -> bool;
+
+    /// zipアーカイブを展開してキャッシュに保存
+    ///
+    /// GitHubのzipballは `{repo}-{ref}/` というプレフィックスが付くため、それを除去する。
+    ///
+    /// # Arguments
+    /// * `marketplace` - マーケットプレイス名（None の場合は "github" を使用）
+    /// * `name` - プラグイン名またはリポジトリ識別子
+    /// * `archive` - zipアーカイブのバイト列
+    /// * `source_path` - 抽出するソースパス（正規化済み、例: "plugins/my-plugin"）
+    ///                   指定時はそのパス配下の内容のみをキャッシュ直下に展開
+    fn store_from_archive(
+        &self,
+        marketplace: Option<&str>,
+        name: &str,
+        archive: &[u8],
+        source_path: Option<&str>,
+    ) -> Result<PathBuf>;
+
+    /// キャッシュからマニフェストを読み込み
+    fn load_manifest(&self, marketplace: Option<&str>, name: &str) -> Result<PluginManifest>;
+
+    /// キャッシュから削除
+    fn remove(&self, marketplace: Option<&str>, name: &str) -> Result<()>;
+
+    /// キャッシュされているプラグイン一覧を取得
+    fn list(&self) -> Result<Vec<(Option<String>, String)>>;
+
+    /// プラグインをバックアップ
+    ///
+    /// 注意: 実行ビット/シンボリックリンクは保持されない。
+    /// プラグインは平文ファイルのみを含むことを前提とする。
+    fn backup(&self, marketplace: Option<&str>, name: &str) -> Result<PathBuf>;
+
+    /// バックアップからリストア
+    fn restore(&self, marketplace: Option<&str>, name: &str) -> Result<()>;
+
+    /// バックアップを削除
+    fn remove_backup(&self, marketplace: Option<&str>, name: &str) -> Result<()>;
+
+    /// アトミック更新（temp展開 → 検証 → リネーム）
+    ///
+    /// 中断耐性のあるキャッシュ更新を行う。
+    /// 展開ロジックは store_from_archive と同一（トップディレクトリ除去含む）。
+    ///
+    /// # Arguments
+    /// * `marketplace` - マーケットプレイス名
+    /// * `name` - プラグイン名
+    /// * `archive` - zipアーカイブのバイト列
+    fn atomic_update(
+        &self,
+        marketplace: Option<&str>,
+        name: &str,
+        archive: &[u8],
+    ) -> Result<PathBuf>;
+}
+
 /// プラグインキャッシュマネージャ
 pub struct PluginCache {
     /// キャッシュルート: ~/.plm/cache/plugins/
@@ -41,31 +113,51 @@ impl PluginCache {
         Ok(Self { cache_dir })
     }
 
-    /// プラグインのキャッシュパスを取得（階層型: marketplace/plugin）
-    ///
-    /// # Arguments
-    /// * `marketplace` - マーケットプレイス名（None の場合は "github" を使用）
-    /// * `name` - プラグイン名またはリポジトリ識別子（owner--repo 形式）
-    pub fn plugin_path(&self, marketplace: Option<&str>, name: &str) -> PathBuf {
+    /// 全キャッシュをクリア
+    pub fn clear(&self) -> Result<()> {
+        let fs = RealFs;
+        if fs.exists(&self.cache_dir) {
+            for entry in fs.read_dir(&self.cache_dir)? {
+                if entry.is_dir() {
+                    fs.remove_dir_all(&entry.path)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// バックアップパスを取得
+    fn backup_path(&self, marketplace: Option<&str>, name: &str) -> PathBuf {
+        let marketplace_dir = marketplace.unwrap_or("github");
+        self.cache_dir
+            .join(".backup")
+            .join(marketplace_dir)
+            .join(name)
+    }
+
+    /// 一時パスを取得
+    fn temp_path(&self, marketplace: Option<&str>, name: &str) -> PathBuf {
+        let marketplace_dir = marketplace.unwrap_or("github");
+        self.cache_dir
+            .join(".temp")
+            .join(marketplace_dir)
+            .join(name)
+    }
+}
+
+impl PluginCacheAccess for PluginCache {
+    fn plugin_path(&self, marketplace: Option<&str>, name: &str) -> PathBuf {
         let marketplace_dir = marketplace.unwrap_or("github");
         self.cache_dir.join(marketplace_dir).join(name)
     }
 
-    /// キャッシュ済みかチェック
-    pub fn is_cached(&self, marketplace: Option<&str>, name: &str) -> bool {
-        self.plugin_path(marketplace, name).exists()
+    fn is_cached(&self, marketplace: Option<&str>, name: &str) -> bool {
+        let fs = RealFs;
+        let plugin_path = self.plugin_path(marketplace, name);
+        fs.exists(&plugin_path)
     }
 
-    /// zipアーカイブを展開してキャッシュに保存
-    /// GitHubのzipballは `{repo}-{ref}/` というプレフィックスが付くため、それを除去する
-    ///
-    /// # Arguments
-    /// * `marketplace` - マーケットプレイス名（None の場合は "github" を使用）
-    /// * `name` - プラグイン名またはリポジトリ識別子
-    /// * `archive` - zipアーカイブのバイト列
-    /// * `source_path` - 抽出するソースパス（正規化済み、例: "plugins/my-plugin"）
-    ///   指定時はそのパス配下の内容のみをキャッシュ直下に展開
-    pub fn store_from_archive(
+    fn store_from_archive(
         &self,
         marketplace: Option<&str>,
         name: &str,
@@ -95,12 +187,7 @@ impl PluginCache {
         Ok(plugin_dir)
     }
 
-    /// キャッシュからマニフェストを読み込み
-    ///
-    /// 以下の順序でマニフェストを検索:
-    /// 1. `.claude-plugin/plugin.json` (推奨)
-    /// 2. `plugin.json` (フォールバック)
-    pub fn load_manifest(&self, marketplace: Option<&str>, name: &str) -> Result<PluginManifest> {
+    fn load_manifest(&self, marketplace: Option<&str>, name: &str) -> Result<PluginManifest> {
         let plugin_dir = self.plugin_path(marketplace, name);
         let manifest_path = resolve_manifest_path(&plugin_dir).ok_or_else(|| {
             PlmError::InvalidManifest(format!("plugin.json not found in {:?}", plugin_dir))
@@ -109,8 +196,7 @@ impl PluginCache {
         PluginManifest::load(&manifest_path)
     }
 
-    /// キャッシュから削除
-    pub fn remove(&self, marketplace: Option<&str>, name: &str) -> Result<()> {
+    fn remove(&self, marketplace: Option<&str>, name: &str) -> Result<()> {
         let fs = RealFs;
         let plugin_dir = self.plugin_path(marketplace, name);
         if fs.exists(&plugin_dir) {
@@ -119,22 +205,7 @@ impl PluginCache {
         Ok(())
     }
 
-    /// 全キャッシュをクリア
-    pub fn clear(&self) -> Result<()> {
-        let fs = RealFs;
-        if fs.exists(&self.cache_dir) {
-            for entry in fs.read_dir(&self.cache_dir)? {
-                if entry.is_dir() {
-                    fs.remove_dir_all(&entry.path)?;
-                }
-            }
-        }
-        Ok(())
-    }
-
-    /// キャッシュされているプラグイン一覧を取得
-    /// 階層構造を走査し、(marketplace, plugin_name) のタプルを返す
-    pub fn list(&self) -> Result<Vec<(Option<String>, String)>> {
+    fn list(&self) -> Result<Vec<(Option<String>, String)>> {
         let fs = RealFs;
         let mut plugins = Vec::new();
 
@@ -174,33 +245,7 @@ impl PluginCache {
         Ok(plugins)
     }
 
-    // =========================================================================
-    // バックアップ機能
-    // =========================================================================
-
-    /// バックアップパスを取得
-    fn backup_path(&self, marketplace: Option<&str>, name: &str) -> PathBuf {
-        let marketplace_dir = marketplace.unwrap_or("github");
-        self.cache_dir
-            .join(".backup")
-            .join(marketplace_dir)
-            .join(name)
-    }
-
-    /// 一時パスを取得
-    fn temp_path(&self, marketplace: Option<&str>, name: &str) -> PathBuf {
-        let marketplace_dir = marketplace.unwrap_or("github");
-        self.cache_dir
-            .join(".temp")
-            .join(marketplace_dir)
-            .join(name)
-    }
-
-    /// プラグインをバックアップ
-    ///
-    /// 注意: 実行ビット/シンボリックリンクは保持されない。
-    /// プラグインは平文ファイルのみを含むことを前提とする。
-    pub fn backup(&self, marketplace: Option<&str>, name: &str) -> Result<PathBuf> {
+    fn backup(&self, marketplace: Option<&str>, name: &str) -> Result<PathBuf> {
         let fs = RealFs;
         let source = self.plugin_path(marketplace, name);
         let backup_dir = self.backup_path(marketplace, name);
@@ -226,8 +271,7 @@ impl PluginCache {
         Ok(backup_dir)
     }
 
-    /// バックアップからリストア
-    pub fn restore(&self, marketplace: Option<&str>, name: &str) -> Result<()> {
+    fn restore(&self, marketplace: Option<&str>, name: &str) -> Result<()> {
         let fs = RealFs;
         let backup_dir = self.backup_path(marketplace, name);
         let target = self.plugin_path(marketplace, name);
@@ -250,8 +294,7 @@ impl PluginCache {
         Ok(())
     }
 
-    /// バックアップを削除
-    pub fn remove_backup(&self, marketplace: Option<&str>, name: &str) -> Result<()> {
+    fn remove_backup(&self, marketplace: Option<&str>, name: &str) -> Result<()> {
         let fs = RealFs;
         let backup_dir = self.backup_path(marketplace, name);
         if fs.exists(&backup_dir) {
@@ -260,23 +303,7 @@ impl PluginCache {
         Ok(())
     }
 
-    // =========================================================================
-    // アトミック更新
-    // =========================================================================
-
-    /// アトミック更新（temp展開 → 検証 → リネーム）
-    ///
-    /// 中断耐性のあるキャッシュ更新を行う。
-    /// 展開ロジックは store_from_archive と同一（トップディレクトリ除去含む）。
-    ///
-    /// # Arguments
-    /// * `marketplace` - マーケットプレイス名
-    /// * `name` - プラグイン名
-    /// * `archive` - zipアーカイブのバイト列
-    ///
-    /// # Returns
-    /// 成功時は新しいプラグインパスを返す
-    pub fn atomic_update(
+    fn atomic_update(
         &self,
         marketplace: Option<&str>,
         name: &str,

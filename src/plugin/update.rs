@@ -7,7 +7,7 @@ use crate::application::enable_plugin;
 use crate::host::{HostClientFactory, HostKind};
 use crate::http::with_retry;
 use crate::plugin::version::{fetch_remote_versions, needs_update, VersionQueryResult};
-use crate::plugin::{meta, PluginCache, PluginMeta};
+use crate::plugin::{meta, PluginCacheAccess, PluginMeta};
 use crate::repo::Repo;
 use std::path::Path;
 
@@ -134,17 +134,11 @@ fn restore_repo(
 
 /// 単一プラグインの更新
 pub async fn update_plugin(
+    cache: &dyn PluginCacheAccess,
     plugin_name: &str,
     project_root: &Path,
     target_filter: Option<&str>,
 ) -> UpdateResult {
-    let cache = match PluginCache::new() {
-        Ok(c) => c,
-        Err(e) => {
-            return UpdateResult::failed(plugin_name, format!("Failed to access cache: {}", e))
-        }
-    };
-
     // プラグインがキャッシュに存在するか確認
     if !cache.is_cached(Some("github"), plugin_name) {
         return UpdateResult::failed(plugin_name, "Plugin not found in cache".to_string());
@@ -197,7 +191,7 @@ pub async fn update_plugin(
     do_update(
         plugin_name,
         &latest_sha,
-        &cache,
+        cache,
         &*client,
         &repo,
         &plugin_meta,
@@ -212,7 +206,7 @@ pub async fn update_plugin(
 async fn do_update(
     plugin_name: &str,
     latest_sha: &str,
-    cache: &PluginCache,
+    cache: &dyn PluginCacheAccess,
     client: &dyn crate::host::HostClient,
     repo: &Repo,
     plugin_meta: &PluginMeta,
@@ -258,7 +252,7 @@ async fn do_update(
         None => enabled,
     };
 
-    let (deployed, failed) = redeploy_to_targets(plugin_name, &targets, project_root);
+    let (deployed, failed) = redeploy_to_targets(cache, plugin_name, &targets, project_root);
 
     // メタデータ更新
     let mut new_meta = plugin_meta.clone();
@@ -284,6 +278,7 @@ async fn do_update(
 
 /// ターゲットへの再デプロイ
 fn redeploy_to_targets(
+    cache: &dyn PluginCacheAccess,
     plugin_name: &str,
     targets: &[&str],
     project_root: &Path,
@@ -292,7 +287,13 @@ fn redeploy_to_targets(
     let mut failed = Vec::new();
 
     for target in targets {
-        let result = enable_plugin(plugin_name, Some("github"), project_root, Some(target));
+        let result = enable_plugin(
+            cache,
+            plugin_name,
+            Some("github"),
+            project_root,
+            Some(target),
+        );
         if result.success {
             deployed.push(target.to_string());
         } else {
@@ -310,17 +311,10 @@ fn redeploy_to_targets(
 /// GitHub以外のプラグインはSkippedとして扱う。
 /// 一部失敗しても後続の処理を継続する。
 pub async fn update_all_plugins(
+    cache: &dyn PluginCacheAccess,
     project_root: &Path,
     target_filter: Option<&str>,
 ) -> Vec<UpdateResult> {
-    let cache = match PluginCache::new() {
-        Ok(c) => c,
-        Err(e) => {
-            eprintln!("Error: Failed to access cache: {}", e);
-            return vec![];
-        }
-    };
-
     // キャッシュ内の全プラグインを取得
     let plugins = match cache.list() {
         Ok(p) => p,
@@ -433,7 +427,7 @@ pub async fn update_all_plugins(
         let result = do_update(
             name,
             latest_sha,
-            &cache,
+            cache,
             &*update_client,
             &repo,
             meta,

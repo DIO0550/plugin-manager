@@ -4,7 +4,7 @@
 
 use crate::component::{ComponentKind, ComponentName, ComponentTypeCount, Scope};
 use crate::error::Result;
-use crate::plugin::{has_manifest, meta, PluginCache, PluginManifest};
+use crate::plugin::{has_manifest, meta, PluginCacheAccess, PluginManifest};
 use crate::scan::{list_placed_plugins, scan_components, ComponentScan};
 use crate::target::all_targets;
 use serde::Serialize;
@@ -107,8 +107,7 @@ impl PluginSummary {
 /// インストール済みプラグインの一覧を取得
 ///
 /// キャッシュディレクトリをスキャンし、有効なプラグインの一覧を返す。
-pub fn list_installed_plugins() -> Result<Vec<PluginSummary>> {
-    let cache = PluginCache::new()?;
+pub fn list_installed_plugins(cache: &dyn PluginCacheAccess) -> Result<Vec<PluginSummary>> {
     let plugin_list = cache.list()?;
 
     // デプロイ済みプラグイン集合を事前取得（パフォーマンス改善）

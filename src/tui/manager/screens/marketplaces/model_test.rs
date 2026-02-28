@@ -12,12 +12,12 @@ fn make_marketplace(name: &str) -> MarketplaceItem {
     }
 }
 
-fn make_data(names: &[&str]) -> DataStore {
-    DataStore {
-        plugins: vec![],
-        marketplaces: names.iter().map(|n| make_marketplace(n)).collect(),
-        last_error: None,
-    }
+fn make_data(names: &[&str]) -> (tempfile::TempDir, DataStore) {
+    DataStore::for_test(
+        vec![],
+        names.iter().map(|n| make_marketplace(n)).collect(),
+        None,
+    )
 }
 
 // ============================================================================
@@ -26,7 +26,7 @@ fn make_data(names: &[&str]) -> DataStore {
 
 #[test]
 fn new_with_marketplaces_selects_first() {
-    let data = make_data(&["market-a", "market-b"]);
+    let (_temp_dir, data) = make_data(&["market-a", "market-b"]);
     let model = Model::new(&data);
     if let Model::MarketList {
         selected_id, state, ..
@@ -41,7 +41,7 @@ fn new_with_marketplaces_selects_first() {
 
 #[test]
 fn new_with_empty_marketplaces() {
-    let data = make_data(&[]);
+    let (_temp_dir, data) = make_data(&[]);
     let model = Model::new(&data);
     if let Model::MarketList {
         selected_id, state, ..
@@ -60,7 +60,7 @@ fn new_with_empty_marketplaces() {
 
 #[test]
 fn is_top_level_market_list() {
-    let data = make_data(&[]);
+    let (_temp_dir, data) = make_data(&[]);
     let model = Model::new(&data);
     assert!(model.is_top_level());
 }
@@ -99,7 +99,7 @@ fn is_form_active_add_form() {
 
 #[test]
 fn is_form_active_market_list() {
-    let data = make_data(&[]);
+    let (_temp_dir, data) = make_data(&[]);
     let model = Model::new(&data);
     assert!(!model.is_form_active());
 }
@@ -110,7 +110,7 @@ fn is_form_active_market_list() {
 
 #[test]
 fn key_to_msg_market_list_navigation() {
-    let data = make_data(&["market-a"]);
+    let (_temp_dir, data) = make_data(&["market-a"]);
     let model = Model::new(&data);
 
     assert!(matches!(key_to_msg(KeyCode::Up, &model), Some(Msg::Up)));
@@ -171,7 +171,7 @@ fn key_to_msg_add_form_input() {
 
 #[test]
 fn to_cache_and_from_cache_round_trip() {
-    let data = make_data(&["market-a", "market-b"]);
+    let (_temp_dir, data) = make_data(&["market-a", "market-b"]);
     let model = Model::new(&data);
     let cache = model.to_cache();
     assert_eq!(cache.selected_id.as_deref(), Some("market-a"));
@@ -190,7 +190,7 @@ fn to_cache_and_from_cache_round_trip() {
 
 #[test]
 fn from_cache_with_stale_id() {
-    let data = make_data(&["market-a"]);
+    let (_temp_dir, data) = make_data(&["market-a"]);
     let cache = CacheState {
         selected_id: Some("deleted-market".to_string()),
     };

@@ -2,7 +2,7 @@
 //!
 //! プラグインを最新バージョンに更新する。
 
-use crate::plugin::{update_all_plugins, update_plugin, UpdateResult, UpdateStatus};
+use crate::plugin::{update_all_plugins, update_plugin, PluginCache, UpdateResult, UpdateStatus};
 use clap::{Parser, ValueEnum};
 use std::env;
 
@@ -42,11 +42,12 @@ pub async fn run(args: Args) -> Result<(), String> {
         return Err("Specify plugin name or --all".to_string());
     }
 
+    let cache = PluginCache::new().map_err(|e| format!("Failed to access cache: {}", e))?;
     let project_root = env::current_dir().unwrap_or_else(|_| ".".into());
     let target_filter = args.target.as_ref().map(|t| t.as_str());
 
     if args.all {
-        let results = update_all_plugins(&project_root, target_filter).await;
+        let results = update_all_plugins(&cache, &project_root, target_filter).await;
         display_batch_results(&results);
 
         // 全失敗時のみエラー終了
@@ -58,7 +59,7 @@ pub async fn run(args: Args) -> Result<(), String> {
             return Err("All updates failed".to_string());
         }
     } else if let Some(name) = &args.name {
-        let result = update_plugin(name, &project_root, target_filter).await;
+        let result = update_plugin(&cache, name, &project_root, target_filter).await;
         display_single_result(&result);
 
         if matches!(result.status, UpdateStatus::Failed) {

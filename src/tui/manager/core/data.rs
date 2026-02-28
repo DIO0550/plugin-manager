@@ -1,11 +1,12 @@
 //! 共有データストア
 //!
 //! 全タブで共有されるデータを一元管理する。
-//! Application層のDTOのみを保持する。
+//! Application層のDTOとプラグインキャッシュを保持する。
 
 use crate::application::{list_installed_plugins, PluginSummary};
 use crate::component::{ComponentKind, ComponentName, ComponentTypeCount};
 use crate::marketplace::{to_display_source, MarketplaceConfig, MarketplaceRegistry};
+use crate::plugin::PluginCache;
 use std::io;
 
 // ============================================================================
@@ -35,6 +36,8 @@ pub struct MarketplaceItem {
 
 /// 共有データストア
 pub struct DataStore {
+    /// プラグインキャッシュ（再利用のため保持）
+    cache: PluginCache,
     /// インストール済みプラグイン一覧
     pub plugins: Vec<PluginSummary>,
     /// マーケットプレイス一覧
@@ -46,10 +49,13 @@ pub struct DataStore {
 impl DataStore {
     /// 新しいデータストアを作成
     pub fn new() -> io::Result<Self> {
-        let plugins = list_installed_plugins().map_err(|e| io::Error::other(e.to_string()))?;
+        let cache = PluginCache::new().map_err(|e| io::Error::other(e.to_string()))?;
+        let plugins =
+            list_installed_plugins(&cache).map_err(|e| io::Error::other(e.to_string()))?;
         let LoadMarketplacesResult { items, error } = load_marketplaces();
 
         Ok(Self {
+            cache,
             plugins,
             marketplaces: items,
             last_error: error,
@@ -58,7 +64,8 @@ impl DataStore {
 
     /// データストアをリロード（list_installed_plugins() で全体再取得）
     pub fn reload(&mut self) -> io::Result<()> {
-        self.plugins = list_installed_plugins().map_err(|e| io::Error::other(e.to_string()))?;
+        self.plugins =
+            list_installed_plugins(&self.cache).map_err(|e| io::Error::other(e.to_string()))?;
         let result = load_marketplaces();
         self.marketplaces = result.items;
         // 既存の last_error を上書きせず、マーケットプレイス読み込みエラーを追記/保存する
@@ -196,5 +203,32 @@ fn merge_errors(existing: Option<String>, new: Option<String>) -> Option<String>
         (Some(prev), Some(next)) => Some(format!("{}\n{}", prev, next)),
         (Some(prev), None) => Some(prev),
         (None, next) => next,
+    }
+}
+
+#[cfg(test)]
+impl DataStore {
+    /// テスト用コンストラクタ（一時キャッシュ使用）
+    ///
+    /// `tempfile::TempDir` を使用してユニークな一時ディレクトリを作成する。
+    /// 呼び出し側で `TempDir` をスコープに保持し、Drop で自動クリーンアップされる。
+    pub fn for_test(
+        plugins: Vec<PluginSummary>,
+        marketplaces: Vec<MarketplaceItem>,
+        last_error: Option<String>,
+    ) -> (tempfile::TempDir, Self) {
+        let temp_dir = tempfile::TempDir::new().expect("Failed to create temp directory for test");
+        let cache_dir = temp_dir.path().to_path_buf();
+        let cache =
+            PluginCache::with_cache_dir(cache_dir).expect("Failed to create test PluginCache");
+        (
+            temp_dir,
+            Self {
+                cache,
+                plugins,
+                marketplaces,
+                last_error,
+            },
+        )
     }
 }
