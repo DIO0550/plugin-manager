@@ -26,8 +26,9 @@ pub struct Args {
 }
 
 pub async fn run(args: Args) -> Result<(), String> {
-    let cache = PluginCache::new().map_err(|e| e.to_string())?;
-    let detail = get_plugin_info(&cache, &args.name).map_err(|e| e.to_string())?;
+    let cache = PluginCache::new().map_err(|e| format!("Failed to access cache: {e}"))?;
+    let detail = get_plugin_info(&cache, &args.name)
+        .map_err(|e| format!("Failed to get plugin info: {e}"))?;
 
     match args.format {
         OutputFormat::Table => print_table(&detail),
