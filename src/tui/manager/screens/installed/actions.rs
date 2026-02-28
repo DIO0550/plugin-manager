@@ -234,7 +234,7 @@ fn run_update_plugin(plugin_name: &str, project_root: &Path) -> UpdateStatusDisp
     let cache = match new_cache() {
         Ok(c) => c,
         Err(ActionResult::Error(msg)) => return UpdateStatusDisplay::Failed(msg),
-        Err(_) => return UpdateStatusDisplay::Failed("Failed to access cache".to_string()),
+        Err(ActionResult::Success) => unreachable!("new_cache() never returns Err(Success)"),
     };
 
     let result = tokio::task::block_in_place(|| {
