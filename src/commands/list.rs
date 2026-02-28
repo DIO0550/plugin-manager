@@ -53,8 +53,9 @@ struct PluginWithUpdateInfo {
 
 pub async fn run(args: Args) -> Result<(), String> {
     // 1. プラグイン一覧を取得
-    let cache = PluginCache::new().map_err(|e| e.to_string())?;
-    let mut plugins = list_installed_plugins(&cache).map_err(|e| e.to_string())?;
+    let cache = PluginCache::new().map_err(|e| format!("Failed to access cache: {e}"))?;
+    let mut plugins = list_installed_plugins(&cache)
+        .map_err(|e| format!("Failed to list installed plugins: {e}"))?;
 
     let total_count = plugins.len();
 
