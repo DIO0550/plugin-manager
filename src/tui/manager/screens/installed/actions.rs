@@ -29,15 +29,15 @@ impl From<application::OperationResult> for ActionResult {
 }
 
 /// キャッシュ初期化ヘルパー
-fn new_cache() -> Result<PluginCache, ActionResult> {
-    PluginCache::new().map_err(|e| ActionResult::Error(format!("Failed to access cache: {}", e)))
+fn new_cache() -> Result<PluginCache, String> {
+    PluginCache::new().map_err(|e| format!("Failed to access cache: {}", e))
 }
 
 /// プラグインを Disable（デプロイ先から削除、キャッシュは残す）
 pub fn disable_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionResult {
     let cache = match new_cache() {
         Ok(c) => c,
-        Err(e) => return e,
+        Err(e) => return ActionResult::Error(e),
     };
     let project_root = env::current_dir().unwrap_or_else(|_| ".".into());
     application::disable_plugin(&cache, plugin_name, marketplace, &project_root, None).into()
@@ -47,7 +47,7 @@ pub fn disable_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionRes
 pub fn uninstall_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionResult {
     let cache = match new_cache() {
         Ok(c) => c,
-        Err(e) => return e,
+        Err(e) => return ActionResult::Error(e),
     };
     let project_root = env::current_dir().unwrap_or_else(|_| ".".into());
     application::uninstall_plugin(&cache, plugin_name, marketplace, &project_root).into()
@@ -57,7 +57,7 @@ pub fn uninstall_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionR
 pub fn enable_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionResult {
     let cache = match new_cache() {
         Ok(c) => c,
-        Err(e) => return e,
+        Err(e) => return ActionResult::Error(e),
     };
     let project_root = env::current_dir().unwrap_or_else(|_| ".".into());
     application::enable_plugin(&cache, plugin_name, marketplace, &project_root, None).into()
@@ -233,8 +233,7 @@ fn run_update_plugin(plugin_name: &str, project_root: &Path) -> UpdateStatusDisp
 
     let cache = match new_cache() {
         Ok(c) => c,
-        Err(ActionResult::Error(msg)) => return UpdateStatusDisplay::Failed(msg),
-        Err(ActionResult::Success) => unreachable!("new_cache() never returns Err(Success)"),
+        Err(msg) => return UpdateStatusDisplay::Failed(msg),
     };
 
     let result = tokio::task::block_in_place(|| {
