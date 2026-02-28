@@ -364,7 +364,7 @@ pub async fn run(args: Args) -> Result<(), String> {
 
     // 5. Download plugin
     println!("\nDownloading plugin...");
-    let cache = PluginCache::new().map_err(|e| e.to_string())?;
+    let cache = PluginCache::new().map_err(|e| format!("Failed to access cache: {e}"))?;
     let cached_plugin = source
         .download(&cache, args.force)
         .await
