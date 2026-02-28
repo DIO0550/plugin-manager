@@ -20,13 +20,26 @@ pub use super::manifest_resolve::has_manifest;
 /// テスト時は `PluginCache::with_cache_dir(tempdir)` で tempdir ベースの
 /// 本番実装を注入する。
 pub trait PluginCacheAccess: Send + Sync {
-    /// プラグインのキャッシュパスを取得
+    /// プラグインのキャッシュパスを取得（階層型: marketplace/plugin）
+    ///
+    /// # Arguments
+    /// * `marketplace` - マーケットプレイス名（None の場合は "github" を使用）
+    /// * `name` - プラグイン名またはリポジトリ識別子（owner--repo 形式）
     fn plugin_path(&self, marketplace: Option<&str>, name: &str) -> PathBuf;
 
     /// キャッシュ済みかチェック
     fn is_cached(&self, marketplace: Option<&str>, name: &str) -> bool;
 
     /// zipアーカイブを展開してキャッシュに保存
+    ///
+    /// GitHubのzipballは `{repo}-{ref}/` というプレフィックスが付くため、それを除去する。
+    ///
+    /// # Arguments
+    /// * `marketplace` - マーケットプレイス名（None の場合は "github" を使用）
+    /// * `name` - プラグイン名またはリポジトリ識別子
+    /// * `archive` - zipアーカイブのバイト列
+    /// * `source_path` - 抽出するソースパス（正規化済み、例: "plugins/my-plugin"）
+    ///                   指定時はそのパス配下の内容のみをキャッシュ直下に展開
     fn store_from_archive(
         &self,
         marketplace: Option<&str>,
@@ -45,6 +58,9 @@ pub trait PluginCacheAccess: Send + Sync {
     fn list(&self) -> Result<Vec<(Option<String>, String)>>;
 
     /// プラグインをバックアップ
+    ///
+    /// 注意: 実行ビット/シンボリックリンクは保持されない。
+    /// プラグインは平文ファイルのみを含むことを前提とする。
     fn backup(&self, marketplace: Option<&str>, name: &str) -> Result<PathBuf>;
 
     /// バックアップからリストア
@@ -54,6 +70,14 @@ pub trait PluginCacheAccess: Send + Sync {
     fn remove_backup(&self, marketplace: Option<&str>, name: &str) -> Result<()>;
 
     /// アトミック更新（temp展開 → 検証 → リネーム）
+    ///
+    /// 中断耐性のあるキャッシュ更新を行う。
+    /// 展開ロジックは store_from_archive と同一（トップディレクトリ除去含む）。
+    ///
+    /// # Arguments
+    /// * `marketplace` - マーケットプレイス名
+    /// * `name` - プラグイン名
+    /// * `archive` - zipアーカイブのバイト列
     fn atomic_update(
         &self,
         marketplace: Option<&str>,
