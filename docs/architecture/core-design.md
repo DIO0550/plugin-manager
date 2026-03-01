@@ -19,7 +19,7 @@ pub enum ComponentKind {
     Command,
     /// インストラクション（AGENTS.md, copilot-instructions.md形式）
     Instruction,
-    /// フック（任意のスクリプト）
+    /// フック（JSON設定ファイル、VSCode Copilot Agent Mode対応）
     Hook,
 }
 
@@ -88,6 +88,26 @@ impl Target for CodexTarget {
 
     fn placement_location(&self, context: &PlacementContext) -> Option<PlacementLocation> {
         // PlacementContextに基づいて配置先を決定
+        // ...
+    }
+    // ...
+}
+
+pub struct CopilotTarget;
+
+impl Target for CopilotTarget {
+    fn name(&self) -> &'static str {
+        "copilot"
+    }
+
+    fn supported_components(&self) -> &[ComponentKind] {
+        &[ComponentKind::Skill, ComponentKind::Agent, ComponentKind::Command,
+          ComponentKind::Instruction, ComponentKind::Hook]
+    }
+
+    fn placement_location(&self, context: &PlacementContext) -> Option<PlacementLocation> {
+        // PlacementContextに基づいて配置先を決定
+        // Hooks は .github/hooks/ に配置
         // ...
     }
     // ...

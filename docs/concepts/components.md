@@ -10,7 +10,7 @@ PLMが管理するコンポーネントの種類について説明します。
 | **Agents** | カスタムエージェント定義 | `*.agent.md` |
 | **Commands** | スラッシュコマンド | `*.prompt.md` |
 | **Instructions** | コーディング規約・カスタム指示 | `AGENTS.md` / `copilot-instructions.md` / `GEMINI.md` |
-| **Hooks** | イベントハンドラ | 任意のスクリプト |
+| **Hooks** | イベントハンドラ | JSON設定ファイル（`*.json`） |
 
 ## Skills
 
@@ -133,6 +133,59 @@ description: コマンドの説明
 | Copilot | - | `.github/copilot-instructions.md`, `AGENTS.md` |
 | Gemini CLI | `~/.gemini/GEMINI.md` | `GEMINI.md` |
 
+## Hooks
+
+エージェントセッションのライフサイクルイベントに応じてシェルコマンドを実行するコンポーネントです。
+
+### 特徴
+
+- JSON設定ファイルでイベントとコマンドのマッピングを定義
+- `PreToolUse`、`PostToolUse`など8種類のライフサイクルイベントに対応
+- stdin/stdoutのJSONプロトコルで入出力を行い、操作の許可/拒否を制御可能
+- VSCode Copilot Agent Mode（Preview）でサポート
+- GitHub Copilot CLI / Coding Agent の hooks 形式とも互換性あり
+
+### ファイル形式
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "type": "command",
+        "command": "./scripts/validate.sh",
+        "timeout": 15
+      }
+    ],
+    "PostToolUse": [
+      {
+        "type": "command",
+        "command": "npx prettier --write \"$TOOL_INPUT_FILE_PATH\""
+      }
+    ]
+  }
+}
+```
+
+### 配置場所
+
+| ターゲット | Personal | Project |
+|------------|----------|---------|
+| Copilot | - | `.github/hooks/<marketplace>/<plugin>/` |
+
+### イベント種別
+
+| イベント | タイミング |
+|---------|-----------|
+| `PreToolUse` | ツール実行前 |
+| `PostToolUse` | ツール実行後 |
+| `SessionStart` | セッション開始時 |
+| `Stop` | セッション終了時 |
+| `UserPromptSubmit` | プロンプト送信時 |
+| `PreCompact` | コンテキスト圧縮前 |
+| `SubagentStart` | サブエージェント開始時 |
+| `SubagentStop` | サブエージェント終了時 |
+
 ## ターゲット別サポート状況
 
 | コンポーネント | Codex | Copilot | Antigravity | Gemini CLI |
@@ -141,7 +194,7 @@ description: コマンドの説明
 | Agents | ✅ | ✅ | ❌ | ❌ |
 | Commands | ❌ | ✅ | ❌ | ❌ |
 | Instructions | ✅ | ✅ | ❌ | ✅* |
-| Hooks | ❌ | ❌ | ❌ | ❌ |
+| Hooks | ❌ | ✅ | ❌ | ❌ |
 
 > *Gemini CLIは`GEMINI.md`形式で対応（`AGENTS.md`は設定で変更可能）。
 

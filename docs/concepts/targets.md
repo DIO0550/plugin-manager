@@ -19,7 +19,7 @@ PLMがサポートするAI開発環境（ターゲット）について説明し
 | Agents | ✅ | ✅ | ❌ | ❌ |
 | Commands | ❌ | ✅ | ❌ | ❌ |
 | Instructions | ✅ | ✅ | ❌* | ✅** |
-| Hooks | ❌ | ❌ | ❌ | ❌ |
+| Hooks | ❌ | ✅ | ❌ | ❌ |
 
 > *AntigravityはSkills専用の設計で、Instructionsは別途設定で管理します。
 > **Gemini CLIは`GEMINI.md`による階層的な指示システムを持ちます。
@@ -97,6 +97,77 @@ PLMがサポートするAI開発環境（ターゲット）について説明し
 | Prompts | `*.prompt.md` | - | `.github/prompts/<marketplace>/<plugin>/` |
 | Instructions | `AGENTS.md` | - | `AGENTS.md` |
 | Instructions | `copilot-instructions.md` | - | `.github/copilot-instructions.md` |
+| Hooks | `*.json` | - | `.github/hooks/<marketplace>/<plugin>/` |
+
+### Hooks（Preview）
+
+VSCode Copilot Agent Modeでは、エージェントセッションのライフサイクルイベントに対してシェルコマンドを実行するHooksをサポートしています（Preview機能）。
+
+公式ドキュメント: [Agent hooks in Visual Studio Code](https://code.visualstudio.com/docs/copilot/customization/hooks)
+
+#### イベント種別
+
+| イベント | タイミング | 用途 |
+|---------|-----------|------|
+| `PreToolUse` | ツール実行前 | 危険操作のブロック、承認要求 |
+| `PostToolUse` | ツール実行後 | フォーマッタ実行、ログ記録 |
+| `SessionStart` | セッション開始時 | リソース初期化、状態検証 |
+| `Stop` | セッション終了時 | レポート生成、後片付け |
+| `UserPromptSubmit` | プロンプト送信時 | 監査、コンテキスト注入 |
+| `PreCompact` | コンテキスト圧縮前 | 重要コンテキストの退避 |
+| `SubagentStart` | サブエージェント開始時 | 追跡 |
+| `SubagentStop` | サブエージェント終了時 | クリーンアップ |
+
+#### 設定形式
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "type": "command",
+        "command": "./scripts/validate.sh",
+        "timeout": 15
+      }
+    ],
+    "PostToolUse": [
+      {
+        "type": "command",
+        "command": "npx prettier --write \"$TOOL_INPUT_FILE_PATH\""
+      }
+    ]
+  }
+}
+```
+
+#### Copilot CLI / Coding Agent との互換性
+
+GitHub Copilot CLI（camelCase形式）の hooks 設定も VSCode で利用可能です。VSCode は camelCase → PascalCase の自動変換を行います。
+
+| 項目 | VSCode | Copilot CLI |
+|------|--------|------------|
+| イベント名 | PascalCase (`PreToolUse`) | camelCase (`preToolUse`) |
+| version フィールド | 不要 | `"version": 1` 必須 |
+| コマンド指定 | `command`, `windows`, `linux`, `osx` | `bash`, `powershell` |
+| タイムアウト | `timeout` | `timeoutSec` |
+
+#### I/O プロトコル
+
+Hooks は stdin で JSON を受け取り、stdout で JSON を返します。
+
+```json
+// 出力例（PreToolUse）
+{
+  "continue": true,
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "permissionDecision": "allow",
+    "permissionDecisionReason": "Validated tool input"
+  }
+}
+```
+
+終了コード: `0` = 成功、`2` = ブロッキングエラー、その他 = 非ブロッキング警告。
 
 ## Google Antigravity
 

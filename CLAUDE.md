@@ -96,12 +96,12 @@ cargo deny check
 ### コア設計パターン
 
 **Target Trait** - 環境差異を抽象化：
-| 環境 | Skills | Agents | Commands | Instructions |
-|------------|--------|--------|----------|--------------|
-| OpenAI Codex | ○ | ○ | × | ○ |
-| VSCode Copilot | ○ | ○ | ○ | ○ |
-| Google Antigravity | ○ | × | × | × |
-| Gemini CLI | ○ | × | × | ○ |
+| 環境 | Skills | Agents | Commands | Instructions | Hooks |
+|------------|--------|--------|----------|--------------|-------|
+| OpenAI Codex | ○ | ○ | × | ○ | × |
+| VSCode Copilot | ○ | ○ | ○ | ○ | ○ |
+| Google Antigravity | ○ | × | × | × | × |
+| Gemini CLI | ○ | × | × | ○ | × |
 
 **Component** - コンポーネントタイプを抽象化（`ComponentKind` enum）：
 - Skills: YAMLフロントマター付き `SKILL.md`
