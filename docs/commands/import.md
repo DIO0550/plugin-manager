@@ -86,13 +86,17 @@ plugin-name/
 |----------------|--------------|
 | Skills | Codex, Copilot |
 | Agents | Codex, Copilot |
+| Hooks | Copilot |
 
 以下はClaude Code専用のため、インポート対象外です:
 
 - Commands
-- Hooks
 - MCP Servers (.mcp.json)
 - LSP Servers (.lsp.json)
+
+以下はCopilotにのみインポート可能です:
+
+- Hooks（`.github/hooks/` にJSON設定ファイルとして配置）
 
 ## 関連
 

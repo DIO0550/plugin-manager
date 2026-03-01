@@ -79,11 +79,21 @@ Gemini (Personal): ~/.gemini/GEMINI.md
 Gemini (Project):  GEMINI.md
 ```
 
+### Hooks
+
+```
+プラグイン内:
+├── hooks/
+│   └── branch-protection.json
+
+展開先:
+Copilot: .github/hooks/company-tools/code-formatter/branch-protection.json
+```
+
 ### 展開対象外
 
 以下のコンポーネントはClaude Code専用のため、展開対象外です:
 
-- `hooks/` - イベントハンドラ
 - `.mcp.json` - MCPサーバー設定
 - `.lsp.json` - LSPサーバー設定
 
@@ -154,6 +164,7 @@ Codex/Copilotがネストしたディレクトリを読み込むかは公式ド�
 | Agents | `~/.copilot/agents/<marketplace>/<plugin>/` | `.github/agents/<marketplace>/<plugin>/` |
 | Commands | - | `.github/prompts/<marketplace>/<plugin>/` |
 | Instructions | - | `.github/copilot-instructions.md` |
+| Hooks | - | `.github/hooks/<marketplace>/<plugin>/` |
 
 ### Antigravity
 
