@@ -12,6 +12,7 @@ mod fs;
 mod host;
 mod http;
 mod import;
+mod install;
 mod marketplace;
 mod output;
 mod parser;
