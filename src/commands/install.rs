@@ -8,12 +8,10 @@
 //! 2. ダウンロード
 //! 3. 配置
 
-use crate::component::{ComponentDeployment, ComponentKind, DeploymentResult};
-use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
+use crate::component::ComponentKind;
+use crate::install::{self, PlaceRequest};
 use crate::output::CommandSummary;
-use crate::plugin::PluginCache;
-use crate::source::parse_source;
-use crate::target::{all_targets, parse_target, PluginOrigin, Scope, Target, TargetKind};
+use crate::target::{all_targets, parse_target, Scope, TargetKind};
 use crate::tui;
 use clap::Parser;
 use std::env;
@@ -47,7 +45,8 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
         None => {
             // TUIでターゲット選択
             let available = all_targets();
-            let available_refs: Vec<&dyn Target> = available.iter().map(|t| t.as_ref()).collect();
+            let available_refs: Vec<&dyn crate::target::Target> =
+                available.iter().map(|t| t.as_ref()).collect();
             let all_components = ComponentKind::all().to_vec();
 
             tui::select_targets(&available_refs, &all_components).map_err(|e| e.to_string())?
@@ -70,171 +69,93 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
     println!("\nSelected targets: {}", target_names.join(", "));
     println!("Selected scope: {}", scope);
 
-    // 3. ソースをパース
-    let source = parse_source(&args.source).map_err(|e| e.to_string())?;
-
-    // 4. ダウンロード
+    // 3. ダウンロード
     println!("\nDownloading plugin...");
-    let cache = PluginCache::new().map_err(|e| format!("Failed to access cache: {e}"))?;
-    let cached_plugin = source
-        .download(&cache, args.force)
-        .await
-        .map_err(|e| e.to_string())?;
+    let downloaded = install::download_plugin(&args.source, args.force).await?;
 
     println!("\nPlugin downloaded successfully!");
-    println!("  Name: {}", cached_plugin.name);
-    println!("  Version: {}", cached_plugin.version());
-    println!("  Path: {}", cached_plugin.path.display());
-    println!("  Ref: {}", cached_plugin.git_ref);
-    println!("  SHA: {}", cached_plugin.commit_sha);
+    println!("  Name: {}", downloaded.name);
+    println!("  Version: {}", downloaded.version);
+    println!("  Path: {}", downloaded.cached_path.display());
+    println!("  Ref: {}", downloaded.cached_plugin.git_ref);
+    println!("  SHA: {}", downloaded.cached_plugin.commit_sha);
 
-    if let Some(desc) = cached_plugin.description() {
+    if let Some(desc) = &downloaded.description {
         println!("  Description: {}", desc);
     }
 
     // コンポーネント情報
     println!("\nComponents:");
-    if let Some(skills) = cached_plugin.skills() {
+    if let Some(skills) = downloaded.cached_plugin.skills() {
         println!("  - Skills: {}", skills);
     }
-    if let Some(agents) = cached_plugin.agents() {
+    if let Some(agents) = downloaded.cached_plugin.agents() {
         println!("  - Agents: {}", agents);
     }
-    if let Some(commands) = cached_plugin.commands() {
+    if let Some(commands) = downloaded.cached_plugin.commands() {
         println!("  - Commands: {}", commands);
     }
 
-    // 5. コンポーネントをスキャン
-    let mut components = cached_plugin.components();
+    // 4. コンポーネントをスキャン
+    let type_filter = args.component_type.as_deref();
+    let scanned = install::scan_plugin(&downloaded, type_filter)?;
 
-    // コンポーネントフィルタを適用
-    if let Some(filter) = &args.component_type {
-        components.retain(|c| filter.contains(&c.kind));
-    }
+    // 5. ターゲットを解決
+    let targets: Vec<Box<dyn crate::target::Target>> = target_names
+        .iter()
+        .map(|name| parse_target(name).map_err(|e| e.to_string()))
+        .collect::<Result<Vec<_>, _>>()?;
 
     // 6. 配置
     println!("\nPlacing to targets...");
 
     let project_root = env::current_dir().map_err(|e| e.to_string())?;
 
-    // プラグインの出自情報を作成
-    let origin =
-        PluginOrigin::from_cached_plugin(cached_plugin.marketplace.as_deref(), &cached_plugin.name);
+    let result = install::place_plugin(&PlaceRequest {
+        scanned: &scanned,
+        targets: &targets,
+        scope,
+        project_root: &project_root,
+    });
 
-    let mut total_success = 0;
-    let mut total_failure = 0;
-
+    // 7. 結果表示（ターゲット単位でグループ化、旧実装互換）
     println!("\nPlacement Results:");
-    for target_name in &target_names {
-        let target = parse_target(target_name).map_err(|e| e.to_string())?;
 
+    for target_name in &target_names {
         let mut target_success = true;
 
-        for component in &components {
-            // ターゲットがこのコンポーネントをサポートしているか確認
-            if !target.supports(component.kind) {
-                continue;
-            }
-
-            // 配置コンテキストを構築
-            let ctx = PlacementContext {
-                component: ComponentRef::new(component.kind, &component.name),
-                origin: &origin,
-                scope: PlacementScope(scope),
-                project: ProjectContext::new(&project_root),
+        // このターゲットの成功結果を表示
+        for success in result.successes.iter().filter(|s| &s.target == target_name) {
+            let suffix = match (&success.source_format, &success.dest_format) {
+                (Some(src), Some(dst)) => format!(" (Converted: {} → {})", src, dst),
+                _ => String::new(),
             };
+            println!(
+                "  + {} {}: {} -> {}{}",
+                success.target,
+                success.component_kind,
+                success.component_name,
+                success.target_path.display(),
+                suffix
+            );
+        }
 
-            // 配置先を取得（サポートしていない場合は None）
-            let target_path = match target.placement_location(&ctx) {
-                Some(location) => location.into_path(),
-                None => continue,
-            };
-
-            // デプロイ情報を構築
-            let mut builder = ComponentDeployment::builder()
-                .component(component)
-                .scope(scope)
-                .target_path(target_path);
-
-            // Command の場合は変換情報を設定
-            if component.kind == ComponentKind::Command {
-                builder = builder
-                    .source_format(cached_plugin.command_format())
-                    .dest_format(target.command_format());
-            }
-
-            // Agent の場合は変換情報を設定
-            if component.kind == ComponentKind::Agent {
-                builder = builder
-                    .source_agent_format(cached_plugin.agent_format())
-                    .dest_agent_format(target.agent_format());
-            }
-
-            let deployment = match builder.build() {
-                Ok(d) => d,
-                Err(e) => {
-                    println!(
-                        "  x {} {}: {} - {}",
-                        target.name(),
-                        component.kind,
-                        component.name,
-                        e
-                    );
-                    total_failure += 1;
-                    target_success = false;
-                    continue;
-                }
-            };
-
-            // デプロイ実行
-            match deployment.execute() {
-                Ok(result) => {
-                    let suffix = match &result {
-                        DeploymentResult::Converted(conv) if conv.converted => {
-                            format!(
-                                " (Converted: {} → {})",
-                                conv.source_format, conv.dest_format
-                            )
-                        }
-                        DeploymentResult::AgentConverted(conv) if conv.converted => {
-                            format!(
-                                " (Converted: {} → {})",
-                                conv.source_format, conv.dest_format
-                            )
-                        }
-                        _ => String::new(),
-                    };
-                    println!(
-                        "  + {} {}: {} -> {}{}",
-                        target.name(),
-                        component.kind,
-                        component.name,
-                        deployment.path().display(),
-                        suffix
-                    );
-                    total_success += 1;
-                }
-                Err(e) => {
-                    println!(
-                        "  x {} {}: {} - {}",
-                        target.name(),
-                        component.kind,
-                        component.name,
-                        e
-                    );
-                    total_failure += 1;
-                    target_success = false;
-                }
-            }
+        // このターゲットの失敗結果を表示
+        for failure in result.failures.iter().filter(|f| &f.target == target_name) {
+            println!(
+                "  x {} {}: {} - {}",
+                failure.target, failure.component_kind, failure.component_name, failure.error
+            );
+            target_success = false;
         }
 
         if !target_success {
-            println!("  {} - FAILED", target.name());
+            println!("  {} - FAILED", target_name);
         }
     }
 
     // 結果サマリー
-    let summary = CommandSummary::format(total_success, total_failure);
+    let summary = CommandSummary::format(result.successes.len(), result.failures.len());
     println!("\n{} {}", summary.prefix, summary.message);
 
     Ok(())
