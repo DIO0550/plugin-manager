@@ -9,15 +9,59 @@ use crate::target::{PluginOrigin, Target};
 
 /// ダウンロード済みプラグイン
 ///
-/// `CachedPlugin` をラップし、ライブラリ層で扱いやすい公開フィールドを提供する。
+/// `CachedPlugin` をラップし、read-only アクセサを通じてプラグイン情報を提供する。
+/// フィールドを private にすることで、`cached_plugin` と派生フィールドの不整合を防止する。
 #[derive(Debug)]
 pub struct DownloadedPlugin {
-    pub cached_plugin: CachedPlugin,
-    pub name: String,
-    pub version: String,
-    pub description: Option<String>,
-    pub cached_path: PathBuf,
-    pub marketplace: Option<String>,
+    cached_plugin: CachedPlugin,
+    name: String,
+    version: String,
+    description: Option<String>,
+    cached_path: PathBuf,
+    marketplace: Option<String>,
+}
+
+impl DownloadedPlugin {
+    /// 元の CachedPlugin への参照を取得
+    pub fn cached_plugin(&self) -> &CachedPlugin {
+        &self.cached_plugin
+    }
+
+    /// プラグイン名を取得
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// プラグインのバージョンを取得
+    pub fn version(&self) -> &str {
+        &self.version
+    }
+
+    /// プラグインの説明を取得
+    pub fn description(&self) -> Option<&str> {
+        self.description.as_deref()
+    }
+
+    /// キャッシュされたプラグインのパスを取得
+    pub fn cached_path(&self) -> &Path {
+        &self.cached_path
+    }
+
+    /// マーケットプレイス名を取得
+    pub fn marketplace(&self) -> Option<&str> {
+        self.marketplace.as_deref()
+    }
+
+    fn from_cached(cached: CachedPlugin) -> Self {
+        Self {
+            name: cached.name.clone(),
+            version: cached.version().to_string(),
+            description: cached.description().map(|s| s.to_string()),
+            cached_path: cached.path.clone(),
+            marketplace: cached.marketplace.clone(),
+            cached_plugin: cached,
+        }
+    }
 }
 
 /// スキャン済みプラグイン
@@ -95,19 +139,6 @@ pub struct PlaceFailure {
     pub stage: PlaceFailureStage,
 }
 
-impl DownloadedPlugin {
-    fn from_cached(cached: CachedPlugin) -> Self {
-        Self {
-            name: cached.name.clone(),
-            version: cached.version().to_string(),
-            description: cached.description().map(|s| s.to_string()),
-            cached_path: cached.path.clone(),
-            marketplace: cached.marketplace.clone(),
-            cached_plugin: cached,
-        }
-    }
-}
-
 /// 汎用プラグインダウンロード
 ///
 /// `source_str` をパースし、GitHub またはマーケットプレイスからプラグインをダウンロードする。
@@ -143,7 +174,7 @@ pub fn scan_plugin(
     downloaded: &DownloadedPlugin,
     type_filter: Option<&[ComponentKind]>,
 ) -> Result<ScannedPlugin, String> {
-    let mut components = downloaded.cached_plugin.components();
+    let mut components = downloaded.cached_plugin().components();
 
     if let Some(filter) = type_filter {
         components.retain(|c| filter.contains(&c.kind));
@@ -159,9 +190,9 @@ pub fn scan_plugin(
         .collect();
 
     Ok(ScannedPlugin {
-        name: downloaded.name.clone(),
-        marketplace: downloaded.marketplace.clone(),
-        cached_plugin: downloaded.cached_plugin.clone(),
+        name: downloaded.name().to_string(),
+        marketplace: downloaded.marketplace().map(|s| s.to_string()),
+        cached_plugin: downloaded.cached_plugin().clone(),
         components: scanned_components,
     })
 }

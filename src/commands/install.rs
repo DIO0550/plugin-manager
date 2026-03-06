@@ -74,25 +74,25 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
     let downloaded = install::download_plugin(&args.source, args.force).await?;
 
     println!("\nPlugin downloaded successfully!");
-    println!("  Name: {}", downloaded.name);
-    println!("  Version: {}", downloaded.version);
-    println!("  Path: {}", downloaded.cached_path.display());
-    println!("  Ref: {}", downloaded.cached_plugin.git_ref);
-    println!("  SHA: {}", downloaded.cached_plugin.commit_sha);
+    println!("  Name: {}", downloaded.name());
+    println!("  Version: {}", downloaded.version());
+    println!("  Path: {}", downloaded.cached_path().display());
+    println!("  Ref: {}", downloaded.cached_plugin().git_ref);
+    println!("  SHA: {}", downloaded.cached_plugin().commit_sha);
 
-    if let Some(desc) = &downloaded.description {
+    if let Some(desc) = downloaded.description() {
         println!("  Description: {}", desc);
     }
 
     // コンポーネント情報
     println!("\nComponents:");
-    if let Some(skills) = downloaded.cached_plugin.skills() {
+    if let Some(skills) = downloaded.cached_plugin().skills() {
         println!("  - Skills: {}", skills);
     }
-    if let Some(agents) = downloaded.cached_plugin.agents() {
+    if let Some(agents) = downloaded.cached_plugin().agents() {
         println!("  - Agents: {}", agents);
     }
-    if let Some(commands) = downloaded.cached_plugin.commands() {
+    if let Some(commands) = downloaded.cached_plugin().commands() {
         println!("  - Commands: {}", commands);
     }
 

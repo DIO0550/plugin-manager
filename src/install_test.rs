@@ -253,11 +253,11 @@ fn test_downloaded_plugin_from_cached() {
     let cached = create_test_cached_plugin(temp.path(), &[], &[], &[]);
     let downloaded = create_test_downloaded(cached);
 
-    assert_eq!(downloaded.name, "test-plugin");
-    assert_eq!(downloaded.version, "1.0.0");
-    assert_eq!(downloaded.description, Some("A test plugin".to_string()));
-    assert_eq!(downloaded.marketplace, Some("test-marketplace".to_string()));
-    assert_eq!(downloaded.cached_path, temp.path());
+    assert_eq!(downloaded.name(), "test-plugin");
+    assert_eq!(downloaded.version(), "1.0.0");
+    assert_eq!(downloaded.description(), Some("A test plugin"));
+    assert_eq!(downloaded.marketplace(), Some("test-marketplace"));
+    assert_eq!(downloaded.cached_path(), temp.path());
 }
 
 // =============================================================================
