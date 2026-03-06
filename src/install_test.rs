@@ -265,8 +265,12 @@ fn test_downloaded_plugin_from_cached() {
 // =============================================================================
 
 #[tokio::test]
-async fn test_download_plugin_invalid_source_returns_error() {
-    // 空文字列は parse_source でエラーになる
-    let result = download_plugin("", false).await;
+async fn test_download_plugin_with_cache_invalid_source_returns_error() {
+    let temp_cache = TempDir::new().unwrap();
+    let cache =
+        crate::plugin::PluginCache::with_cache_dir(temp_cache.path().to_path_buf()).unwrap();
+
+    // 空文字列は SearchSource として解釈され、マーケットプレイス検索で失敗する
+    let result = download_plugin_with_cache("", false, &cache).await;
     assert!(result.is_err());
 }
