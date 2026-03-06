@@ -282,7 +282,7 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
                         component_name: component.name.clone(),
                         component_kind: component.kind,
                         error: e.to_string(),
-                        stage: PlaceFailureStage::Deployment,
+                        stage: PlaceFailureStage::Resolution,
                     });
                     continue;
                 }
