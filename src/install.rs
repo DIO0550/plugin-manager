@@ -165,15 +165,29 @@ pub async fn download_plugin_with_cache(
 }
 
 /// マーケットプレイス経由のプラグインダウンロード
+///
+/// デフォルトの `PluginCache` を使用する CLI/TUI 向け便利関数。
 pub async fn download_marketplace_plugin(
     plugin_name: &str,
     marketplace_name: &str,
     force: bool,
 ) -> Result<DownloadedPlugin, String> {
-    let source = MarketplaceSource::new(plugin_name, marketplace_name);
     let cache = PluginCache::new().map_err(|e| format!("Failed to access cache: {e}"))?;
+    download_marketplace_plugin_with_cache(plugin_name, marketplace_name, force, &cache).await
+}
+
+/// キャッシュを注入可能なマーケットプレイス経由のプラグインダウンロード
+///
+/// テストや DI が必要な場面で使用する。
+pub async fn download_marketplace_plugin_with_cache(
+    plugin_name: &str,
+    marketplace_name: &str,
+    force: bool,
+    cache: &dyn PluginCacheAccess,
+) -> Result<DownloadedPlugin, String> {
+    let source = MarketplaceSource::new(plugin_name, marketplace_name);
     let cached = source
-        .download(&cache, force)
+        .download(cache, force)
         .await
         .map_err(|e| e.to_string())?;
     Ok(DownloadedPlugin::from_cached(cached))
