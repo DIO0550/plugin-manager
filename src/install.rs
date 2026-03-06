@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use crate::component::{AgentFormat, CommandFormat, ComponentKind, Scope};
 use crate::component::{Component, ComponentDeployment, DeploymentResult};
 use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
-use crate::plugin::{CachedPlugin, PluginCache};
+use crate::plugin::{CachedPlugin, PluginCache, PluginCacheAccess};
 use crate::source::{parse_source, MarketplaceSource, PluginSource};
 use crate::target::{PluginOrigin, Target};
 
@@ -142,11 +142,23 @@ pub struct PlaceFailure {
 /// 汎用プラグインダウンロード
 ///
 /// `source_str` をパースし、GitHub またはマーケットプレイスからプラグインをダウンロードする。
+/// デフォルトの `PluginCache` を使用する CLI/TUI 向け便利関数。
 pub async fn download_plugin(source_str: &str, force: bool) -> Result<DownloadedPlugin, String> {
-    let source = parse_source(source_str).map_err(|e| e.to_string())?;
     let cache = PluginCache::new().map_err(|e| format!("Failed to access cache: {e}"))?;
+    download_plugin_with_cache(source_str, force, &cache).await
+}
+
+/// キャッシュを注入可能な汎用プラグインダウンロード
+///
+/// テストや DI が必要な場面で使用する。
+pub async fn download_plugin_with_cache(
+    source_str: &str,
+    force: bool,
+    cache: &dyn PluginCacheAccess,
+) -> Result<DownloadedPlugin, String> {
+    let source = parse_source(source_str).map_err(|e| e.to_string())?;
     let cached = source
-        .download(&cache, force)
+        .download(cache, force)
         .await
         .map_err(|e| e.to_string())?;
     Ok(DownloadedPlugin::from_cached(cached))
