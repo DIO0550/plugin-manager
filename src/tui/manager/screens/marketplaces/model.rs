@@ -2,9 +2,12 @@
 //!
 //! 画面状態とメッセージ型を定義。
 
+use crate::component::Scope;
+use crate::marketplace::PluginSource;
 use crate::tui::manager::core::DataStore;
 use crossterm::event::KeyCode;
 use ratatui::widgets::ListState;
+use std::collections::HashSet;
 
 // ============================================================================
 // OperationStatus（非同期操作の状態）
@@ -37,6 +40,7 @@ pub enum DetailAction {
     Update,
     Remove,
     ShowPlugins,
+    BrowsePlugins,
     Back,
 }
 
@@ -46,6 +50,7 @@ impl DetailAction {
             DetailAction::Update,
             DetailAction::Remove,
             DetailAction::ShowPlugins,
+            DetailAction::BrowsePlugins,
             DetailAction::Back,
         ]
     }
@@ -55,6 +60,7 @@ impl DetailAction {
             DetailAction::Update => "Update",
             DetailAction::Remove => "Remove",
             DetailAction::ShowPlugins => "Show plugins",
+            DetailAction::BrowsePlugins => "Browse plugins",
             DetailAction::Back => "Back to list",
         }
     }
@@ -96,6 +102,34 @@ pub enum AddFormModel {
 }
 
 // ============================================================================
+// BrowsePlugin / PluginInstallResult / InstallSummary
+// ============================================================================
+
+/// マーケットプレイスのプラグイン情報（ブラウズ画面用）
+pub struct BrowsePlugin {
+    pub name: String,
+    pub description: Option<String>,
+    pub version: Option<String>,
+    pub source: PluginSource,
+    pub installed: bool,
+}
+
+/// プラグインインストール結果（1件分）
+pub struct PluginInstallResult {
+    pub plugin_name: String,
+    pub success: bool,
+    pub error: Option<String>,
+}
+
+/// インストールサマリー
+pub struct InstallSummary {
+    pub results: Vec<PluginInstallResult>,
+    pub total: usize,
+    pub succeeded: usize,
+    pub failed: usize,
+}
+
+// ============================================================================
 // Model（画面状態）
 // ============================================================================
 
@@ -124,6 +158,48 @@ pub enum Model {
     },
     /// 新規マーケットプレイス追加フォーム
     AddForm(AddFormModel),
+    /// プラグインブラウズ画面
+    PluginBrowse {
+        marketplace_name: String,
+        plugins: Vec<BrowsePlugin>,
+        selected_plugins: HashSet<String>,
+        highlighted_idx: usize,
+        state: ListState,
+    },
+    /// ターゲット選択画面
+    TargetSelect {
+        marketplace_name: String,
+        plugins: Vec<BrowsePlugin>,
+        selected_plugins: HashSet<String>,
+        targets: Vec<(String, String, bool)>,
+        highlighted_idx: usize,
+        state: ListState,
+    },
+    /// スコープ選択画面
+    ScopeSelect {
+        marketplace_name: String,
+        plugins: Vec<BrowsePlugin>,
+        selected_plugins: HashSet<String>,
+        target_names: Vec<String>,
+        highlighted_idx: usize,
+        state: ListState,
+    },
+    /// インストール実行中
+    Installing {
+        marketplace_name: String,
+        plugins: Vec<BrowsePlugin>,
+        plugin_names: Vec<String>,
+        target_names: Vec<String>,
+        scope: Scope,
+        current_idx: usize,
+        total: usize,
+    },
+    /// インストール結果表示
+    InstallResult {
+        marketplace_name: String,
+        plugins: Vec<BrowsePlugin>,
+        summary: InstallSummary,
+    },
 }
 
 impl Model {
@@ -182,6 +258,23 @@ impl Model {
                 selected_id: Some(marketplace_name.clone()),
             },
             Model::AddForm(_) => CacheState { selected_id: None },
+            Model::PluginBrowse {
+                marketplace_name, ..
+            }
+            | Model::TargetSelect {
+                marketplace_name, ..
+            }
+            | Model::ScopeSelect {
+                marketplace_name, ..
+            }
+            | Model::Installing {
+                marketplace_name, ..
+            }
+            | Model::InstallResult {
+                marketplace_name, ..
+            } => CacheState {
+                selected_id: Some(marketplace_name.clone()),
+            },
         }
     }
 
@@ -218,6 +311,12 @@ pub enum Msg {
     UpdateAll,
     ExecuteUpdate,
     ExecuteRemove,
+    ToggleSelect,
+    StartInstall,
+    ExecuteInstall,
+    ConfirmTargets,
+    ConfirmScope,
+    BackToPluginBrowse,
 }
 
 /// キーコードをメッセージに変換

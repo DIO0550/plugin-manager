@@ -352,7 +352,8 @@ fn detail_back_action_returns_to_market_list() {
     // Enter -> MarketDetail
     update(&mut model, Msg::Enter, &mut data);
 
-    // Move to Back (index 3)
+    // Move to Back (index 4: Update, Remove, ShowPlugins, BrowsePlugins, Back)
+    update(&mut model, Msg::Down, &mut data);
     update(&mut model, Msg::Down, &mut data);
     update(&mut model, Msg::Down, &mut data);
     update(&mut model, Msg::Down, &mut data);
@@ -1318,5 +1319,10 @@ fn model_variant(model: &Model) -> &'static str {
         Model::MarketDetail { .. } => "MarketDetail",
         Model::PluginList { .. } => "PluginList",
         Model::AddForm(_) => "AddForm",
+        Model::PluginBrowse { .. } => "PluginBrowse",
+        Model::TargetSelect { .. } => "TargetSelect",
+        Model::ScopeSelect { .. } => "ScopeSelect",
+        Model::Installing { .. } => "Installing",
+        Model::InstallResult { .. } => "InstallResult",
     }
 }
