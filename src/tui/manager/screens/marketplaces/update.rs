@@ -63,6 +63,12 @@ pub fn update(model: &mut Model, msg: Msg, data: &mut DataStore) -> UpdateEffect
         Msg::UpdateAll => update_all(model, data),
         Msg::ExecuteUpdate => execute_update(model, data),
         Msg::ExecuteRemove => execute_remove(model, data),
+        Msg::ToggleSelect
+        | Msg::StartInstall
+        | Msg::ExecuteInstall
+        | Msg::ConfirmTargets
+        | Msg::ConfirmScope
+        | Msg::BackToPluginBrowse => UpdateEffect::none(),
     }
 }
 
@@ -114,7 +120,7 @@ fn select_prev(model: &mut Model, data: &DataStore) {
                 state.select(Some(*selected_idx));
             }
         }
-        Model::AddForm(_) => {}
+        _ => {}
     }
 }
 
@@ -149,7 +155,7 @@ fn select_next(model: &mut Model, data: &DataStore) {
             *selected_idx = next;
             state.select(Some(next));
         }
-        Model::AddForm(_) => {}
+        _ => {}
     }
 }
 
@@ -216,6 +222,7 @@ fn enter(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
                     };
                     UpdateEffect::phase2(Msg::ExecuteRemove)
                 }
+                Some(DetailAction::BrowsePlugins) => UpdateEffect::none(),
                 Some(DetailAction::ShowPlugins) => {
                     let name = marketplace_name.clone();
                     let plugins = actions::get_marketplace_plugins(&name);
@@ -244,6 +251,7 @@ fn enter(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
             UpdateEffect::none()
         }
         Model::AddForm(_) => enter_form(model, data),
+        _ => UpdateEffect::none(),
     }
 }
 
@@ -409,6 +417,7 @@ fn back(model: &mut Model, data: &DataStore) {
                 error_message: None,
             };
         }
+        _ => {}
     }
 }
 

@@ -63,6 +63,7 @@ pub fn view(
         Model::AddForm(form) => {
             view_add_form(f, form, filter_text, filter_focused);
         }
+        _ => {}
     }
 }
 
