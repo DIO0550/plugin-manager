@@ -78,6 +78,14 @@ impl DataStore {
         self.plugins.iter().find(|p| p.name == *id)
     }
 
+    /// `PluginSummary.name`（キャッシュキー）でインストール済みかどうかを判定する。
+    /// `plugin_name` は `PluginSummary.name` と完全一致で比較される。
+    /// marketplace の区別はしない（既存の `find_plugin` と同じ設計）。
+    /// `enabled` の状態に関わらず、`plugins` に存在すれば `true` を返す。
+    pub fn is_plugin_installed(&self, plugin_name: &str) -> bool {
+        self.plugins.iter().any(|p| p.name == plugin_name)
+    }
+
     /// プラグインIDでインデックスを検索
     pub fn plugin_index(&self, id: &PluginId) -> Option<usize> {
         self.plugins.iter().position(|p| p.name == *id)
