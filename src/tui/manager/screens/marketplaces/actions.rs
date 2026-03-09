@@ -6,6 +6,7 @@ use super::model::{BrowsePlugin, InstallSummary, PluginInstallResult};
 use crate::application::PluginSummary;
 use crate::component::Scope;
 use crate::install::{self, PlaceRequest};
+use crate::plugin::{PluginCache, PluginCacheAccess};
 use crate::marketplace::{
     to_display_source, to_internal_source, MarketplaceCache, MarketplaceConfig, MarketplaceFetcher,
     MarketplaceRegistration, MarketplaceRegistry,
@@ -221,13 +222,15 @@ fn install_single_plugin(
     targets: &[Box<dyn crate::target::Target>],
     scope: Scope,
     project_root: &Path,
+    cache: &dyn PluginCacheAccess,
 ) -> PluginInstallResult {
     // Download (async -> sync bridge)
     let downloaded = match tokio::task::block_in_place(|| {
-        handle.block_on(install::download_marketplace_plugin(
+        handle.block_on(install::download_marketplace_plugin_with_cache(
             plugin_name,
             marketplace_name,
             false,
+            cache,
         ))
     }) {
         Ok(d) => d,
@@ -328,6 +331,17 @@ pub fn install_plugins(
         Err(_) => return make_all_failed_summary(plugin_names, "No Tokio runtime available"),
     };
 
+    // PluginCache を1回作成（各プラグインで共有）
+    let cache = match PluginCache::new() {
+        Ok(c) => c,
+        Err(e) => {
+            return make_all_failed_summary(
+                plugin_names,
+                &format!("Failed to access cache: {e}"),
+            )
+        }
+    };
+
     // 各プラグインに対して download -> scan -> place
     let results: Vec<PluginInstallResult> = plugin_names
         .iter()
@@ -339,6 +353,7 @@ pub fn install_plugins(
                 &targets,
                 scope,
                 &project_root,
+                &cache,
             )
         })
         .collect();
