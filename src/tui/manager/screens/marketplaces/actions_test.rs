@@ -417,3 +417,28 @@ fn install_plugins_invalid_target_returns_all_failed() {
     assert!(!summary.results[0].success);
     assert!(summary.results[0].error.is_some());
 }
+
+#[test]
+fn install_plugins_no_runtime_returns_all_failed() {
+    // Tokio ランタイムのない別スレッドから呼び出して検証
+    let result = std::thread::spawn(|| {
+        let plugins = vec!["plugin-a".to_string(), "plugin-b".to_string()];
+        let targets = vec!["codex".to_string()];
+        super::install_plugins(
+            "test-mp",
+            &plugins,
+            &targets,
+            crate::component::Scope::Personal,
+        )
+    })
+    .join()
+    .unwrap();
+
+    assert_eq!(result.total, 2);
+    assert_eq!(result.succeeded, 0);
+    assert_eq!(result.failed, 2);
+    for r in &result.results {
+        assert!(!r.success);
+        assert_eq!(r.error, Some("No Tokio runtime available".to_string()));
+    }
+}
