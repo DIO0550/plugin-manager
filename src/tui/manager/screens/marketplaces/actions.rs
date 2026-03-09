@@ -278,7 +278,11 @@ fn install_single_plugin(
         PluginInstallResult {
             plugin_name: plugin_name.to_string(),
             success: false,
-            error: Some("No components were placed".to_string()),
+            error: Some(
+                "No components were placed. The plugin may contain no components after scanning, \
+                 or none of its components are supported by the selected targets."
+                    .to_string(),
+            ),
         }
     } else {
         PluginInstallResult {
