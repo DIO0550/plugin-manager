@@ -1,6 +1,6 @@
 use crate::application::PluginSummary;
 use crate::marketplace::{MarketplaceCache, MarketplacePlugin, MarketplaceRegistry, PluginSource};
-use crate::tui::manager::screens::marketplaces::model::{InstallSummary, PluginInstallResult};
+use crate::tui::manager::screens::marketplaces::model::PluginInstallResult;
 
 // ============================================================================
 // install_plugins テスト用ヘルパー
