@@ -362,3 +362,58 @@ fn all_failed_summary_preserves_names() {
     assert_eq!(summary.results[1].plugin_name, "y");
     assert_eq!(summary.results[2].plugin_name, "z");
 }
+
+// ============================================================================
+// install_plugins precondition テスト
+// ============================================================================
+
+#[test]
+fn install_plugins_empty_plugin_names_returns_empty_summary() {
+    let plugins: Vec<String> = vec![];
+    let targets = vec!["codex".to_string()];
+    let summary = super::install_plugins(
+        "test-mp",
+        &plugins,
+        &targets,
+        crate::component::Scope::Personal,
+    );
+    assert_eq!(summary.total, 0);
+    assert_eq!(summary.succeeded, 0);
+    assert_eq!(summary.failed, 0);
+}
+
+#[test]
+fn install_plugins_empty_target_names_returns_all_failed() {
+    let plugins = vec!["plugin-a".to_string(), "plugin-b".to_string()];
+    let targets: Vec<String> = vec![];
+    let summary = super::install_plugins(
+        "test-mp",
+        &plugins,
+        &targets,
+        crate::component::Scope::Personal,
+    );
+    assert_eq!(summary.total, 2);
+    assert_eq!(summary.succeeded, 0);
+    assert_eq!(summary.failed, 2);
+    for r in &summary.results {
+        assert!(!r.success);
+        assert_eq!(r.error, Some("No targets specified".to_string()));
+    }
+}
+
+#[test]
+fn install_plugins_invalid_target_returns_all_failed() {
+    let plugins = vec!["plugin-a".to_string()];
+    let targets = vec!["nonexistent-target".to_string()];
+    let summary = super::install_plugins(
+        "test-mp",
+        &plugins,
+        &targets,
+        crate::component::Scope::Personal,
+    );
+    assert_eq!(summary.total, 1);
+    assert_eq!(summary.succeeded, 0);
+    assert_eq!(summary.failed, 1);
+    assert!(!summary.results[0].success);
+    assert!(summary.results[0].error.is_some());
+}

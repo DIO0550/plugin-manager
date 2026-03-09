@@ -6,11 +6,11 @@ use super::model::{BrowsePlugin, InstallSummary, PluginInstallResult};
 use crate::application::PluginSummary;
 use crate::component::Scope;
 use crate::install::{self, PlaceRequest};
-use crate::plugin::{PluginCache, PluginCacheAccess};
 use crate::marketplace::{
     to_display_source, to_internal_source, MarketplaceCache, MarketplaceConfig, MarketplaceFetcher,
     MarketplaceRegistration, MarketplaceRegistry,
 };
+use crate::plugin::{PluginCache, PluginCacheAccess};
 use crate::repo;
 use crate::target::parse_target;
 use crate::tui::manager::core::MarketplaceItem;
@@ -339,10 +339,7 @@ pub fn install_plugins(
     let cache = match PluginCache::new() {
         Ok(c) => c,
         Err(e) => {
-            return make_all_failed_summary(
-                plugin_names,
-                &format!("Failed to access cache: {e}"),
-            )
+            return make_all_failed_summary(plugin_names, &format!("Failed to access cache: {e}"))
         }
     };
 
