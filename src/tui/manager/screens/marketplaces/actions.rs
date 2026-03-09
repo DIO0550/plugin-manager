@@ -2,8 +2,10 @@
 //!
 //! マーケットプレイスの追加・削除・更新操作を実行する。
 
+use super::model::BrowsePlugin;
+use crate::application::PluginSummary;
 use crate::marketplace::{
-    to_display_source, to_internal_source, MarketplaceConfig, MarketplaceFetcher,
+    to_display_source, to_internal_source, MarketplaceCache, MarketplaceConfig, MarketplaceFetcher,
     MarketplaceRegistration, MarketplaceRegistry,
 };
 use crate::repo;
@@ -149,3 +151,50 @@ pub fn get_marketplace_plugins(name: &str) -> Vec<(String, Option<String>)> {
         _ => Vec::new(),
     }
 }
+
+/// マーケットプレイスのブラウズ用プラグイン一覧を取得
+pub(super) fn get_browse_plugins(
+    marketplace_name: &str,
+    installed_plugins: &[PluginSummary],
+) -> Vec<BrowsePlugin> {
+    let registry = match MarketplaceRegistry::new() {
+        Ok(r) => r,
+        Err(_) => return Vec::new(),
+    };
+
+    get_browse_plugins_with_registry(&registry, marketplace_name, installed_plugins)
+}
+
+/// Registry を引数で受ける内部ヘルパー（I/O テスト用）
+fn get_browse_plugins_with_registry(
+    registry: &MarketplaceRegistry,
+    marketplace_name: &str,
+    installed_plugins: &[PluginSummary],
+) -> Vec<BrowsePlugin> {
+    match registry.get(marketplace_name) {
+        Ok(Some(cache)) => build_browse_plugins(&cache, installed_plugins),
+        _ => Vec::new(),
+    }
+}
+
+/// 純粋変換: MarketplaceCache -> Vec<BrowsePlugin>
+fn build_browse_plugins(
+    cache: &MarketplaceCache,
+    installed_plugins: &[PluginSummary],
+) -> Vec<BrowsePlugin> {
+    cache
+        .plugins
+        .iter()
+        .map(|p| BrowsePlugin {
+            name: p.name.clone(),
+            description: p.description.clone(),
+            version: p.version.clone(),
+            source: p.source.clone(),
+            installed: installed_plugins.iter().any(|ip| ip.name == p.name),
+        })
+        .collect()
+}
+
+#[cfg(test)]
+#[path = "actions_test.rs"]
+mod actions_test;
