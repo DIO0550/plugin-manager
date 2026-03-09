@@ -293,26 +293,17 @@ pub fn install_plugins(
     target_names: &[String],
     scope: Scope,
 ) -> InstallSummary {
-    // stdout/stderr 抑制（TUI代替スクリーンの保護）
-    let _guard = OutputSuppressGuard::new();
-
-    // Tokio runtime handle 取得
-    let handle = match tokio::runtime::Handle::try_current() {
-        Ok(h) => h,
-        Err(_) => return make_all_failed_summary(plugin_names, "No Tokio runtime available"),
-    };
-
-    // プラグイン名の空チェック
+    // プラグイン名の空チェック（Tokio不要で早期リターン）
     if plugin_names.is_empty() {
         return build_install_summary(Vec::new());
     }
 
-    // ターゲット名の空チェック
+    // ターゲット名の空チェック（Tokio不要で早期リターン）
     if target_names.is_empty() {
         return make_all_failed_summary(plugin_names, "No targets specified");
     }
 
-    // ターゲット解決（全ターゲットまとめて先に解決）
+    // ターゲット解決（Tokio不要で早期リターン）
     let targets: Vec<Box<dyn crate::target::Target>> = match target_names
         .iter()
         .map(|name| parse_target(name).map_err(|e| e.to_string()))
@@ -322,10 +313,19 @@ pub fn install_plugins(
         Err(e) => return make_all_failed_summary(plugin_names, &e),
     };
 
-    // project_root 取得（ループ外で1回）
+    // project_root 取得（Tokio不要で早期リターン）
     let project_root = match std::env::current_dir() {
         Ok(p) => p,
         Err(e) => return make_all_failed_summary(plugin_names, &e.to_string()),
+    };
+
+    // stdout/stderr 抑制（TUI代替スクリーンの保護）
+    let _guard = OutputSuppressGuard::new();
+
+    // Tokio runtime handle 取得
+    let handle = match tokio::runtime::Handle::try_current() {
+        Ok(h) => h,
+        Err(_) => return make_all_failed_summary(plugin_names, "No Tokio runtime available"),
     };
 
     // 各プラグインに対して download -> scan -> place
