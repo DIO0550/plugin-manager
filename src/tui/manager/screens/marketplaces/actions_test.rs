@@ -126,6 +126,17 @@ fn installed_check_is_exact_match() {
 }
 
 #[test]
+fn installed_check_is_case_sensitive() {
+    let cache = make_cache("test-mp", vec![make_marketplace_plugin("my-plugin")]);
+    let installed = vec![make_plugin("My-Plugin")];
+
+    let result = super::build_browse_plugins(&cache, &installed);
+
+    assert_eq!(result.len(), 1);
+    assert!(!result[0].installed);
+}
+
+#[test]
 fn maps_all_fields_correctly() {
     let mp = MarketplacePlugin {
         name: "test-plugin".to_string(),
