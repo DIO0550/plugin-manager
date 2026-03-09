@@ -4,6 +4,7 @@
 
 mod dialog;
 pub mod manager;
+pub(crate) mod output_suppress;
 mod scope_select;
 mod target_select;
 
