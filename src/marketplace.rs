@@ -13,4 +13,6 @@ pub use config::{
 pub use config::validate_name;
 pub use fetcher::MarketplaceFetcher;
 pub use plugin_source_path::PluginSourcePath;
+#[cfg(test)]
+pub use registry::MarketplacePlugin;
 pub use registry::{MarketplaceCache, MarketplaceManifest, MarketplaceRegistry, PluginSource};
