@@ -320,11 +320,8 @@ pub fn install_plugins(
         Err(e) => return make_all_failed_summary(plugin_names, &e),
     };
 
-    // project_root 取得（Tokio不要で早期リターン）
-    let project_root = match std::env::current_dir() {
-        Ok(p) => p,
-        Err(e) => return make_all_failed_summary(plugin_names, &e.to_string()),
-    };
+    // project_root 取得（他の箇所と同様に失敗時は "." にフォールバック）
+    let project_root = std::env::current_dir().unwrap_or_else(|_| ".".into());
 
     // stdout/stderr 抑制（TUI代替スクリーンの保護）
     let _guard = OutputSuppressGuard::new();
