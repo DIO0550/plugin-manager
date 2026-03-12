@@ -1,5 +1,7 @@
 use super::*;
 use crate::marketplace::PluginSource;
+use ratatui::prelude::{Color, Style};
+use std::collections::HashSet;
 
 // =============================================================================
 // should_split_layout
