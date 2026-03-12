@@ -109,8 +109,6 @@ fn build_browse_list_items_respects_selected_plugins() {
     assert_eq!(items_with_selection.len(), 2);
     assert_eq!(items_without_selection.len(), 2);
 
-    // "alpha" は selected に含まれるため、選択あり/なしで描画内容が異なることを確認する
-    let alpha_with_selection = format!("{:?}", &items_with_selection[0]);
-    let alpha_without_selection = format!("{:?}", &items_without_selection[0]);
-    assert_ne!(alpha_with_selection, alpha_without_selection);
+    // "alpha" は selected に含まれるため、選択あり/なしでアイテムが異なることを確認する
+    assert_ne!(items_with_selection[0], items_without_selection[0]);
 }
