@@ -608,8 +608,9 @@ fn view_plugin_browse(
             .highlight_symbol("> ");
         f.render_stateful_widget(list, h_chunks[0], &mut state);
 
-        // 右パネル: プラグイン詳細
-        render_plugin_detail(f, plugins, highlighted_idx, h_chunks[1]);
+        // 右パネル: プラグイン詳細（state.selected() から導出して一貫性を保つ）
+        let detail_idx = state.selected().unwrap_or(highlighted_idx);
+        render_plugin_detail(f, plugins, detail_idx, h_chunks[1]);
     }
 
     // ヘルプ
