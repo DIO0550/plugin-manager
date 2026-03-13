@@ -1,9 +1,11 @@
 //! Marketplaces タブの view（描画）
 
-use super::model::{AddFormModel, DetailAction, Model, OperationStatus};
+use super::model::{AddFormModel, BrowsePlugin, DetailAction, Model, OperationStatus};
+use crate::marketplace::PluginSource;
 use crate::tui::manager::core::{dialog_rect, render_filter_bar, DataStore, Tab};
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Tabs};
+use std::collections::HashSet;
 
 /// 画面を描画
 pub fn view(
@@ -62,6 +64,24 @@ pub fn view(
         }
         Model::AddForm(form) => {
             view_add_form(f, form, filter_text, filter_focused);
+        }
+        Model::PluginBrowse {
+            marketplace_name,
+            plugins,
+            selected_plugins,
+            highlighted_idx,
+            state,
+        } => {
+            view_plugin_browse(
+                f,
+                marketplace_name,
+                plugins,
+                selected_plugins,
+                *highlighted_idx,
+                *state,
+                filter_text,
+                filter_focused,
+            );
         }
         _ => {}
     }
@@ -521,3 +541,178 @@ fn view_add_form(f: &mut Frame, form: &AddFormModel, filter_text: &str, filter_f
         .style(Style::default().fg(Color::DarkGray));
     f.render_widget(help, chunks[3]);
 }
+
+/// プラグインブラウズ画面を描画
+#[allow(clippy::too_many_arguments)]
+fn view_plugin_browse(
+    f: &mut Frame,
+    marketplace_name: &str,
+    plugins: &[BrowsePlugin],
+    selected_plugins: &HashSet<String>,
+    highlighted_idx: usize,
+    mut state: ListState,
+    filter_text: &str,
+    filter_focused: bool,
+) {
+    let dialog_width = 80u16;
+    let dialog_height = 24u16;
+
+    let dialog_area = dialog_rect(dialog_width, dialog_height, f.area());
+    f.render_widget(Clear, dialog_area);
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1), // タブバー
+            Constraint::Length(3), // フィルタバー
+            Constraint::Min(1),    // コンテンツ
+            Constraint::Length(1), // ヘルプ
+        ])
+        .split(dialog_area);
+
+    // タブバー
+    render_tab_bar(f, chunks[0]);
+
+    // フィルタバー
+    render_filter_bar(f, chunks[1], filter_text, filter_focused);
+
+    // コンテンツ領域
+    let title = format!(" {} > Browse ({}) ", marketplace_name, plugins.len());
+    let content_area = chunks[2];
+
+    if plugins.is_empty() {
+        let msg = Paragraph::new("  No plugins available.")
+            .block(Block::default().title(title).borders(Borders::ALL))
+            .style(Style::default().fg(Color::DarkGray));
+        f.render_widget(msg, content_area);
+    } else if !should_split_layout(content_area.width) {
+        // 狭い端末: リストのみ描画
+        let items = build_browse_list_items(plugins, selected_plugins);
+        let list = List::new(items)
+            .block(Block::default().title(title).borders(Borders::ALL))
+            .highlight_style(Style::default().add_modifier(Modifier::BOLD | Modifier::REVERSED))
+            .highlight_symbol("> ");
+        f.render_stateful_widget(list, content_area, &mut state);
+    } else {
+        // 水平分割レイアウト（40% リスト / 60% 詳細）
+        let h_chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Percentage(40), Constraint::Percentage(60)])
+            .split(content_area);
+
+        // 左パネル: プラグインリスト
+        let items = build_browse_list_items(plugins, selected_plugins);
+        let list = List::new(items)
+            .block(Block::default().title(title).borders(Borders::ALL))
+            .highlight_style(Style::default().add_modifier(Modifier::BOLD | Modifier::REVERSED))
+            .highlight_symbol("> ");
+        f.render_stateful_widget(list, h_chunks[0], &mut state);
+
+        // 右パネル: プラグイン詳細（state.selected() から導出して一貫性を保つ）
+        let detail_idx = state.selected().unwrap_or(highlighted_idx);
+        render_plugin_detail(f, plugins, detail_idx, h_chunks[1]);
+    }
+
+    // ヘルプ
+    let help = Paragraph::new(" Esc: back | q: quit").style(Style::default().fg(Color::DarkGray));
+    f.render_widget(help, chunks[3]);
+}
+
+/// 右パネルにプラグイン詳細を描画
+fn render_plugin_detail(
+    f: &mut Frame,
+    plugins: &[BrowsePlugin],
+    highlighted_idx: usize,
+    area: Rect,
+) {
+    let detail_block = Block::default().title(" Detail ").borders(Borders::ALL);
+
+    if let Some(plugin) = plugins.get(highlighted_idx) {
+        let source_text = match &plugin.source {
+            PluginSource::Local(path) => format!("local ({})", path),
+            PluginSource::External { source, repo } => format!("{} ({})", source, repo),
+        };
+
+        let installed_text = if plugin.installed { "Yes" } else { "No" };
+
+        let lines = vec![
+            Line::raw(""),
+            Line::from(vec![
+                Span::raw("  Name: "),
+                Span::styled(&*plugin.name, Style::default().fg(Color::White)),
+            ]),
+            Line::raw(""),
+            Line::from(vec![
+                Span::raw("  Description: "),
+                Span::styled(
+                    plugin.description.as_deref().unwrap_or("N/A"),
+                    Style::default().fg(Color::White),
+                ),
+            ]),
+            Line::raw(""),
+            Line::from(vec![
+                Span::raw("  Version: "),
+                Span::styled(
+                    plugin.version.as_deref().unwrap_or("N/A"),
+                    Style::default().fg(Color::White),
+                ),
+            ]),
+            Line::raw(""),
+            Line::from(vec![
+                Span::raw("  Source: "),
+                Span::styled(source_text, Style::default().fg(Color::White)),
+            ]),
+            Line::raw(""),
+            Line::from(vec![
+                Span::raw("  Installed: "),
+                Span::styled(installed_text, Style::default().fg(Color::White)),
+            ]),
+        ];
+
+        let detail = Paragraph::new(lines).block(detail_block);
+        f.render_widget(detail, area);
+    } else {
+        f.render_widget(detail_block, area);
+    }
+}
+
+/// 水平分割レイアウトを使用すべきかを判定
+///
+/// 端末幅が60未満の場合はリストのみ表示にフォールバックする。
+fn should_split_layout(width: u16) -> bool {
+    width >= 60
+}
+
+/// チェックボックスのマークとスタイルを決定
+fn browse_checkbox(installed: bool, selected: bool) -> (&'static str, Style) {
+    if installed {
+        ("[x] ", Style::default().fg(Color::DarkGray))
+    } else if selected {
+        ("[x] ", Style::default().fg(Color::Yellow))
+    } else {
+        ("[ ] ", Style::default())
+    }
+}
+
+/// PluginBrowse 用のリストアイテムを構築
+fn build_browse_list_items<'a>(
+    plugins: &'a [BrowsePlugin],
+    selected_plugins: &HashSet<String>,
+) -> Vec<ListItem<'a>> {
+    plugins
+        .iter()
+        .map(|p| {
+            let selected = selected_plugins.contains(&p.name);
+            let (mark, style) = browse_checkbox(p.installed, selected);
+            let spans = vec![
+                Span::styled(format!("  {}", mark), style),
+                Span::styled(&*p.name, style),
+            ];
+            ListItem::new(Line::from(spans))
+        })
+        .collect()
+}
+
+#[cfg(test)]
+#[path = "view_test.rs"]
+mod view_test;
