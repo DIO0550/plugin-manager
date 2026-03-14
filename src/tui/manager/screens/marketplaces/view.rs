@@ -36,6 +36,7 @@ pub fn view(
             marketplace_name,
             state,
             error_message,
+            ..
         } => {
             view_market_detail(
                 f,

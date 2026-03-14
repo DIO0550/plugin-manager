@@ -71,6 +71,8 @@ fn is_top_level_market_detail() {
         marketplace_name: "test".to_string(),
         state: ListState::default(),
         error_message: None,
+        browse_plugins: None,
+        browse_selected: None,
     };
     assert!(!model.is_top_level());
 }

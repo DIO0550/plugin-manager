@@ -147,6 +147,10 @@ pub enum Model {
         marketplace_name: String,
         state: ListState,
         error_message: Option<String>,
+        /// ブラウズ状態保持（再入時に復元）
+        browse_plugins: Option<Vec<BrowsePlugin>>,
+        /// ブラウズ選択状態保持（再入時に復元）
+        browse_selected: Option<HashSet<String>>,
     },
     /// プラグイン一覧表示
     PluginList {
