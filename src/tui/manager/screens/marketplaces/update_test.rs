@@ -920,9 +920,13 @@ fn execute_install_transitions_to_install_result() {
             succeeded: 2,
             failed: 0,
         },
-        |_d| Ok(()),
+        |_d| {
+            reload_called = true;
+            Ok(())
+        },
     );
 
+    assert!(reload_called, "reload should be called after install");
     assert_eq!(model_variant(&model), "InstallResult");
 
     if let Model::InstallResult { summary, .. } = &model {
