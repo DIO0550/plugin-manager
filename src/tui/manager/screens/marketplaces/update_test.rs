@@ -367,6 +367,897 @@ fn detail_back_action_returns_to_market_list() {
 }
 
 // ============================================================================
+// PluginBrowse navigation (Up/Down)
+// ============================================================================
+
+fn make_plugin_browse(name: &str, plugin_count: usize) -> Model {
+    use crate::marketplace::PluginSource;
+    use crate::tui::manager::screens::marketplaces::model::BrowsePlugin;
+    use std::collections::HashSet;
+
+    let plugins: Vec<BrowsePlugin> = (0..plugin_count)
+        .map(|i| BrowsePlugin {
+            name: format!("plugin-{}", i),
+            description: None,
+            version: None,
+            source: PluginSource::Local("local".to_string()),
+            installed: false,
+        })
+        .collect();
+    let mut state = ListState::default();
+    if !plugins.is_empty() {
+        state.select(Some(0));
+    }
+    Model::PluginBrowse {
+        marketplace_name: name.to_string(),
+        plugins,
+        selected_plugins: HashSet::new(),
+        highlighted_idx: 0,
+        state,
+    }
+}
+
+#[test]
+fn down_in_plugin_browse_moves_highlight() {
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+    let mut model = make_plugin_browse("mp-a", 3);
+
+    update(&mut model, Msg::Down, &mut data);
+
+    if let Model::PluginBrowse {
+        highlighted_idx,
+        state,
+        ..
+    } = &model
+    {
+        assert_eq!(*highlighted_idx, 1);
+        assert_eq!(state.selected(), Some(1));
+    } else {
+        panic!("Expected PluginBrowse");
+    }
+}
+
+#[test]
+fn up_in_plugin_browse_does_not_go_below_zero() {
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+    let mut model = make_plugin_browse("mp-a", 3);
+
+    update(&mut model, Msg::Up, &mut data);
+
+    if let Model::PluginBrowse {
+        highlighted_idx, ..
+    } = &model
+    {
+        assert_eq!(*highlighted_idx, 0);
+    } else {
+        panic!("Expected PluginBrowse");
+    }
+}
+
+#[test]
+fn down_in_plugin_browse_does_not_exceed_len() {
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+    let mut model = make_plugin_browse("mp-a", 2);
+
+    // Move to last
+    update(&mut model, Msg::Down, &mut data);
+    // Try to go beyond
+    update(&mut model, Msg::Down, &mut data);
+
+    if let Model::PluginBrowse {
+        highlighted_idx, ..
+    } = &model
+    {
+        assert_eq!(*highlighted_idx, 1);
+    } else {
+        panic!("Expected PluginBrowse");
+    }
+}
+
+// ============================================================================
+// TargetSelect / ScopeSelect navigation
+// ============================================================================
+
+fn make_target_select(name: &str) -> Model {
+    use std::collections::HashSet;
+
+    let mut state = ListState::default();
+    state.select(Some(0));
+    Model::TargetSelect {
+        marketplace_name: name.to_string(),
+        plugins: vec![],
+        selected_plugins: HashSet::new(),
+        targets: vec![
+            ("codex".to_string(), "OpenAI Codex".to_string(), false),
+            ("copilot".to_string(), "VS Code Copilot".to_string(), false),
+            (
+                "antigravity".to_string(),
+                "Google Antigravity".to_string(),
+                false,
+            ),
+            ("gemini-cli".to_string(), "Gemini CLI".to_string(), false),
+        ],
+        highlighted_idx: 0,
+        state,
+    }
+}
+
+fn make_scope_select(name: &str) -> Model {
+    use std::collections::HashSet;
+
+    let mut state = ListState::default();
+    state.select(Some(0));
+    Model::ScopeSelect {
+        marketplace_name: name.to_string(),
+        plugins: vec![],
+        selected_plugins: HashSet::new(),
+        target_names: vec!["codex".to_string()],
+        highlighted_idx: 0,
+        state,
+    }
+}
+
+#[test]
+fn down_in_target_select_moves_highlight() {
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+    let mut model = make_target_select("mp-a");
+
+    update(&mut model, Msg::Down, &mut data);
+
+    if let Model::TargetSelect {
+        highlighted_idx,
+        state,
+        ..
+    } = &model
+    {
+        assert_eq!(*highlighted_idx, 1);
+        assert_eq!(state.selected(), Some(1));
+    } else {
+        panic!("Expected TargetSelect");
+    }
+}
+
+#[test]
+fn up_down_in_scope_select_moves_highlight() {
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+    let mut model = make_scope_select("mp-a");
+
+    // Down from 0 -> 1
+    update(&mut model, Msg::Down, &mut data);
+    if let Model::ScopeSelect {
+        highlighted_idx, ..
+    } = &model
+    {
+        assert_eq!(*highlighted_idx, 1);
+    }
+
+    // Down again -> still 1 (clamped, only 2 options)
+    update(&mut model, Msg::Down, &mut data);
+    if let Model::ScopeSelect {
+        highlighted_idx, ..
+    } = &model
+    {
+        assert_eq!(*highlighted_idx, 1, "Should clamp at 1");
+    }
+
+    // Up from 1 -> 0
+    update(&mut model, Msg::Up, &mut data);
+    if let Model::ScopeSelect {
+        highlighted_idx, ..
+    } = &model
+    {
+        assert_eq!(*highlighted_idx, 0);
+    }
+}
+
+// ============================================================================
+// ConfirmTargets (TargetSelect -> ScopeSelect)
+// ============================================================================
+
+#[test]
+fn confirm_targets_transitions_to_scope_select() {
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+    let mut model = make_target_select("mp-a");
+
+    // Select first target
+    if let Model::TargetSelect { targets, .. } = &mut model {
+        targets[0].2 = true;
+    }
+
+    update(&mut model, Msg::ConfirmTargets, &mut data);
+
+    assert_eq!(
+        model_variant(&model),
+        "ScopeSelect",
+        "Should transition to ScopeSelect"
+    );
+
+    if let Model::ScopeSelect {
+        target_names,
+        highlighted_idx,
+        state,
+        ..
+    } = &model
+    {
+        assert!(target_names.contains(&"codex".to_string()));
+        assert_eq!(*highlighted_idx, 0, "Should default to Personal (0)");
+        assert_eq!(state.selected(), Some(0));
+    }
+}
+
+#[test]
+fn confirm_targets_ignored_when_no_target_selected() {
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+    let mut model = make_target_select("mp-a");
+    // All targets unselected
+
+    update(&mut model, Msg::ConfirmTargets, &mut data);
+
+    assert_eq!(
+        model_variant(&model),
+        "TargetSelect",
+        "Should stay TargetSelect when no target selected"
+    );
+}
+
+// ============================================================================
+// TargetSelect toggle
+// ============================================================================
+
+#[test]
+fn toggle_select_in_target_select_toggles_target() {
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+    let mut model = make_target_select("mp-a");
+
+    // Toggle on
+    update(&mut model, Msg::ToggleSelect, &mut data);
+    if let Model::TargetSelect { targets, .. } = &model {
+        assert!(targets[0].2, "Target 0 should be selected after toggle");
+    } else {
+        panic!("Expected TargetSelect");
+    }
+
+    // Toggle off
+    update(&mut model, Msg::ToggleSelect, &mut data);
+    if let Model::TargetSelect { targets, .. } = &model {
+        assert!(
+            !targets[0].2,
+            "Target 0 should be deselected after second toggle"
+        );
+    } else {
+        panic!("Expected TargetSelect");
+    }
+}
+
+// ============================================================================
+// StartInstall (PluginBrowse -> TargetSelect)
+// ============================================================================
+
+#[test]
+fn start_install_transitions_to_target_select() {
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+    let mut model = make_plugin_browse("mp-a", 3);
+
+    // Select plugin-0
+    if let Model::PluginBrowse {
+        selected_plugins, ..
+    } = &mut model
+    {
+        selected_plugins.insert("plugin-0".to_string());
+    }
+
+    update(&mut model, Msg::StartInstall, &mut data);
+
+    assert_eq!(
+        model_variant(&model),
+        "TargetSelect",
+        "Should transition to TargetSelect"
+    );
+
+    if let Model::TargetSelect {
+        marketplace_name,
+        targets,
+        selected_plugins,
+        highlighted_idx,
+        state,
+        ..
+    } = &model
+    {
+        assert_eq!(marketplace_name, "mp-a");
+        assert!(
+            !targets.is_empty(),
+            "Should have targets from all_targets()"
+        );
+        assert!(
+            targets.iter().all(|(_, _, sel)| !sel),
+            "All targets should be unselected"
+        );
+        assert!(selected_plugins.contains("plugin-0"));
+        assert_eq!(*highlighted_idx, 0);
+        assert_eq!(state.selected(), Some(0));
+    }
+}
+
+#[test]
+fn start_install_ignored_when_no_selection() {
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+    let mut model = make_plugin_browse("mp-a", 3);
+    // selected_plugins is empty
+
+    update(&mut model, Msg::StartInstall, &mut data);
+
+    assert_eq!(
+        model_variant(&model),
+        "PluginBrowse",
+        "Should stay PluginBrowse when no selection"
+    );
+}
+
+// ============================================================================
+// PluginBrowse toggle selection
+// ============================================================================
+
+#[test]
+fn toggle_select_in_plugin_browse_adds_to_selected() {
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+    let mut model = make_plugin_browse("mp-a", 3);
+
+    update(&mut model, Msg::ToggleSelect, &mut data);
+
+    if let Model::PluginBrowse {
+        selected_plugins, ..
+    } = &model
+    {
+        assert!(
+            selected_plugins.contains("plugin-0"),
+            "Should add plugin-0 to selected"
+        );
+    } else {
+        panic!("Expected PluginBrowse");
+    }
+}
+
+#[test]
+fn toggle_select_in_plugin_browse_removes_from_selected() {
+    use std::collections::HashSet;
+
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+    let mut model = make_plugin_browse("mp-a", 3);
+
+    // Pre-add plugin-0 to selected
+    if let Model::PluginBrowse {
+        selected_plugins, ..
+    } = &mut model
+    {
+        selected_plugins.insert("plugin-0".to_string());
+    }
+
+    update(&mut model, Msg::ToggleSelect, &mut data);
+
+    if let Model::PluginBrowse {
+        selected_plugins, ..
+    } = &model
+    {
+        assert!(
+            !selected_plugins.contains("plugin-0"),
+            "Should remove plugin-0 from selected"
+        );
+    } else {
+        panic!("Expected PluginBrowse");
+    }
+}
+
+// ============================================================================
+// BrowsePlugins (Enter from MarketDetail)
+// ============================================================================
+
+#[test]
+fn enter_browse_plugins_transitions_to_plugin_browse() {
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+    let mut model = Model::new(&data);
+
+    // Enter -> MarketDetail
+    update(&mut model, Msg::Enter, &mut data);
+
+    // Move to BrowsePlugins (index 3: Update=0, Remove=1, ShowPlugins=2, BrowsePlugins=3)
+    update(&mut model, Msg::Down, &mut data);
+    update(&mut model, Msg::Down, &mut data);
+    update(&mut model, Msg::Down, &mut data);
+    update(&mut model, Msg::Enter, &mut data);
+
+    assert_eq!(
+        model_variant(&model),
+        "PluginBrowse",
+        "Should transition to PluginBrowse"
+    );
+
+    if let Model::PluginBrowse {
+        marketplace_name,
+        highlighted_idx,
+        selected_plugins,
+        ..
+    } = &model
+    {
+        assert_eq!(marketplace_name, "mp-a");
+        assert_eq!(*highlighted_idx, 0);
+        assert!(selected_plugins.is_empty());
+    }
+}
+
+#[test]
+fn enter_browse_plugins_noop_when_no_cache() {
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+    // Set plugin_count to None (no cache)
+    data.marketplaces[0].plugin_count = None;
+
+    let mut model = Model::new(&data);
+
+    // Enter -> MarketDetail
+    update(&mut model, Msg::Enter, &mut data);
+
+    // Move to BrowsePlugins (index 3)
+    update(&mut model, Msg::Down, &mut data);
+    update(&mut model, Msg::Down, &mut data);
+    update(&mut model, Msg::Down, &mut data);
+    update(&mut model, Msg::Enter, &mut data);
+
+    assert_eq!(
+        model_variant(&model),
+        "MarketDetail",
+        "Should stay at MarketDetail when no cache"
+    );
+}
+
+// ============================================================================
+// BackToPluginBrowse (InstallResult -> PluginBrowse)
+// ============================================================================
+
+#[test]
+fn back_to_plugin_browse_from_result_refreshes_plugins() {
+    use crate::marketplace::PluginSource;
+    use crate::tui::manager::screens::marketplaces::model::BrowsePlugin;
+
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+
+    let plugins = vec![BrowsePlugin {
+        name: "p1".to_string(),
+        description: None,
+        version: None,
+        source: PluginSource::Local("local".to_string()),
+        installed: false,
+    }];
+
+    let mut model = Model::InstallResult {
+        marketplace_name: "mp-a".to_string(),
+        plugins,
+        summary: InstallSummary {
+            results: vec![PluginInstallResult {
+                plugin_name: "p1".to_string(),
+                success: true,
+                error: None,
+            }],
+            total: 1,
+            succeeded: 1,
+            failed: 0,
+        },
+    };
+
+    update(&mut model, Msg::BackToPluginBrowse, &mut data);
+
+    assert_eq!(model_variant(&model), "PluginBrowse");
+
+    if let Model::PluginBrowse {
+        marketplace_name,
+        selected_plugins,
+        highlighted_idx,
+        ..
+    } = &model
+    {
+        assert_eq!(marketplace_name, "mp-a");
+        assert!(selected_plugins.is_empty(), "Selection should be cleared");
+        assert_eq!(*highlighted_idx, 0);
+    }
+}
+
+// ============================================================================
+// ExecuteInstall (Installing -> InstallResult)
+// ============================================================================
+
+use crate::tui::manager::screens::marketplaces::model::{InstallSummary, PluginInstallResult};
+
+fn make_installing(name: &str, plugin_names: &[&str]) -> Model {
+    use crate::marketplace::PluginSource;
+    use crate::tui::manager::screens::marketplaces::model::BrowsePlugin;
+
+    let plugins: Vec<BrowsePlugin> = plugin_names
+        .iter()
+        .map(|n| BrowsePlugin {
+            name: n.to_string(),
+            description: None,
+            version: None,
+            source: PluginSource::Local("local".to_string()),
+            installed: false,
+        })
+        .collect();
+
+    Model::Installing {
+        marketplace_name: name.to_string(),
+        plugins,
+        plugin_names: plugin_names.iter().map(|n| n.to_string()).collect(),
+        target_names: vec!["codex".to_string()],
+        scope: crate::component::Scope::Personal,
+        current_idx: 0,
+        total: plugin_names.len(),
+    }
+}
+
+#[test]
+fn execute_install_transitions_to_install_result() {
+    use super::execute_install_with;
+
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+    let mut model = make_installing("mp-a", &["p1", "p2"]);
+
+    let mut reload_called = false;
+
+    execute_install_with(
+        &mut model,
+        &mut data,
+        |_mp, _plugins, _targets, _scope| InstallSummary {
+            results: vec![
+                PluginInstallResult {
+                    plugin_name: "p1".to_string(),
+                    success: true,
+                    error: None,
+                },
+                PluginInstallResult {
+                    plugin_name: "p2".to_string(),
+                    success: true,
+                    error: None,
+                },
+            ],
+            total: 2,
+            succeeded: 2,
+            failed: 0,
+        },
+        |_d| Ok(()),
+    );
+
+    assert_eq!(model_variant(&model), "InstallResult");
+
+    if let Model::InstallResult { summary, .. } = &model {
+        assert_eq!(summary.succeeded, 2);
+        assert_eq!(summary.failed, 0);
+    }
+}
+
+#[test]
+fn execute_install_with_failure_shows_in_summary() {
+    use super::execute_install_with;
+
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+    let mut model = make_installing("mp-a", &["p1", "p2"]);
+
+    execute_install_with(
+        &mut model,
+        &mut data,
+        |_mp, _plugins, _targets, _scope| InstallSummary {
+            results: vec![
+                PluginInstallResult {
+                    plugin_name: "p1".to_string(),
+                    success: true,
+                    error: None,
+                },
+                PluginInstallResult {
+                    plugin_name: "p2".to_string(),
+                    success: false,
+                    error: Some("install failed".to_string()),
+                },
+            ],
+            total: 2,
+            succeeded: 1,
+            failed: 1,
+        },
+        |_d| Ok(()),
+    );
+
+    assert_eq!(model_variant(&model), "InstallResult");
+
+    if let Model::InstallResult { summary, .. } = &model {
+        assert_eq!(summary.succeeded, 1);
+        assert_eq!(summary.failed, 1);
+    }
+}
+
+// ============================================================================
+// ConfirmScope (ScopeSelect -> Installing)
+// ============================================================================
+
+fn make_scope_select_with_plugins(name: &str, plugin_names: &[&str]) -> Model {
+    use crate::marketplace::PluginSource;
+    use crate::tui::manager::screens::marketplaces::model::BrowsePlugin;
+    use std::collections::HashSet;
+
+    let plugins: Vec<BrowsePlugin> = plugin_names
+        .iter()
+        .map(|n| BrowsePlugin {
+            name: n.to_string(),
+            description: None,
+            version: None,
+            source: PluginSource::Local("local".to_string()),
+            installed: false,
+        })
+        .collect();
+    let selected_plugins: HashSet<String> = plugin_names.iter().map(|n| n.to_string()).collect();
+
+    let mut state = ListState::default();
+    state.select(Some(0));
+
+    Model::ScopeSelect {
+        marketplace_name: name.to_string(),
+        plugins,
+        selected_plugins,
+        target_names: vec!["codex".to_string()],
+        highlighted_idx: 0,
+        state,
+    }
+}
+
+#[test]
+fn confirm_scope_transitions_to_installing_with_phase2() {
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+    let mut model = make_scope_select_with_plugins("mp-a", &["p1", "p2"]);
+
+    let effect = update(&mut model, Msg::ConfirmScope, &mut data);
+
+    assert_eq!(model_variant(&model), "Installing");
+    assert!(
+        effect.phase2_msg.is_some(),
+        "Should return Phase2 with ExecuteInstall"
+    );
+
+    if let Model::Installing {
+        marketplace_name,
+        plugin_names,
+        target_names,
+        scope,
+        total,
+        ..
+    } = &model
+    {
+        assert_eq!(marketplace_name, "mp-a");
+        assert_eq!(plugin_names.len(), 2);
+        assert!(target_names.contains(&"codex".to_string()));
+        assert_eq!(*scope, crate::component::Scope::Personal);
+        assert_eq!(*total, 2);
+    }
+}
+
+#[test]
+fn confirm_scope_personal_sets_scope_personal() {
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+    let mut model = make_scope_select_with_plugins("mp-a", &["p1"]);
+
+    // highlighted_idx = 0 -> Personal
+    update(&mut model, Msg::ConfirmScope, &mut data);
+
+    if let Model::Installing { scope, .. } = &model {
+        assert_eq!(*scope, crate::component::Scope::Personal);
+    } else {
+        panic!("Expected Installing");
+    }
+}
+
+#[test]
+fn confirm_scope_project_sets_scope_project() {
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+    let mut model = make_scope_select_with_plugins("mp-a", &["p1"]);
+
+    // Move to Project (index 1)
+    if let Model::ScopeSelect {
+        highlighted_idx,
+        state,
+        ..
+    } = &mut model
+    {
+        *highlighted_idx = 1;
+        state.select(Some(1));
+    }
+
+    update(&mut model, Msg::ConfirmScope, &mut data);
+
+    if let Model::Installing { scope, .. } = &model {
+        assert_eq!(*scope, crate::component::Scope::Project);
+    } else {
+        panic!("Expected Installing");
+    }
+}
+
+// ============================================================================
+// Back from PluginBrowse
+// ============================================================================
+
+#[test]
+fn back_from_plugin_browse_returns_to_detail() {
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+    let mut model = make_plugin_browse("mp-a", 3);
+
+    // Select a plugin before going back
+    if let Model::PluginBrowse {
+        selected_plugins, ..
+    } = &mut model
+    {
+        selected_plugins.insert("plugin-0".to_string());
+    }
+
+    update(&mut model, Msg::Back, &mut data);
+
+    assert_eq!(
+        model_variant(&model),
+        "MarketDetail",
+        "Should return to MarketDetail"
+    );
+
+    if let Model::MarketDetail {
+        marketplace_name,
+        state,
+        browse_plugins,
+        browse_selected,
+        ..
+    } = &model
+    {
+        assert_eq!(marketplace_name, "mp-a");
+        assert_eq!(state.selected(), Some(0));
+        assert!(browse_plugins.is_some(), "Should preserve browse plugins");
+        assert!(
+            browse_selected.as_ref().unwrap().contains("plugin-0"),
+            "Should preserve selection"
+        );
+    }
+}
+
+// ============================================================================
+// Back from TargetSelect / ScopeSelect
+// ============================================================================
+
+#[test]
+fn back_from_target_select_returns_to_plugin_browse() {
+    use std::collections::HashSet;
+
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+    let mut model = make_target_select("mp-a");
+
+    // Set selected_plugins
+    if let Model::TargetSelect {
+        selected_plugins, ..
+    } = &mut model
+    {
+        selected_plugins.insert("p1".to_string());
+    }
+
+    update(&mut model, Msg::Back, &mut data);
+
+    assert_eq!(model_variant(&model), "PluginBrowse");
+
+    if let Model::PluginBrowse {
+        selected_plugins, ..
+    } = &model
+    {
+        assert!(
+            selected_plugins.contains("p1"),
+            "Should preserve selected plugins"
+        );
+    }
+}
+
+#[test]
+fn back_from_scope_select_returns_to_target_select() {
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+    let mut model = make_scope_select("mp-a");
+
+    update(&mut model, Msg::Back, &mut data);
+
+    assert_eq!(model_variant(&model), "TargetSelect");
+
+    if let Model::TargetSelect { targets, .. } = &model {
+        // codex should be selected (was in target_names)
+        let codex = targets.iter().find(|(name, _, _)| name == "codex");
+        assert!(codex.is_some());
+        assert!(codex.unwrap().2, "codex should be marked as selected");
+    }
+}
+
+#[test]
+fn back_from_scope_select_preserves_target_selection() {
+    use std::collections::HashSet;
+
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+
+    let mut state = ListState::default();
+    state.select(Some(0));
+    let mut model = Model::ScopeSelect {
+        marketplace_name: "mp-a".to_string(),
+        plugins: vec![],
+        selected_plugins: HashSet::new(),
+        target_names: vec!["codex".to_string(), "copilot".to_string()],
+        highlighted_idx: 0,
+        state,
+    };
+
+    update(&mut model, Msg::Back, &mut data);
+
+    assert_eq!(model_variant(&model), "TargetSelect");
+
+    if let Model::TargetSelect { targets, .. } = &model {
+        for (name, _, selected) in targets {
+            if name == "codex" || name == "copilot" {
+                assert!(selected, "{} should be selected", name);
+            } else {
+                assert!(!selected, "{} should not be selected", name);
+            }
+        }
+    }
+}
+
+// ============================================================================
+// BrowsePlugins re-entry state preservation
+// ============================================================================
+
+#[test]
+fn enter_browse_plugins_restores_selection() {
+    use crate::marketplace::PluginSource;
+    use crate::tui::manager::screens::marketplaces::model::BrowsePlugin;
+    use std::collections::HashSet;
+
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+
+    let preserved_plugins = vec![
+        BrowsePlugin {
+            name: "p1".to_string(),
+            description: None,
+            version: None,
+            source: PluginSource::Local("local".to_string()),
+            installed: false,
+        },
+        BrowsePlugin {
+            name: "p2".to_string(),
+            description: None,
+            version: None,
+            source: PluginSource::Local("local".to_string()),
+            installed: false,
+        },
+    ];
+    let mut preserved_selected = HashSet::new();
+    preserved_selected.insert("p1".to_string());
+
+    let mut state = ListState::default();
+    state.select(Some(3)); // BrowsePlugins index
+    let mut model = Model::MarketDetail {
+        marketplace_name: "mp-a".to_string(),
+        state,
+        error_message: None,
+        browse_plugins: Some(preserved_plugins),
+        browse_selected: Some(preserved_selected),
+    };
+
+    update(&mut model, Msg::Enter, &mut data);
+
+    assert_eq!(model_variant(&model), "PluginBrowse");
+    if let Model::PluginBrowse {
+        selected_plugins,
+        plugins,
+        ..
+    } = &model
+    {
+        assert!(
+            selected_plugins.contains("p1"),
+            "Should restore selected p1"
+        );
+        assert_eq!(plugins.len(), 2, "Should restore 2 plugins");
+    }
+}
+
+// ============================================================================
 // Back ナビゲーション
 // ============================================================================
 
@@ -1151,6 +2042,8 @@ fn error_message_cleared_on_back() {
             s
         },
         error_message: Some("some error".to_string()),
+        browse_plugins: None,
+        browse_selected: None,
     };
 
     update(&mut model, Msg::Back, &mut data);

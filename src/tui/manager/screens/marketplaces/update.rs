@@ -6,6 +6,7 @@ use crate::marketplace::normalize_name;
 use crate::repo;
 use crate::tui::manager::core::{DataStore, MarketplaceItem};
 use ratatui::widgets::ListState;
+use std::collections::HashSet;
 
 /// update() の戻り値
 pub struct UpdateEffect {
@@ -63,12 +64,12 @@ pub fn update(model: &mut Model, msg: Msg, data: &mut DataStore) -> UpdateEffect
         Msg::UpdateAll => update_all(model, data),
         Msg::ExecuteUpdate => execute_update(model, data),
         Msg::ExecuteRemove => execute_remove(model, data),
-        Msg::ToggleSelect
-        | Msg::StartInstall
-        | Msg::ExecuteInstall
-        | Msg::ConfirmTargets
-        | Msg::ConfirmScope
-        | Msg::BackToPluginBrowse => UpdateEffect::none(),
+        Msg::ToggleSelect => toggle_select(model),
+        Msg::StartInstall => start_install(model),
+        Msg::ConfirmTargets => confirm_targets(model),
+        Msg::ConfirmScope => confirm_scope(model),
+        Msg::ExecuteInstall => execute_install(model, data),
+        Msg::BackToPluginBrowse => back_to_plugin_browse(model, data),
     }
 }
 
@@ -120,6 +121,44 @@ fn select_prev(model: &mut Model, data: &DataStore) {
                 state.select(Some(*selected_idx));
             }
         }
+        Model::PluginBrowse {
+            highlighted_idx,
+            state,
+            plugins,
+            ..
+        } => {
+            if plugins.is_empty() {
+                return;
+            }
+            if *highlighted_idx > 0 {
+                *highlighted_idx -= 1;
+                state.select(Some(*highlighted_idx));
+            }
+        }
+        Model::TargetSelect {
+            highlighted_idx,
+            state,
+            targets,
+            ..
+        } => {
+            if targets.is_empty() {
+                return;
+            }
+            if *highlighted_idx > 0 {
+                *highlighted_idx -= 1;
+                state.select(Some(*highlighted_idx));
+            }
+        }
+        Model::ScopeSelect {
+            highlighted_idx,
+            state,
+            ..
+        } => {
+            if *highlighted_idx > 0 {
+                *highlighted_idx -= 1;
+                state.select(Some(*highlighted_idx));
+            }
+        }
         _ => {}
     }
 }
@@ -155,6 +194,42 @@ fn select_next(model: &mut Model, data: &DataStore) {
             *selected_idx = next;
             state.select(Some(next));
         }
+        Model::PluginBrowse {
+            highlighted_idx,
+            state,
+            plugins,
+            ..
+        } => {
+            if plugins.is_empty() {
+                return;
+            }
+            let next = (*highlighted_idx + 1).min(plugins.len() - 1);
+            *highlighted_idx = next;
+            state.select(Some(next));
+        }
+        Model::TargetSelect {
+            highlighted_idx,
+            state,
+            targets,
+            ..
+        } => {
+            if targets.is_empty() {
+                return;
+            }
+            let next = (*highlighted_idx + 1).min(targets.len() - 1);
+            *highlighted_idx = next;
+            state.select(Some(next));
+        }
+        Model::ScopeSelect {
+            highlighted_idx,
+            state,
+            ..
+        } => {
+            // Only 2 options: Personal(0), Project(1)
+            let next = (*highlighted_idx + 1).min(1);
+            *highlighted_idx = next;
+            state.select(Some(next));
+        }
         _ => {}
     }
 }
@@ -180,6 +255,8 @@ fn enter(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
                     marketplace_name: name,
                     state,
                     error_message: None,
+                    browse_plugins: None,
+                    browse_selected: None,
                 };
             } else {
                 // "+ Add new" -> AddForm
@@ -222,7 +299,48 @@ fn enter(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
                     };
                     UpdateEffect::phase2(Msg::ExecuteRemove)
                 }
-                Some(DetailAction::BrowsePlugins) => UpdateEffect::none(),
+                Some(DetailAction::BrowsePlugins) => {
+                    let name = marketplace_name.clone();
+                    // Guard: cache must exist (plugin_count.is_some())
+                    let has_cache = data
+                        .find_marketplace(&name)
+                        .map(|m| m.plugin_count.is_some())
+                        .unwrap_or(false);
+                    if !has_cache {
+                        return UpdateEffect::none();
+                    }
+
+                    // Extract preserved browse state from MarketDetail
+                    let (preserved_plugins, preserved_selected) = match model {
+                        Model::MarketDetail {
+                            browse_plugins,
+                            browse_selected,
+                            ..
+                        } => (browse_plugins.take(), browse_selected.take()),
+                        _ => (None, None),
+                    };
+
+                    let (plugins, selected_plugins) =
+                        if let (Some(bp), Some(bs)) = (preserved_plugins, preserved_selected) {
+                            (bp, bs)
+                        } else {
+                            let bp = actions::get_browse_plugins(&name, &data.plugins);
+                            (bp, HashSet::new())
+                        };
+
+                    let mut new_state = ListState::default();
+                    if !plugins.is_empty() {
+                        new_state.select(Some(0));
+                    }
+                    *model = Model::PluginBrowse {
+                        marketplace_name: name,
+                        plugins,
+                        selected_plugins,
+                        highlighted_idx: 0,
+                        state: new_state,
+                    };
+                    UpdateEffect::none()
+                }
                 Some(DetailAction::ShowPlugins) => {
                     let name = marketplace_name.clone();
                     let plugins = actions::get_marketplace_plugins(&name);
@@ -403,6 +521,8 @@ fn back(model: &mut Model, data: &DataStore) {
                 marketplace_name: name,
                 state,
                 error_message: None,
+                browse_plugins: None,
+                browse_selected: None,
             };
         }
         Model::AddForm(_) => {
@@ -416,6 +536,110 @@ fn back(model: &mut Model, data: &DataStore) {
                 operation_status: None,
                 error_message: None,
             };
+        }
+        Model::PluginBrowse { .. } => {
+            // Take ownership via replace
+            let old = std::mem::replace(
+                model,
+                Model::MarketList {
+                    selected_id: None,
+                    state: ListState::default(),
+                    operation_status: None,
+                    error_message: None,
+                },
+            );
+            if let Model::PluginBrowse {
+                marketplace_name,
+                plugins,
+                selected_plugins,
+                ..
+            } = old
+            {
+                let mut state = ListState::default();
+                state.select(Some(0));
+                *model = Model::MarketDetail {
+                    marketplace_name,
+                    state,
+                    error_message: None,
+                    browse_plugins: Some(plugins),
+                    browse_selected: Some(selected_plugins),
+                };
+            }
+        }
+        Model::TargetSelect { .. } => {
+            // Take ownership via replace
+            let old = std::mem::replace(
+                model,
+                Model::MarketList {
+                    selected_id: None,
+                    state: ListState::default(),
+                    operation_status: None,
+                    error_message: None,
+                },
+            );
+            if let Model::TargetSelect {
+                marketplace_name,
+                plugins,
+                selected_plugins,
+                ..
+            } = old
+            {
+                let mut state = ListState::default();
+                if !plugins.is_empty() {
+                    state.select(Some(0));
+                }
+                *model = Model::PluginBrowse {
+                    marketplace_name,
+                    plugins,
+                    selected_plugins,
+                    highlighted_idx: 0,
+                    state,
+                };
+            }
+        }
+        Model::ScopeSelect { .. } => {
+            // Take ownership via replace
+            let old = std::mem::replace(
+                model,
+                Model::MarketList {
+                    selected_id: None,
+                    state: ListState::default(),
+                    operation_status: None,
+                    error_message: None,
+                },
+            );
+            if let Model::ScopeSelect {
+                marketplace_name,
+                plugins,
+                selected_plugins,
+                target_names,
+                ..
+            } = old
+            {
+                // Rebuild targets from all_targets(), marking those in target_names as selected
+                let targets: Vec<(String, String, bool)> = crate::target::all_targets()
+                    .iter()
+                    .map(|t| {
+                        let name = t.name().to_string();
+                        let selected = target_names.contains(&name);
+                        (name, t.display_name().to_string(), selected)
+                    })
+                    .collect();
+
+                let mut state = ListState::default();
+                if !targets.is_empty() {
+                    state.select(Some(0));
+                }
+
+                *model = Model::TargetSelect {
+                    marketplace_name,
+                    plugins,
+                    selected_plugins,
+                    targets,
+                    highlighted_idx: 0,
+                    state,
+                };
+            }
         }
         _ => {}
     }
@@ -433,6 +657,302 @@ fn back_to_market_list(model: &mut Model, data: &DataStore, marketplace_name: St
         operation_status: None,
         error_message: None,
     };
+}
+
+/// StartInstall: PluginBrowse -> TargetSelect
+fn start_install(model: &mut Model) -> UpdateEffect {
+    if let Model::PluginBrowse {
+        selected_plugins, ..
+    } = model
+    {
+        if selected_plugins.is_empty() {
+            return UpdateEffect::none();
+        }
+    } else {
+        return UpdateEffect::none();
+    }
+
+    // Take ownership of fields
+    let (marketplace_name, plugins, selected_plugins) = match std::mem::replace(
+        model,
+        Model::MarketList {
+            selected_id: None,
+            state: ListState::default(),
+            operation_status: None,
+            error_message: None,
+        },
+    ) {
+        Model::PluginBrowse {
+            marketplace_name,
+            plugins,
+            selected_plugins,
+            ..
+        } => (marketplace_name, plugins, selected_plugins),
+        _ => unreachable!(),
+    };
+
+    let targets: Vec<(String, String, bool)> = crate::target::all_targets()
+        .iter()
+        .map(|t| (t.name().to_string(), t.display_name().to_string(), false))
+        .collect();
+
+    let mut state = ListState::default();
+    if !targets.is_empty() {
+        state.select(Some(0));
+    }
+
+    *model = Model::TargetSelect {
+        marketplace_name,
+        plugins,
+        selected_plugins,
+        targets,
+        highlighted_idx: 0,
+        state,
+    };
+    UpdateEffect::none()
+}
+
+/// ConfirmScope: ScopeSelect -> Installing + Phase2
+fn confirm_scope(model: &mut Model) -> UpdateEffect {
+    if !matches!(model, Model::ScopeSelect { .. }) {
+        return UpdateEffect::none();
+    }
+
+    let old = std::mem::replace(
+        model,
+        Model::MarketList {
+            selected_id: None,
+            state: ListState::default(),
+            operation_status: None,
+            error_message: None,
+        },
+    );
+
+    if let Model::ScopeSelect {
+        marketplace_name,
+        plugins,
+        selected_plugins,
+        target_names,
+        highlighted_idx,
+        ..
+    } = old
+    {
+        let scope = if highlighted_idx == 0 {
+            crate::component::Scope::Personal
+        } else {
+            crate::component::Scope::Project
+        };
+
+        // Collect plugin_names in plugins order for deterministic ordering
+        let plugin_names: Vec<String> = plugins
+            .iter()
+            .filter(|p| selected_plugins.contains(&p.name))
+            .map(|p| p.name.clone())
+            .collect();
+
+        let total = plugin_names.len();
+
+        *model = Model::Installing {
+            marketplace_name,
+            plugins,
+            plugin_names,
+            target_names,
+            scope,
+            current_idx: 0,
+            total,
+        };
+
+        return UpdateEffect::phase2(Msg::ExecuteInstall);
+    }
+
+    UpdateEffect::none()
+}
+
+/// BackToPluginBrowse: InstallResult -> PluginBrowse (refresh)
+fn back_to_plugin_browse(model: &mut Model, data: &DataStore) -> UpdateEffect {
+    if !matches!(model, Model::InstallResult { .. }) {
+        return UpdateEffect::none();
+    }
+
+    let old = std::mem::replace(
+        model,
+        Model::MarketList {
+            selected_id: None,
+            state: ListState::default(),
+            operation_status: None,
+            error_message: None,
+        },
+    );
+
+    if let Model::InstallResult {
+        marketplace_name, ..
+    } = old
+    {
+        let plugins = actions::get_browse_plugins(&marketplace_name, &data.plugins);
+        let mut state = ListState::default();
+        if !plugins.is_empty() {
+            state.select(Some(0));
+        }
+
+        *model = Model::PluginBrowse {
+            marketplace_name,
+            plugins,
+            selected_plugins: HashSet::new(),
+            highlighted_idx: 0,
+            state,
+        };
+    }
+
+    UpdateEffect::none()
+}
+
+/// Phase 2: ExecuteInstall (real dependencies)
+fn execute_install(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
+    execute_install_with(
+        model,
+        data,
+        |mp, plugins, targets, scope| actions::install_plugins(mp, plugins, targets, scope),
+        |d| d.reload(),
+    )
+}
+
+/// ExecuteInstall の実装本体（依存関数注入パターン）
+pub(super) fn execute_install_with(
+    model: &mut Model,
+    data: &mut DataStore,
+    run_install: impl FnOnce(
+        &str,
+        &[String],
+        &[String],
+        crate::component::Scope,
+    ) -> super::model::InstallSummary,
+    reload: impl FnOnce(&mut DataStore) -> std::io::Result<()>,
+) -> UpdateEffect {
+    if !matches!(model, Model::Installing { .. }) {
+        return UpdateEffect::none();
+    }
+
+    let old = std::mem::replace(
+        model,
+        Model::MarketList {
+            selected_id: None,
+            state: ListState::default(),
+            operation_status: None,
+            error_message: None,
+        },
+    );
+
+    if let Model::Installing {
+        marketplace_name,
+        plugins,
+        plugin_names,
+        target_names,
+        scope,
+        ..
+    } = old
+    {
+        let summary = run_install(&marketplace_name, &plugin_names, &target_names, scope);
+
+        if let Err(e) = reload(data) {
+            data.last_error = Some(format!("Failed to reload: {}", e));
+        }
+
+        *model = Model::InstallResult {
+            marketplace_name,
+            plugins,
+            summary,
+        };
+    }
+
+    UpdateEffect::none()
+}
+
+/// ConfirmTargets: TargetSelect -> ScopeSelect
+fn confirm_targets(model: &mut Model) -> UpdateEffect {
+    // Guard: at least one target selected
+    if let Model::TargetSelect { targets, .. } = model {
+        if !targets.iter().any(|(_, _, sel)| *sel) {
+            return UpdateEffect::none();
+        }
+    } else {
+        return UpdateEffect::none();
+    }
+
+    let old = std::mem::replace(
+        model,
+        Model::MarketList {
+            selected_id: None,
+            state: ListState::default(),
+            operation_status: None,
+            error_message: None,
+        },
+    );
+
+    if let Model::TargetSelect {
+        marketplace_name,
+        plugins,
+        selected_plugins,
+        targets,
+        ..
+    } = old
+    {
+        let target_names: Vec<String> = targets
+            .iter()
+            .filter(|(_, _, sel)| *sel)
+            .map(|(name, _, _)| name.clone())
+            .collect();
+
+        let mut state = ListState::default();
+        state.select(Some(0));
+
+        *model = Model::ScopeSelect {
+            marketplace_name,
+            plugins,
+            selected_plugins,
+            target_names,
+            highlighted_idx: 0,
+            state,
+        };
+    }
+    UpdateEffect::none()
+}
+
+/// ToggleSelect: プラグインまたはターゲットの選択をトグル
+fn toggle_select(model: &mut Model) -> UpdateEffect {
+    match model {
+        Model::PluginBrowse {
+            plugins,
+            selected_plugins,
+            highlighted_idx,
+            ..
+        } => {
+            if plugins.is_empty() {
+                return UpdateEffect::none();
+            }
+            if let Some(plugin) = plugins.get(*highlighted_idx) {
+                let name = plugin.name.clone();
+                if selected_plugins.contains(&name) {
+                    selected_plugins.remove(&name);
+                } else {
+                    selected_plugins.insert(name);
+                }
+            }
+        }
+        Model::TargetSelect {
+            targets,
+            highlighted_idx,
+            ..
+        } => {
+            if targets.is_empty() {
+                return UpdateEffect::none();
+            }
+            if let Some(target) = targets.get_mut(*highlighted_idx) {
+                target.2 = !target.2;
+            }
+        }
+        _ => {}
+    }
+    UpdateEffect::none()
 }
 
 /// FormInput 処理
