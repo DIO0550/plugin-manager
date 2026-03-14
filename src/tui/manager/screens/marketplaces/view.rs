@@ -836,7 +836,7 @@ fn view_install_result(f: &mut Frame, summary: &InstallSummary) {
     );
     f.render_widget(content, chunks[0]);
 
-    let help = Paragraph::new(" enter: back to browse").style(Style::default().fg(Color::DarkGray));
+    let help = Paragraph::new(" enter/esc: back to browse").style(Style::default().fg(Color::DarkGray));
     f.render_widget(help, chunks[1]);
 }
 
