@@ -752,8 +752,9 @@ fn view_installing(f: &mut Frame, plugin_names: &[String], current_idx: usize, t
         .map(|s| s.as_str())
         .unwrap_or("...");
 
+    let display_idx = (current_idx + 1).min(total);
     let ratio = if total > 0 {
-        (current_idx as f64 / total as f64).min(1.0)
+        (display_idx as f64 / total as f64).min(1.0)
     } else {
         0.0
     };
@@ -781,7 +782,7 @@ fn view_installing(f: &mut Frame, plugin_names: &[String], current_idx: usize, t
         .block(Block::default().borders(Borders::BOTTOM | Borders::LEFT | Borders::RIGHT))
         .gauge_style(Style::default().fg(Color::Green))
         .ratio(ratio)
-        .label(format!("{}/{}", current_idx, total));
+        .label(format!("{}/{}", display_idx, total));
     f.render_widget(gauge, inner_chunks[1]);
 }
 
