@@ -1,10 +1,13 @@
 //! Marketplaces タブの view（描画）
 
-use super::model::{AddFormModel, BrowsePlugin, DetailAction, Model, OperationStatus};
+use super::model::{
+    AddFormModel, BrowsePlugin, DetailAction, InstallSummary, Model, OperationStatus,
+};
+use crate::component::Scope;
 use crate::marketplace::PluginSource;
 use crate::tui::manager::core::{dialog_rect, render_filter_bar, DataStore, Tab};
 use ratatui::prelude::*;
-use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Tabs};
+use ratatui::widgets::{Block, Borders, Clear, Gauge, List, ListItem, ListState, Paragraph, Tabs};
 use std::collections::HashSet;
 
 /// 画面を描画
@@ -36,6 +39,7 @@ pub fn view(
             marketplace_name,
             state,
             error_message,
+            ..
         } => {
             view_market_detail(
                 f,
@@ -83,7 +87,32 @@ pub fn view(
                 filter_focused,
             );
         }
-        _ => {}
+        Model::TargetSelect {
+            targets,
+            highlighted_idx,
+            state,
+            ..
+        } => {
+            view_target_select(f, targets, *highlighted_idx, *state);
+        }
+        Model::ScopeSelect {
+            highlighted_idx,
+            state,
+            ..
+        } => {
+            view_scope_select(f, *highlighted_idx, *state);
+        }
+        Model::Installing {
+            plugin_names,
+            current_idx,
+            total,
+            ..
+        } => {
+            view_installing(f, plugin_names, *current_idx, *total);
+        }
+        Model::InstallResult { summary, .. } => {
+            view_install_result(f, summary);
+        }
     }
 }
 
@@ -616,6 +645,200 @@ fn view_plugin_browse(
     // ヘルプ
     let help = Paragraph::new(" Esc: back | q: quit").style(Style::default().fg(Color::DarkGray));
     f.render_widget(help, chunks[3]);
+}
+
+/// ターゲット選択画面を描画
+fn view_target_select(
+    f: &mut Frame,
+    targets: &[(String, String, bool)],
+    _highlighted_idx: usize,
+    mut state: ListState,
+) {
+    let dialog_width = 45u16;
+    let dialog_height = (targets.len() as u16 + 5).min(16);
+
+    let dialog_area = dialog_rect(dialog_width, dialog_height, f.area());
+    f.render_widget(Clear, dialog_area);
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Min(1),    // コンテンツ
+            Constraint::Length(1), // ヘルプ
+        ])
+        .split(dialog_area);
+
+    let items: Vec<ListItem> = targets
+        .iter()
+        .map(|(_name, display_name, selected)| {
+            let mark = if *selected { "[x]" } else { "[ ]" };
+            let style = if *selected {
+                Style::default().fg(Color::Yellow)
+            } else {
+                Style::default()
+            };
+            ListItem::new(format!("  {} {}", mark, display_name)).style(style)
+        })
+        .collect();
+
+    let list = List::new(items)
+        .block(
+            Block::default()
+                .title(" Select targets ")
+                .borders(Borders::ALL),
+        )
+        .highlight_style(Style::default().add_modifier(Modifier::BOLD))
+        .highlight_symbol("> ");
+
+    f.render_stateful_widget(list, chunks[0], &mut state);
+
+    let help = Paragraph::new(" ↑↓: move  space: toggle  enter: ok  esc: back")
+        .style(Style::default().fg(Color::DarkGray));
+    f.render_widget(help, chunks[1]);
+}
+
+/// スコープ選択画面を描画
+fn view_scope_select(f: &mut Frame, _highlighted_idx: usize, mut state: ListState) {
+    let dialog_width = 45u16;
+    let dialog_height = 8u16;
+
+    let dialog_area = dialog_rect(dialog_width, dialog_height, f.area());
+    f.render_widget(Clear, dialog_area);
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Min(1),    // コンテンツ
+            Constraint::Length(1), // ヘルプ
+        ])
+        .split(dialog_area);
+
+    let items = vec![
+        ListItem::new(format!("  {} (~/.plm/)", Scope::Personal.display_name())),
+        ListItem::new(format!("  {} (./)", Scope::Project.display_name())),
+    ];
+
+    let list = List::new(items)
+        .block(
+            Block::default()
+                .title(" Select scope ")
+                .borders(Borders::ALL),
+        )
+        .highlight_style(Style::default().add_modifier(Modifier::BOLD))
+        .highlight_symbol("> ");
+
+    f.render_stateful_widget(list, chunks[0], &mut state);
+
+    let help = Paragraph::new(" ↑↓: move  enter: select  esc: back")
+        .style(Style::default().fg(Color::DarkGray));
+    f.render_widget(help, chunks[1]);
+}
+
+/// インストール実行中画面を描画
+fn view_installing(f: &mut Frame, plugin_names: &[String], current_idx: usize, total: usize) {
+    let dialog_width = 45u16;
+    let dialog_height = 7u16;
+
+    let dialog_area = dialog_rect(dialog_width, dialog_height, f.area());
+    f.render_widget(Clear, dialog_area);
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(1)])
+        .split(dialog_area);
+
+    let current_name = plugin_names
+        .get(current_idx)
+        .map(|s| s.as_str())
+        .unwrap_or("...");
+
+    let display_idx = (current_idx + 1).min(total);
+    let ratio = if total > 0 {
+        (display_idx as f64 / total as f64).min(1.0)
+    } else {
+        0.0
+    };
+
+    let lines = vec![
+        Line::raw(""),
+        Line::from(format!("  Installing {}...", current_name)),
+        Line::raw(""),
+    ];
+
+    // Gauge doesn't support mixed content, so render text + gauge separately
+    let inner_chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(4), Constraint::Min(1)])
+        .split(chunks[0]);
+
+    let text = Paragraph::new(lines).block(
+        Block::default()
+            .title(" Installing ")
+            .borders(Borders::TOP | Borders::LEFT | Borders::RIGHT),
+    );
+    f.render_widget(text, inner_chunks[0]);
+
+    let gauge = Gauge::default()
+        .block(Block::default().borders(Borders::BOTTOM | Borders::LEFT | Borders::RIGHT))
+        .gauge_style(Style::default().fg(Color::Green))
+        .ratio(ratio)
+        .label(format!("{}/{}", display_idx, total));
+    f.render_widget(gauge, inner_chunks[1]);
+}
+
+/// インストール結果画面を描画
+fn view_install_result(f: &mut Frame, summary: &InstallSummary) {
+    let content_height = (summary.results.len() as u16 + 5).min(20);
+    let dialog_width = 50u16;
+    let dialog_height = content_height + 3;
+
+    let dialog_area = dialog_rect(dialog_width, dialog_height, f.area());
+    f.render_widget(Clear, dialog_area);
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Min(1),    // コンテンツ
+            Constraint::Length(1), // ヘルプ
+        ])
+        .split(dialog_area);
+
+    let mut lines = vec![
+        Line::raw(""),
+        Line::from(format!(
+            "  Installed {}/{} plugins",
+            summary.succeeded, summary.total
+        )),
+        Line::raw(""),
+    ];
+
+    for result in &summary.results {
+        if result.success {
+            lines.push(Line::from(Span::styled(
+                format!("  ✓ {}", result.plugin_name),
+                Style::default().fg(Color::Green),
+            )));
+        } else {
+            let error_msg = result.error.as_deref().unwrap_or("Unknown error");
+            lines.push(Line::from(Span::styled(
+                format!("  ✗ {}: {}", result.plugin_name, error_msg),
+                Style::default().fg(Color::Red),
+            )));
+        }
+    }
+
+    lines.push(Line::raw(""));
+
+    let content = Paragraph::new(lines).block(
+        Block::default()
+            .title(" Install Result ")
+            .borders(Borders::ALL),
+    );
+    f.render_widget(content, chunks[0]);
+
+    let help =
+        Paragraph::new(" enter/esc: back to browse").style(Style::default().fg(Color::DarkGray));
+    f.render_widget(help, chunks[1]);
 }
 
 /// 右パネルにプラグイン詳細を描画
