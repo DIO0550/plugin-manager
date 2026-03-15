@@ -902,7 +902,7 @@ fn target_checkbox(selected: bool) -> (&'static str, Style) {
 }
 
 /// TargetSelect 用のリストアイテムを構築
-fn build_target_list_items(targets: &[(String, String, bool)]) -> Vec<ListItem<'_>> {
+fn build_target_list_items(targets: &[(String, String, bool)]) -> Vec<ListItem<'static>> {
     targets
         .iter()
         .map(|(_name, display_name, selected)| {
