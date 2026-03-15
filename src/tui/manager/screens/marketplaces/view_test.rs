@@ -1,4 +1,5 @@
 use super::*;
+use crate::component::Scope;
 use crate::marketplace::PluginSource;
 use ratatui::prelude::{Color, Style};
 use std::collections::HashSet;
@@ -111,4 +112,150 @@ fn build_browse_list_items_respects_selected_plugins() {
 
     // "alpha" は selected に含まれるため、選択あり/なしでアイテムが異なることを確認する
     assert_ne!(items_with_selection[0], items_without_selection[0]);
+}
+
+// =============================================================================
+// target_checkbox
+// =============================================================================
+
+#[test]
+fn target_checkbox_selected() {
+    let (mark, style) = target_checkbox(true);
+    assert_eq!(mark, "[x] ");
+    assert_eq!(style, Style::default().fg(Color::Yellow));
+}
+
+#[test]
+fn target_checkbox_unselected() {
+    let (mark, style) = target_checkbox(false);
+    assert_eq!(mark, "[ ] ");
+    assert_eq!(style, Style::default());
+}
+
+// =============================================================================
+// scope_radio
+// =============================================================================
+
+#[test]
+fn scope_radio_current() {
+    let (mark, style) = scope_radio(true);
+    assert_eq!(mark, "(x) ");
+    assert_eq!(style, Style::default().fg(Color::Yellow));
+}
+
+#[test]
+fn scope_radio_not_current() {
+    let (mark, style) = scope_radio(false);
+    assert_eq!(mark, "( ) ");
+    assert_eq!(style, Style::default());
+}
+
+// =============================================================================
+// build_target_list_items
+// =============================================================================
+
+#[test]
+fn build_target_list_items_empty() {
+    let targets: Vec<(String, String, bool)> = vec![];
+    let items = build_target_list_items(&targets);
+    assert!(items.is_empty());
+}
+
+#[test]
+fn build_target_list_items_all_selected() {
+    let targets = vec![
+        ("codex".to_string(), "Codex".to_string(), true),
+        ("copilot".to_string(), "Copilot".to_string(), true),
+    ];
+    let items = build_target_list_items(&targets);
+    assert_eq!(items.len(), 2);
+    // All items should match Yellow-styled selected items
+    let expected_0 =
+        ListItem::new("  [x] Codex".to_string()).style(Style::default().fg(Color::Yellow));
+    let expected_1 =
+        ListItem::new("  [x] Copilot".to_string()).style(Style::default().fg(Color::Yellow));
+    assert_eq!(items[0], expected_0);
+    assert_eq!(items[1], expected_1);
+}
+
+#[test]
+fn build_target_list_items_none_selected() {
+    let targets = vec![
+        ("codex".to_string(), "Codex".to_string(), false),
+        ("copilot".to_string(), "Copilot".to_string(), false),
+    ];
+    let items = build_target_list_items(&targets);
+    assert_eq!(items.len(), 2);
+    // All items should match default-styled unselected items
+    let expected_0 = ListItem::new("  [ ] Codex".to_string()).style(Style::default());
+    let expected_1 = ListItem::new("  [ ] Copilot".to_string()).style(Style::default());
+    assert_eq!(items[0], expected_0);
+    assert_eq!(items[1], expected_1);
+}
+
+#[test]
+fn build_target_list_items_mixed() {
+    let targets = vec![
+        ("codex".to_string(), "Codex".to_string(), true),
+        ("copilot".to_string(), "Copilot".to_string(), false),
+    ];
+    let items = build_target_list_items(&targets);
+    assert_eq!(items.len(), 2);
+    // Selected and unselected items should differ
+    assert_ne!(items[0], items[1]);
+    let expected_selected =
+        ListItem::new("  [x] Codex".to_string()).style(Style::default().fg(Color::Yellow));
+    let expected_unselected = ListItem::new("  [ ] Copilot".to_string()).style(Style::default());
+    assert_eq!(items[0], expected_selected);
+    assert_eq!(items[1], expected_unselected);
+}
+
+// =============================================================================
+// build_scope_list_items
+// =============================================================================
+
+#[test]
+fn build_scope_list_items_personal_selected() {
+    let items = build_scope_list_items(0);
+    assert_eq!(items.len(), 2);
+    let expected_personal = ListItem::new(format!(
+        "  (x) {} (~/.plm/)",
+        Scope::Personal.display_name()
+    ))
+    .style(Style::default().fg(Color::Yellow));
+    let expected_project = ListItem::new(format!("  ( ) {} (./)", Scope::Project.display_name()))
+        .style(Style::default());
+    assert_eq!(items[0], expected_personal);
+    assert_eq!(items[1], expected_project);
+}
+
+#[test]
+fn build_scope_list_items_project_selected() {
+    let items = build_scope_list_items(1);
+    assert_eq!(items.len(), 2);
+    let expected_personal = ListItem::new(format!(
+        "  ( ) {} (~/.plm/)",
+        Scope::Personal.display_name()
+    ))
+    .style(Style::default());
+    let expected_project = ListItem::new(format!("  (x) {} (./)", Scope::Project.display_name()))
+        .style(Style::default().fg(Color::Yellow));
+    assert_eq!(items[0], expected_personal);
+    assert_eq!(items[1], expected_project);
+}
+
+#[test]
+fn build_scope_list_items_out_of_range_clamps_to_last() {
+    let items = build_scope_list_items(99);
+    assert_eq!(items.len(), 2);
+    // Out-of-range clamps to last valid index (Project selected)
+    let expected_personal = ListItem::new(format!(
+        "  ( ) {} (~/.plm/)",
+        Scope::Personal.display_name()
+    ))
+    .style(Style::default());
+    let expected_project = ListItem::new(format!("  (x) {} (./)", Scope::Project.display_name()))
+        .style(Style::default().fg(Color::Yellow));
+    assert_eq!(items[0], expected_personal);
+    assert_eq!(items[1], expected_project);
 }

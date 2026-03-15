@@ -668,18 +668,7 @@ fn view_target_select(
         ])
         .split(dialog_area);
 
-    let items: Vec<ListItem> = targets
-        .iter()
-        .map(|(_name, display_name, selected)| {
-            let mark = if *selected { "[x]" } else { "[ ]" };
-            let style = if *selected {
-                Style::default().fg(Color::Yellow)
-            } else {
-                Style::default()
-            };
-            ListItem::new(format!("  {} {}", mark, display_name)).style(style)
-        })
-        .collect();
+    let items = build_target_list_items(targets);
 
     let list = List::new(items)
         .block(
@@ -698,7 +687,7 @@ fn view_target_select(
 }
 
 /// スコープ選択画面を描画
-fn view_scope_select(f: &mut Frame, _highlighted_idx: usize, mut state: ListState) {
+fn view_scope_select(f: &mut Frame, highlighted_idx: usize, mut state: ListState) {
     let dialog_width = 45u16;
     let dialog_height = 8u16;
 
@@ -713,10 +702,7 @@ fn view_scope_select(f: &mut Frame, _highlighted_idx: usize, mut state: ListStat
         ])
         .split(dialog_area);
 
-    let items = vec![
-        ListItem::new(format!("  {} (~/.plm/)", Scope::Personal.display_name())),
-        ListItem::new(format!("  {} (./)", Scope::Project.display_name())),
-    ];
+    let items = build_scope_list_items(highlighted_idx);
 
     let list = List::new(items)
         .block(
@@ -904,6 +890,50 @@ fn render_plugin_detail(
 /// 端末幅が60未満の場合はリストのみ表示にフォールバックする。
 fn should_split_layout(width: u16) -> bool {
     width >= 60
+}
+
+/// ターゲット選択のチェックボックスマークとスタイルを決定
+fn target_checkbox(selected: bool) -> (&'static str, Style) {
+    if selected {
+        ("[x] ", Style::default().fg(Color::Yellow))
+    } else {
+        ("[ ] ", Style::default())
+    }
+}
+
+/// TargetSelect 用のリストアイテムを構築
+fn build_target_list_items(targets: &[(String, String, bool)]) -> Vec<ListItem<'static>> {
+    targets
+        .iter()
+        .map(|(_name, display_name, selected)| {
+            let (mark, style) = target_checkbox(*selected);
+            ListItem::new(format!("  {}{}", mark, display_name)).style(style)
+        })
+        .collect()
+}
+
+/// スコープ選択のラジオボタンマークとスタイルを決定
+fn scope_radio(is_current: bool) -> (&'static str, Style) {
+    if is_current {
+        ("(x) ", Style::default().fg(Color::Yellow))
+    } else {
+        ("( ) ", Style::default())
+    }
+}
+
+/// ScopeSelect 用のリストアイテムを構築
+fn build_scope_list_items(highlighted_idx: usize) -> Vec<ListItem<'static>> {
+    let scopes = [(Scope::Personal, "(~/.plm/)"), (Scope::Project, "(./)")];
+    let clamped = highlighted_idx.min(scopes.len() - 1);
+    scopes
+        .iter()
+        .enumerate()
+        .map(|(idx, (scope, path))| {
+            let is_current = idx == clamped;
+            let (mark, style) = scope_radio(is_current);
+            ListItem::new(format!("  {}{} {}", mark, scope.display_name(), path)).style(style)
+        })
+        .collect()
 }
 
 /// チェックボックスのマークとスタイルを決定
