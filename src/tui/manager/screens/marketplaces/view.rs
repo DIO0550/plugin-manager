@@ -924,11 +924,12 @@ fn scope_radio(is_current: bool) -> (&'static str, Style) {
 /// ScopeSelect 用のリストアイテムを構築
 fn build_scope_list_items(highlighted_idx: usize) -> Vec<ListItem<'static>> {
     let scopes = [(Scope::Personal, "(~/.plm/)"), (Scope::Project, "(./)")];
+    let in_range = highlighted_idx < scopes.len();
     scopes
         .iter()
         .enumerate()
         .map(|(idx, (scope, path))| {
-            let is_current = idx == highlighted_idx && highlighted_idx < scopes.len();
+            let is_current = in_range && idx == highlighted_idx;
             let (mark, style) = scope_radio(is_current);
             ListItem::new(format!("  {}{} {}", mark, scope.display_name(), path)).style(style)
         })
