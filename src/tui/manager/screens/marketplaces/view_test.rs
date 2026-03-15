@@ -1,4 +1,5 @@
 use super::*;
+use crate::component::Scope;
 use crate::marketplace::PluginSource;
 use ratatui::prelude::{Color, Style};
 use std::collections::HashSet;
@@ -132,6 +133,24 @@ fn target_checkbox_unselected() {
 }
 
 // =============================================================================
+// scope_radio
+// =============================================================================
+
+#[test]
+fn scope_radio_current() {
+    let (mark, style) = scope_radio(true);
+    assert_eq!(mark, "(x) ");
+    assert_eq!(style, Style::default().fg(Color::Yellow));
+}
+
+#[test]
+fn scope_radio_not_current() {
+    let (mark, style) = scope_radio(false);
+    assert_eq!(mark, "( ) ");
+    assert_eq!(style, Style::default());
+}
+
+// =============================================================================
 // build_target_list_items
 // =============================================================================
 
@@ -191,3 +210,52 @@ fn build_target_list_items_mixed() {
     assert_eq!(items[1], expected_unselected);
 }
 
+// =============================================================================
+// build_scope_list_items
+// =============================================================================
+
+#[test]
+fn build_scope_list_items_personal_selected() {
+    let items = build_scope_list_items(0);
+    assert_eq!(items.len(), 2);
+    let expected_personal = ListItem::new(format!(
+        "  (x) {} (~/.plm/)",
+        Scope::Personal.display_name()
+    ))
+    .style(Style::default().fg(Color::Yellow));
+    let expected_project = ListItem::new(format!("  ( ) {} (./)", Scope::Project.display_name()))
+        .style(Style::default());
+    assert_eq!(items[0], expected_personal);
+    assert_eq!(items[1], expected_project);
+}
+
+#[test]
+fn build_scope_list_items_project_selected() {
+    let items = build_scope_list_items(1);
+    assert_eq!(items.len(), 2);
+    let expected_personal = ListItem::new(format!(
+        "  ( ) {} (~/.plm/)",
+        Scope::Personal.display_name()
+    ))
+    .style(Style::default());
+    let expected_project = ListItem::new(format!("  (x) {} (./)", Scope::Project.display_name()))
+        .style(Style::default().fg(Color::Yellow));
+    assert_eq!(items[0], expected_personal);
+    assert_eq!(items[1], expected_project);
+}
+
+#[test]
+fn build_scope_list_items_out_of_range() {
+    let items = build_scope_list_items(99);
+    assert_eq!(items.len(), 2);
+    // Both should be unselected
+    let expected_personal = ListItem::new(format!(
+        "  ( ) {} (~/.plm/)",
+        Scope::Personal.display_name()
+    ))
+    .style(Style::default());
+    let expected_project = ListItem::new(format!("  ( ) {} (./)", Scope::Project.display_name()))
+        .style(Style::default());
+    assert_eq!(items[0], expected_personal);
+    assert_eq!(items[1], expected_project);
+}
