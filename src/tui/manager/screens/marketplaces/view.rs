@@ -668,18 +668,7 @@ fn view_target_select(
         ])
         .split(dialog_area);
 
-    let items: Vec<ListItem> = targets
-        .iter()
-        .map(|(_name, display_name, selected)| {
-            let mark = if *selected { "[x]" } else { "[ ]" };
-            let style = if *selected {
-                Style::default().fg(Color::Yellow)
-            } else {
-                Style::default()
-            };
-            ListItem::new(format!("  {} {}", mark, display_name)).style(style)
-        })
-        .collect();
+    let items = build_target_list_items(targets);
 
     let list = List::new(items)
         .block(
@@ -904,6 +893,26 @@ fn render_plugin_detail(
 /// 端末幅が60未満の場合はリストのみ表示にフォールバックする。
 fn should_split_layout(width: u16) -> bool {
     width >= 60
+}
+
+/// ターゲット選択のチェックボックスマークとスタイルを決定
+fn target_checkbox(selected: bool) -> (&'static str, Style) {
+    if selected {
+        ("[x] ", Style::default().fg(Color::Yellow))
+    } else {
+        ("[ ] ", Style::default())
+    }
+}
+
+/// TargetSelect 用のリストアイテムを構築
+fn build_target_list_items(targets: &[(String, String, bool)]) -> Vec<ListItem<'_>> {
+    targets
+        .iter()
+        .map(|(_name, display_name, selected)| {
+            let (mark, style) = target_checkbox(*selected);
+            ListItem::new(format!("  {}{}", mark, display_name)).style(style)
+        })
+        .collect()
 }
 
 /// チェックボックスのマークとスタイルを決定
