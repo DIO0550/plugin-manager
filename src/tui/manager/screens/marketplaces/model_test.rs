@@ -71,6 +71,8 @@ fn is_top_level_market_detail() {
         marketplace_name: "test".to_string(),
         state: ListState::default(),
         error_message: None,
+        browse_plugins: None,
+        browse_selected: None,
     };
     assert!(!model.is_top_level());
 }
@@ -163,6 +165,247 @@ fn key_to_msg_add_form_input() {
         key_to_msg(KeyCode::Char('q'), &model),
         Some(Msg::FormInput('q'))
     ));
+}
+
+// ============================================================================
+// key_to_msg: PluginBrowse テスト
+// ============================================================================
+
+fn make_plugin_browse_model() -> Model {
+    let mut state = ListState::default();
+    state.select(Some(0));
+    Model::PluginBrowse {
+        marketplace_name: "test".to_string(),
+        plugins: vec![BrowsePlugin {
+            name: "p1".to_string(),
+            description: None,
+            version: None,
+            source: crate::marketplace::PluginSource::Local("local".to_string()),
+            installed: false,
+        }],
+        selected_plugins: HashSet::new(),
+        highlighted_idx: 0,
+        state,
+    }
+}
+
+#[test]
+fn key_to_msg_plugin_browse_space_returns_toggle_select() {
+    let model = make_plugin_browse_model();
+    assert!(matches!(
+        key_to_msg(KeyCode::Char(' '), &model),
+        Some(Msg::ToggleSelect)
+    ));
+}
+
+#[test]
+fn key_to_msg_plugin_browse_i_returns_start_install() {
+    let model = make_plugin_browse_model();
+    assert!(matches!(
+        key_to_msg(KeyCode::Char('i'), &model),
+        Some(Msg::StartInstall)
+    ));
+}
+
+#[test]
+fn key_to_msg_plugin_browse_enter_returns_none() {
+    let model = make_plugin_browse_model();
+    assert!(key_to_msg(KeyCode::Enter, &model).is_none());
+}
+
+#[test]
+fn key_to_msg_plugin_browse_navigation() {
+    let model = make_plugin_browse_model();
+    assert!(matches!(
+        key_to_msg(KeyCode::Char('j'), &model),
+        Some(Msg::Down)
+    ));
+    assert!(matches!(
+        key_to_msg(KeyCode::Char('k'), &model),
+        Some(Msg::Up)
+    ));
+    assert!(matches!(key_to_msg(KeyCode::Down, &model), Some(Msg::Down)));
+    assert!(matches!(key_to_msg(KeyCode::Up, &model), Some(Msg::Up)));
+    assert!(matches!(key_to_msg(KeyCode::Esc, &model), Some(Msg::Back)));
+}
+
+// ============================================================================
+// key_to_msg: TargetSelect テスト
+// ============================================================================
+
+fn make_target_select_model() -> Model {
+    let mut state = ListState::default();
+    state.select(Some(0));
+    Model::TargetSelect {
+        marketplace_name: "test".to_string(),
+        plugins: vec![],
+        selected_plugins: HashSet::new(),
+        targets: vec![
+            ("codex".to_string(), "OpenAI Codex".to_string(), false),
+            ("copilot".to_string(), "VS Code Copilot".to_string(), false),
+        ],
+        highlighted_idx: 0,
+        state,
+    }
+}
+
+#[test]
+fn key_to_msg_target_select_space_returns_toggle_select() {
+    let model = make_target_select_model();
+    assert!(matches!(
+        key_to_msg(KeyCode::Char(' '), &model),
+        Some(Msg::ToggleSelect)
+    ));
+}
+
+#[test]
+fn key_to_msg_target_select_enter_returns_confirm_targets() {
+    let model = make_target_select_model();
+    assert!(matches!(
+        key_to_msg(KeyCode::Enter, &model),
+        Some(Msg::ConfirmTargets)
+    ));
+}
+
+#[test]
+fn key_to_msg_target_select_esc_returns_back() {
+    let model = make_target_select_model();
+    assert!(matches!(key_to_msg(KeyCode::Esc, &model), Some(Msg::Back)));
+}
+
+// ============================================================================
+// key_to_msg: ScopeSelect テスト
+// ============================================================================
+
+fn make_scope_select_model() -> Model {
+    let mut state = ListState::default();
+    state.select(Some(0));
+    Model::ScopeSelect {
+        marketplace_name: "test".to_string(),
+        plugins: vec![],
+        selected_plugins: HashSet::new(),
+        target_names: vec!["codex".to_string()],
+        highlighted_idx: 0,
+        state,
+    }
+}
+
+#[test]
+fn key_to_msg_scope_select_enter_returns_confirm_scope() {
+    let model = make_scope_select_model();
+    assert!(matches!(
+        key_to_msg(KeyCode::Enter, &model),
+        Some(Msg::ConfirmScope)
+    ));
+}
+
+#[test]
+fn key_to_msg_scope_select_esc_returns_back() {
+    let model = make_scope_select_model();
+    assert!(matches!(key_to_msg(KeyCode::Esc, &model), Some(Msg::Back)));
+}
+
+// ============================================================================
+// key_to_msg: Installing テスト
+// ============================================================================
+
+#[test]
+fn key_to_msg_installing_returns_none() {
+    let model = Model::Installing {
+        marketplace_name: "test".to_string(),
+        plugins: vec![],
+        plugin_names: vec!["p1".to_string()],
+        target_names: vec!["codex".to_string()],
+        scope: crate::component::Scope::Personal,
+        current_idx: 0,
+        total: 1,
+    };
+
+    assert!(key_to_msg(KeyCode::Enter, &model).is_none());
+    assert!(key_to_msg(KeyCode::Esc, &model).is_none());
+    assert!(key_to_msg(KeyCode::Up, &model).is_none());
+    assert!(key_to_msg(KeyCode::Down, &model).is_none());
+    assert!(key_to_msg(KeyCode::Char(' '), &model).is_none());
+    assert!(key_to_msg(KeyCode::Char('i'), &model).is_none());
+}
+
+// ============================================================================
+// key_to_msg: InstallResult テスト
+// ============================================================================
+
+#[test]
+fn key_to_msg_install_result_enter_returns_back_to_browse() {
+    let model = Model::InstallResult {
+        marketplace_name: "test".to_string(),
+        plugins: vec![],
+        summary: super::InstallSummary {
+            results: vec![],
+            total: 0,
+            succeeded: 0,
+            failed: 0,
+        },
+    };
+
+    assert!(matches!(
+        key_to_msg(KeyCode::Enter, &model),
+        Some(Msg::BackToPluginBrowse)
+    ));
+}
+
+#[test]
+fn key_to_msg_install_result_esc_returns_back_to_browse() {
+    let model = Model::InstallResult {
+        marketplace_name: "test".to_string(),
+        plugins: vec![],
+        summary: super::InstallSummary {
+            results: vec![],
+            total: 0,
+            succeeded: 0,
+            failed: 0,
+        },
+    };
+
+    assert!(matches!(
+        key_to_msg(KeyCode::Esc, &model),
+        Some(Msg::BackToPluginBrowse)
+    ));
+}
+
+// ============================================================================
+// MarketDetail browse state preservation テスト
+// ============================================================================
+
+#[test]
+fn market_detail_holds_browse_state() {
+    let plugins = vec![BrowsePlugin {
+        name: "p1".to_string(),
+        description: None,
+        version: None,
+        source: crate::marketplace::PluginSource::Local("local".to_string()),
+        installed: false,
+    }];
+    let mut selected = HashSet::new();
+    selected.insert("p1".to_string());
+
+    let model = Model::MarketDetail {
+        marketplace_name: "test".to_string(),
+        state: ListState::default(),
+        error_message: None,
+        browse_plugins: Some(plugins),
+        browse_selected: Some(selected),
+    };
+
+    if let Model::MarketDetail {
+        browse_plugins,
+        browse_selected,
+        ..
+    } = &model
+    {
+        assert!(browse_plugins.is_some());
+        assert!(browse_selected.as_ref().unwrap().contains("p1"));
+    } else {
+        panic!("Expected MarketDetail");
+    }
 }
 
 // ============================================================================

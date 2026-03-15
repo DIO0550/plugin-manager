@@ -147,6 +147,10 @@ pub enum Model {
         marketplace_name: String,
         state: ListState,
         error_message: Option<String>,
+        /// ブラウズ状態保持（再入時に復元）
+        browse_plugins: Option<Vec<BrowsePlugin>>,
+        /// ブラウズ選択状態保持（再入時に復元）
+        browse_selected: Option<HashSet<String>>,
     },
     /// プラグイン一覧表示
     PluginList {
@@ -333,14 +337,45 @@ pub fn key_to_msg(key: KeyCode, model: &Model) -> Option<Msg> {
             _ => None,
         }
     } else {
-        match key {
-            KeyCode::Up | KeyCode::Char('k') => Some(Msg::Up),
-            KeyCode::Down | KeyCode::Char('j') => Some(Msg::Down),
-            KeyCode::Enter => Some(Msg::Enter),
-            KeyCode::Esc => Some(Msg::Back),
-            KeyCode::Char('u') => Some(Msg::UpdateMarket),
-            KeyCode::Char('U') => Some(Msg::UpdateAll),
-            _ => None,
+        match model {
+            Model::PluginBrowse { .. } => match key {
+                KeyCode::Char(' ') => Some(Msg::ToggleSelect),
+                KeyCode::Char('i') => Some(Msg::StartInstall),
+                KeyCode::Up | KeyCode::Char('k') => Some(Msg::Up),
+                KeyCode::Down | KeyCode::Char('j') => Some(Msg::Down),
+                KeyCode::Esc => Some(Msg::Back),
+                KeyCode::Enter => None,
+                _ => None,
+            },
+            Model::TargetSelect { .. } => match key {
+                KeyCode::Char(' ') => Some(Msg::ToggleSelect),
+                KeyCode::Enter => Some(Msg::ConfirmTargets),
+                KeyCode::Up | KeyCode::Char('k') => Some(Msg::Up),
+                KeyCode::Down | KeyCode::Char('j') => Some(Msg::Down),
+                KeyCode::Esc => Some(Msg::Back),
+                _ => None,
+            },
+            Model::ScopeSelect { .. } => match key {
+                KeyCode::Enter => Some(Msg::ConfirmScope),
+                KeyCode::Up | KeyCode::Char('k') => Some(Msg::Up),
+                KeyCode::Down | KeyCode::Char('j') => Some(Msg::Down),
+                KeyCode::Esc => Some(Msg::Back),
+                _ => None,
+            },
+            Model::Installing { .. } => None,
+            Model::InstallResult { .. } => match key {
+                KeyCode::Enter | KeyCode::Esc => Some(Msg::BackToPluginBrowse),
+                _ => None,
+            },
+            _ => match key {
+                KeyCode::Up | KeyCode::Char('k') => Some(Msg::Up),
+                KeyCode::Down | KeyCode::Char('j') => Some(Msg::Down),
+                KeyCode::Enter => Some(Msg::Enter),
+                KeyCode::Esc => Some(Msg::Back),
+                KeyCode::Char('u') => Some(Msg::UpdateMarket),
+                KeyCode::Char('U') => Some(Msg::UpdateAll),
+                _ => None,
+            },
         }
     }
 }
