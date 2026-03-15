@@ -76,14 +76,16 @@
 | `PreToolUse` | `preToolUse` | 直接対応 | 実行前の許可/拒否判定 |
 | `PostToolUse` | `postToolUse` | 直接対応 | 実行結果の後処理 |
 | `SessionStart` | `sessionStart` | 直接対応 | セッション開始時 |
-| `Stop` | `sessionEnd` | 概念対応 | 終了理由フィールドは Copilot 側で明示される |
+| `Stop` | `sessionEnd` | 条件付き変換 | イベント名は変換できる。Copilot → Claude では Copilot の `reason` (`complete` / `error` / `abort` など) を別途吸収する |
 | `UserPromptSubmit` | `userPromptSubmitted` | 直接対応 | 命名差分のみ |
 | `PreCompact` | なし | 非対応 | Claude Code 固有 |
 | `SubagentStart` | なし | 非対応 | Claude Code 固有 |
 | `SubagentStop` | なし | 非対応 | Claude Code 固有 |
 | なし | `errorOccurred` | 非対応 | Copilot 固有 |
 
-> 変換ツールでは、直接対応しないイベントを無理に変換せず、警告付きでスキップする方が安全です。
+> Claude Code 側の `Stop` は公式イベント名です。
+> 変換ツールでは、直接対応しないイベントを無理に変換せず、
+> セクション 8 の方針に従って警告付きでスキップします。
 
 ---
 
@@ -96,15 +98,18 @@
 | `windows` | `powershell` | Windows 用コマンドを PowerShell 側へ |
 | `linux` / `osx` | `bash` | Unix 系コマンドは bash 側へ統合 |
 | `timeout` | `timeoutSec` | キー名変更 |
-| なし | `cwd` | Copilot 固有。Claude → Copilot 時は必要に応じて追加 |
-| なし | `env` | Copilot 固有。変換元に情報がなければ生成しない |
-| なし | `comment` | Copilot 固有。説明用の任意フィールド |
+| なし | `cwd` | Copilot 固有。Claude に等価フィールドがないため、Claude → Copilot 時のみ必要に応じて追加 |
+| なし | `env` | Copilot 固有。Claude に等価フィールドがないため、必要なら補助スクリプトで吸収する |
+| なし | `comment` | Copilot 固有。Claude に等価フィールドがない説明用の任意フィールド |
 
 ### 実装メモ
 
 - Claude Code の `command` が単一文字列しか持たない場合は、Copilot では `bash` に割り当てるのが最小変換です
 - Claude Code の OS 別設定を持つ場合は、Windows を `powershell`、それ以外を `bash` に寄せます
-- Copilot の `bash` と `powershell` が両方ある構成を Claude に戻す場合、単一の `command` へ完全には畳み込めません
+- Copilot の `bash` と `powershell` が両方ある構成を Claude に戻す場合:
+  - `command` へ無理に畳み込まない
+  - `windows` / `linux` / `osx` を使って分岐を保持する
+  - 完全に表現できない場合は警告を出す
 
 ---
 
@@ -192,8 +197,11 @@ Copilot CLI は manifest の `hooks` にファイルパスだけでなく inline
 | `hookSpecificOutput.permissionDecisionReason` | `permissionDecisionReason` | ラッパーを外す |
 | `continue` | なし | Copilot 側には直接対応なし |
 | `hookSpecificOutput.hookEventName` | なし | Copilot 側では不要 |
+| `hookSpecificOutput.permissionDecision = ask` | `permissionDecision = ask` | Copilot のスキーマ上は有効だが、現状ドキュメントでは `deny` のみ実処理対象として明記されている |
 
-> Copilot CLI の `preToolUse` は `deny` を実際に処理する前提で設計されているため、Claude Code 側の `allow` / `ask` 相当をそのまま移しても同等挙動になるとは限りません。
+> Copilot CLI の `preToolUse` では `allow` / `deny` / `ask` を返せます。
+> ただし現状ドキュメントで実処理対象として明記されているのは `deny` です。
+> 変換ツールでは `allow` は出力省略、`ask` は警告付き変換にするのが安全です。
 
 ---
 
@@ -203,19 +211,22 @@ Copilot CLI は manifest の `hooks` にファイルパスだけでなく inline
 
 1. ルートに `version: 1` を追加
 2. イベント名を PascalCase から camelCase へ変換
-3. `command` / OS 別キーを `bash` / `powershell` に再配置
-4. `timeout` を `timeoutSec` に変換
-5. `PreCompact` / `SubagentStart` / `SubagentStop` は警告付きでスキップ
-6. Claude 固有の stdout ラッパーを Copilot 形式へ平坦化
+3. `Stop` は `sessionEnd` へ条件付き変換し、失われる `reason` 情報は警告する
+4. `command` / OS 別キーを `bash` / `powershell` に再配置
+5. `timeout` を `timeoutSec` に変換
+6. `PreCompact` / `SubagentStart` / `SubagentStop` は警告付きでスキップ
+7. Claude 固有の stdout ラッパーを Copilot 形式へ平坦化
+8. `permissionDecision = allow` は出力省略、`ask` は警告付きで変換する
 
 ### Copilot CLI → Claude Code
 
 1. `version` を除去
 2. イベント名を camelCase から PascalCase へ変換
-3. `bash` / `powershell` を `command` ベースへ集約
-4. `timeoutSec` を `timeout` へ変換
-5. `errorOccurred` は警告付きでスキップ
-6. `cwd` / `env` / `comment` は Claude に直接載せ替えられないため、必要なら補助スクリプトで吸収
+3. `sessionEnd` は `Stop` へ条件付き変換し、`reason` は補助スクリプトやログへ逃がす
+4. `bash` / `powershell` を `command` ベースへ集約
+5. `timeoutSec` を `timeout` へ変換
+6. `errorOccurred` は警告付きでスキップ
+7. `cwd` / `env` / `comment` は Claude に直接載せ替えられないため、必要なら補助スクリプトで吸収
 
 ---
 
