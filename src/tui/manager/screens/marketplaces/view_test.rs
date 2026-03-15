@@ -245,17 +245,17 @@ fn build_scope_list_items_project_selected() {
 }
 
 #[test]
-fn build_scope_list_items_out_of_range_clamps_to_personal() {
+fn build_scope_list_items_out_of_range_clamps_to_last() {
     let items = build_scope_list_items(99);
     assert_eq!(items.len(), 2);
-    // Out-of-range clamps to 0 (Personal selected)
+    // Out-of-range clamps to last valid index (Project selected)
     let expected_personal = ListItem::new(format!(
-        "  (x) {} (~/.plm/)",
+        "  ( ) {} (~/.plm/)",
         Scope::Personal.display_name()
     ))
-    .style(Style::default().fg(Color::Yellow));
-    let expected_project = ListItem::new(format!("  ( ) {} (./)", Scope::Project.display_name()))
-        .style(Style::default());
+    .style(Style::default());
+    let expected_project = ListItem::new(format!("  (x) {} (./)", Scope::Project.display_name()))
+        .style(Style::default().fg(Color::Yellow));
     assert_eq!(items[0], expected_personal);
     assert_eq!(items[1], expected_project);
 }
