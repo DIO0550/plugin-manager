@@ -9,6 +9,7 @@ mod config;
 mod env;
 mod error;
 mod fs;
+mod hooks;
 mod host;
 mod http;
 mod import;
