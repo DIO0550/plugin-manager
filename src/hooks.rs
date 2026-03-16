@@ -4,3 +4,6 @@
 //! for the Hooks stdin/stdout context.
 
 pub mod event_map;
+
+#[cfg(test)]
+mod event_map_test;
