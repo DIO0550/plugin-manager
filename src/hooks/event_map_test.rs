@@ -117,13 +117,13 @@ fn test_tool_copilot_to_claude_known_tools() {
     assert_eq!(tool_copilot_to_claude("grep"), "Grep");
     assert_eq!(tool_copilot_to_claude("web_fetch"), "WebFetch");
     assert_eq!(tool_copilot_to_claude("task"), "Agent");
-    assert_eq!(tool_copilot_to_claude("powershell"), "Bash");
 }
 
 #[test]
 fn test_tool_copilot_to_claude_passthrough() {
     assert_eq!(tool_copilot_to_claude("ask_user"), "ask_user");
     assert_eq!(tool_copilot_to_claude("memory"), "memory");
+    assert_eq!(tool_copilot_to_claude("powershell"), "powershell");
     assert_eq!(tool_copilot_to_claude("unknown_tool"), "unknown_tool");
 }
 

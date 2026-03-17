@@ -70,7 +70,6 @@ pub fn tool_copilot_to_claude(tool: &str) -> String {
         "grep" => "Grep".to_string(),
         "web_fetch" => "WebFetch".to_string(),
         "task" => "Agent".to_string(),
-        "powershell" => "Bash".to_string(),
         other => other.to_string(),
     }
 }
