@@ -40,6 +40,8 @@ fn test_event_claude_to_copilot_excluded_events() {
     assert_eq!(event_claude_to_copilot("ConfigChange"), None);
     assert_eq!(event_claude_to_copilot("WorktreeCreate"), None);
     assert_eq!(event_claude_to_copilot("WorktreeRemove"), None);
+    assert_eq!(event_claude_to_copilot("Elicitation"), None);
+    assert_eq!(event_claude_to_copilot("ElicitationResult"), None);
 }
 
 #[test]

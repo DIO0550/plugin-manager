@@ -21,10 +21,11 @@
 /// - Stop -> agentStop
 /// - SubagentStop -> subagentStop
 ///
-/// # Excluded events (12):
+/// # Excluded events (14):
 /// PostToolUseFailure, PreCompact, PostCompact, PermissionRequest,
 /// Notification, SubagentStart, TeammateIdle, TaskCompleted,
-/// InstructionsLoaded, ConfigChange, WorktreeCreate, WorktreeRemove
+/// InstructionsLoaded, ConfigChange, WorktreeCreate, WorktreeRemove,
+/// Elicitation, ElicitationResult
 pub fn event_claude_to_copilot(event: &str) -> Option<&'static str> {
     match event.trim() {
         "SessionStart" => Some("sessionStart"),
