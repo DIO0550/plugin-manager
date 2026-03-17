@@ -80,8 +80,11 @@ pub fn tool_copilot_to_claude(tool: &str) -> String {
 
 /// Convert a Claude Code tool name to Copilot CLI tool name (Hooks context).
 ///
-/// Input is trimmed before matching. Unknown tool names are returned
-/// in trimmed form (forward compatibility).
+/// This is a best-effort mapping. Input is trimmed before matching.
+/// Claude Code-only tools (e.g., `WebSearch`, `mcp__<server>__<tool>`) and
+/// other unknown tool names are passed through in trimmed form for forward
+/// compatibility — the returned value may not be a valid Copilot CLI tool name.
+///
 /// This is distinct from `parser::convert::tool_claude_to_copilot` which handles
 /// Prompt/Agent file tools (e.g., "Read" -> "codebase").
 pub fn tool_claude_to_copilot(tool: &str) -> String {
