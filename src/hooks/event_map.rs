@@ -57,7 +57,8 @@ pub fn event_copilot_to_claude(event: &str) -> Option<&'static str> {
 
 /// Convert a Copilot CLI tool name to Claude Code tool name (Hooks context).
 ///
-/// Unknown tool names are returned as-is (forward compatibility).
+/// Input is trimmed before matching. Unknown tool names are returned
+/// in trimmed form (forward compatibility).
 /// This is distinct from `parser::convert::tool_copilot_to_claude` which handles
 /// Prompt/Agent file tools (e.g., "codebase" -> "Read").
 pub fn tool_copilot_to_claude(tool: &str) -> String {
@@ -76,7 +77,8 @@ pub fn tool_copilot_to_claude(tool: &str) -> String {
 
 /// Convert a Claude Code tool name to Copilot CLI tool name (Hooks context).
 ///
-/// Unknown tool names are returned as-is (forward compatibility).
+/// Input is trimmed before matching. Unknown tool names are returned
+/// in trimmed form (forward compatibility).
 /// This is distinct from `parser::convert::tool_claude_to_copilot` which handles
 /// Prompt/Agent file tools (e.g., "Read" -> "codebase").
 pub fn tool_claude_to_copilot(tool: &str) -> String {
