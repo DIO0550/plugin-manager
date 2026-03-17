@@ -85,7 +85,7 @@ pub fn tool_claude_to_copilot(tool: &str) -> String {
         "Bash" => "bash".to_string(),
         "Read" => "view".to_string(),
         "Write" => "create".to_string(),
-        "Edit" => "edit".to_string(),
+        "Edit" | "MultiEdit" => "edit".to_string(),
         "Glob" => "glob".to_string(),
         "Grep" => "grep".to_string(),
         "WebFetch" => "web_fetch".to_string(),

@@ -137,6 +137,7 @@ fn test_tool_claude_to_copilot_known_tools() {
     assert_eq!(tool_claude_to_copilot("Read"), "view");
     assert_eq!(tool_claude_to_copilot("Write"), "create");
     assert_eq!(tool_claude_to_copilot("Edit"), "edit");
+    assert_eq!(tool_claude_to_copilot("MultiEdit"), "edit");
     assert_eq!(tool_claude_to_copilot("Glob"), "glob");
     assert_eq!(tool_claude_to_copilot("Grep"), "grep");
     assert_eq!(tool_claude_to_copilot("WebFetch"), "web_fetch");
