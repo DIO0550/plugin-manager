@@ -350,6 +350,15 @@ fn convert_command_hook(
 }
 
 /// BL-006: Convert an http-type hook to a curl wrapper script.
+/// Allowed HTTP methods for curl wrapper scripts.
+const ALLOWED_HTTP_METHODS: &[&str] = &["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
+
+/// Escape a string for safe embedding in single-quoted shell strings.
+/// Replaces `'` with `'\''` (end quote, escaped quote, start quote).
+fn shell_escape(s: &str) -> String {
+    s.replace('\'', "'\\''")
+}
+
 fn convert_http_hook(
     hook: &Value,
     event: &str,
@@ -372,13 +381,24 @@ fn convert_http_hook(
         .and_then(|m| m.as_str())
         .unwrap_or("POST");
 
+    if !ALLOWED_HTTP_METHODS.contains(&method.to_uppercase().as_str()) {
+        return Err(PlmError::HookConversion(format!(
+            "http hook has unsupported method '{}'; allowed: {}",
+            method,
+            ALLOWED_HTTP_METHODS.join(", ")
+        )));
+    }
+
     let script_name = format!("http-{}-{}.sh", event, wrapper_scripts.len());
 
     let mut headers_lines = String::new();
     if let Some(headers) = hook_obj.get("headers").and_then(|h| h.as_object()) {
         for (k, v) in headers {
             if let Some(v_str) = v.as_str() {
-                headers_lines.push_str(&format!("  -H '{}: {}' \\\n", k, v_str));
+                headers_lines.push_str(&format!(
+                    "  -H '{}' \\\n",
+                    shell_escape(&format!("{}: {}", k, v_str))
+                ));
             }
         }
     }
@@ -391,7 +411,11 @@ fn convert_http_hook(
 
     let script_content = format!(
         "#!/bin/bash\nset -euo pipefail\n\n{}\n\ncurl -s -X {} \\\n{}{}  '{}'\n",
-        ENV_BRIDGE, method, headers_lines, body_line, url
+        ENV_BRIDGE,
+        method.to_uppercase(),
+        headers_lines,
+        body_line,
+        shell_escape(url)
     );
 
     wrapper_scripts.push(WrapperScriptInfo {

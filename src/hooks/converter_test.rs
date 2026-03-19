@@ -527,6 +527,45 @@ fn test_unknown_hook_type_excluded() {
     )));
 }
 
+#[test]
+fn test_http_hook_invalid_method() {
+    let input = r#"{
+        "hooks": {
+            "SessionStart": [
+                { "hooks": [{ "type": "http", "url": "https://example.com", "method": "EXEC" }] }
+            ]
+        }
+    }"#;
+    let result = convert(input);
+    assert!(result.is_err());
+    match result.unwrap_err() {
+        PlmError::HookConversion(msg) => assert!(msg.contains("unsupported method")),
+        other => panic!("Expected HookConversion, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_http_hook_shell_escape() {
+    let input = r#"{
+        "hooks": {
+            "SessionStart": [
+                {
+                    "hooks": [{
+                        "type": "http",
+                        "url": "https://example.com/hook?q=it's",
+                        "method": "POST"
+                    }]
+                }
+            ]
+        }
+    }"#;
+    let result = convert(input).unwrap();
+    let script = &result.wrapper_scripts[0];
+    // Single quote in URL should be escaped
+    assert!(script.content.contains("'\\''"));
+    assert!(!script.content.contains("it's'"));
+}
+
 // ============================================================================
 // Error cases
 // ============================================================================
