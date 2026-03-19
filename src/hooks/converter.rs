@@ -466,7 +466,7 @@ fn convert_prompt_agent_hook(
     let original_json = serde_json::to_string_pretty(hook).unwrap_or_default();
 
     let script_content = format!(
-        "#!/bin/bash\nset -euo pipefail\n\n{}\n\n# TODO: This is a stub for a Claude Code '{}' hook.\n# prompt/agent hooks are Claude Code-specific features.\n# Please manually rewrite as scripts.\n#\n# Original configuration:\n# {}\n\necho \"STUB: {} hook for event '{}' - please implement manually\" >&2\nexit 1\n",
+        "#!/bin/bash\nset -euo pipefail\n\n{}\n\n# TODO: This is a stub for a Claude Code '{}' hook.\n# prompt/agent hooks are Claude Code-specific features.\n# Please manually rewrite as scripts.\n#\n# Original configuration:\n# {}\n\necho \"STUB: {} hook for event '{}' - please implement manually\" >&2\nexit 0\n",
         ENV_BRIDGE,
         hook_type,
         original_json.replace('\n', "\n# "),
