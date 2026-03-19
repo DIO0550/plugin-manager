@@ -252,29 +252,27 @@ fn convert_hook_definition(
         .and_then(|t| t.as_str())
         .unwrap_or("command");
 
+    if let Some(m) = matcher {
+        warnings.push(ConversionWarning::RemovedField {
+            field: "matcher".to_string(),
+            reason: format!(
+                "Copilot CLI does not support matcher patterns; '{}' was dropped",
+                m
+            ),
+        });
+    }
+
     match hook_type {
         "command" => {
-            let mut converted = convert_command_hook(hook, warnings)?;
-            if let Some(m) = matcher {
-                converted
-                    .as_object_mut()
-                    .unwrap()
-                    .insert("steps".to_string(), Value::from(m));
-            }
+            let converted = convert_command_hook(hook, warnings)?;
             Ok(Some(converted))
         }
         "http" => {
-            let mut converted = convert_http_hook(hook, event, matcher, wrapper_scripts)?;
-            if let Some(m) = matcher {
-                converted
-                    .as_object_mut()
-                    .unwrap()
-                    .insert("steps".to_string(), Value::from(m));
-            }
+            let converted = convert_http_hook(hook, event, matcher, wrapper_scripts)?;
             Ok(Some(converted))
         }
         "prompt" | "agent" => {
-            let mut converted = convert_prompt_agent_hook(
+            let converted = convert_prompt_agent_hook(
                 hook,
                 hook_type,
                 event,
@@ -282,12 +280,6 @@ fn convert_hook_definition(
                 warnings,
                 wrapper_scripts,
             );
-            if let Some(m) = matcher {
-                converted
-                    .as_object_mut()
-                    .unwrap()
-                    .insert("steps".to_string(), Value::from(m));
-            }
             Ok(Some(converted))
         }
         unknown => {

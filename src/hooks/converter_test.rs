@@ -250,8 +250,13 @@ fn test_flatten_single_matcher() {
     let hooks = &result.json["hooks"]["preToolUse"];
     let arr = hooks.as_array().unwrap();
     assert_eq!(arr.len(), 1);
-    assert_eq!(arr[0]["steps"], "*.rs");
+    assert!(arr[0].get("steps").is_none());
     assert_eq!(arr[0]["bash"], "cargo check");
+    // matcher is dropped with warning
+    assert!(result.warnings.iter().any(|w| matches!(
+        w,
+        ConversionWarning::RemovedField { field, .. } if field == "matcher"
+    )));
 }
 
 #[test]
@@ -277,10 +282,19 @@ fn test_flatten_multiple_matchers() {
     let result = convert(input).unwrap();
     let arr = result.json["hooks"]["preToolUse"].as_array().unwrap();
     assert_eq!(arr.len(), 2);
-    assert_eq!(arr[0]["steps"], "*.rs");
+    assert!(arr[0].get("steps").is_none());
     assert_eq!(arr[0]["bash"], "cargo check");
-    assert_eq!(arr[1]["steps"], "*.ts");
+    assert!(arr[1].get("steps").is_none());
     assert_eq!(arr[1]["bash"], "tsc --noEmit");
+    // 2 matcher warnings
+    assert_eq!(
+        result
+            .warnings
+            .iter()
+            .filter(|w| matches!(w, ConversionWarning::RemovedField { field, .. } if field == "matcher"))
+            .count(),
+        2
+    );
 }
 
 #[test]
@@ -657,13 +671,13 @@ fn test_full_conversion_scenario() {
     assert!(!hooks.contains_key("PreCompact"));
     assert!(!hooks.contains_key("preCompact"));
 
-    // PreToolUse has 2 hooks (from 2 matcher groups)
+    // PreToolUse has 2 hooks (from 2 matcher groups, matchers dropped with warnings)
     let pre_tool = hooks["preToolUse"].as_array().unwrap();
     assert_eq!(pre_tool.len(), 2);
-    assert_eq!(pre_tool[0]["steps"], "*.rs");
+    assert!(pre_tool[0].get("steps").is_none());
     assert_eq!(pre_tool[0]["bash"], "cargo check");
     assert_eq!(pre_tool[0]["timeoutSec"], 30);
-    assert_eq!(pre_tool[1]["steps"], "*.ts");
+    assert!(pre_tool[1].get("steps").is_none());
     assert_eq!(pre_tool[1]["bash"], "tsc --noEmit");
 
     // SessionStart key conversion
