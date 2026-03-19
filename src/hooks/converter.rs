@@ -133,15 +133,17 @@ fn detect_format(value: &Value) -> SourceFormat {
         return SourceFormat::CopilotCli;
     }
 
-    if let Some(hooks) = value.get("hooks").and_then(|h| h.as_object()) {
-        if let Some(first_key) = hooks.keys().next() {
-            if first_key.starts_with(|c: char| c.is_uppercase()) {
-                return SourceFormat::ClaudeCode;
-            }
-        }
-    }
+    let is_pascal = value
+        .get("hooks")
+        .and_then(|h| h.as_object())
+        .and_then(|hooks| hooks.keys().next())
+        .is_some_and(|key| key.starts_with(|c: char| c.is_uppercase()));
 
-    SourceFormat::CopilotCli
+    if is_pascal {
+        SourceFormat::ClaudeCode
+    } else {
+        SourceFormat::CopilotCli
+    }
 }
 
 /// BL-002: Convert top-level structure.
