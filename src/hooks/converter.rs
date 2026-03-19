@@ -74,7 +74,9 @@ enum SourceFormat {
 }
 
 /// Environment variable bridge lines for wrapper scripts.
-const ENV_BRIDGE: &str = r#"export CLAUDE_PROJECT_DIR=$(echo "$COPILOT_INPUT" | jq -r '.cwd')
+/// Copilot CLI passes hook payload via stdin (not env var), so we read it first.
+const ENV_BRIDGE: &str = r#"HOOK_INPUT=$(cat)
+export CLAUDE_PROJECT_DIR=$(echo "$HOOK_INPUT" | jq -r '.cwd // empty')
 export CLAUDE_PLUGIN_ROOT=".""#;
 
 /// Convert Claude Code hooks JSON to Copilot CLI format.
@@ -389,7 +391,7 @@ fn convert_http_hook(
     }
 
     let body_line = if hook_obj.get("body").is_some() {
-        "  -d \"$COPILOT_INPUT\" \\\n"
+        "  -d \"$HOOK_INPUT\" \\\n"
     } else {
         ""
     };
