@@ -151,15 +151,17 @@ fn detect_format(value: &Value) -> SourceFormat {
 /// - Add `version: 1`
 /// - Remove `disableAllHooks` with warning
 fn convert_top_level(value: &mut Value, warnings: &mut Vec<ConversionWarning>) {
-    if let Some(obj) = value.as_object_mut() {
-        obj.insert("version".to_string(), Value::from(1));
+    let Some(obj) = value.as_object_mut() else {
+        return;
+    };
 
-        if obj.remove("disableAllHooks").is_some() {
-            warnings.push(ConversionWarning::RemovedField {
-                field: "disableAllHooks".to_string(),
-                reason: "Copilot CLI does not support disableAllHooks".to_string(),
-            });
-        }
+    obj.insert("version".to_string(), Value::from(1));
+
+    if obj.remove("disableAllHooks").is_some() {
+        warnings.push(ConversionWarning::RemovedField {
+            field: "disableAllHooks".to_string(),
+            reason: "Copilot CLI does not support disableAllHooks".to_string(),
+        });
     }
 }
 
