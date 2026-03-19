@@ -25,6 +25,7 @@ pub enum ConversionWarning {
     UnsupportedHookType { hook_type: String, event: String },
     RemovedField { field: String, reason: String },
     PromptAgentHookStub { event: String, hook_type: String },
+    MissingVersion,
 }
 
 impl fmt::Display for ConversionWarning {
@@ -52,6 +53,12 @@ impl fmt::Display for ConversionWarning {
                     f,
                     "'{}' hook for event '{}' is a Claude Code-specific feature. A stub script was generated; please manually rewrite.",
                     hook_type, event
+                )
+            }
+            ConversionWarning::MissingVersion => {
+                write!(
+                    f,
+                    "Copilot CLI config is missing required 'version' field; it should be set to 1"
                 )
             }
         }
@@ -97,11 +104,17 @@ pub fn convert(input: &str) -> Result<ConvertResult, PlmError> {
     }
 
     match detect_format(&value) {
-        SourceFormat::CopilotCli => Ok(ConvertResult {
-            json: value,
-            warnings: vec![],
-            wrapper_scripts: vec![],
-        }),
+        SourceFormat::CopilotCli => {
+            let mut warnings = Vec::new();
+            if value.get("version").is_none() {
+                warnings.push(ConversionWarning::MissingVersion);
+            }
+            Ok(ConvertResult {
+                json: value,
+                warnings,
+                wrapper_scripts: vec![],
+            })
+        }
         SourceFormat::ClaudeCode => {
             let mut result = value.clone();
             let mut warnings = Vec::new();

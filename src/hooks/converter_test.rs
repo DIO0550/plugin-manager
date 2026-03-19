@@ -81,9 +81,12 @@ fn test_detect_copilot_format_with_camelcase() {
         }
     }"#;
     let result = convert(input).unwrap();
-    // camelCase without version -> CopilotCli, returned as-is
+    // camelCase without version -> CopilotCli, returned as-is but with warning
     assert!(result.json.get("version").is_none());
-    assert!(result.warnings.is_empty());
+    assert!(result
+        .warnings
+        .iter()
+        .any(|w| matches!(w, ConversionWarning::MissingVersion)));
 }
 
 #[test]
@@ -108,8 +111,11 @@ fn test_detect_claude_format_with_pascalcase() {
 fn test_detect_format_empty_hooks() {
     let input = r#"{ "hooks": {} }"#;
     let result = convert(input).unwrap();
-    // Empty hooks with no version -> CopilotCli passthrough
-    assert!(result.warnings.is_empty());
+    // Empty hooks with no version -> CopilotCli passthrough with MissingVersion warning
+    assert!(result
+        .warnings
+        .iter()
+        .any(|w| matches!(w, ConversionWarning::MissingVersion)));
 }
 
 // ============================================================================
