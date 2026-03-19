@@ -414,7 +414,7 @@ fn test_command_hook_passthrough() {
     let hook = &result.json["hooks"]["sessionStart"][0];
     assert_eq!(hook["bash"], "./run.sh");
     assert_eq!(hook["timeoutSec"], 10);
-    assert!(hook.get("type").is_none());
+    assert_eq!(hook["type"], "command");
 }
 
 #[test]
@@ -438,6 +438,7 @@ fn test_http_hook_to_curl_wrapper() {
     let result = convert(input).unwrap();
     let hook = &result.json["hooks"]["postToolUse"][0];
     assert!(hook["bash"].as_str().unwrap().ends_with(".sh"));
+    assert_eq!(hook["type"], "command");
 
     assert_eq!(result.wrapper_scripts.len(), 1);
     let script = &result.wrapper_scripts[0];
@@ -466,6 +467,7 @@ fn test_prompt_hook_to_stub() {
     let result = convert(input).unwrap();
     let hook = &result.json["hooks"]["preToolUse"][0];
     assert!(hook["bash"].as_str().unwrap().ends_with(".sh"));
+    assert_eq!(hook["type"], "command");
 
     assert_eq!(result.wrapper_scripts.len(), 1);
     let script = &result.wrapper_scripts[0];
@@ -497,6 +499,7 @@ fn test_agent_hook_to_stub() {
     let result = convert(input).unwrap();
     let hook = &result.json["hooks"]["agentStop"][0];
     assert!(hook["bash"].as_str().unwrap().ends_with(".sh"));
+    assert_eq!(hook["type"], "command");
 
     assert!(result.warnings.iter().any(|w| matches!(
         w,

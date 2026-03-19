@@ -337,7 +337,8 @@ fn convert_command_hook(
                 // Silently removed - not supported in Copilot CLI
             }
             "type" => {
-                // Skip type field - implicit in Copilot CLI
+                // Copilot CLI requires "type": "command"
+                output.insert("type".to_string(), Value::from("command"));
             }
             _ => {
                 output.insert(key.clone(), value.clone());
@@ -401,6 +402,7 @@ fn convert_http_hook(
     });
 
     let mut output = serde_json::Map::new();
+    output.insert("type".to_string(), Value::from("command"));
     output.insert(
         "bash".to_string(),
         Value::from(format!("./{}", script_name)),
@@ -448,6 +450,7 @@ fn convert_prompt_agent_hook(
     });
 
     let mut output = serde_json::Map::new();
+    output.insert("type".to_string(), Value::from("command"));
     output.insert(
         "bash".to_string(),
         Value::from(format!("./{}", script_name)),
