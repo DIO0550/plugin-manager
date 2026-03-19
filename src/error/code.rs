@@ -9,6 +9,7 @@
 /// - MKT: Marketplace operations
 /// - TUI: Terminal UI errors
 /// - VAL: Input validation errors
+/// - HOK: Hooks conversion errors
 /// - INT: Unexpected internal errors
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErrorCode {
@@ -64,6 +65,10 @@ pub enum ErrorCode {
     /// Invalid repository format
     Val002,
 
+    // Hooks errors (HOK001-HOK099)
+    /// Hook configuration conversion failed
+    Hok001,
+
     // Internal errors (INT001-INT099)
     /// Unexpected internal error
     Int001,
@@ -99,6 +104,8 @@ impl ErrorCode {
             // Validation
             ErrorCode::Val001 => "VAL001",
             ErrorCode::Val002 => "VAL002",
+            // Hooks
+            ErrorCode::Hok001 => "HOK001",
             // Internal
             ErrorCode::Int001 => "INT001",
         }
@@ -133,6 +140,8 @@ impl ErrorCode {
             // Validation
             ErrorCode::Val001 => "An invalid argument was provided",
             ErrorCode::Val002 => "Invalid repository format",
+            // Hooks
+            ErrorCode::Hok001 => "Hook configuration conversion failed",
             // Internal
             ErrorCode::Int001 => "An unexpected internal error occurred",
         }
@@ -167,6 +176,8 @@ impl ErrorCode {
             // Validation
             ErrorCode::Val001 => "1. Check the argument format\n2. Refer to the command help\n3. Use 'plm --help' for usage information",
             ErrorCode::Val002 => "1. Use the format 'owner/repo' or 'owner/repo@ref'\n2. Check for typos in the repository name\n3. Verify the repository exists",
+            // Hooks
+            ErrorCode::Hok001 => "1. Check the hooks JSON format\n2. Ensure event names are valid\n3. Verify hook definitions have required fields",
             // Internal
             ErrorCode::Int001 => "1. Try the operation again\n2. Check for updates to plm\n3. Report the issue with debug logs",
         }
@@ -198,6 +209,7 @@ mod tests {
             ErrorCode::Tui001,
             ErrorCode::Val001,
             ErrorCode::Val002,
+            ErrorCode::Hok001,
             ErrorCode::Int001,
         ];
 
@@ -233,6 +245,7 @@ mod tests {
             ErrorCode::Tui001,
             ErrorCode::Val001,
             ErrorCode::Val002,
+            ErrorCode::Hok001,
             ErrorCode::Int001,
         ];
 
@@ -267,6 +280,7 @@ mod tests {
             ErrorCode::Tui001,
             ErrorCode::Val001,
             ErrorCode::Val002,
+            ErrorCode::Hok001,
             ErrorCode::Int001,
         ];
 
@@ -301,6 +315,7 @@ mod tests {
             (ErrorCode::Tui001, "TUI"),
             (ErrorCode::Val001, "VAL"),
             (ErrorCode::Val002, "VAL"),
+            (ErrorCode::Hok001, "HOK"),
             (ErrorCode::Int001, "INT"),
         ];
 
