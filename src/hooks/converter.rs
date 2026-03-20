@@ -155,7 +155,7 @@ if [ "$EXIT_CODE" -eq 0 ] && [ -n "$RESULT" ]; then
   printf '%s' "$RESULT" | jq '
     if .hookSpecificOutput then
       .hookSpecificOutput
-      | del(.hookEventName, .updatedInput, .additionalContext)
+      | del(.hookEventName, .updatedInput, .additionalContext, .continue, .stopReason, .suppressOutput, .systemMessage)
       | if has("permissionDecision") then
           {permissionDecision, permissionDecisionReason}
         else . end
@@ -585,7 +585,7 @@ if [ "$HTTP_CODE" -ge 200 ] 2>/dev/null && [ "$HTTP_CODE" -lt 300 ] 2>/dev/null;
     printf '%s' "$HTTP_BODY" | jq '
       if .hookSpecificOutput then
         .hookSpecificOutput
-        | del(.hookEventName, .updatedInput, .additionalContext)
+        | del(.hookEventName, .updatedInput, .additionalContext, .continue, .stopReason, .suppressOutput, .systemMessage)
         | if has("permissionDecision") then
             {{permissionDecision, permissionDecisionReason}}
           else . end
