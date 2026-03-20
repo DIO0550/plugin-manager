@@ -535,10 +535,9 @@ fn convert_http_hook(
     if let Some(headers) = hook_obj.get("headers").and_then(|h| h.as_object()) {
         for (k, v) in headers {
             if let Some(v_str) = v.as_str() {
-                headers_lines.push_str(&format!(
-                    "  -H '{}' \\\n",
-                    shell_escape(&format!("{}: {}", k, v_str))
-                ));
+                let header = format!("{}: {}", k, v_str);
+                let escaped = header.replace('\\', "\\\\").replace('"', "\\\"");
+                headers_lines.push_str(&format!("  -H \"{}\" \\\n", escaped));
             }
         }
     }
