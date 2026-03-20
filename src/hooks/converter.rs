@@ -312,7 +312,7 @@ fn convert_hook_definition(
 /// - `statusMessage` -> `comment`
 /// - `async` -> removed with warning
 /// - `once` -> removed
-/// - `type` -> removed (implicit in Copilot CLI)
+/// - `type` -> always set to `"command"` (required by Copilot CLI)
 fn convert_command_hook(
     hook: &Value,
     warnings: &mut Vec<ConversionWarning>,
