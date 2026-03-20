@@ -556,9 +556,11 @@ fn convert_http_hook(
     if let Some(headers) = hook_obj.get("headers").and_then(|h| h.as_object()) {
         for (k, v) in headers {
             if let Some(v_str) = v.as_str() {
+                // Use double quotes to allow $VAR expansion in header values.
+                let escaped_value = v_str.replace('\\', "\\\\").replace('"', "\\\"");
                 headers_lines.push_str(&format!(
-                    "  -H '{}' \\\n",
-                    shell_escape(&format!("{}: {}", k, v_str))
+                    "  -H \"{}: {}\" \\\n",
+                    k, escaped_value
                 ));
             }
         }
