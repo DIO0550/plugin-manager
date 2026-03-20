@@ -257,8 +257,13 @@ fn test_flatten_single_matcher() {
     let arr = hooks.as_array().unwrap();
     assert_eq!(arr.len(), 1);
     assert!(arr[0].get("steps").is_none());
-    assert_eq!(arr[0]["bash"], "cargo check");
-    // matcher is dropped with warning
+    // matcher present -> wrapper script generated, bash points to wrapper
+    assert!(arr[0]["bash"].as_str().unwrap().ends_with(".sh"));
+    assert_eq!(result.wrapper_scripts.len(), 1);
+    assert!(result.wrapper_scripts[0].content.contains("cargo check"));
+    assert!(result.wrapper_scripts[0].content.contains("*.rs"));
+    assert_eq!(result.wrapper_scripts[0].matcher, Some("*.rs".to_string()));
+    // matcher moved to wrapper script with warning
     assert!(result.warnings.iter().any(|w| matches!(
         w,
         ConversionWarning::RemovedField { field, .. } if field == "matcher"
@@ -289,9 +294,12 @@ fn test_flatten_multiple_matchers() {
     let arr = result.json["hooks"]["preToolUse"].as_array().unwrap();
     assert_eq!(arr.len(), 2);
     assert!(arr[0].get("steps").is_none());
-    assert_eq!(arr[0]["bash"], "cargo check");
-    assert!(arr[1].get("steps").is_none());
-    assert_eq!(arr[1]["bash"], "tsc --noEmit");
+    // Each matcher produces a wrapper script
+    assert!(arr[0]["bash"].as_str().unwrap().ends_with(".sh"));
+    assert!(arr[1]["bash"].as_str().unwrap().ends_with(".sh"));
+    assert_eq!(result.wrapper_scripts.len(), 2);
+    assert!(result.wrapper_scripts[0].content.contains("cargo check"));
+    assert!(result.wrapper_scripts[1].content.contains("tsc --noEmit"));
     // 2 matcher warnings
     assert_eq!(
         result
@@ -737,14 +745,24 @@ fn test_full_conversion_scenario() {
     assert!(!hooks.contains_key("PreCompact"));
     assert!(!hooks.contains_key("preCompact"));
 
-    // PreToolUse has 2 hooks (from 2 matcher groups, matchers dropped with warnings)
+    // PreToolUse has 2 hooks (from 2 matcher groups, matchers moved to wrapper scripts)
     let pre_tool = hooks["preToolUse"].as_array().unwrap();
     assert_eq!(pre_tool.len(), 2);
     assert!(pre_tool[0].get("steps").is_none());
-    assert_eq!(pre_tool[0]["bash"], "cargo check");
+    // With matchers, bash points to wrapper scripts
+    assert!(pre_tool[0]["bash"].as_str().unwrap().ends_with(".sh"));
     assert_eq!(pre_tool[0]["timeoutSec"], 30);
     assert!(pre_tool[1].get("steps").is_none());
-    assert_eq!(pre_tool[1]["bash"], "tsc --noEmit");
+    assert!(pre_tool[1]["bash"].as_str().unwrap().ends_with(".sh"));
+    // Wrapper scripts contain the original commands and matcher patterns
+    assert!(result
+        .wrapper_scripts
+        .iter()
+        .any(|s| s.content.contains("cargo check") && s.content.contains("*.rs")));
+    assert!(result
+        .wrapper_scripts
+        .iter()
+        .any(|s| s.content.contains("tsc --noEmit") && s.content.contains("*.ts")));
 
     // SessionStart key conversion
     let session = hooks["sessionStart"].as_array().unwrap();

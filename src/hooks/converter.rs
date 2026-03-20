@@ -265,19 +265,9 @@ fn convert_hook_definition(
         .and_then(|t| t.as_str())
         .unwrap_or("command");
 
-    if let Some(m) = matcher {
-        warnings.push(ConversionWarning::RemovedField {
-            field: "matcher".to_string(),
-            reason: format!(
-                "Copilot CLI does not support matcher patterns; '{}' was dropped",
-                m
-            ),
-        });
-    }
-
     match hook_type {
         "command" => {
-            let converted = convert_command_hook(hook, warnings)?;
+            let converted = convert_command_hook(hook, matcher, event, warnings, wrapper_scripts)?;
             Ok(Some(converted))
         }
         "http" => {
@@ -313,32 +303,41 @@ fn convert_hook_definition(
 /// - `async` -> removed with warning
 /// - `once` -> removed
 /// - `type` -> always set to `"command"` (required by Copilot CLI)
+///
+/// If a `matcher` is present, a wrapper script is generated to enforce
+/// the matcher condition at runtime, and the output hook points to the wrapper.
 fn convert_command_hook(
     hook: &Value,
+    matcher: Option<&str>,
+    event: &str,
     warnings: &mut Vec<ConversionWarning>,
+    wrapper_scripts: &mut Vec<WrapperScriptInfo>,
 ) -> Result<Value, PlmError> {
     let hook_obj = hook
         .as_object()
         .ok_or_else(|| PlmError::HookConversion("Hook definition must be an object".to_string()))?;
 
-    if !hook_obj.contains_key("command") {
-        return Err(PlmError::HookConversion(
-            "command hook missing required 'command' field".to_string(),
-        ));
-    }
+    let command = hook_obj
+        .get("command")
+        .and_then(|c| c.as_str())
+        .ok_or_else(|| {
+            PlmError::HookConversion("command hook missing required 'command' field".to_string())
+        })?;
 
     let mut output = serde_json::Map::new();
+    let mut timeout_value = None;
+    let mut comment_value = None;
 
     for (key, value) in hook_obj {
         match key.as_str() {
-            "command" => {
-                output.insert("bash".to_string(), value.clone());
+            "command" | "once" | "type" => {
+                // Handled separately
             }
             "timeout" => {
-                output.insert("timeoutSec".to_string(), value.clone());
+                timeout_value = Some(value.clone());
             }
             "statusMessage" => {
-                output.insert("comment".to_string(), value.clone());
+                comment_value = Some(value.clone());
             }
             "async" => {
                 warnings.push(ConversionWarning::RemovedField {
@@ -346,13 +345,57 @@ fn convert_command_hook(
                     reason: "Copilot CLI does not support async hooks".to_string(),
                 });
             }
-            "once" | "type" => {
-                // Silently removed - type is always set below
-            }
             _ => {
                 output.insert(key.clone(), value.clone());
             }
         }
+    }
+
+    if let Some(matcher_pattern) = matcher {
+        // Generate a wrapper script that enforces the matcher at runtime
+        let script_name = format!("cmd-{}-{}.sh", event, wrapper_scripts.len());
+
+        let matcher_filter = format!(
+            "TOOL_NAME=$(printf '%s' \"$HOOK_INPUT\" | jq -r '.tool_name // empty')\nif [ -n \"$TOOL_NAME\" ] && ! echo \"$TOOL_NAME\" | grep -qE '{}'; then\n  exit 0\nfi",
+            shell_escape(matcher_pattern)
+        );
+
+        let script_content = format!(
+            "#!/bin/bash\nset -euo pipefail\n\n{}\n\n# --- matcher filter: '{}' ---\n{}\n\n# --- original command ---\nprintf '%s' \"$HOOK_INPUT\" | {}\n",
+            ENV_BRIDGE,
+            shell_escape(matcher_pattern),
+            matcher_filter,
+            shell_escape(command)
+        );
+
+        wrapper_scripts.push(WrapperScriptInfo {
+            path: script_name.clone(),
+            content: script_content,
+            original_config: hook.clone(),
+            matcher: Some(matcher_pattern.to_string()),
+        });
+
+        output.insert(
+            "bash".to_string(),
+            Value::from(format!("./{}", script_name)),
+        );
+
+        warnings.push(ConversionWarning::RemovedField {
+            field: "matcher".to_string(),
+            reason: format!(
+                "Matcher '{}' moved to wrapper script '{}'",
+                matcher_pattern, script_name
+            ),
+        });
+    } else {
+        output.insert("bash".to_string(), Value::from(command));
+    }
+
+    if let Some(t) = timeout_value {
+        output.insert("timeoutSec".to_string(), t);
+    }
+    if let Some(c) = comment_value {
+        output.insert("comment".to_string(), c);
     }
 
     // Copilot CLI requires "type": "command" on every hook object
