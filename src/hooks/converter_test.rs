@@ -478,7 +478,9 @@ fn test_http_hook_to_curl_wrapper() {
     assert!(script.content.contains("https://example.com/webhook"));
     assert!(script.content.contains("HOOK_INPUT=$(cat)"));
     assert!(script.content.contains("CLAUDE_PROJECT_DIR"));
-    assert!(script.content.contains("CLAUDE_PLUGIN_ROOT=\".\""));
+    assert!(script
+        .content
+        .contains("CLAUDE_PLUGIN_ROOT=\"@@PLUGIN_ROOT@@\""));
     assert!(script.content.contains("Bearer token123"));
 }
 
@@ -506,7 +508,9 @@ fn test_prompt_hook_to_stub() {
     assert!(script.content.contains("STUB"));
     assert!(script.content.contains("HOOK_INPUT=$(cat)"));
     assert!(script.content.contains("CLAUDE_PROJECT_DIR"));
-    assert!(script.content.contains("CLAUDE_PLUGIN_ROOT=\".\""));
+    assert!(script
+        .content
+        .contains("CLAUDE_PLUGIN_ROOT=\"@@PLUGIN_ROOT@@\""));
 
     assert!(result.warnings.iter().any(|w| matches!(
         w,

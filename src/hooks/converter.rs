@@ -82,9 +82,10 @@ enum SourceFormat {
 
 /// Environment variable bridge lines for wrapper scripts.
 /// Copilot CLI passes hook payload via stdin (not env var), so we read it first.
+/// `@@PLUGIN_ROOT@@` is a placeholder replaced by PLM at install time with the actual plugin root.
 const ENV_BRIDGE: &str = r#"HOOK_INPUT=$(cat)
-export CLAUDE_PROJECT_DIR=$(echo "$HOOK_INPUT" | jq -r '.cwd // empty')
-export CLAUDE_PLUGIN_ROOT=".""#;
+export CLAUDE_PROJECT_DIR=$(printf '%s' "$HOOK_INPUT" | jq -r '.cwd // empty')
+export CLAUDE_PLUGIN_ROOT="@@PLUGIN_ROOT@@""#;
 
 /// Convert Claude Code hooks JSON to Copilot CLI format.
 ///
