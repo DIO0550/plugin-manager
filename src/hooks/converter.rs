@@ -248,11 +248,14 @@ fn convert_event_hooks(
 
 /// BL-004: Flatten matcher groups into a flat array of hook definitions.
 ///
-/// Claude Code format uses matcher groups:
+/// Claude Code format groups hooks under an optional `matcher` and a `hooks` array:
 /// ```json
-/// { "matcher": "*.rs", "hooks": [{ ... }] }
+/// { "matcher": "<tool-name-regex>", "hooks": [{ ... }] }
 /// ```
-/// Copilot CLI uses a flat array with optional `steps` (file patterns).
+/// In this converter, `matcher` is treated as a regular expression over the tool name.
+/// Copilot CLI itself does not have matcher groups; instead, we flatten all groups into
+/// a single list of hook definitions and pass any matcher string through to the wrapper
+/// script generation, where the actual filtering is applied.
 fn flatten_matchers(
     groups: &Value,
     event: &str,
