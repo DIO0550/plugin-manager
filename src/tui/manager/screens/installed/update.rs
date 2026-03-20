@@ -177,7 +177,7 @@ fn execute_batch(model: &mut Model, data: &mut DataStore, filter_text: &str) {
         model,
         data,
         filter_text,
-        |names| actions::batch_update_plugins(names),
+        actions::batch_update_plugins,
         |d| d.reload(),
     );
 }
