@@ -98,6 +98,31 @@ HOOK_INPUT=$(printf '%s' "$HOOK_INPUT_RAW" | jq '
 export CLAUDE_PROJECT_DIR=$(printf '%s' "$HOOK_INPUT" | jq -r '.cwd // empty')
 export CLAUDE_PLUGIN_ROOT="@@PLUGIN_ROOT@@""#;
 
+/// Exit code and stdout conversion logic for command hook wrappers.
+/// Implements script-wrapper-spec.md BL-004 (stdout conversion) and BL-005 (exit code translation).
+///
+/// - exit 0: unwrap hookSpecificOutput if present, output to stdout
+/// - exit 2 (block): convert to exit 0 + deny JSON for Copilot CLI
+/// - exit 1/other: convert to exit 0 with no output (ignore error)
+const EXIT_CODE_HANDLER: &str = r#"# --- execute original command and capture result ---
+RESULT=$(printf '%s' "$HOOK_INPUT" | eval "$ORIGINAL_CMD" 2>/tmp/plm-hook-stderr-$$ || true)
+EXIT_CODE=${PIPESTATUS[1]:-$?}
+STDERR=$(cat /tmp/plm-hook-stderr-$$ 2>/dev/null || echo "")
+rm -f /tmp/plm-hook-stderr-$$
+
+# --- exit code + stdout conversion ---
+if [ "$EXIT_CODE" -eq 0 ] && [ -n "$RESULT" ]; then
+  printf '%s' "$RESULT" | jq '
+    if .hookSpecificOutput then
+      .hookSpecificOutput | del(.hookEventName)
+    else . end
+  ' 2>/dev/null || true
+elif [ "$EXIT_CODE" -eq 2 ]; then
+  REASON="${STDERR:-Blocked by hook}"
+  printf '{"permissionDecision":"deny","permissionDecisionReason":"%s"}' "$REASON"
+fi
+exit 0"#;
+
 /// Convert Claude Code hooks JSON to Copilot CLI format.
 ///
 /// If the input is already in Copilot CLI format, it is returned as-is.
@@ -382,10 +407,11 @@ fn convert_command_hook(
     let matcher_filter = generate_matcher_filter(matcher);
 
     let script_content = format!(
-        "#!/bin/bash\nset -euo pipefail\n\n{}\n{}\n# --- original command ---\nprintf '%s' \"$HOOK_INPUT\" | {}\n",
+        "#!/bin/bash\nset -euo pipefail\n\n{}\n{}\nORIGINAL_CMD='{}'\n\n{}\n",
         ENV_BRIDGE,
         matcher_filter,
-        command
+        shell_escape(command),
+        EXIT_CODE_HANDLER
     );
 
     wrapper_scripts.push(WrapperScriptInfo {

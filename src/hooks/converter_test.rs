@@ -453,6 +453,13 @@ fn test_command_hook_passthrough() {
     assert_eq!(hook["timeoutSec"], 10);
     assert_eq!(hook["type"], "command");
     assert!(result.wrapper_scripts[0].content.contains("./run.sh"));
+    // Wrapper includes exit code handler
+    assert!(result.wrapper_scripts[0]
+        .content
+        .contains("permissionDecision"));
+    assert!(result.wrapper_scripts[0]
+        .content
+        .contains("hookSpecificOutput"));
 }
 
 #[test]
