@@ -91,26 +91,32 @@ CLAUDE_INPUT="$COPILOT_INPUT"
 
 if command -v jq >/dev/null 2>&1; then
   if TRANSFORMED=$(printf '%s' "$COPILOT_INPUT" | jq '
-    . as $in | {
-      session_id: ($in.sessionId // $in.session_id // "plm-bridge"),
-      cwd: $in.cwd,
-      tool_name: (
+    . as $in | $in
+    # Remove Copilot-specific timestamp
+    | del(.timestamp)
+    # Normalize session identifier
+    | .session_id = ($in.sessionId // $in.session_id // "plm-bridge")
+    # Map tool name (BL-002)
+    | .tool_name = (
         if $in.toolName then
           {bash:"Bash",powershell:"Bash",view:"Read",create:"Write",edit:"Edit",
            glob:"Glob",grep:"Grep",web_fetch:"WebFetch",task:"Agent"}[$in.toolName] // $in.toolName
-        else $in.tool_name end
-      ),
-      tool_input: (
+        else ($in.tool_name // null) end
+      )
+    # Normalize tool input
+    | .tool_input = (
         if $in.toolArgs then ($in.toolArgs | try fromjson catch {})
         elif $in.tool_input then $in.tool_input
-        else {} end
-      ),
-      tool_response: (
+        else null end
+      )
+    # Normalize tool response (PostToolUse)
+    | .tool_response = (
         if $in.toolResult then $in.toolResult
         elif $in.tool_response then $in.tool_response
         else null end
       )
-    }
+    # Clean up Copilot-specific keys that have been normalized
+    | del(.toolName, .toolArgs, .toolResult, .sessionId)
   ' 2>/dev/null); then
     CLAUDE_INPUT="$TRANSFORMED"
   else
