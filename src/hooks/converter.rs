@@ -114,9 +114,11 @@ else
   echo "plm: warning: jq not found; passing through original hook stdin JSON" >&2
 fi
 
+CLAUDE_PROJECT_DIR=""
 if command -v jq >/dev/null 2>&1; then
-  export CLAUDE_PROJECT_DIR=$(printf '%s' "$CLAUDE_INPUT" | jq -r '.cwd // empty' 2>/dev/null || echo "")
+  CLAUDE_PROJECT_DIR=$(printf '%s' "$CLAUDE_INPUT" | jq -r '.cwd // empty' 2>/dev/null || echo "")
 fi
+export CLAUDE_PROJECT_DIR
 export CLAUDE_PLUGIN_ROOT="@@PLUGIN_ROOT@@""#;
 
 /// Exit code and stdout conversion logic for command hook wrappers.
