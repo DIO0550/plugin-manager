@@ -131,8 +131,10 @@ const EXIT_CODE_HANDLER: &str = r#"# --- execute original command and capture re
 PLM_STDOUT_FILE="$(mktemp)"
 PLM_STDERR_FILE="$(mktemp)"
 trap 'rm -f "$PLM_STDOUT_FILE" "$PLM_STDERR_FILE"' EXIT
-printf '%s' "$CLAUDE_INPUT" | eval "$ORIGINAL_CMD" >"$PLM_STDOUT_FILE" 2>"$PLM_STDERR_FILE" || true
+set +e
+printf '%s' "$CLAUDE_INPUT" | eval "$ORIGINAL_CMD" >"$PLM_STDOUT_FILE" 2>"$PLM_STDERR_FILE"
 EXIT_CODE=$?
+set -e
 RESULT=$(cat "$PLM_STDOUT_FILE" 2>/dev/null || echo "")
 STDERR=$(cat "$PLM_STDERR_FILE" 2>/dev/null || echo "")
 
