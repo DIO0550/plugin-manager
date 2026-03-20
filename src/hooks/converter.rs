@@ -415,7 +415,7 @@ fn convert_command_hook(
     );
 
     wrapper_scripts.push(WrapperScriptInfo {
-        path: script_name.clone(),
+        path: format!("wrappers/{}", script_name),
         content: script_content,
         original_config: hook.clone(),
         matcher: matcher.map(|s| s.to_string()),
@@ -423,7 +423,7 @@ fn convert_command_hook(
 
     output.insert(
         "bash".to_string(),
-        Value::from(format!("./{}", script_name)),
+        Value::from(format!("./wrappers/{}", script_name)),
     );
 
     if let Some(matcher_pattern) = matcher {
@@ -522,7 +522,7 @@ fn convert_http_hook(
     );
 
     wrapper_scripts.push(WrapperScriptInfo {
-        path: script_name.clone(),
+        path: format!("wrappers/{}", script_name),
         content: script_content,
         original_config: hook.clone(),
         matcher: matcher.map(|s| s.to_string()),
@@ -532,7 +532,7 @@ fn convert_http_hook(
     output.insert("type".to_string(), Value::from("command"));
     output.insert(
         "bash".to_string(),
-        Value::from(format!("./{}", script_name)),
+        Value::from(format!("./wrappers/{}", script_name)),
     );
 
     if let Some(timeout) = hook_obj.get("timeout") {
@@ -568,7 +568,7 @@ fn convert_prompt_agent_hook(
     );
 
     wrapper_scripts.push(WrapperScriptInfo {
-        path: script_name.clone(),
+        path: format!("wrappers/{}", script_name),
         content: script_content,
         original_config: hook.clone(),
         matcher: matcher.map(|s| s.to_string()),
@@ -585,7 +585,7 @@ fn convert_prompt_agent_hook(
     output.insert("type".to_string(), Value::from("command"));
     output.insert(
         "bash".to_string(),
-        Value::from(format!("./{}", script_name)),
+        Value::from(format!("./wrappers/{}", script_name)),
     );
 
     if let Some(obj) = hook_obj {
