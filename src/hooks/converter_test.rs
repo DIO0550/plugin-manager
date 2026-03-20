@@ -568,6 +568,29 @@ fn test_agent_hook_to_stub() {
 }
 
 #[test]
+fn test_prompt_hook_with_matcher_has_filter() {
+    let input = r#"{
+        "hooks": {
+            "PreToolUse": [
+                {
+                    "matcher": "Bash",
+                    "hooks": [{
+                        "type": "prompt",
+                        "prompt": "Review code"
+                    }]
+                }
+            ]
+        }
+    }"#;
+    let result = convert(input).unwrap();
+    assert_eq!(result.wrapper_scripts.len(), 1);
+    let script = &result.wrapper_scripts[0];
+    assert!(script.content.contains("STUB"));
+    assert!(script.content.contains("matcher filter"));
+    assert!(script.content.contains("Bash"));
+}
+
+#[test]
 fn test_prompt_hook_preserves_timeout_and_status_message() {
     let input = r#"{
         "hooks": {
