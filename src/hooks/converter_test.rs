@@ -246,7 +246,7 @@ fn test_flatten_single_matcher() {
         "hooks": {
             "PreToolUse": [
                 {
-                    "matcher": "*.rs",
+                    "matcher": "Bash",
                     "hooks": [{ "type": "command", "command": "cargo check" }]
                 }
             ]
@@ -261,8 +261,8 @@ fn test_flatten_single_matcher() {
     assert!(arr[0]["bash"].as_str().unwrap().ends_with(".sh"));
     assert_eq!(result.wrapper_scripts.len(), 1);
     assert!(result.wrapper_scripts[0].content.contains("cargo check"));
-    assert!(result.wrapper_scripts[0].content.contains("*.rs"));
-    assert_eq!(result.wrapper_scripts[0].matcher, Some("*.rs".to_string()));
+    assert!(result.wrapper_scripts[0].content.contains("Bash"));
+    assert_eq!(result.wrapper_scripts[0].matcher, Some("Bash".to_string()));
     // matcher moved to wrapper script with warning
     assert!(result.warnings.iter().any(|w| matches!(
         w,
@@ -276,13 +276,13 @@ fn test_flatten_multiple_matchers() {
         "hooks": {
             "PreToolUse": [
                 {
-                    "matcher": "*.rs",
+                    "matcher": "Bash",
                     "hooks": [
                         { "type": "command", "command": "cargo check" }
                     ]
                 },
                 {
-                    "matcher": "*.ts",
+                    "matcher": "Write|Edit",
                     "hooks": [
                         { "type": "command", "command": "tsc --noEmit" }
                     ]
@@ -760,13 +760,13 @@ fn test_full_conversion_scenario() {
             ],
             "PreToolUse": [
                 {
-                    "matcher": "*.rs",
+                    "matcher": "Bash",
                     "hooks": [
                         { "type": "command", "command": "cargo check", "timeout": 30 }
                     ]
                 },
                 {
-                    "matcher": "*.ts",
+                    "matcher": "Write|Edit",
                     "hooks": [
                         { "type": "command", "command": "tsc --noEmit" }
                     ]
@@ -832,11 +832,11 @@ fn test_full_conversion_scenario() {
     assert!(result
         .wrapper_scripts
         .iter()
-        .any(|s| s.content.contains("cargo check") && s.content.contains("*.rs")));
+        .any(|s| s.content.contains("cargo check") && s.content.contains("Bash")));
     assert!(result
         .wrapper_scripts
         .iter()
-        .any(|s| s.content.contains("tsc --noEmit") && s.content.contains("*.ts")));
+        .any(|s| s.content.contains("tsc --noEmit") && s.content.contains("Write|Edit")));
 
     // SessionStart key conversion
     let session = hooks["sessionStart"].as_array().unwrap();
