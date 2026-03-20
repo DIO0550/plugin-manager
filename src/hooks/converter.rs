@@ -82,20 +82,42 @@ enum SourceFormat {
 
 /// Environment variable bridge lines for wrapper scripts.
 /// Copilot CLI passes hook payload via stdin (not env var), so we read it first.
-/// Converts Copilot CLI's `toolName` to Claude Code's `tool_name` using the
-/// tool name mapping from script-wrapper-spec.md BL-002.
+/// Constructs a Claude Code-compatible `CLAUDE_INPUT` JSON from the Copilot CLI payload,
+/// using tool name mapping from script-wrapper-spec.md BL-002.
+/// Falls back to pass-through if jq is unavailable or transformation fails (fail-open).
 /// `@@PLUGIN_ROOT@@` is a placeholder replaced by PLM at install time with the actual plugin root.
-const ENV_BRIDGE: &str = r#"HOOK_INPUT_RAW=$(cat)
-HOOK_INPUT=$(printf '%s' "$HOOK_INPUT_RAW" | jq '
-  if has("toolName") then
-    .tool_name = ({bash:"Bash",view:"Read",create:"Write",edit:"Edit",
-      glob:"Glob",grep:"Grep",web_fetch:"WebFetch",task:"Agent",
-      powershell:"Bash"}[.toolName] // .toolName)
-    | .tool_input = (if has("toolArgs") then (.toolArgs | try fromjson catch {}) else (.tool_input // {}) end)
-    | del(.toolName, .toolArgs)
-  else . end
-')
-export CLAUDE_PROJECT_DIR=$(printf '%s' "$HOOK_INPUT" | jq -r '.cwd // empty')
+const ENV_BRIDGE: &str = r#"COPILOT_INPUT=$(cat)
+CLAUDE_INPUT="$COPILOT_INPUT"
+
+if command -v jq >/dev/null 2>&1; then
+  if TRANSFORMED=$(printf '%s' "$COPILOT_INPUT" | jq '
+    . as $in | {
+      session_id: ($in.sessionId // $in.session_id // "plm-bridge"),
+      cwd: $in.cwd,
+      tool_name: (
+        if $in.toolName then
+          {bash:"Bash",view:"Read",create:"Write",edit:"Edit",
+           glob:"Glob",grep:"Grep",web_fetch:"WebFetch",task:"Agent",
+           powershell:"Bash"}[$in.toolName] // $in.toolName
+        else $in.tool_name end
+      ),
+      tool_input: (
+        if $in.toolArgs then ($in.toolArgs | try fromjson catch {})
+        else ($in.tool_input // {}) end
+      )
+    }
+  ' 2>/dev/null); then
+    CLAUDE_INPUT="$TRANSFORMED"
+  else
+    echo "plm: warning: failed to transform hook stdin JSON; passing through original payload" >&2
+  fi
+else
+  echo "plm: warning: jq not found; passing through original hook stdin JSON" >&2
+fi
+
+if command -v jq >/dev/null 2>&1; then
+  export CLAUDE_PROJECT_DIR=$(printf '%s' "$CLAUDE_INPUT" | jq -r '.cwd // empty' 2>/dev/null || echo "")
+fi
 export CLAUDE_PLUGIN_ROOT="@@PLUGIN_ROOT@@""#;
 
 /// Exit code and stdout conversion logic for command hook wrappers.
@@ -105,7 +127,7 @@ export CLAUDE_PLUGIN_ROOT="@@PLUGIN_ROOT@@""#;
 /// - exit 2 (block): convert to exit 0 + deny JSON for Copilot CLI
 /// - exit 1/other: convert to exit 0 with no output (ignore error)
 const EXIT_CODE_HANDLER: &str = r#"# --- execute original command and capture result ---
-RESULT=$(printf '%s' "$HOOK_INPUT" | eval "$ORIGINAL_CMD" 2>/tmp/plm-hook-stderr-$$ || true)
+RESULT=$(printf '%s' "$CLAUDE_INPUT" | eval "$ORIGINAL_CMD" 2>/tmp/plm-hook-stderr-$$ || true)
 EXIT_CODE=${PIPESTATUS[1]:-$?}
 STDERR=$(cat /tmp/plm-hook-stderr-$$ 2>/dev/null || echo "")
 rm -f /tmp/plm-hook-stderr-$$
@@ -340,7 +362,7 @@ fn convert_hook_definition(
 fn generate_matcher_filter(matcher: Option<&str>) -> String {
     match matcher {
         Some(pattern) => format!(
-            "\n# --- matcher filter: '{}' ---\nTOOL_NAME=$(printf '%s' \"$HOOK_INPUT\" | jq -r '.tool_name // empty')\nif [ -n \"$TOOL_NAME\" ] && ! echo \"$TOOL_NAME\" | grep -qE '{}'; then\n  exit 0\nfi\n",
+            "\n# --- matcher filter: '{}' ---\nTOOL_NAME=$(printf '%s' \"$CLAUDE_INPUT\" | jq -r '.tool_name // empty')\nif [ -n \"$TOOL_NAME\" ] && ! echo \"$TOOL_NAME\" | grep -qE '{}'; then\n  exit 0\nfi\n",
             shell_escape(pattern),
             shell_escape(pattern)
         ),
@@ -507,7 +529,7 @@ fn convert_http_hook(
     }
 
     let body_line = if hook_obj.get("body").is_some() {
-        "  -d \"$HOOK_INPUT\" \\\n"
+        "  -d \"$CLAUDE_INPUT\" \\\n"
     } else {
         ""
     };

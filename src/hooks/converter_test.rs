@@ -489,7 +489,7 @@ fn test_http_hook_to_curl_wrapper() {
     let script = &result.wrapper_scripts[0];
     assert!(script.content.contains("curl"));
     assert!(script.content.contains("https://example.com/webhook"));
-    assert!(script.content.contains("HOOK_INPUT_RAW=$(cat)"));
+    assert!(script.content.contains("COPILOT_INPUT=$(cat)"));
     assert!(script.content.contains("CLAUDE_PROJECT_DIR"));
     assert!(script
         .content
@@ -543,7 +543,7 @@ fn test_prompt_hook_to_stub() {
     assert_eq!(result.wrapper_scripts.len(), 1);
     let script = &result.wrapper_scripts[0];
     assert!(script.content.contains("STUB"));
-    assert!(script.content.contains("HOOK_INPUT_RAW=$(cat)"));
+    assert!(script.content.contains("COPILOT_INPUT=$(cat)"));
     assert!(script.content.contains("CLAUDE_PROJECT_DIR"));
     assert!(script
         .content
