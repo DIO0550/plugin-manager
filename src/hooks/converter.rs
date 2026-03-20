@@ -601,6 +601,9 @@ exit 0
     if let Some(timeout) = hook_obj.get("timeout") {
         output.insert("timeoutSec".to_string(), timeout.clone());
     }
+    if let Some(status_message) = hook_obj.get("statusMessage") {
+        output.insert("comment".to_string(), status_message.clone());
+    }
 
     Ok(Value::Object(output))
 }
