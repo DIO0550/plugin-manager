@@ -307,6 +307,19 @@ fn convert_hook_definition(
     }
 }
 
+/// Generate a bash matcher filter snippet for wrapper scripts.
+/// Returns empty string if matcher is None.
+fn generate_matcher_filter(matcher: Option<&str>) -> String {
+    match matcher {
+        Some(pattern) => format!(
+            "\n# --- matcher filter: '{}' ---\nTOOL_NAME=$(printf '%s' \"$HOOK_INPUT\" | jq -r '.tool_name // empty')\nif [ -n \"$TOOL_NAME\" ] && ! echo \"$TOOL_NAME\" | grep -qE '{}'; then\n  exit 0\nfi\n",
+            shell_escape(pattern),
+            shell_escape(pattern)
+        ),
+        None => String::new(),
+    }
+}
+
 /// BL-005: Convert a command-type hook (key name mapping).
 ///
 /// - `command` -> `bash`
@@ -366,16 +379,11 @@ fn convert_command_hook(
     if let Some(matcher_pattern) = matcher {
         // Generate a wrapper script that enforces the matcher at runtime
         let script_name = format!("cmd-{}-{}.sh", event, wrapper_scripts.len());
-
-        let matcher_filter = format!(
-            "TOOL_NAME=$(printf '%s' \"$HOOK_INPUT\" | jq -r '.tool_name // empty')\nif [ -n \"$TOOL_NAME\" ] && ! echo \"$TOOL_NAME\" | grep -qE '{}'; then\n  exit 0\nfi",
-            shell_escape(matcher_pattern)
-        );
+        let matcher_filter = generate_matcher_filter(Some(matcher_pattern));
 
         let script_content = format!(
-            "#!/bin/bash\nset -euo pipefail\n\n{}\n\n# --- matcher filter: '{}' ---\n{}\n\n# --- original command ---\nprintf '%s' \"$HOOK_INPUT\" | {}\n",
+            "#!/bin/bash\nset -euo pipefail\n\n{}\n{}\n# --- original command ---\nprintf '%s' \"$HOOK_INPUT\" | {}\n",
             ENV_BRIDGE,
-            shell_escape(matcher_pattern),
             matcher_filter,
             command
         );
@@ -476,9 +484,12 @@ fn convert_http_hook(
         ""
     };
 
+    let matcher_filter = generate_matcher_filter(matcher);
+
     let script_content = format!(
-        "#!/bin/bash\nset -euo pipefail\n\n{}\n\ncurl -s -X {} \\\n{}{}  '{}'\n",
+        "#!/bin/bash\nset -euo pipefail\n\n{}\n{}\ncurl -s -X {} \\\n{}{}  '{}'\n",
         ENV_BRIDGE,
+        matcher_filter,
         method.to_uppercase(),
         headers_lines,
         body_line,

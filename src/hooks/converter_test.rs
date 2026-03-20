@@ -485,6 +485,30 @@ fn test_http_hook_to_curl_wrapper() {
 }
 
 #[test]
+fn test_http_hook_with_matcher_has_filter() {
+    let input = r#"{
+        "hooks": {
+            "PostToolUse": [
+                {
+                    "matcher": "Bash",
+                    "hooks": [{
+                        "type": "http",
+                        "url": "https://example.com/webhook",
+                        "method": "POST"
+                    }]
+                }
+            ]
+        }
+    }"#;
+    let result = convert(input).unwrap();
+    assert_eq!(result.wrapper_scripts.len(), 1);
+    let script = &result.wrapper_scripts[0];
+    assert!(script.content.contains("curl"));
+    assert!(script.content.contains("matcher filter"));
+    assert!(script.content.contains("Bash"));
+}
+
+#[test]
 fn test_prompt_hook_to_stub() {
     let input = r#"{
         "hooks": {
