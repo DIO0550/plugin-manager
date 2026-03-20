@@ -536,21 +536,45 @@ fn convert_http_hook(
         }
     }
 
-    let body_line = if hook_obj.get("body").is_some() {
-        "  -d \"$CLAUDE_INPUT\" \\\n"
-    } else {
-        ""
-    };
-
     let matcher_filter = generate_matcher_filter(matcher);
 
     let script_content = format!(
-        "#!/bin/bash\nset -euo pipefail\n\n{}\n{}\ncurl -s -X {} \\\n{}{}  '{}'\n",
+        r#"#!/bin/bash
+set -euo pipefail
+
+{}
+{}
+# --- http hook: {} {} ---
+HTTP_RESPONSE=$(printf '%s' "$CLAUDE_INPUT" | curl -s -w '\n%{{http_code}}' -X {} \
+{}  -d @- \
+  '{}' 2>/dev/null || echo -e '\n000')
+
+HTTP_BODY=$(printf '%s' "$HTTP_RESPONSE" | sed '$d')
+HTTP_CODE=$(printf '%s' "$HTTP_RESPONSE" | tail -1)
+
+if [ "$HTTP_CODE" -ge 200 ] 2>/dev/null && [ "$HTTP_CODE" -lt 300 ] 2>/dev/null; then
+  if [ -n "$HTTP_BODY" ] && command -v jq >/dev/null 2>&1; then
+    printf '%s' "$HTTP_BODY" | jq '
+      if .hookSpecificOutput then
+        .hookSpecificOutput
+        | del(.hookEventName, .updatedInput, .additionalContext)
+        | if has("permissionDecision") then
+            {{permissionDecision, permissionDecisionReason}}
+          else . end
+      else . end
+    ' 2>/dev/null || true
+  fi
+else
+  echo "plm: warning: http hook returned status $HTTP_CODE" >&2
+fi
+exit 0
+"#,
         ENV_BRIDGE,
         matcher_filter,
         method.to_uppercase(),
+        shell_escape(url),
+        method.to_uppercase(),
         headers_lines,
-        body_line,
         shell_escape(url)
     );
 
