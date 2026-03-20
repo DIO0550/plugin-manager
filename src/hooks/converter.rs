@@ -573,6 +573,13 @@ fn convert_http_hook(
     if let Some(headers) = hook_obj.get("headers").and_then(|h| h.as_object()) {
         for (k, v) in headers {
             if let Some(v_str) = v.as_str() {
+                // Reject command substitution syntax to prevent injection.
+                if v_str.contains("$(") || v_str.contains('`') {
+                    return Err(PlmError::HookConversion(format!(
+                        "http hook header '{}' contains unsupported command substitution syntax",
+                        k
+                    )));
+                }
                 // Use double quotes to allow $VAR expansion in header values.
                 let escaped_value = v_str.replace('\\', "\\\\").replace('"', "\\\"");
                 headers_lines.push_str(&format!("  -H \"{}: {}\" \\\n", k, escaped_value));
