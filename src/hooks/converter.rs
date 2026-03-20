@@ -226,24 +226,44 @@ pub fn convert(input: &str) -> Result<ConvertResult, PlmError> {
 ///
 /// Rules:
 /// 1. If `version` key exists -> CopilotCli
-/// 2. If first event key in `hooks` starts with uppercase -> ClaudeCode
+/// 2. If first event key in `hooks` starts with uppercase *and* the event value
+///    matches the Claude Code matcher group structure (array of objects each
+///    having a `hooks` array) -> ClaudeCode
 /// 3. Otherwise -> CopilotCli
 fn detect_format(value: &Value) -> SourceFormat {
     if value.get("version").is_some() {
         return SourceFormat::CopilotCli;
     }
 
-    let is_pascal = value
-        .get("hooks")
-        .and_then(|h| h.as_object())
-        .and_then(|hooks| hooks.keys().next())
-        .is_some_and(|key| key.starts_with(|c: char| c.is_uppercase()));
+    let Some(hooks_obj) = value.get("hooks").and_then(|h| h.as_object()) else {
+        return SourceFormat::CopilotCli;
+    };
+
+    let Some((event_key, event_value)) = hooks_obj.iter().next() else {
+        return SourceFormat::CopilotCli;
+    };
+
+    let is_pascal = event_key.chars().next().is_some_and(|c| c.is_uppercase());
 
     if is_pascal {
-        SourceFormat::ClaudeCode
-    } else {
-        SourceFormat::CopilotCli
+        // Only treat as Claude Code if the event value looks like a matcher group:
+        // an array of objects where at least one has a `hooks` array.
+        let looks_like_claude = event_value.as_array().is_some_and(|arr| {
+            arr.iter().any(|group| {
+                group
+                    .as_object()
+                    .and_then(|obj| obj.get("hooks"))
+                    .and_then(|h| h.as_array())
+                    .is_some()
+            })
+        });
+
+        if looks_like_claude {
+            return SourceFormat::ClaudeCode;
+        }
     }
+
+    SourceFormat::CopilotCli
 }
 
 /// BL-002: Convert top-level structure.
@@ -558,10 +578,7 @@ fn convert_http_hook(
             if let Some(v_str) = v.as_str() {
                 // Use double quotes to allow $VAR expansion in header values.
                 let escaped_value = v_str.replace('\\', "\\\\").replace('"', "\\\"");
-                headers_lines.push_str(&format!(
-                    "  -H \"{}: {}\" \\\n",
-                    k, escaped_value
-                ));
+                headers_lines.push_str(&format!("  -H \"{}: {}\" \\\n", k, escaped_value));
             }
         }
     }
