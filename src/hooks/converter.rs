@@ -146,7 +146,11 @@ if [ "$EXIT_CODE" -eq 0 ] && [ -n "$RESULT" ]; then
   ' 2>/dev/null || true
 elif [ "$EXIT_CODE" -eq 2 ]; then
   REASON="${STDERR:-Blocked by hook}"
-  jq -n --arg reason "$REASON" '{"permissionDecision":"deny","permissionDecisionReason":$reason}'
+  if command -v jq >/dev/null 2>&1; then
+    jq -n --arg reason "$REASON" '{"permissionDecision":"deny","permissionDecisionReason":$reason}'
+  else
+    printf '%s\n' "{\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"$REASON\"}"
+  fi
 fi
 exit 0"#;
 
