@@ -529,11 +529,23 @@ fn convert_prompt_agent_hook(
         hook_type: hook_type.to_string(),
     });
 
+    let hook_obj = hook.as_object();
+
     let mut output = serde_json::Map::new();
     output.insert("type".to_string(), Value::from("command"));
     output.insert(
         "bash".to_string(),
         Value::from(format!("./{}", script_name)),
     );
+
+    if let Some(obj) = hook_obj {
+        if let Some(timeout) = obj.get("timeout") {
+            output.insert("timeoutSec".to_string(), timeout.clone());
+        }
+        if let Some(status_message) = obj.get("statusMessage") {
+            output.insert("comment".to_string(), status_message.clone());
+        }
+    }
+
     Value::Object(output)
 }

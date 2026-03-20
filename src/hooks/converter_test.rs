@@ -544,6 +544,29 @@ fn test_agent_hook_to_stub() {
 }
 
 #[test]
+fn test_prompt_hook_preserves_timeout_and_status_message() {
+    let input = r#"{
+        "hooks": {
+            "PreToolUse": [
+                {
+                    "hooks": [{
+                        "type": "prompt",
+                        "prompt": "Review code",
+                        "timeout": 20,
+                        "statusMessage": "Reviewing..."
+                    }]
+                }
+            ]
+        }
+    }"#;
+    let result = convert(input).unwrap();
+    let hook = &result.json["hooks"]["preToolUse"][0];
+    assert_eq!(hook["type"], "command");
+    assert_eq!(hook["timeoutSec"], 20);
+    assert_eq!(hook["comment"], "Reviewing...");
+}
+
+#[test]
 fn test_unknown_hook_type_excluded() {
     let input = r#"{
         "hooks": {
