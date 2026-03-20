@@ -127,10 +127,12 @@ export CLAUDE_PLUGIN_ROOT="@@PLUGIN_ROOT@@""#;
 /// - exit 2 (block): convert to exit 0 + deny JSON for Copilot CLI
 /// - exit 1/other: convert to exit 0 with no output (ignore error)
 const EXIT_CODE_HANDLER: &str = r#"# --- execute original command and capture result ---
+PLM_STDOUT_FILE="$(mktemp)"
 PLM_STDERR_FILE="$(mktemp)"
-trap 'rm -f "$PLM_STDERR_FILE"' EXIT
-RESULT=$(printf '%s' "$CLAUDE_INPUT" | eval "$ORIGINAL_CMD" 2>"$PLM_STDERR_FILE" || true)
-EXIT_CODE=${PIPESTATUS[1]:-$?}
+trap 'rm -f "$PLM_STDOUT_FILE" "$PLM_STDERR_FILE"' EXIT
+printf '%s' "$CLAUDE_INPUT" | eval "$ORIGINAL_CMD" >"$PLM_STDOUT_FILE" 2>"$PLM_STDERR_FILE" || true
+EXIT_CODE=$?
+RESULT=$(cat "$PLM_STDOUT_FILE" 2>/dev/null || echo "")
 STDERR=$(cat "$PLM_STDERR_FILE" 2>/dev/null || echo "")
 
 # --- exit code + stdout conversion ---
