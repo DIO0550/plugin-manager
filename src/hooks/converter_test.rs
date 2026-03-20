@@ -329,7 +329,8 @@ fn test_flatten_empty_matcher() {
     let arr = result.json["hooks"]["preToolUse"].as_array().unwrap();
     assert_eq!(arr.len(), 1);
     assert!(arr[0].get("steps").is_none());
-    assert_eq!(arr[0]["bash"], "echo all");
+    assert!(arr[0]["bash"].as_str().unwrap().ends_with(".sh"));
+    assert!(result.wrapper_scripts[0].content.contains("echo all"));
 }
 
 // ============================================================================
@@ -347,8 +348,11 @@ fn test_command_to_bash() {
     }"#;
     let result = convert(input).unwrap();
     let hook = &result.json["hooks"]["sessionStart"][0];
-    assert_eq!(hook["bash"], "./script.sh");
+    // Always wrapped: bash points to a generated wrapper script
+    assert!(hook["bash"].as_str().unwrap().ends_with(".sh"));
     assert!(hook.get("command").is_none());
+    // Wrapper contains the original command
+    assert!(result.wrapper_scripts[0].content.contains("./script.sh"));
 }
 
 #[test]
@@ -430,7 +434,8 @@ fn test_command_hook_always_has_type() {
     let result = convert(input).unwrap();
     let hook = &result.json["hooks"]["sessionStart"][0];
     assert_eq!(hook["type"], "command");
-    assert_eq!(hook["bash"], "echo hi");
+    assert!(hook["bash"].as_str().unwrap().ends_with(".sh"));
+    assert!(result.wrapper_scripts[0].content.contains("echo hi"));
 }
 
 #[test]
@@ -444,9 +449,10 @@ fn test_command_hook_passthrough() {
     }"#;
     let result = convert(input).unwrap();
     let hook = &result.json["hooks"]["sessionStart"][0];
-    assert_eq!(hook["bash"], "./run.sh");
+    assert!(hook["bash"].as_str().unwrap().ends_with(".sh"));
     assert_eq!(hook["timeoutSec"], 10);
     assert_eq!(hook["type"], "command");
+    assert!(result.wrapper_scripts[0].content.contains("./run.sh"));
 }
 
 #[test]
@@ -840,8 +846,12 @@ fn test_full_conversion_scenario() {
 
     // SessionStart key conversion
     let session = hooks["sessionStart"].as_array().unwrap();
-    assert_eq!(session[0]["bash"], "echo start");
+    assert!(session[0]["bash"].as_str().unwrap().ends_with(".sh"));
     assert_eq!(session[0]["comment"], "Starting...");
+    assert!(result
+        .wrapper_scripts
+        .iter()
+        .any(|s| s.content.contains("echo start")));
 
     // http hook -> wrapper script
     assert!(result

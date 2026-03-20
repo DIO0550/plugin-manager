@@ -376,30 +376,31 @@ fn convert_command_hook(
         }
     }
 
+    // Always generate a wrapper script for command hooks so that the
+    // ENV_BRIDGE (stdin schema conversion + CLAUDE_* env vars) is applied.
+    let script_name = format!("cmd-{}-{}.sh", event, wrapper_scripts.len());
+    let matcher_filter = generate_matcher_filter(matcher);
+
+    let script_content = format!(
+        "#!/bin/bash\nset -euo pipefail\n\n{}\n{}\n# --- original command ---\nprintf '%s' \"$HOOK_INPUT\" | {}\n",
+        ENV_BRIDGE,
+        matcher_filter,
+        command
+    );
+
+    wrapper_scripts.push(WrapperScriptInfo {
+        path: script_name.clone(),
+        content: script_content,
+        original_config: hook.clone(),
+        matcher: matcher.map(|s| s.to_string()),
+    });
+
+    output.insert(
+        "bash".to_string(),
+        Value::from(format!("./{}", script_name)),
+    );
+
     if let Some(matcher_pattern) = matcher {
-        // Generate a wrapper script that enforces the matcher at runtime
-        let script_name = format!("cmd-{}-{}.sh", event, wrapper_scripts.len());
-        let matcher_filter = generate_matcher_filter(Some(matcher_pattern));
-
-        let script_content = format!(
-            "#!/bin/bash\nset -euo pipefail\n\n{}\n{}\n# --- original command ---\nprintf '%s' \"$HOOK_INPUT\" | {}\n",
-            ENV_BRIDGE,
-            matcher_filter,
-            command
-        );
-
-        wrapper_scripts.push(WrapperScriptInfo {
-            path: script_name.clone(),
-            content: script_content,
-            original_config: hook.clone(),
-            matcher: Some(matcher_pattern.to_string()),
-        });
-
-        output.insert(
-            "bash".to_string(),
-            Value::from(format!("./{}", script_name)),
-        );
-
         warnings.push(ConversionWarning::RemovedField {
             field: "matcher".to_string(),
             reason: format!(
@@ -407,8 +408,6 @@ fn convert_command_hook(
                 matcher_pattern, script_name
             ),
         });
-    } else {
-        output.insert("bash".to_string(), Value::from(command));
     }
 
     if let Some(t) = timeout_value {
