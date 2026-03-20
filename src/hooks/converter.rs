@@ -136,7 +136,11 @@ rm -f /tmp/plm-hook-stderr-$$
 if [ "$EXIT_CODE" -eq 0 ] && [ -n "$RESULT" ]; then
   printf '%s' "$RESULT" | jq '
     if .hookSpecificOutput then
-      .hookSpecificOutput | del(.hookEventName)
+      .hookSpecificOutput
+      | del(.hookEventName, .updatedInput, .additionalContext)
+      | if has("permissionDecision") then
+          {permissionDecision, permissionDecisionReason}
+        else . end
     else . end
   ' 2>/dev/null || true
 elif [ "$EXIT_CODE" -eq 2 ]; then
