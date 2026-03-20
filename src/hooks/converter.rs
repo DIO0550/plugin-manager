@@ -362,14 +362,18 @@ fn convert_hook_definition(
 }
 
 /// Generate a bash matcher filter snippet for wrapper scripts.
+/// Uses anchored regex `^(pattern)$` for full-match per BL-003.
 /// Returns empty string if matcher is None.
 fn generate_matcher_filter(matcher: Option<&str>) -> String {
     match matcher {
-        Some(pattern) => format!(
-            "\n# --- matcher filter: '{}' ---\nTOOL_NAME=$(printf '%s' \"$CLAUDE_INPUT\" | jq -r '.tool_name // empty')\nif [ -n \"$TOOL_NAME\" ] && ! echo \"$TOOL_NAME\" | grep -qE '{}'; then\n  exit 0\nfi\n",
-            shell_escape(pattern),
-            shell_escape(pattern)
-        ),
+        Some(pattern) => {
+            let anchored = format!("^({})$", pattern);
+            format!(
+                "\n# --- matcher filter: '{}' ---\nTOOL_NAME=$(printf '%s' \"$CLAUDE_INPUT\" | jq -r '.tool_name // empty')\nif [ -n \"$TOOL_NAME\" ] && ! echo \"$TOOL_NAME\" | grep -qE '{}'; then\n  exit 0\nfi\n",
+                shell_escape(pattern),
+                shell_escape(&anchored)
+            )
+        }
         None => String::new(),
     }
 }
