@@ -487,14 +487,25 @@ fn test_http_hook_to_curl_wrapper() {
 
     assert_eq!(result.wrapper_scripts.len(), 1);
     let script = &result.wrapper_scripts[0];
+    // Core curl invocation
     assert!(script.content.contains("curl"));
     assert!(script.content.contains("https://example.com/webhook"));
+    assert!(script.content.contains("-d @-"));
+    assert!(script.content.contains("Bearer token123"));
+    // ENV_BRIDGE with fail-open
     assert!(script.content.contains("COPILOT_INPUT=$(cat)"));
     assert!(script.content.contains("CLAUDE_PROJECT_DIR"));
     assert!(script
         .content
         .contains("CLAUDE_PLUGIN_ROOT=\"@@PLUGIN_ROOT@@\""));
-    assert!(script.content.contains("Bearer token123"));
+    assert!(script.content.contains("command -v jq"));
+    // HTTP status code handling
+    assert!(script.content.contains("http_code"));
+    assert!(script.content.contains("HTTP_CODE"));
+    // hookSpecificOutput unwrap in response
+    assert!(script.content.contains("hookSpecificOutput"));
+    // Fail-open exit
+    assert!(script.content.contains("exit 0"));
 }
 
 #[test]
