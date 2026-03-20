@@ -421,8 +421,14 @@ fn convert_command_hook(
 
     for (key, value) in hook_obj {
         match key.as_str() {
-            "command" | "once" | "type" => {
+            "command" | "type" => {
                 // Handled separately
+            }
+            "once" => {
+                warnings.push(ConversionWarning::RemovedField {
+                    field: "once".to_string(),
+                    reason: "Copilot CLI does not support once hooks".to_string(),
+                });
             }
             "timeout" => {
                 timeout_value = Some(value.clone());

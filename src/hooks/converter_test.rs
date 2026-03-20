@@ -415,6 +415,10 @@ fn test_remove_once() {
     let result = convert(input).unwrap();
     let hook = &result.json["hooks"]["sessionStart"][0];
     assert!(hook.get("once").is_none());
+    assert!(result.warnings.iter().any(|w| matches!(
+        w,
+        ConversionWarning::RemovedField { field, .. } if field == "once"
+    )));
 }
 
 // ============================================================================
