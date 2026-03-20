@@ -369,7 +369,7 @@ fn generate_matcher_filter(matcher: Option<&str>) -> String {
         Some(pattern) => {
             let anchored = format!("^({})$", pattern);
             format!(
-                "\n# --- matcher filter: '{}' ---\nTOOL_NAME=$(printf '%s' \"$CLAUDE_INPUT\" | jq -r '.tool_name // empty')\nif [ -n \"$TOOL_NAME\" ] && ! echo \"$TOOL_NAME\" | grep -qE '{}'; then\n  exit 0\nfi\n",
+                "\n# --- matcher filter: '{}' ---\nif command -v jq >/dev/null 2>&1; then\n  TOOL_NAME=$(printf '%s' \"$CLAUDE_INPUT\" | jq -r '.tool_name // empty')\n  if [ -n \"$TOOL_NAME\" ] && ! echo \"$TOOL_NAME\" | grep -qE '{}'; then\n    exit 0\n  fi\nfi\n",
                 shell_escape(pattern),
                 shell_escape(&anchored)
             )
