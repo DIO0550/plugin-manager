@@ -377,7 +377,7 @@ fn convert_command_hook(
             ENV_BRIDGE,
             shell_escape(matcher_pattern),
             matcher_filter,
-            shell_escape(command)
+            command
         );
 
         wrapper_scripts.push(WrapperScriptInfo {
