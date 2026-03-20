@@ -152,7 +152,7 @@ elif [ "$EXIT_CODE" -eq 2 ]; then
   if command -v jq >/dev/null 2>&1; then
     jq -n --arg reason "$REASON" '{"permissionDecision":"deny","permissionDecisionReason":$reason}'
   else
-    printf '%s\n' "{\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"$REASON\"}"
+    printf '%s\n' '{"permissionDecision":"deny"}'
   fi
 fi
 exit 0"#;
