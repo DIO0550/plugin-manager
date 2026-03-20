@@ -346,18 +346,17 @@ fn convert_command_hook(
                     reason: "Copilot CLI does not support async hooks".to_string(),
                 });
             }
-            "once" => {
-                // Silently removed - not supported in Copilot CLI
-            }
-            "type" => {
-                // Copilot CLI requires "type": "command"
-                output.insert("type".to_string(), Value::from("command"));
+            "once" | "type" => {
+                // Silently removed - type is always set below
             }
             _ => {
                 output.insert(key.clone(), value.clone());
             }
         }
     }
+
+    // Copilot CLI requires "type": "command" on every hook object
+    output.insert("type".to_string(), Value::from("command"));
 
     Ok(Value::Object(output))
 }

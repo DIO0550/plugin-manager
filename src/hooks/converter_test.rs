@@ -297,7 +297,9 @@ fn test_flatten_multiple_matchers() {
         result
             .warnings
             .iter()
-            .filter(|w| matches!(w, ConversionWarning::RemovedField { field, .. } if field == "matcher"))
+            .filter(
+                |w| matches!(w, ConversionWarning::RemovedField { field, .. } if field == "matcher")
+            )
             .count(),
         2
     );
@@ -406,6 +408,22 @@ fn test_remove_once() {
 // ============================================================================
 // BL-006: Hook type conversion
 // ============================================================================
+
+#[test]
+fn test_command_hook_always_has_type() {
+    // When input omits "type" (defaults to command), output must still include type: "command"
+    let input = r#"{
+        "hooks": {
+            "SessionStart": [
+                { "hooks": [{ "command": "echo hi" }] }
+            ]
+        }
+    }"#;
+    let result = convert(input).unwrap();
+    let hook = &result.json["hooks"]["sessionStart"][0];
+    assert_eq!(hook["type"], "command");
+    assert_eq!(hook["bash"], "echo hi");
+}
 
 #[test]
 fn test_command_hook_passthrough() {
