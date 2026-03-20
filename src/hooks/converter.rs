@@ -82,8 +82,19 @@ enum SourceFormat {
 
 /// Environment variable bridge lines for wrapper scripts.
 /// Copilot CLI passes hook payload via stdin (not env var), so we read it first.
+/// Converts Copilot CLI's `toolName` to Claude Code's `tool_name` using the
+/// tool name mapping from script-wrapper-spec.md BL-002.
 /// `@@PLUGIN_ROOT@@` is a placeholder replaced by PLM at install time with the actual plugin root.
-const ENV_BRIDGE: &str = r#"HOOK_INPUT=$(cat)
+const ENV_BRIDGE: &str = r#"HOOK_INPUT_RAW=$(cat)
+HOOK_INPUT=$(printf '%s' "$HOOK_INPUT_RAW" | jq '
+  if has("toolName") then
+    .tool_name = ({bash:"Bash",view:"Read",create:"Write",edit:"Edit",
+      glob:"Glob",grep:"Grep",web_fetch:"WebFetch",task:"Agent",
+      powershell:"Bash"}[.toolName] // .toolName)
+    | .tool_input = (if has("toolArgs") then (.toolArgs | try fromjson catch .) else (.tool_input // {}) end)
+    | del(.toolName, .toolArgs)
+  else . end
+')
 export CLAUDE_PROJECT_DIR=$(printf '%s' "$HOOK_INPUT" | jq -r '.cwd // empty')
 export CLAUDE_PLUGIN_ROOT="@@PLUGIN_ROOT@@""#;
 
