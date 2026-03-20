@@ -226,9 +226,9 @@ pub fn convert(input: &str) -> Result<ConvertResult, PlmError> {
 ///
 /// Rules:
 /// 1. If `version` key exists -> CopilotCli
-/// 2. If first event key in `hooks` starts with uppercase *and* the event value
-///    matches the Claude Code matcher group structure (array of objects each
-///    having a `hooks` array) -> ClaudeCode
+/// 2. If any event key in `hooks` starts with uppercase and its value matches
+///    the Claude Code matcher group structure (array of objects each having
+///    a `hooks` array) -> ClaudeCode
 /// 3. Otherwise -> CopilotCli
 fn detect_format(value: &Value) -> SourceFormat {
     if value.get("version").is_some() {
@@ -239,27 +239,24 @@ fn detect_format(value: &Value) -> SourceFormat {
         return SourceFormat::CopilotCli;
     };
 
-    let Some((event_key, event_value)) = hooks_obj.iter().next() else {
-        return SourceFormat::CopilotCli;
-    };
+    // Scan all event keys, not just the first, since JSON key order is arbitrary.
+    for (event_key, event_value) in hooks_obj {
+        let is_pascal = event_key.chars().next().is_some_and(|c| c.is_uppercase());
 
-    let is_pascal = event_key.chars().next().is_some_and(|c| c.is_uppercase());
+        if is_pascal {
+            let looks_like_claude = event_value.as_array().is_some_and(|arr| {
+                arr.iter().any(|group| {
+                    group
+                        .as_object()
+                        .and_then(|obj| obj.get("hooks"))
+                        .and_then(|h| h.as_array())
+                        .is_some()
+                })
+            });
 
-    if is_pascal {
-        // Only treat as Claude Code if the event value looks like a matcher group:
-        // an array of objects where at least one has a `hooks` array.
-        let looks_like_claude = event_value.as_array().is_some_and(|arr| {
-            arr.iter().any(|group| {
-                group
-                    .as_object()
-                    .and_then(|obj| obj.get("hooks"))
-                    .and_then(|h| h.as_array())
-                    .is_some()
-            })
-        });
-
-        if looks_like_claude {
-            return SourceFormat::ClaudeCode;
+            if looks_like_claude {
+                return SourceFormat::ClaudeCode;
+            }
         }
     }
 
