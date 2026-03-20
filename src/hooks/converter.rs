@@ -91,7 +91,7 @@ HOOK_INPUT=$(printf '%s' "$HOOK_INPUT_RAW" | jq '
     .tool_name = ({bash:"Bash",view:"Read",create:"Write",edit:"Edit",
       glob:"Glob",grep:"Grep",web_fetch:"WebFetch",task:"Agent",
       powershell:"Bash"}[.toolName] // .toolName)
-    | .tool_input = (if has("toolArgs") then (.toolArgs | try fromjson catch .) else (.tool_input // {}) end)
+    | .tool_input = (if has("toolArgs") then (.toolArgs | try fromjson catch {}) else (.tool_input // {}) end)
     | del(.toolName, .toolArgs)
   else . end
 ')
