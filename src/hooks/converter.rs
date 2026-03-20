@@ -96,13 +96,19 @@ if command -v jq >/dev/null 2>&1; then
       cwd: $in.cwd,
       tool_name: (
         if $in.toolName then
-          {bash:"Bash",view:"Read",create:"Write",edit:"Edit",
+          {bash:"Bash",powershell:"Bash",view:"Read",create:"Write",edit:"Edit",
            glob:"Glob",grep:"Grep",web_fetch:"WebFetch",task:"Agent"}[$in.toolName] // $in.toolName
         else $in.tool_name end
       ),
       tool_input: (
         if $in.toolArgs then ($in.toolArgs | try fromjson catch {})
-        else ($in.tool_input // {}) end
+        elif $in.tool_input then $in.tool_input
+        else {} end
+      ),
+      tool_response: (
+        if $in.toolResult then $in.toolResult
+        elif $in.tool_response then $in.tool_response
+        else null end
       )
     }
   ' 2>/dev/null); then
