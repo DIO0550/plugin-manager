@@ -631,6 +631,8 @@ fn convert_http_hook(
         r#"#!/bin/bash
 set -euo pipefail
 
+HOOK_EVENT='{}'
+
 {}
 {}
 # --- http hook: {} {} ---
@@ -642,7 +644,7 @@ HTTP_BODY=$(printf '%s' "$HTTP_RESPONSE" | sed '$d')
 HTTP_CODE=$(printf '%s' "$HTTP_RESPONSE" | tail -1)
 
 if [ "$HTTP_CODE" -ge 200 ] 2>/dev/null && [ "$HTTP_CODE" -lt 300 ] 2>/dev/null; then
-  if [ -n "$HTTP_BODY" ] && command -v jq >/dev/null 2>&1; then
+  if [ -n "$HTTP_BODY" ] && [ "$HOOK_EVENT" = "preToolUse" ] && command -v jq >/dev/null 2>&1; then
     printf '%s' "$HTTP_BODY" | jq '
       if .hookSpecificOutput then
         .hookSpecificOutput
@@ -658,6 +660,7 @@ else
 fi
 exit 0
 "#,
+        shell_escape(event),
         ENV_BRIDGE,
         matcher_filter,
         method.to_uppercase(),
