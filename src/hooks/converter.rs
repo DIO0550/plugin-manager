@@ -227,9 +227,7 @@ pub fn convert(input: &str) -> Result<ConvertResult, PlmError> {
 ///
 /// Rules:
 /// 1. If `version` key exists -> CopilotCli
-/// 2. If any event key in `hooks` starts with uppercase and its value matches
-///    the Claude Code matcher group structure (array of objects each having
-///    a `hooks` array) -> ClaudeCode
+/// 2. If any event key in `hooks` starts with uppercase -> ClaudeCode
 /// 3. Otherwise -> CopilotCli
 fn detect_format(value: &Value) -> SourceFormat {
     if value.get("version").is_some() {
@@ -240,28 +238,16 @@ fn detect_format(value: &Value) -> SourceFormat {
         return SourceFormat::CopilotCli;
     };
 
-    // Scan all event keys, not just the first, since JSON key order is arbitrary.
-    for (event_key, event_value) in hooks_obj {
-        let is_pascal = event_key.chars().next().is_some_and(|c| c.is_uppercase());
+    // Per BL-001: if any event key starts with uppercase -> Claude Code format.
+    let has_pascal = hooks_obj
+        .keys()
+        .any(|key| key.chars().next().is_some_and(|c| c.is_uppercase()));
 
-        if is_pascal {
-            let looks_like_claude = event_value.as_array().is_some_and(|arr| {
-                arr.iter().any(|group| {
-                    group
-                        .as_object()
-                        .and_then(|obj| obj.get("hooks"))
-                        .and_then(|h| h.as_array())
-                        .is_some()
-                })
-            });
-
-            if looks_like_claude {
-                return SourceFormat::ClaudeCode;
-            }
-        }
+    if has_pascal {
+        SourceFormat::ClaudeCode
+    } else {
+        SourceFormat::CopilotCli
     }
-
-    SourceFormat::CopilotCli
 }
 
 /// BL-002: Convert top-level structure.
