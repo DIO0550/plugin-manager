@@ -715,6 +715,28 @@ fn test_invalid_json_error() {
 }
 
 #[test]
+fn test_command_with_newline_rejected() {
+    let input = "{\n\"hooks\": {\n\"SessionStart\": [\n{ \"hooks\": [{ \"type\": \"command\", \"command\": \"echo\\ninjected\" }] }\n]\n}\n}";
+    let result = convert(input);
+    assert!(result.is_err());
+    match result.unwrap_err() {
+        PlmError::HookConversion(msg) => assert!(msg.contains("newline")),
+        other => panic!("Expected HookConversion, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_command_with_carriage_return_rejected() {
+    let input = "{\n\"hooks\": {\n\"SessionStart\": [\n{ \"hooks\": [{ \"type\": \"command\", \"command\": \"echo\\rinjected\" }] }\n]\n}\n}";
+    let result = convert(input);
+    assert!(result.is_err());
+    match result.unwrap_err() {
+        PlmError::HookConversion(msg) => assert!(msg.contains("newline") || msg.contains("carriage")),
+        other => panic!("Expected HookConversion, got {:?}", other),
+    }
+}
+
+#[test]
 fn test_command_missing_command_field() {
     let input = r#"{
         "hooks": {
