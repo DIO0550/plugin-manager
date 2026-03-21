@@ -577,6 +577,20 @@ fn convert_http_hook(
     if let Some(headers) = hook_obj.get("headers").and_then(|h| h.as_object()) {
         for (k, v) in headers {
             if let Some(v_str) = v.as_str() {
+                // Validate header name: only alphanumeric and hyphens allowed.
+                if !k.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-') {
+                    return Err(PlmError::HookConversion(format!(
+                        "http hook header name '{}' contains invalid characters",
+                        k
+                    )));
+                }
+                // Reject newlines/carriage returns in header values.
+                if v_str.contains('\n') || v_str.contains('\r') {
+                    return Err(PlmError::HookConversion(format!(
+                        "http hook header '{}' value contains newline characters",
+                        k
+                    )));
+                }
                 // Reject command substitution syntax to prevent injection.
                 if v_str.contains("$(") || v_str.contains('`') {
                     return Err(PlmError::HookConversion(format!(
