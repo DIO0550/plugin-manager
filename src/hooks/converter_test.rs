@@ -81,8 +81,8 @@ fn test_detect_copilot_format_with_camelcase() {
         }
     }"#;
     let result = convert(input).unwrap();
-    // camelCase without version -> CopilotCli, returned as-is but with warning
-    assert!(result.json.get("version").is_none());
+    // camelCase without version -> CopilotCli, version:1 inserted with warning
+    assert_eq!(result.json["version"], 1);
     assert!(result
         .warnings
         .iter()

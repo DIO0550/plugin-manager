@@ -196,11 +196,15 @@ pub fn convert(input: &str) -> Result<ConvertResult, PlmError> {
     match detect_format(&value) {
         SourceFormat::CopilotCli => {
             let mut warnings = Vec::new();
-            if value.get("version").is_none() {
+            let mut result = value;
+            if result.get("version").is_none() {
                 warnings.push(ConversionWarning::MissingVersion);
+                if let Some(obj) = result.as_object_mut() {
+                    obj.insert("version".to_string(), Value::from(1));
+                }
             }
             Ok(ConvertResult {
-                json: value,
+                json: result,
                 warnings,
                 wrapper_scripts: vec![],
             })
