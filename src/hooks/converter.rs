@@ -99,7 +99,7 @@ if command -v jq >/dev/null 2>&1; then
     # Map tool name (BL-002)
     | .tool_name = (
         if $in.toolName then
-          {bash:"Bash",powershell:"Bash",view:"Read",create:"Write",edit:"Edit",
+          {bash:"Bash",view:"Read",create:"Write",edit:"Edit",
            glob:"Glob",grep:"Grep",web_fetch:"WebFetch",task:"Agent"}[$in.toolName] // $in.toolName
         else ($in.tool_name // null) end
       )
