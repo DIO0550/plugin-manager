@@ -645,6 +645,11 @@ fn convert_http_hook(
                 // Use double quotes to allow $VAR expansion in header values.
                 let escaped_value = v_str.replace('\\', "\\\\").replace('"', "\\\"");
                 headers_lines.push_str(&format!("  -H \"{}: {}\" \\\n", k, escaped_value));
+            } else {
+                return Err(PlmError::HookConversion(format!(
+                    "http hook header '{}' has non-string value; only string values are supported",
+                    k
+                )));
             }
         }
     }
