@@ -572,6 +572,12 @@ fn convert_http_hook(
             PlmError::HookConversion("http hook missing required 'url' field".to_string())
         })?;
 
+    if url.contains('\n') || url.contains('\r') {
+        return Err(PlmError::HookConversion(
+            "http hook 'url' value contains newline characters".to_string(),
+        ));
+    }
+
     let method = hook_obj
         .get("method")
         .and_then(|m| m.as_str())
