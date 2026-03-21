@@ -682,7 +682,7 @@ HOOK_EVENT='{}'
 {}
 # --- http hook: {} {} ---
 HTTP_RESPONSE=$(printf '%s' "$CLAUDE_INPUT" | curl -s -w '\n%{{http_code}}' -X {} \
-{}{}  '{}' 2>/dev/null || echo -e '\n000')
+{}{}  '{}' 2>/dev/null || printf '\n000')
 
 HTTP_BODY=$(printf '%s' "$HTTP_RESPONSE" | sed '$d')
 HTTP_CODE=$(printf '%s' "$HTTP_RESPONSE" | tail -1)
