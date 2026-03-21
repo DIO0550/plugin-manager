@@ -153,15 +153,19 @@ STDERR=$(cat "$PLM_STDERR_FILE" 2>/dev/null || echo "")
 # --- exit code + stdout conversion ---
 # Copilot CLI only parses stdout for preToolUse; other events ignore it.
 if [ "$EXIT_CODE" -eq 0 ] && [ -n "$RESULT" ] && [ "$HOOK_EVENT" = "preToolUse" ]; then
-  printf '%s' "$RESULT" | jq '
-    if .hookSpecificOutput then
-      .hookSpecificOutput
-      | del(.hookEventName, .updatedInput, .additionalContext, .continue, .stopReason, .suppressOutput, .systemMessage)
-      | if has("permissionDecision") then
-          {permissionDecision, permissionDecisionReason}
-        else . end
-    else . end
-  ' 2>/dev/null || true
+  if command -v jq >/dev/null 2>&1; then
+    printf '%s' "$RESULT" | jq '
+      if .hookSpecificOutput then
+        .hookSpecificOutput
+        | del(.hookEventName, .updatedInput, .additionalContext, .continue, .stopReason, .suppressOutput, .systemMessage)
+        | if has("permissionDecision") then
+            {permissionDecision, permissionDecisionReason}
+          else . end
+      else . end
+    ' 2>/dev/null || true
+  else
+    printf '%s' "$RESULT"
+  fi
 elif [ "$EXIT_CODE" -eq 2 ] && [ "$HOOK_EVENT" = "preToolUse" ]; then
   REASON="${STDERR:-Blocked by hook}"
   if command -v jq >/dev/null 2>&1; then
