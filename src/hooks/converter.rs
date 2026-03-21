@@ -151,7 +151,8 @@ RESULT=$(cat "$PLM_STDOUT_FILE" 2>/dev/null || echo "")
 STDERR=$(cat "$PLM_STDERR_FILE" 2>/dev/null || echo "")
 
 # --- exit code + stdout conversion ---
-if [ "$EXIT_CODE" -eq 0 ] && [ -n "$RESULT" ]; then
+# Copilot CLI only parses stdout for preToolUse; other events ignore it.
+if [ "$EXIT_CODE" -eq 0 ] && [ -n "$RESULT" ] && [ "$HOOK_EVENT" = "preToolUse" ]; then
   printf '%s' "$RESULT" | jq '
     if .hookSpecificOutput then
       .hookSpecificOutput
@@ -161,7 +162,7 @@ if [ "$EXIT_CODE" -eq 0 ] && [ -n "$RESULT" ]; then
         else . end
     else . end
   ' 2>/dev/null || true
-elif [ "$EXIT_CODE" -eq 2 ]; then
+elif [ "$EXIT_CODE" -eq 2 ] && [ "$HOOK_EVENT" = "preToolUse" ]; then
   REASON="${STDERR:-Blocked by hook}"
   if command -v jq >/dev/null 2>&1; then
     jq -n --arg reason "$REASON" '{"permissionDecision":"deny","permissionDecisionReason":$reason}'
@@ -485,7 +486,8 @@ fn convert_command_hook(
     let matcher_filter = generate_matcher_filter(matcher);
 
     let script_content = format!(
-        "#!/bin/bash\nset -euo pipefail\n\n{}\n{}\nORIGINAL_CMD='{}'\n\n{}\n",
+        "#!/bin/bash\nset -euo pipefail\n\nHOOK_EVENT='{}'\n\n{}\n{}\nORIGINAL_CMD='{}'\n\n{}\n",
+        shell_escape(event),
         ENV_BRIDGE,
         matcher_filter,
         shell_escape(command),
