@@ -164,7 +164,7 @@ if [ "$EXIT_CODE" -eq 0 ] && [ -n "$RESULT" ] && [ "$HOOK_EVENT" = "preToolUse" 
       else . end
     ' 2>/dev/null || true
   else
-    printf '%s' "$RESULT"
+    echo "plm: warning: jq not found; suppressing hook stdout to avoid invalid Copilot JSON" >&2
   fi
 elif [ "$EXIT_CODE" -eq 2 ] && [ "$HOOK_EVENT" = "preToolUse" ]; then
   REASON="${STDERR:-Blocked by hook}"
