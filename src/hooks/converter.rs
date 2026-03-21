@@ -627,7 +627,7 @@ exit 0
         ENV_BRIDGE,
         matcher_filter,
         method.to_uppercase(),
-        shell_escape(url),
+        url.replace('\n', "\\n").replace('\r', "\\r"),
         method.to_uppercase(),
         headers_lines,
         shell_escape(url)
