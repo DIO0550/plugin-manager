@@ -467,6 +467,12 @@ fn convert_command_hook(
             PlmError::HookConversion("command hook missing required 'command' field".to_string())
         })?;
 
+    if command.contains('\n') || command.contains('\r') {
+        return Err(PlmError::HookConversion(
+            "command must not contain newline or carriage return characters".to_string(),
+        ));
+    }
+
     let mut output = serde_json::Map::new();
     let mut timeout_value = None;
     let mut comment_value = None;
