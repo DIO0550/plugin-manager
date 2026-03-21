@@ -654,6 +654,20 @@ fn convert_http_hook(
                 )));
             }
         }
+
+        // Add default Content-Type if not provided by user
+        let has_content_type = headers
+            .keys()
+            .any(|k| k.eq_ignore_ascii_case("content-type"));
+        if !has_content_type {
+            headers_lines = format!(
+                "  -H \"Content-Type: application/json\" \\\n{}",
+                headers_lines
+            );
+        }
+    } else {
+        // No headers at all: add default Content-Type
+        headers_lines = "  -H \"Content-Type: application/json\" \\\n".to_string();
     }
 
     let matcher_filter = generate_matcher_filter(matcher);
