@@ -434,7 +434,7 @@ fn generate_matcher_filter(matcher: Option<&str>) -> String {
             let safe = pattern.replace('\n', "\\n").replace('\r', "\\r");
             let anchored = format!("^({})$", safe);
             format!(
-                "\n# --- matcher filter: '{}' ---\nif command -v jq >/dev/null 2>&1; then\n  TOOL_NAME=$(printf '%s' \"$CLAUDE_INPUT\" | jq -r '.tool_name // empty')\n  if [ -n \"$TOOL_NAME\" ] && ! echo \"$TOOL_NAME\" | grep -qE -e '{}'; then\n    exit 0\n  fi\nfi\n",
+                "\n# --- matcher filter: '{}' ---\nif command -v jq >/dev/null 2>&1; then\n  TOOL_NAME=$(printf '%s' \"$CLAUDE_INPUT\" | jq -r '.tool_name // empty' 2>/dev/null || true)\n  if [ -n \"$TOOL_NAME\" ] && ! echo \"$TOOL_NAME\" | grep -qE -e '{}'; then\n    exit 0\n  fi\nfi\n",
                 shell_escape(&safe),
                 shell_escape(&anchored)
             )
