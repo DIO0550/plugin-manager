@@ -701,6 +701,89 @@ fn test_http_hook_shell_escape() {
 }
 
 // ============================================================================
+// HTTP header validation
+// ============================================================================
+
+#[test]
+fn test_http_header_invalid_name_rejected() {
+    let input = r#"{
+        "hooks": {
+            "SessionStart": [
+                { "hooks": [{ "type": "http", "url": "https://example.com", "headers": { "Invalid Header": "value" } }] }
+            ]
+        }
+    }"#;
+    let result = convert(input);
+    assert!(result.is_err());
+    match result.unwrap_err() {
+        PlmError::HookConversion(msg) => assert!(msg.contains("invalid characters")),
+        other => panic!("Expected HookConversion, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_http_header_value_newline_rejected() {
+    let input = "{\n\"hooks\": {\n\"SessionStart\": [\n{ \"hooks\": [{ \"type\": \"http\", \"url\": \"https://example.com\", \"headers\": { \"X-Test\": \"val\\nue\" } }] }\n]\n}\n}";
+    let result = convert(input);
+    assert!(result.is_err());
+    match result.unwrap_err() {
+        PlmError::HookConversion(msg) => assert!(msg.contains("newline")),
+        other => panic!("Expected HookConversion, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_http_header_value_command_substitution_rejected() {
+    let input = r#"{
+        "hooks": {
+            "SessionStart": [
+                { "hooks": [{ "type": "http", "url": "https://example.com", "headers": { "X-Test": "$(whoami)" } }] }
+            ]
+        }
+    }"#;
+    let result = convert(input);
+    assert!(result.is_err());
+    match result.unwrap_err() {
+        PlmError::HookConversion(msg) => assert!(msg.contains("command substitution")),
+        other => panic!("Expected HookConversion, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_http_header_value_backtick_rejected() {
+    let input = r#"{
+        "hooks": {
+            "SessionStart": [
+                { "hooks": [{ "type": "http", "url": "https://example.com", "headers": { "X-Test": "`whoami`" } }] }
+            ]
+        }
+    }"#;
+    let result = convert(input);
+    assert!(result.is_err());
+    match result.unwrap_err() {
+        PlmError::HookConversion(msg) => assert!(msg.contains("command substitution")),
+        other => panic!("Expected HookConversion, got {:?}", other),
+    }
+}
+
+#[test]
+fn test_http_header_non_string_value_rejected() {
+    let input = r#"{
+        "hooks": {
+            "SessionStart": [
+                { "hooks": [{ "type": "http", "url": "https://example.com", "headers": { "X-Test": 123 } }] }
+            ]
+        }
+    }"#;
+    let result = convert(input);
+    assert!(result.is_err());
+    match result.unwrap_err() {
+        PlmError::HookConversion(msg) => assert!(msg.contains("non-string")),
+        other => panic!("Expected HookConversion, got {:?}", other),
+    }
+}
+
+// ============================================================================
 // Error cases
 // ============================================================================
 
@@ -731,7 +814,9 @@ fn test_command_with_carriage_return_rejected() {
     let result = convert(input);
     assert!(result.is_err());
     match result.unwrap_err() {
-        PlmError::HookConversion(msg) => assert!(msg.contains("newline") || msg.contains("carriage")),
+        PlmError::HookConversion(msg) => {
+            assert!(msg.contains("newline") || msg.contains("carriage"))
+        }
         other => panic!("Expected HookConversion, got {:?}", other),
     }
 }
