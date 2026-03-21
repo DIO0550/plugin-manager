@@ -358,6 +358,17 @@ fn flatten_matchers(
             }
         };
 
+        // Emit matcher warning once per group, not per hook
+        if let Some(m) = matcher {
+            warnings.push(ConversionWarning::RemovedField {
+                field: "matcher".to_string(),
+                reason: format!(
+                    "Matcher '{}' moved to wrapper script for event '{}'",
+                    m, event
+                ),
+            });
+        }
+
         for hook in hooks {
             if let Some(converted) =
                 convert_hook_definition(hook, matcher, event, warnings, wrapper_scripts)?
@@ -382,16 +393,6 @@ fn convert_hook_definition(
         .get("type")
         .and_then(|t| t.as_str())
         .unwrap_or("command");
-
-    if let Some(m) = matcher {
-        warnings.push(ConversionWarning::RemovedField {
-            field: "matcher".to_string(),
-            reason: format!(
-                "Matcher '{}' moved to wrapper script for event '{}'",
-                m, event
-            ),
-        });
-    }
 
     match hook_type {
         "command" => {
