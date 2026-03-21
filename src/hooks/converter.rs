@@ -661,8 +661,7 @@ HOOK_EVENT='{}'
 {}
 # --- http hook: {} {} ---
 HTTP_RESPONSE=$(printf '%s' "$CLAUDE_INPUT" | curl -s -w '\n%{{http_code}}' -X {} \
-{}  -d @- \
-  '{}' 2>/dev/null || echo -e '\n000')
+{}{}  '{}' 2>/dev/null || echo -e '\n000')
 
 HTTP_BODY=$(printf '%s' "$HTTP_RESPONSE" | sed '$d')
 HTTP_CODE=$(printf '%s' "$HTTP_RESPONSE" | tail -1)
@@ -691,6 +690,11 @@ exit 0
         url.replace('\n', "\\n").replace('\r', "\\r"),
         method.to_uppercase(),
         headers_lines,
+        if matches!(method.to_uppercase().as_str(), "GET" | "HEAD" | "OPTIONS") {
+            ""
+        } else {
+            "  -d @- \\\n"
+        },
         shell_escape(url)
     );
 
