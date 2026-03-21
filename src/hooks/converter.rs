@@ -318,7 +318,16 @@ fn flatten_matchers(
 
     let groups_arr = match groups.as_array() {
         Some(arr) => arr,
-        None => return Ok(result),
+        None => {
+            warnings.push(ConversionWarning::RemovedField {
+                field: event.to_string(),
+                reason: format!(
+                    "Event '{}' value is not an array; expected matcher group structure",
+                    event
+                ),
+            });
+            return Ok(result);
+        }
     };
 
     for group in groups_arr {
@@ -329,7 +338,16 @@ fn flatten_matchers(
 
         let hooks = match group.get("hooks").and_then(|h| h.as_array()) {
             Some(arr) => arr,
-            None => continue,
+            None => {
+                warnings.push(ConversionWarning::RemovedField {
+                    field: "hooks".to_string(),
+                    reason: format!(
+                        "Matcher group in event '{}' is missing 'hooks' array; skipped",
+                        event
+                    ),
+                });
+                continue;
+            }
         };
 
         for hook in hooks {
