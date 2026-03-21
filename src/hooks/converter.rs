@@ -357,6 +357,16 @@ fn convert_hook_definition(
         .and_then(|t| t.as_str())
         .unwrap_or("command");
 
+    if let Some(m) = matcher {
+        warnings.push(ConversionWarning::RemovedField {
+            field: "matcher".to_string(),
+            reason: format!(
+                "Matcher '{}' moved to wrapper script for event '{}'",
+                m, event
+            ),
+        });
+    }
+
     match hook_type {
         "command" => {
             let converted = convert_command_hook(hook, matcher, event, warnings, wrapper_scripts)?;
@@ -493,16 +503,6 @@ fn convert_command_hook(
         "bash".to_string(),
         Value::from(format!("./wrappers/{}", script_name)),
     );
-
-    if let Some(matcher_pattern) = matcher {
-        warnings.push(ConversionWarning::RemovedField {
-            field: "matcher".to_string(),
-            reason: format!(
-                "Matcher '{}' moved to wrapper script '{}'",
-                matcher_pattern, script_name
-            ),
-        });
-    }
 
     if let Some(t) = timeout_value {
         output.insert("timeoutSec".to_string(), t);
