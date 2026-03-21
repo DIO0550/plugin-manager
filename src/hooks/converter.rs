@@ -588,7 +588,9 @@ fn convert_http_hook(
         .and_then(|m| m.as_str())
         .unwrap_or("POST");
 
-    if !ALLOWED_HTTP_METHODS.contains(&method.to_uppercase().as_str()) {
+    let method_upper = method.to_uppercase();
+
+    if !ALLOWED_HTTP_METHODS.contains(&method_upper.as_str()) {
         return Err(PlmError::HookConversion(format!(
             "http hook has unsupported method '{}'; allowed: {}",
             method,
@@ -691,11 +693,11 @@ exit 0
         shell_escape(event),
         ENV_BRIDGE,
         matcher_filter,
-        method.to_uppercase(),
+        method_upper,
         url.replace('\n', "\\n").replace('\r', "\\r"),
-        method.to_uppercase(),
+        method_upper,
         headers_lines,
-        if matches!(method.to_uppercase().as_str(), "GET" | "HEAD" | "OPTIONS") {
+        if matches!(method_upper.as_str(), "GET" | "HEAD" | "OPTIONS") {
             ""
         } else {
             "  -d @- \\\n"
