@@ -99,8 +99,8 @@ fn build_env_bridge(event: &str) -> String {
     # Normalize session identifier
     | .session_id = ($in.sessionId // $in.session_id // "plm-bridge")"#;
 
-    // Tool-specific jq fragment appended for preToolUse/postToolUse
-    let tool_jq = r#"
+    // Tool name + input jq fragment shared by preToolUse and postToolUse
+    let tool_common_jq = r#"
     # Map tool name (BL-002)
     | .tool_name = (
         if $in.toolName then
@@ -113,18 +113,26 @@ fn build_env_bridge(event: &str) -> String {
         if $in.toolArgs then ($in.toolArgs | try fromjson catch {})
         elif $in.tool_input then $in.tool_input
         else null end
-      )
-    # Normalize tool response (PostToolUse)
+      )"#;
+
+    // tool_response jq fragment: only for postToolUse
+    let tool_response_jq = r#"
+    # Normalize tool response (PostToolUse only)
     | .tool_response = (
         if $in.toolResult then $in.toolResult
         elif $in.tool_response then $in.tool_response
         else null end
-      )
-    # Clean up Copilot-specific keys that have been normalized
-    | del(.toolName, .toolArgs, .toolResult, .sessionId)"#;
+      )"#;
 
     let jq_body = match event {
-        "preToolUse" | "postToolUse" => format!("{}{}", base_jq, tool_jq),
+        "preToolUse" => format!(
+            "{}{}\n    # Clean up Copilot-specific keys that have been normalized\n    | del(.toolName, .toolArgs, .sessionId)",
+            base_jq, tool_common_jq
+        ),
+        "postToolUse" => format!(
+            "{}{}{}\n    # Clean up Copilot-specific keys that have been normalized\n    | del(.toolName, .toolArgs, .toolResult, .sessionId)",
+            base_jq, tool_common_jq, tool_response_jq
+        ),
         _ => format!(
             "{}\n    # Clean up Copilot-specific keys\n    | del(.sessionId)",
             base_jq

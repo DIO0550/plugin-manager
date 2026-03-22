@@ -1408,4 +1408,9 @@ fn test_integ_pre_tool_use_has_tool_mapping() {
     assert!(result.get("sessionId").is_none());
     assert!(result.get("timestamp").is_none());
     assert_eq!(result["session_id"], "s5");
+    // preToolUse should NOT have tool_response (it's postToolUse-only)
+    assert!(
+        result.get("tool_response").is_none(),
+        "tool_response should not be present for preToolUse"
+    );
 }
