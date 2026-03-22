@@ -80,18 +80,21 @@ enum SourceFormat {
     CopilotCli,
 }
 
-/// Environment variable bridge lines for wrapper scripts.
+/// Build event-specific environment variable bridge for wrapper scripts.
 /// Copilot CLI passes hook payload via stdin (not env var), so we read it first.
 /// Constructs a Claude Code-compatible `CLAUDE_INPUT` JSON from the Copilot CLI payload,
 /// using tool name mapping from script-wrapper-spec.md BL-002.
 /// Falls back to pass-through if jq is unavailable or transformation fails (fail-open).
 /// `@@PLUGIN_ROOT@@` is a placeholder replaced by PLM at install time with the actual plugin root.
-const ENV_BRIDGE: &str = r#"COPILOT_INPUT=$(cat)
-CLAUDE_INPUT="$COPILOT_INPUT"
-
-if command -v jq >/dev/null 2>&1; then
-  if TRANSFORMED=$(printf '%s' "$COPILOT_INPUT" | jq '
-    . as $in | $in
+///
+/// Variants by event:
+/// - preToolUse/postToolUse: full transformation including tool_name/tool_input/tool_response
+/// - sessionStart: base transformation + source mapping + del(.initialPrompt)
+/// - others: base transformation only (del(.timestamp), session_id normalization)
+fn build_env_bridge(event: &str) -> String {
+    let jq_body = match event {
+        "preToolUse" | "postToolUse" => {
+            r#"    . as $in | $in
     # Remove Copilot-specific timestamp
     | del(.timestamp)
     # Normalize session identifier
@@ -116,7 +119,44 @@ if command -v jq >/dev/null 2>&1; then
         else null end
       )
     # Clean up Copilot-specific keys that have been normalized
-    | del(.toolName, .toolArgs, .toolResult, .sessionId)
+    | del(.toolName, .toolArgs, .toolResult, .sessionId)"#
+        }
+        _ => {
+            r#"    . as $in | $in
+    # Remove Copilot-specific timestamp
+    | del(.timestamp)
+    # Normalize session identifier
+    | .session_id = ($in.sessionId // $in.session_id // "plm-bridge")
+    # Clean up Copilot-specific keys
+    | del(.sessionId)"#
+        }
+    };
+
+    let session_start_extra = if event == "sessionStart" {
+        r#"
+# sessionStart-specific: source mapping + del(.initialPrompt)
+if command -v jq >/dev/null 2>&1; then
+  if SESSION_TRANSFORMED=$(printf '%s' "$CLAUDE_INPUT" | jq '
+    (if has("source") then .source |= (if . == "new" then "startup" elif . == "resume" then "resume" else . end) else . end)
+    | del(.initialPrompt)
+  ' 2>/dev/null); then
+    CLAUDE_INPUT="$SESSION_TRANSFORMED"
+  else
+    echo "plm: warning: failed to apply sessionStart-specific transformation" >&2
+  fi
+fi
+"#
+    } else {
+        ""
+    };
+
+    format!(
+        r#"COPILOT_INPUT=$(cat)
+CLAUDE_INPUT="$COPILOT_INPUT"
+
+if command -v jq >/dev/null 2>&1; then
+  if TRANSFORMED=$(printf '%s' "$COPILOT_INPUT" | jq '
+{}
   ' 2>/dev/null); then
     CLAUDE_INPUT="$TRANSFORMED"
   else
@@ -125,13 +165,16 @@ if command -v jq >/dev/null 2>&1; then
 else
   echo "plm: warning: jq not found; passing through original hook stdin JSON" >&2
 fi
-
+{}
 CLAUDE_PROJECT_DIR=""
 if command -v jq >/dev/null 2>&1; then
   CLAUDE_PROJECT_DIR=$(printf '%s' "$CLAUDE_INPUT" | jq -r '.cwd // empty' 2>/dev/null || echo "")
 fi
 export CLAUDE_PROJECT_DIR
-export CLAUDE_PLUGIN_ROOT="@@PLUGIN_ROOT@@""#;
+export CLAUDE_PLUGIN_ROOT="@@PLUGIN_ROOT@@""#,
+        jq_body, session_start_extra
+    )
+}
 
 /// Exit code and stdout conversion logic for command hook wrappers.
 /// Implements script-wrapper-spec.md BL-004 (stdout conversion) and BL-005 (exit code translation).
@@ -512,14 +555,14 @@ fn convert_command_hook(
     }
 
     // Always generate a wrapper script for command hooks so that the
-    // ENV_BRIDGE (stdin schema conversion + CLAUDE_* env vars) is applied.
+    // env bridge (stdin schema conversion + CLAUDE_* env vars) is applied.
     let script_name = format!("cmd-{}-{}.sh", event, wrapper_scripts.len());
     let matcher_filter = generate_matcher_filter(matcher);
 
     let script_content = format!(
         "#!/bin/bash\nset -euo pipefail\n\nHOOK_EVENT='{}'\n\n{}\n{}\nORIGINAL_CMD='{}'\n\n{}\n",
         shell_escape(event),
-        ENV_BRIDGE,
+        &build_env_bridge(event),
         matcher_filter,
         shell_escape(command),
         EXIT_CODE_HANDLER
@@ -681,8 +724,7 @@ HOOK_EVENT='{}'
 {}
 {}
 # --- http hook: {} {} ---
-HTTP_RESPONSE=$(printf '%s' "$CLAUDE_INPUT" | curl -s -w '\n%{{http_code}}' -X {} \
-{}{}  '{}' 2>/dev/null || printf '\n000')
+{}
 
 HTTP_BODY=$(printf '%s' "$HTTP_RESPONSE" | sed '$d')
 HTTP_CODE=$(printf '%s' "$HTTP_RESPONSE" | tail -1)
@@ -705,18 +747,26 @@ fi
 exit 0
 "#,
         shell_escape(event),
-        ENV_BRIDGE,
+        &build_env_bridge(event),
         matcher_filter,
         method_upper,
         url.replace('\n', "\\n").replace('\r', "\\r"),
-        method_upper,
-        headers_lines,
-        if matches!(method_upper.as_str(), "GET" | "HEAD" | "OPTIONS") {
-            ""
-        } else {
-            "  -d @- \\\n"
-        },
-        shell_escape(url)
+        {
+            let escaped_url = shell_escape(url);
+            if matches!(method_upper.as_str(), "GET" | "HEAD" | "OPTIONS") {
+                // No body: don't pipe stdin to curl to avoid SIGPIPE
+                format!(
+                    "HTTP_RESPONSE=$(curl -s -w '\\n%{{http_code}}' -X {} \\\n{}  '{}' 2>/dev/null || printf '\\n000')",
+                    method_upper, headers_lines, escaped_url
+                )
+            } else {
+                // Body: pipe CLAUDE_INPUT via stdin
+                format!(
+                    "HTTP_RESPONSE=$(printf '%s' \"$CLAUDE_INPUT\" | curl -s -w '\\n%{{http_code}}' -X {} \\\n{}  -d @- \\\n  '{}' 2>/dev/null || printf '\\n000')",
+                    method_upper, headers_lines, escaped_url
+                )
+            }
+        }
     );
 
     wrapper_scripts.push(WrapperScriptInfo {
@@ -760,7 +810,7 @@ fn convert_prompt_agent_hook(
 
     let script_content = format!(
         "#!/bin/bash\nset -euo pipefail\n\n{}\n{}\n# TODO: This is a stub for a Claude Code '{}' hook.\n# prompt/agent hooks are Claude Code-specific features.\n# Please manually rewrite as scripts.\n#\n# Original configuration:\n# {}\n\necho \"STUB: {} hook for event '{}' - please implement manually\" >&2\nexit 0\n",
-        ENV_BRIDGE,
+        &build_env_bridge(event),
         matcher_filter,
         hook_type,
         original_json.replace('\n', "\n# "),
