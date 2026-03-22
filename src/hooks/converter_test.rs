@@ -1033,3 +1033,403 @@ fn test_hook_conversion_error_code() {
     let rich: RichError = error.into();
     assert_eq!(rich.code(), ErrorCode::Hok001);
 }
+
+// ============================================================================
+// Event-specific ENV_BRIDGE (build_env_bridge)
+// ============================================================================
+
+#[test]
+fn test_session_start_has_source_mapping() {
+    let input = r#"{
+        "hooks": {
+            "SessionStart": [
+                { "hooks": [{ "type": "command", "command": "echo start" }] }
+            ]
+        }
+    }"#;
+    let result = convert(input).unwrap();
+    let script = &result.wrapper_scripts[0];
+    // sessionStart should have source mapping jq (new -> startup)
+    assert!(script.content.contains("startup"));
+    assert!(script.content.contains("resume"));
+}
+
+#[test]
+fn test_session_start_has_del_initial_prompt() {
+    let input = r#"{
+        "hooks": {
+            "SessionStart": [
+                { "hooks": [{ "type": "command", "command": "echo start" }] }
+            ]
+        }
+    }"#;
+    let result = convert(input).unwrap();
+    let script = &result.wrapper_scripts[0];
+    assert!(script.content.contains("del(.initialPrompt)"));
+}
+
+#[test]
+fn test_pre_tool_use_has_tool_fields() {
+    let input = r#"{
+        "hooks": {
+            "PreToolUse": [
+                { "hooks": [{ "type": "command", "command": "echo pre" }] }
+            ]
+        }
+    }"#;
+    let result = convert(input).unwrap();
+    let script = &result.wrapper_scripts[0];
+    // preToolUse should have tool_name mapping
+    assert!(script.content.contains("tool_name"));
+    assert!(script.content.contains("tool_input"));
+    assert!(script.content.contains("toolName"));
+}
+
+#[test]
+fn test_user_prompt_submitted_no_tool_fields() {
+    let input = r#"{
+        "hooks": {
+            "UserPromptSubmit": [
+                { "hooks": [{ "type": "command", "command": "echo prompt" }] }
+            ]
+        }
+    }"#;
+    let result = convert(input).unwrap();
+    let script = &result.wrapper_scripts[0];
+    // userPromptSubmitted should NOT have tool_name/tool_input/tool_response mapping
+    assert!(!script.content.contains("tool_name"));
+    assert!(!script.content.contains("tool_input"));
+    assert!(!script.content.contains("tool_response"));
+    // But should still have COPILOT_INPUT and CLAUDE_INPUT
+    assert!(script.content.contains("COPILOT_INPUT=$(cat)"));
+    assert!(script.content.contains("CLAUDE_INPUT"));
+    assert!(script.content.contains("CLAUDE_PROJECT_DIR"));
+}
+
+#[test]
+fn test_session_start_fail_open_warning() {
+    let input = r#"{
+        "hooks": {
+            "SessionStart": [
+                { "hooks": [{ "type": "command", "command": "echo start" }] }
+            ]
+        }
+    }"#;
+    let result = convert(input).unwrap();
+    let script = &result.wrapper_scripts[0];
+    // sessionStart should have fail-open warning for secondary jq
+    assert!(script
+        .content
+        .contains("plm: warning: failed to apply sessionStart-specific transformation"));
+}
+
+// ============================================================================
+// bash -n syntax validation for generated wrapper scripts
+// ============================================================================
+
+/// Helper: generate a command hook wrapper for the given Claude Code event name.
+fn generate_wrapper_for_event(claude_event: &str) -> String {
+    generate_wrapper_for_event_with_command(claude_event, "echo test")
+}
+
+/// Helper: generate a command hook wrapper with a custom command.
+fn generate_wrapper_for_event_with_command(claude_event: &str, command: &str) -> String {
+    let input = format!(
+        r#"{{
+        "hooks": {{
+            "{}": [
+                {{ "hooks": [{{ "type": "command", "command": "{}" }}] }}
+            ]
+        }}
+    }}"#,
+        claude_event, command
+    );
+    let result = convert(&input).unwrap();
+    result.wrapper_scripts[0].content.clone()
+}
+
+/// Helper: run just the env bridge portion of a generated wrapper script,
+/// then output $CLAUDE_INPUT to stdout. This bypasses the EXIT_CODE_HANDLER
+/// which only outputs for preToolUse events.
+fn run_env_bridge_for_event(claude_event: &str, stdin_json: &str) -> (String, String) {
+    let script = generate_wrapper_for_event_with_command(claude_event, "true");
+    // Extract everything before ORIGINAL_CMD= (the env bridge part),
+    // then output CLAUDE_INPUT directly.
+    let marker = "ORIGINAL_CMD=";
+    let env_bridge_end = script.find(marker).unwrap_or(script.len());
+    let test_script = format!(
+        "{}printf '%s' \"$CLAUDE_INPUT\"\n",
+        &script[..env_bridge_end]
+    );
+
+    let tmp = std::env::temp_dir().join(format!(
+        "plm-integ-{}.sh",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::write(&tmp, &test_script).unwrap();
+    let output = std::process::Command::new("bash")
+        .arg(&tmp)
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .and_then(|mut child| {
+            use std::io::Write;
+            child
+                .stdin
+                .take()
+                .unwrap()
+                .write_all(stdin_json.as_bytes())
+                .unwrap();
+            child.wait_with_output()
+        })
+        .unwrap();
+    std::fs::remove_file(&tmp).ok();
+    (
+        String::from_utf8_lossy(&output.stdout).to_string(),
+        String::from_utf8_lossy(&output.stderr).to_string(),
+    )
+}
+
+#[test]
+fn test_bash_n_syntax_pre_tool_use() {
+    let script = generate_wrapper_for_event("PreToolUse");
+    let tmp = std::env::temp_dir().join("plm-test-pre-tool-use.sh");
+    std::fs::write(&tmp, &script).unwrap();
+    let output = std::process::Command::new("bash")
+        .arg("-n")
+        .arg(&tmp)
+        .output()
+        .unwrap();
+    std::fs::remove_file(&tmp).ok();
+    assert!(
+        output.status.success(),
+        "bash -n failed for preToolUse:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn test_bash_n_syntax_post_tool_use() {
+    let script = generate_wrapper_for_event("PostToolUse");
+    let tmp = std::env::temp_dir().join("plm-test-post-tool-use.sh");
+    std::fs::write(&tmp, &script).unwrap();
+    let output = std::process::Command::new("bash")
+        .arg("-n")
+        .arg(&tmp)
+        .output()
+        .unwrap();
+    std::fs::remove_file(&tmp).ok();
+    assert!(
+        output.status.success(),
+        "bash -n failed for postToolUse:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn test_bash_n_syntax_session_start() {
+    let script = generate_wrapper_for_event("SessionStart");
+    let tmp = std::env::temp_dir().join("plm-test-session-start.sh");
+    std::fs::write(&tmp, &script).unwrap();
+    let output = std::process::Command::new("bash")
+        .arg("-n")
+        .arg(&tmp)
+        .output()
+        .unwrap();
+    std::fs::remove_file(&tmp).ok();
+    assert!(
+        output.status.success(),
+        "bash -n failed for sessionStart:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn test_bash_n_syntax_user_prompt_submitted() {
+    let script = generate_wrapper_for_event("UserPromptSubmit");
+    let tmp = std::env::temp_dir().join("plm-test-user-prompt-submitted.sh");
+    std::fs::write(&tmp, &script).unwrap();
+    let output = std::process::Command::new("bash")
+        .arg("-n")
+        .arg(&tmp)
+        .output()
+        .unwrap();
+    std::fs::remove_file(&tmp).ok();
+    assert!(
+        output.status.success(),
+        "bash -n failed for userPromptSubmitted:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn test_bash_n_syntax_session_end() {
+    let script = generate_wrapper_for_event("SessionEnd");
+    let tmp = std::env::temp_dir().join("plm-test-session-end.sh");
+    std::fs::write(&tmp, &script).unwrap();
+    let output = std::process::Command::new("bash")
+        .arg("-n")
+        .arg(&tmp)
+        .output()
+        .unwrap();
+    std::fs::remove_file(&tmp).ok();
+    assert!(
+        output.status.success(),
+        "bash -n failed for sessionEnd:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+// ============================================================================
+// Integration tests: verify actual JSON transformation via script execution
+// ============================================================================
+
+#[test]
+fn test_integ_session_start_source_mapping_and_del_initial_prompt() {
+    // Skip if jq is not available
+    if std::process::Command::new("jq")
+        .arg("--version")
+        .output()
+        .is_err()
+    {
+        return;
+    }
+
+    let input_json =
+        r#"{"source":"new","initialPrompt":"hello","sessionId":"s1","cwd":"/tmp","timestamp":123}"#;
+    let (stdout, _stderr) = run_env_bridge_for_event("SessionStart", input_json);
+
+    let result: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap_or_else(|e| {
+        panic!("Failed to parse stdout JSON: {}\nstdout: {}", e, stdout);
+    });
+
+    // source "new" -> "startup"
+    assert_eq!(result["source"], "startup");
+    // initialPrompt removed
+    assert!(result.get("initialPrompt").is_none());
+    // session_id normalized
+    assert_eq!(result["session_id"], "s1");
+    // timestamp removed
+    assert!(result.get("timestamp").is_none());
+    // sessionId removed
+    assert!(result.get("sessionId").is_none());
+    // tool fields should NOT be present
+    assert!(result.get("tool_name").is_none());
+    assert!(result.get("tool_input").is_none());
+    assert!(result.get("tool_response").is_none());
+}
+
+#[test]
+fn test_integ_session_start_source_resume() {
+    if std::process::Command::new("jq")
+        .arg("--version")
+        .output()
+        .is_err()
+    {
+        return;
+    }
+
+    let input_json = r#"{"source":"resume","sessionId":"s2"}"#;
+    let (stdout, _stderr) = run_env_bridge_for_event("SessionStart", input_json);
+
+    let result: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap_or_else(|e| {
+        panic!("Failed to parse stdout JSON: {}\nstdout: {}", e, stdout);
+    });
+
+    assert_eq!(result["source"], "resume");
+}
+
+#[test]
+fn test_integ_session_start_no_source_field() {
+    if std::process::Command::new("jq")
+        .arg("--version")
+        .output()
+        .is_err()
+    {
+        return;
+    }
+
+    let input_json = r#"{"sessionId":"s3"}"#;
+    let (stdout, _stderr) = run_env_bridge_for_event("SessionStart", input_json);
+
+    let result: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap_or_else(|e| {
+        panic!("Failed to parse stdout JSON: {}\nstdout: {}", e, stdout);
+    });
+
+    // source field should NOT be injected as null when missing
+    assert!(
+        result.get("source").is_none(),
+        "source should not be injected when missing from input, got: {:?}",
+        result.get("source")
+    );
+}
+
+#[test]
+fn test_integ_user_prompt_no_tool_fields() {
+    if std::process::Command::new("jq")
+        .arg("--version")
+        .output()
+        .is_err()
+    {
+        return;
+    }
+
+    let input_json = r#"{"prompt":"hello","sessionId":"s4","timestamp":456}"#;
+    let (stdout, _stderr) = run_env_bridge_for_event("UserPromptSubmit", input_json);
+
+    let result: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap_or_else(|e| {
+        panic!("Failed to parse stdout JSON: {}\nstdout: {}", e, stdout);
+    });
+
+    // tool fields should NOT be present
+    assert!(
+        result.get("tool_name").is_none(),
+        "tool_name should not be present for userPromptSubmitted"
+    );
+    assert!(
+        result.get("tool_input").is_none(),
+        "tool_input should not be present for userPromptSubmitted"
+    );
+    assert!(
+        result.get("tool_response").is_none(),
+        "tool_response should not be present for userPromptSubmitted"
+    );
+    // base transformation should still work
+    assert!(result.get("timestamp").is_none());
+    assert_eq!(result["session_id"], "s4");
+    assert!(result.get("sessionId").is_none());
+}
+
+#[test]
+fn test_integ_pre_tool_use_has_tool_mapping() {
+    if std::process::Command::new("jq")
+        .arg("--version")
+        .output()
+        .is_err()
+    {
+        return;
+    }
+
+    let input_json =
+        r#"{"toolName":"bash","toolArgs":"{\"command\":\"ls\"}","sessionId":"s5","timestamp":789}"#;
+    let (stdout, _stderr) = run_env_bridge_for_event("PreToolUse", input_json);
+
+    let result: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap_or_else(|e| {
+        panic!("Failed to parse stdout JSON: {}\nstdout: {}", e, stdout);
+    });
+
+    // tool_name mapped: bash -> Bash
+    assert_eq!(result["tool_name"], "Bash");
+    // tool_input parsed from JSON string
+    assert_eq!(result["tool_input"]["command"], "ls");
+    // Copilot-specific keys cleaned up
+    assert!(result.get("toolName").is_none());
+    assert!(result.get("toolArgs").is_none());
+    assert!(result.get("sessionId").is_none());
+    assert!(result.get("timestamp").is_none());
+    assert_eq!(result["session_id"], "s5");
+}
