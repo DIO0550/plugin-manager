@@ -808,12 +808,7 @@ fn back_to_plugin_browse(model: &mut Model, data: &DataStore) -> UpdateEffect {
 
 /// Phase 2: ExecuteInstall (real dependencies)
 fn execute_install(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
-    execute_install_with(
-        model,
-        data,
-        |mp, plugins, targets, scope| actions::install_plugins(mp, plugins, targets, scope),
-        |d| d.reload(),
-    )
+    execute_install_with(model, data, actions::install_plugins, |d| d.reload())
 }
 
 /// ExecuteInstall の実装本体（依存関数注入パターン）
@@ -1037,8 +1032,8 @@ fn execute_update(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
     execute_update_with(
         model,
         data,
-        |name| actions::update_marketplace(name),
-        || actions::update_all_marketplaces(),
+        actions::update_marketplace,
+        actions::update_all_marketplaces,
         |d| d.reload_marketplaces(),
     )
 }
@@ -1102,12 +1097,9 @@ fn execute_update_with(
 
 /// Phase 2: ExecuteRemove
 fn execute_remove(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
-    execute_remove_with(
-        model,
-        data,
-        |name| actions::remove_marketplace(name),
-        |d| d.reload_marketplaces(),
-    )
+    execute_remove_with(model, data, actions::remove_marketplace, |d| {
+        d.reload_marketplaces()
+    })
 }
 
 /// ExecuteRemove の実装本体

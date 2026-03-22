@@ -48,7 +48,7 @@ fn has_exact_skill_manifest(dir: &Path) -> bool {
         .into_iter()
         .flatten()
         .flatten()
-        .filter(|entry| entry.file_type().map_or(false, |ft| ft.is_file()))
+        .filter(|entry| entry.file_type().is_ok_and(|ft| ft.is_file()))
         .any(|entry| entry.file_name() == expected)
 }
 

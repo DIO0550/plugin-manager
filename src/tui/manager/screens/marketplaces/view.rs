@@ -175,8 +175,8 @@ fn view_market_list(
     let content_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Min(1),                            // リスト
-            Constraint::Length(extra_lines.max(0) as u16), // ステータス/エラー
+            Constraint::Min(1),              // リスト
+            Constraint::Length(extra_lines), // ステータス/エラー
         ])
         .split(chunks[2]);
 

@@ -97,6 +97,9 @@ pub enum PlmError {
 
     #[error("Unsupported conversion: {from} -> {to}")]
     UnsupportedConversion { from: String, to: String },
+
+    #[error("Hook conversion error: {0}")]
+    HookConversion(String),
 }
 
 pub type Result<T> = std::result::Result<T, PlmError>;
@@ -262,6 +265,11 @@ impl From<PlmError> for RichError {
                 format!("Unsupported conversion: {} -> {}", from, to),
                 ErrorContext::default(),
             ),
+            PlmError::HookConversion(s) => (
+                ErrorCode::Hok001,
+                format!("Hook conversion error: {}", s),
+                ErrorContext::default(),
+            ),
         };
 
         RichError::new(code, message).with_context(context)
@@ -405,6 +413,7 @@ mod tests {
                 from: "Copilot".to_string(),
                 to: "Codex".to_string(),
             },
+            PlmError::HookConversion("test".to_string()),
         ];
 
         for error in test_cases {
