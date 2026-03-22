@@ -1221,21 +1221,25 @@ fn assert_bash_n_valid(script: &str, label: &str) {
 }
 
 #[test]
+#[cfg(unix)]
 fn test_bash_n_syntax_pre_tool_use() {
     assert_bash_n_valid(&generate_wrapper_for_event("PreToolUse"), "preToolUse");
 }
 
 #[test]
+#[cfg(unix)]
 fn test_bash_n_syntax_post_tool_use() {
     assert_bash_n_valid(&generate_wrapper_for_event("PostToolUse"), "postToolUse");
 }
 
 #[test]
+#[cfg(unix)]
 fn test_bash_n_syntax_session_start() {
     assert_bash_n_valid(&generate_wrapper_for_event("SessionStart"), "sessionStart");
 }
 
 #[test]
+#[cfg(unix)]
 fn test_bash_n_syntax_user_prompt_submitted() {
     assert_bash_n_valid(
         &generate_wrapper_for_event("UserPromptSubmit"),
@@ -1244,15 +1248,18 @@ fn test_bash_n_syntax_user_prompt_submitted() {
 }
 
 #[test]
+#[cfg(unix)]
 fn test_bash_n_syntax_session_end() {
     assert_bash_n_valid(&generate_wrapper_for_event("SessionEnd"), "sessionEnd");
 }
 
 // ============================================================================
 // Integration tests: verify actual JSON transformation via script execution
+// (unix-only: requires bash and jq)
 // ============================================================================
 
 #[test]
+#[cfg(unix)]
 fn test_integ_session_start_source_mapping_and_del_initial_prompt() {
     // Skip if jq is not available or fails to run correctly
     if !std::process::Command::new("jq")
@@ -1288,6 +1295,7 @@ fn test_integ_session_start_source_mapping_and_del_initial_prompt() {
 }
 
 #[test]
+#[cfg(unix)]
 fn test_integ_session_start_source_resume() {
     if std::process::Command::new("jq")
         .arg("--version")
@@ -1308,6 +1316,7 @@ fn test_integ_session_start_source_resume() {
 }
 
 #[test]
+#[cfg(unix)]
 fn test_integ_session_start_no_source_field() {
     if std::process::Command::new("jq")
         .arg("--version")
@@ -1333,6 +1342,7 @@ fn test_integ_session_start_no_source_field() {
 }
 
 #[test]
+#[cfg(unix)]
 fn test_integ_user_prompt_no_tool_fields() {
     if std::process::Command::new("jq")
         .arg("--version")
@@ -1369,6 +1379,7 @@ fn test_integ_user_prompt_no_tool_fields() {
 }
 
 #[test]
+#[cfg(unix)]
 fn test_integ_pre_tool_use_has_tool_mapping() {
     if std::process::Command::new("jq")
         .arg("--version")
