@@ -1259,15 +1259,18 @@ fn test_bash_n_syntax_session_end() {
 // (unix-only: requires bash and jq)
 // ============================================================================
 
-#[test]
-#[cfg(unix)]
-fn test_integ_session_start_source_mapping_and_del_initial_prompt() {
-    // Skip if jq is not available or fails to run correctly
-    if !std::process::Command::new("jq")
+/// Check if jq is available and working correctly.
+fn jq_available() -> bool {
+    std::process::Command::new("jq")
         .arg("--version")
         .output()
         .is_ok_and(|o| o.status.success())
-    {
+}
+
+#[test]
+#[cfg(unix)]
+fn test_integ_session_start_source_mapping_and_del_initial_prompt() {
+    if !jq_available() {
         return;
     }
 
@@ -1298,11 +1301,7 @@ fn test_integ_session_start_source_mapping_and_del_initial_prompt() {
 #[test]
 #[cfg(unix)]
 fn test_integ_session_start_source_resume() {
-    if std::process::Command::new("jq")
-        .arg("--version")
-        .output()
-        .is_err()
-    {
+    if !jq_available() {
         return;
     }
 
@@ -1319,11 +1318,7 @@ fn test_integ_session_start_source_resume() {
 #[test]
 #[cfg(unix)]
 fn test_integ_session_start_no_source_field() {
-    if std::process::Command::new("jq")
-        .arg("--version")
-        .output()
-        .is_err()
-    {
+    if !jq_available() {
         return;
     }
 
@@ -1345,11 +1340,7 @@ fn test_integ_session_start_no_source_field() {
 #[test]
 #[cfg(unix)]
 fn test_integ_user_prompt_no_tool_fields() {
-    if std::process::Command::new("jq")
-        .arg("--version")
-        .output()
-        .is_err()
-    {
+    if !jq_available() {
         return;
     }
 
@@ -1382,11 +1373,7 @@ fn test_integ_user_prompt_no_tool_fields() {
 #[test]
 #[cfg(unix)]
 fn test_integ_pre_tool_use_has_tool_mapping() {
-    if std::process::Command::new("jq")
-        .arg("--version")
-        .output()
-        .is_err()
-    {
+    if !jq_available() {
         return;
     }
 
