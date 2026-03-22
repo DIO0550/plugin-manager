@@ -1152,6 +1152,8 @@ fn generate_wrapper_for_event_with_command(claude_event: &str, command: &str) ->
 /// then output $CLAUDE_INPUT to stdout. This bypasses the EXIT_CODE_HANDLER
 /// which only outputs for preToolUse events.
 fn run_env_bridge_for_event(claude_event: &str, stdin_json: &str) -> (String, String) {
+    use std::io::Write;
+
     let script = generate_wrapper_for_event_with_command(claude_event, "true");
     // Extract everything before ORIGINAL_CMD= (the env bridge part),
     // then output CLAUDE_INPUT directly.
@@ -1162,22 +1164,21 @@ fn run_env_bridge_for_event(claude_event: &str, stdin_json: &str) -> (String, St
         &script[..env_bridge_end]
     );
 
-    let tmp = std::env::temp_dir().join(format!(
-        "plm-integ-{}.sh",
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
-    std::fs::write(&tmp, &test_script).unwrap();
+    let mut tmp = tempfile::Builder::new()
+        .prefix("plm-integ-")
+        .suffix(".sh")
+        .tempfile()
+        .unwrap();
+    tmp.write_all(test_script.as_bytes()).unwrap();
+    tmp.flush().unwrap();
+
     let output = std::process::Command::new("bash")
-        .arg(&tmp)
+        .arg(tmp.path())
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .spawn()
         .and_then(|mut child| {
-            use std::io::Write;
             child
                 .stdin
                 .take()
@@ -1187,7 +1188,7 @@ fn run_env_bridge_for_event(claude_event: &str, stdin_json: &str) -> (String, St
             child.wait_with_output()
         })
         .unwrap();
-    std::fs::remove_file(&tmp).ok();
+    // tmp is cleaned up automatically via Drop
     (
         String::from_utf8_lossy(&output.stdout).to_string(),
         String::from_utf8_lossy(&output.stderr).to_string(),
