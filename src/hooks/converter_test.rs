@@ -1254,11 +1254,11 @@ fn test_bash_n_syntax_session_end() {
 
 #[test]
 fn test_integ_session_start_source_mapping_and_del_initial_prompt() {
-    // Skip if jq is not available
-    if std::process::Command::new("jq")
+    // Skip if jq is not available or fails to run correctly
+    if !std::process::Command::new("jq")
         .arg("--version")
         .output()
-        .is_err()
+        .is_ok_and(|o| o.status.success())
     {
         return;
     }
