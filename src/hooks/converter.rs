@@ -134,7 +134,7 @@ fn build_env_bridge(event: &str) -> String {
     let session_start_extra = if event == "sessionStart" {
         r#"
 # sessionStart-specific: source mapping + del(.initialPrompt)
-if command -v jq >/dev/null 2>&1; then
+if [ "$HAS_JQ" = true ]; then
   if SESSION_TRANSFORMED=$(printf '%s' "$CLAUDE_INPUT" | jq '
     (if has("source") then .source |= (if . == "new" then "startup" elif . == "resume" then "resume" else . end) else . end)
     | del(.initialPrompt)
@@ -153,7 +153,10 @@ fi
         r#"COPILOT_INPUT=$(cat)
 CLAUDE_INPUT="$COPILOT_INPUT"
 
-if command -v jq >/dev/null 2>&1; then
+HAS_JQ=false
+command -v jq >/dev/null 2>&1 && HAS_JQ=true
+
+if [ "$HAS_JQ" = true ]; then
   if TRANSFORMED=$(printf '%s' "$COPILOT_INPUT" | jq '
 {}
   ' 2>/dev/null); then
@@ -166,7 +169,7 @@ else
 fi
 {}
 CLAUDE_PROJECT_DIR=""
-if command -v jq >/dev/null 2>&1; then
+if [ "$HAS_JQ" = true ]; then
   CLAUDE_PROJECT_DIR=$(printf '%s' "$CLAUDE_INPUT" | jq -r '.cwd // empty' 2>/dev/null || echo "")
 fi
 export CLAUDE_PROJECT_DIR
