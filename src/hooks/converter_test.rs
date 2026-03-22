@@ -1194,11 +1194,18 @@ fn run_env_bridge_for_event(claude_event: &str, stdin_json: &str) -> (String, St
     )
 }
 
-#[test]
-fn test_bash_n_syntax_pre_tool_use() {
-    let script = generate_wrapper_for_event("PreToolUse");
-    let tmp = std::env::temp_dir().join("plm-test-pre-tool-use.sh");
-    std::fs::write(&tmp, &script).unwrap();
+/// Helper: write script to a unique temp file and run `bash -n` syntax check.
+fn assert_bash_n_valid(script: &str, label: &str) {
+    let tmp = std::env::temp_dir().join(format!(
+        "plm-bashn-{}-{}-{}.sh",
+        label,
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::write(&tmp, script).unwrap();
     let output = std::process::Command::new("bash")
         .arg("-n")
         .arg(&tmp)
@@ -1207,81 +1214,38 @@ fn test_bash_n_syntax_pre_tool_use() {
     std::fs::remove_file(&tmp).ok();
     assert!(
         output.status.success(),
-        "bash -n failed for preToolUse:\n{}",
+        "bash -n failed for {}:\n{}",
+        label,
         String::from_utf8_lossy(&output.stderr)
     );
+}
+
+#[test]
+fn test_bash_n_syntax_pre_tool_use() {
+    assert_bash_n_valid(&generate_wrapper_for_event("PreToolUse"), "preToolUse");
 }
 
 #[test]
 fn test_bash_n_syntax_post_tool_use() {
-    let script = generate_wrapper_for_event("PostToolUse");
-    let tmp = std::env::temp_dir().join("plm-test-post-tool-use.sh");
-    std::fs::write(&tmp, &script).unwrap();
-    let output = std::process::Command::new("bash")
-        .arg("-n")
-        .arg(&tmp)
-        .output()
-        .unwrap();
-    std::fs::remove_file(&tmp).ok();
-    assert!(
-        output.status.success(),
-        "bash -n failed for postToolUse:\n{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
+    assert_bash_n_valid(&generate_wrapper_for_event("PostToolUse"), "postToolUse");
 }
 
 #[test]
 fn test_bash_n_syntax_session_start() {
-    let script = generate_wrapper_for_event("SessionStart");
-    let tmp = std::env::temp_dir().join("plm-test-session-start.sh");
-    std::fs::write(&tmp, &script).unwrap();
-    let output = std::process::Command::new("bash")
-        .arg("-n")
-        .arg(&tmp)
-        .output()
-        .unwrap();
-    std::fs::remove_file(&tmp).ok();
-    assert!(
-        output.status.success(),
-        "bash -n failed for sessionStart:\n{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
+    assert_bash_n_valid(&generate_wrapper_for_event("SessionStart"), "sessionStart");
 }
 
 #[test]
 fn test_bash_n_syntax_user_prompt_submitted() {
-    let script = generate_wrapper_for_event("UserPromptSubmit");
-    let tmp = std::env::temp_dir().join("plm-test-user-prompt-submitted.sh");
-    std::fs::write(&tmp, &script).unwrap();
-    let output = std::process::Command::new("bash")
-        .arg("-n")
-        .arg(&tmp)
-        .output()
-        .unwrap();
-    std::fs::remove_file(&tmp).ok();
-    assert!(
-        output.status.success(),
-        "bash -n failed for userPromptSubmitted:\n{}",
-        String::from_utf8_lossy(&output.stderr)
+    assert_bash_n_valid(
+        &generate_wrapper_for_event("UserPromptSubmit"),
+        "userPromptSubmitted",
     );
 }
 
 #[test]
 fn test_bash_n_syntax_session_end() {
-    let script = generate_wrapper_for_event("SessionEnd");
-    let tmp = std::env::temp_dir().join("plm-test-session-end.sh");
-    std::fs::write(&tmp, &script).unwrap();
-    let output = std::process::Command::new("bash")
-        .arg("-n")
-        .arg(&tmp)
-        .output()
-        .unwrap();
-    std::fs::remove_file(&tmp).ok();
-    assert!(
-        output.status.success(),
-        "bash -n failed for sessionEnd:\n{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
+    assert_bash_n_valid(&generate_wrapper_for_event("SessionEnd"), "sessionEnd");
 }
 
 // ============================================================================
