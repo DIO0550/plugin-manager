@@ -1197,22 +1197,22 @@ fn run_env_bridge_for_event(claude_event: &str, stdin_json: &str) -> (String, St
 
 /// Helper: write script to a unique temp file and run `bash -n` syntax check.
 fn assert_bash_n_valid(script: &str, label: &str) {
-    let tmp = std::env::temp_dir().join(format!(
-        "plm-bashn-{}-{}-{}.sh",
-        label,
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
-    std::fs::write(&tmp, script).unwrap();
+    use std::io::Write;
+
+    let mut tmp = tempfile::Builder::new()
+        .prefix(&format!("plm-bashn-{}-", label))
+        .suffix(".sh")
+        .tempfile()
+        .unwrap();
+    tmp.write_all(script.as_bytes()).unwrap();
+    tmp.flush().unwrap();
+
     let output = std::process::Command::new("bash")
         .arg("-n")
-        .arg(&tmp)
+        .arg(tmp.path())
         .output()
         .unwrap();
-    std::fs::remove_file(&tmp).ok();
+    // tmp is cleaned up automatically via Drop
     assert!(
         output.status.success(),
         "bash -n failed for {}:\n{}",
