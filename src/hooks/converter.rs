@@ -92,13 +92,15 @@ enum SourceFormat {
 /// - sessionStart: base transformation + source mapping + del(.initialPrompt)
 /// - others: base transformation only (del(.timestamp), session_id normalization)
 fn build_env_bridge(event: &str) -> String {
-    let jq_body = match event {
-        "preToolUse" | "postToolUse" => {
-            r#"    . as $in | $in
+    // Base jq fragment shared by all event types
+    let base_jq = r#"    . as $in | $in
     # Remove Copilot-specific timestamp
     | del(.timestamp)
     # Normalize session identifier
-    | .session_id = ($in.sessionId // $in.session_id // "plm-bridge")
+    | .session_id = ($in.sessionId // $in.session_id // "plm-bridge")"#;
+
+    // Tool-specific jq fragment appended for preToolUse/postToolUse
+    let tool_jq = r#"
     # Map tool name (BL-002)
     | .tool_name = (
         if $in.toolName then
@@ -119,17 +121,14 @@ fn build_env_bridge(event: &str) -> String {
         else null end
       )
     # Clean up Copilot-specific keys that have been normalized
-    | del(.toolName, .toolArgs, .toolResult, .sessionId)"#
-        }
-        _ => {
-            r#"    . as $in | $in
-    # Remove Copilot-specific timestamp
-    | del(.timestamp)
-    # Normalize session identifier
-    | .session_id = ($in.sessionId // $in.session_id // "plm-bridge")
-    # Clean up Copilot-specific keys
-    | del(.sessionId)"#
-        }
+    | del(.toolName, .toolArgs, .toolResult, .sessionId)"#;
+
+    let jq_body = match event {
+        "preToolUse" | "postToolUse" => format!("{}{}", base_jq, tool_jq),
+        _ => format!(
+            "{}\n    # Clean up Copilot-specific keys\n    | del(.sessionId)",
+            base_jq
+        ),
     };
 
     let session_start_extra = if event == "sessionStart" {
