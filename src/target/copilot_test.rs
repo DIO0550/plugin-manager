@@ -14,7 +14,7 @@ fn test_copilot_supported_components() {
     assert!(target.supports(ComponentKind::Agent));
     assert!(target.supports(ComponentKind::Command));
     assert!(target.supports(ComponentKind::Instruction));
-    assert!(!target.supports(ComponentKind::Hook));
+    assert!(target.supports(ComponentKind::Hook));
 }
 
 #[test]
@@ -196,4 +196,76 @@ fn test_copilot_agent_single_file_edge_case() {
         path_str.ends_with(".agent.agent.md"),
         "Single file edge case: double extension"
     );
+}
+
+// =============================================================================
+// Hook サポートテスト
+// =============================================================================
+
+#[test]
+fn test_copilot_placement_location_hook_project() {
+    let target = CopilotTarget::new();
+    let project_root = Path::new("/project");
+    let origin = PluginOrigin::from_marketplace("official", "my-plugin");
+
+    let ctx = PlacementContext {
+        component: ComponentRef::new(ComponentKind::Hook, "pre-commit"),
+        origin: &origin,
+        scope: PlacementScope(Scope::Project),
+        project: ProjectContext::new(project_root),
+    };
+    let location = target.placement_location(&ctx).unwrap();
+
+    assert!(location.is_file());
+    assert_eq!(
+        location.as_path(),
+        Path::new("/project/.github/hooks/official/my-plugin/pre-commit.json")
+    );
+}
+
+#[test]
+fn test_copilot_placement_location_hook_personal() {
+    let target = CopilotTarget::new();
+    let project_root = Path::new("/project");
+    let origin = PluginOrigin::from_marketplace("official", "my-plugin");
+
+    let ctx = PlacementContext {
+        component: ComponentRef::new(ComponentKind::Hook, "pre-commit"),
+        origin: &origin,
+        scope: PlacementScope(Scope::Personal),
+        project: ProjectContext::new(project_root),
+    };
+    let location = target.placement_location(&ctx).unwrap();
+
+    assert!(location.is_file());
+    assert!(location
+        .as_path()
+        .to_string_lossy()
+        .contains(".copilot/hooks/official/my-plugin/pre-commit.json"));
+}
+
+#[test]
+fn test_copilot_list_placed_hooks() {
+    use std::fs;
+    use tempfile::TempDir;
+
+    let temp = TempDir::new().unwrap();
+    let project_root = temp.path();
+
+    // hooks ディレクトリ構造を作成: .github/hooks/mkt/plugin/hook.json
+    let hooks_dir = project_root
+        .join(".github")
+        .join("hooks")
+        .join("official")
+        .join("my-plugin");
+    fs::create_dir_all(&hooks_dir).unwrap();
+    fs::write(hooks_dir.join("pre-commit.json"), "{}").unwrap();
+
+    let target = CopilotTarget::new();
+    let result = target
+        .list_placed(ComponentKind::Hook, Scope::Project, project_root)
+        .unwrap();
+
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0], "official/my-plugin/pre-commit");
 }
