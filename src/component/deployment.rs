@@ -52,9 +52,9 @@ impl ComponentDeployment {
 
     /// Hook 名をパスセグメントとして安全な文字列にサニタイズ
     ///
-    /// - `[A-Za-z0-9_-]` 以外をハイフンに置換（`.` も除去してトラバーサル防止）
+    /// - `[A-Za-z0-9_-]` 以外をハイフンに置換（`.` も含めて `-` に置換）
     /// - 先頭・末尾のハイフンを除去
-    /// - 空文字列、`.`、`..` の場合はフォールバック名 `_hook` を返す
+    /// - サニタイズ後の結果が空文字列、`.`、`..` の場合はフォールバック名 `_hook` を返す
     pub(crate) fn sanitize_hook_name(name: &str) -> String {
         let sanitized: String = name
             .chars()
