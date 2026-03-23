@@ -833,17 +833,12 @@ fn test_hook_convert_copilot_format_passthrough() {
 
     let result = deployment.execute().unwrap();
 
-    match result {
-        DeploymentResult::HookConverted(hr) => {
-            assert_eq!(hr.wrapper_count, 0);
-        }
-        _ => panic!("Expected HookConverted"),
-    }
+    // Copilot CLI 形式はファイルコピーにフォールバック
+    assert!(matches!(result, DeploymentResult::Copied));
 
     assert!(target.exists());
-    let content = fs::read_to_string(&target).unwrap();
-    let parsed: serde_json::Value = serde_json::from_str(&content).unwrap();
-    assert_eq!(parsed.get("version").unwrap(), 1);
+    // 元のファイル内容がそのままコピーされること
+    assert_eq!(fs::read_to_string(&target).unwrap(), copilot_json);
 }
 
 /// @@PLUGIN_ROOT@@ が plugin_root の実パスに置換されること

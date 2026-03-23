@@ -81,7 +81,13 @@ impl ComponentDeployment {
         // 2. converter で変換
         let mut convert_result = converter::convert(&input)?;
 
-        // 3. plugin_root を取得
+        // 3. Copilot CLI 形式（wrapper 不要・変換なし）の場合はファイルコピーにフォールバック
+        if convert_result.wrapper_scripts.is_empty() && convert_result.warnings.is_empty() {
+            self.source_path.copy_file_to(&self.target_path)?;
+            return Ok(DeploymentResult::Copied);
+        }
+
+        // 4. plugin_root を取得
         let plugin_root = self.plugin_root.as_ref().ok_or_else(|| {
             PlmError::Validation("plugin_root is required for hook conversion".to_string())
         })?;
