@@ -73,6 +73,35 @@ impl ComponentDeployment {
         }
     }
 
+    /// JSON 内の hooks[].bash パスを名前空間付きに書き換える
+    fn rewrite_wrapper_paths_in_json(
+        json: &mut serde_json::Value,
+        original_paths: &[String],
+        safe_name: &str,
+    ) {
+        let hooks = json.get_mut("hooks").and_then(|h| h.as_object_mut());
+        let Some(hooks) = hooks else { return };
+
+        let namespaced_prefix = format!("./wrappers/{}/", safe_name);
+
+        for hook_list in hooks.values_mut() {
+            let Some(arr) = hook_list.as_array_mut() else {
+                continue;
+            };
+            for hook in arr {
+                let bash = hook.get("bash").and_then(|b| b.as_str()).map(String::from);
+                let Some(bash) = bash else { continue };
+                if !original_paths.contains(&bash) {
+                    continue;
+                }
+                let new_path = bash.replacen("./wrappers/", &namespaced_prefix, 1);
+                hook.as_object_mut()
+                    .unwrap()
+                    .insert("bash".to_string(), serde_json::Value::String(new_path));
+            }
+        }
+    }
+
     /// Hook 変換デプロイを実行
     fn deploy_hook_converted(&self) -> Result<DeploymentResult> {
         // 1. ソース JSON を読み込み
@@ -97,39 +126,18 @@ impl ComponentDeployment {
 
         // 4. wrapper パスを名前空間付きに書き換え（生成された wrapper がある場合のみ）
         if !convert_result.wrapper_scripts.is_empty() {
-            // JSON 内の bash パスを構造的に書き換え: 生成された wrapper パスのみ対象
             let original_paths: Vec<String> = convert_result
                 .wrapper_scripts
                 .iter()
                 .map(|s| format!("./{}", s.path))
                 .collect();
 
-            if let Some(obj) = convert_result.json.as_object_mut() {
-                if let Some(hooks) = obj.get_mut("hooks").and_then(|h| h.as_object_mut()) {
-                    for (_event, hook_list) in hooks.iter_mut() {
-                        if let Some(arr) = hook_list.as_array_mut() {
-                            for hook in arr.iter_mut() {
-                                if let Some(bash) = hook.get("bash").and_then(|b| b.as_str()) {
-                                    if original_paths.contains(&bash.to_string()) {
-                                        // ./wrappers/xxx.sh → ./wrappers/{hook-name}/xxx.sh
-                                        let new_path = bash.replacen(
-                                            "./wrappers/",
-                                            &format!("./wrappers/{}/", safe_name),
-                                            1,
-                                        );
-                                        hook.as_object_mut().unwrap().insert(
-                                            "bash".to_string(),
-                                            serde_json::Value::String(new_path),
-                                        );
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            Self::rewrite_wrapper_paths_in_json(
+                &mut convert_result.json,
+                &original_paths,
+                &safe_name,
+            );
 
-            // WrapperScriptInfo のパスも更新
             for script in &mut convert_result.wrapper_scripts {
                 if let Some(filename) = script.path.strip_prefix("wrappers/") {
                     script.path = format!("wrappers/{}/{}", safe_name, filename);
