@@ -5,7 +5,7 @@ use crate::component::{Component, ComponentDeployment, DeploymentResult};
 use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
 use crate::plugin::{CachedPlugin, PluginCache, PluginCacheAccess};
 use crate::source::{parse_source, MarketplaceSource, PluginSource};
-use crate::target::{PluginOrigin, Target};
+use crate::target::{PluginOrigin, Target, TargetKind};
 
 /// ダウンロード済みプラグイン
 ///
@@ -280,7 +280,7 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
                     .dest_agent_format(target.agent_format());
             }
 
-            if component.kind == ComponentKind::Hook && target.name() == "copilot" {
+            if component.kind == ComponentKind::Hook && target.kind() == TargetKind::Copilot {
                 builder = builder
                     .hook_convert(true)
                     .plugin_root(request.scanned.plugin_root());
