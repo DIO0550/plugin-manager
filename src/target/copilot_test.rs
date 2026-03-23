@@ -224,7 +224,7 @@ fn test_copilot_placement_location_hook_project() {
 }
 
 #[test]
-fn test_copilot_placement_location_hook_personal_not_supported() {
+fn test_copilot_placement_location_hook_personal() {
     let target = CopilotTarget::new();
     let project_root = Path::new("/project");
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
@@ -235,7 +235,13 @@ fn test_copilot_placement_location_hook_personal_not_supported() {
         scope: PlacementScope(Scope::Personal),
         project: ProjectContext::new(project_root),
     };
-    assert!(target.placement_location(&ctx).is_none());
+    let location = target.placement_location(&ctx).unwrap();
+
+    assert!(location.is_file());
+    assert!(location
+        .as_path()
+        .to_string_lossy()
+        .contains(".copilot/hooks/official/my-plugin/pre-commit.json"));
 }
 
 #[test]
