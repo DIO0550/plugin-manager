@@ -85,6 +85,11 @@ impl ScannedPlugin {
     pub fn agent_format(&self) -> AgentFormat {
         self.cached_plugin.agent_format()
     }
+
+    /// プラグインキャッシュのルートパスを取得
+    pub fn plugin_root(&self) -> &Path {
+        &self.cached_plugin.path
+    }
 }
 
 /// スキャン済みコンポーネント
@@ -120,6 +125,7 @@ pub struct PlaceSuccess {
     pub target_path: PathBuf,
     pub source_format: Option<String>,
     pub dest_format: Option<String>,
+    pub hook_warnings: Vec<String>,
 }
 
 /// 配置失敗の段階
@@ -274,6 +280,12 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
                     .dest_agent_format(target.agent_format());
             }
 
+            if component.kind == ComponentKind::Hook && target.name() == "copilot" {
+                builder = builder
+                    .hook_convert(true)
+                    .plugin_root(request.scanned.plugin_root());
+            }
+
             let deployment = match builder.build() {
                 Ok(d) => d,
                 Err(e) => {
@@ -302,6 +314,13 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
                         _ => (None, None),
                     };
 
+                    let hook_warnings = match &result {
+                        DeploymentResult::HookConverted(hr) => {
+                            hr.warnings.iter().map(|w| w.to_string()).collect()
+                        }
+                        _ => vec![],
+                    };
+
                     successes.push(PlaceSuccess {
                         target: target.name().to_string(),
                         component_name: component.name.clone(),
@@ -309,6 +328,7 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
                         target_path: deployment.path().to_path_buf(),
                         source_format,
                         dest_format,
+                        hook_warnings,
                     });
                 }
                 Err(e) => {

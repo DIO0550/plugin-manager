@@ -138,6 +138,11 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
                 success.target_path.display(),
                 suffix
             );
+
+            // Hook 変換警告を表示
+            for warning in &success.hook_warnings {
+                println!("    \u{26a0} {}", warning);
+            }
         }
 
         // このターゲットの失敗結果を表示
