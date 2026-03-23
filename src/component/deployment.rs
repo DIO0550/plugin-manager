@@ -125,8 +125,17 @@ impl ComponentDeployment {
         // 2. converter で変換
         let mut convert_result = converter::convert(&input)?;
 
-        // 3. Copilot CLI 形式（wrapper 不要・変換なし）の場合はファイルコピーにフォールバック
-        if convert_result.wrapper_scripts.is_empty() && convert_result.warnings.is_empty() {
+        // 3. Copilot CLI 形式（version:1 が存在 & wrapper 不要・警告なし）の場合はファイルコピーにフォールバック
+        //    wrapper/warning が空なだけでは、Claude Code 形式など
+        //    「変換が必要だが wrapper 不要」のケースを取りこぼす可能性があるため、
+        //    Copilot CLI のバージョン情報が明示されている場合にのみパススルーする。
+        let is_copilot_cli_v1 =
+            convert_result.json.get("version").and_then(|v| v.as_u64()) == Some(1);
+
+        if convert_result.wrapper_scripts.is_empty()
+            && convert_result.warnings.is_empty()
+            && is_copilot_cli_v1
+        {
             self.source_path.copy_file_to(&self.target_path)?;
             return Ok(DeploymentResult::Copied);
         }
