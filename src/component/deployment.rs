@@ -164,19 +164,21 @@ impl ComponentDeployment {
 
         // 8. wrapper スクリプトを配置
         let wrapper_count = convert_result.wrapper_scripts.len();
+        let wrapper_dir = self
+            .target_path
+            .parent()
+            .unwrap()
+            .join(WRAPPERS_DIR)
+            .join(&safe_name);
+        if wrapper_count > 0 {
+            fs::create_dir_all(&wrapper_dir)?;
+        }
+
         for script in &convert_result.wrapper_scripts {
             let filename = Path::new(&script.path)
                 .file_name()
                 .map(|f| f.to_string_lossy().to_string())
                 .unwrap_or_else(|| script.path.clone());
-
-            let wrapper_dir = self
-                .target_path
-                .parent()
-                .unwrap()
-                .join(WRAPPERS_DIR)
-                .join(&safe_name);
-            fs::create_dir_all(&wrapper_dir)?;
 
             let wrapper_path = wrapper_dir.join(&filename);
 
