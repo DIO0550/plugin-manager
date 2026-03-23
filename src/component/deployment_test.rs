@@ -1043,7 +1043,7 @@ fn test_hook_convert_unsupported_events_produce_warnings() {
     }
 }
 
-/// 元スクリプトが配置先にコピーされないこと
+/// 元スクリプトが配置先にコピーされないこと（@@PLUGIN_ROOT@@ 経由で参照）
 #[test]
 fn test_hook_convert_original_scripts_not_copied() {
     let temp = TempDir::new().unwrap();
@@ -1062,7 +1062,22 @@ fn test_hook_convert_original_scripts_not_copied() {
     )
     .unwrap();
 
-    fs::write(&source, sample_claude_code_hook_json()).unwrap();
+    // Hook JSON で @@PLUGIN_ROOT@@ 経由で元スクリプトを参照
+    let hook_json = r#"{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "@@PLUGIN_ROOT@@/scripts/original.sh"
+          }
+        ]
+      }
+    ]
+  }
+}"#;
+    fs::write(&source, hook_json).unwrap();
 
     let deployment = ComponentDeployment::builder()
         .kind(ComponentKind::Hook)
@@ -1077,8 +1092,18 @@ fn test_hook_convert_original_scripts_not_copied() {
 
     deployment.execute().unwrap();
 
-    // 配置先に original.sh がコピーされていないこと
+    // 元スクリプトが配置先にコピーされていないこと
     assert!(!target_dir.join("scripts").exists());
+    assert!(!target_dir.join("original.sh").exists());
+
+    // wrapper スクリプト内で @@PLUGIN_ROOT@@ が実パスに置換されていること
+    let wrappers_dir = target_dir.join("wrappers").join("hook");
+    assert!(wrappers_dir.exists());
+    for entry in fs::read_dir(&wrappers_dir).unwrap() {
+        let content = fs::read_to_string(entry.unwrap().path()).unwrap();
+        assert!(!content.contains("@@PLUGIN_ROOT@@"));
+        assert!(content.contains("original.sh"));
+    }
 }
 
 /// 複数 Hook ファイルの wrapper が名前衝突しないこと
