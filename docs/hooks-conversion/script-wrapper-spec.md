@@ -241,14 +241,18 @@ fi
 
 ## ファイル配置
 
-ラッパースクリプトは Hooks 配置先ディレクトリ内の `wrappers/` サブディレクトリに生成する。
+ラッパースクリプトは Hooks 配置先ディレクトリ内の `wrappers/{hook-name}/` サブディレクトリに Hook 単位で生成する。これにより複数 Hook ファイル間のスクリプト名衝突を防ぐ。
 
 ```
 .github/hooks/{marketplace}/{plugin}/
-├── hooks.json              # 変換済み Copilot CLI 形式の設定
+├── {hook-name-1}.json              # 変換済み Copilot CLI 形式の設定
+├── {hook-name-2}.json
 └── wrappers/
-    ├── validate-bash.sh    # command フックのラッパー
-    └── http-webhook.sh     # http フックのラッパー
+    ├── {hook-name-1}/
+    │   ├── cmd-preToolUse-0.sh     # command フックのラッパー
+    │   └── http-postToolUse-0.sh   # http フックのラッパー
+    └── {hook-name-2}/
+        └── cmd-preToolUse-0.sh
 ```
 
 - ラッパースクリプトには実行権限 (`chmod +x`) を付与する

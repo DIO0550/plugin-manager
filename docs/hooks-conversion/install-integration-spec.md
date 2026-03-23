@@ -48,19 +48,25 @@ flowchart TD
 **Project スコープ:**
 ```
 {project}/.github/hooks/{marketplace}/{plugin}/
-├── hooks.json
+├── {hook-name-1}.json
+├── {hook-name-2}.json
 └── wrappers/
-    ├── {hook-name-1}.sh
-    └── {hook-name-2}.sh
+    ├── {hook-name-1}/
+    │   └── cmd-preToolUse-0.sh
+    └── {hook-name-2}/
+        └── cmd-preToolUse-0.sh
 ```
 
 **Personal スコープ:**
 ```
 ~/.copilot/hooks/{marketplace}/{plugin}/
-├── hooks.json
+├── {hook-name-1}.json
+├── {hook-name-2}.json
 └── wrappers/
-    ├── {hook-name-1}.sh
-    └── {hook-name-2}.sh
+    ├── {hook-name-1}/
+    │   └── cmd-preToolUse-0.sh
+    └── {hook-name-2}/
+        └── cmd-preToolUse-0.sh
 ```
 
 ### BL-004: `@@PLUGIN_ROOT@@` プレースホルダーの解決
@@ -123,9 +129,9 @@ sequenceDiagram
     else Claude Code 形式
         Deploy->>Conv: convert_config(source_json)
         Conv-->>Deploy: (converted_json, warnings, wrapper_scripts)
-        Deploy->>FS: hooks.json を書き出し
+        Deploy->>FS: {name}.json を書き出し
         loop 各ラッパースクリプト
-            Deploy->>FS: wrappers/{name}.sh を書き出し
+            Deploy->>FS: wrappers/{hook-name}/{script}.sh を書き出し
             Deploy->>FS: chmod +x
         end
         Deploy-->>App: DeploymentResult::Converted
@@ -171,7 +177,7 @@ src/
 ## 制限事項
 
 - 変換は `install` 時のみ実行される（`update` 時も同じロジックを適用するが、既存の変換結果は上書きされる）
-- `uninstall` 時は通常のファイル削除で対応（`wrappers/` ディレクトリも削除対象）
+- `uninstall` 時は通常のファイル削除で対応（`wrappers/{hook-name}/` ディレクトリも削除対象）
 - `list` コマンドでは変換元の形式を表示しない（通常の Hook として一覧表示）
 
 ## 関連仕様
