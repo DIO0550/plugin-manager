@@ -5,6 +5,7 @@ use crate::component::{Component, ComponentKind, Scope};
 use crate::error::{PlmError, Result};
 use crate::hooks::converter::{self, WRAPPERS_DIR};
 use crate::path_ext::PathExt;
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -76,7 +77,7 @@ impl ComponentDeployment {
     /// JSON 内の hooks[].bash パスを名前空間付きに書き換える
     fn rewrite_wrapper_paths_in_json(
         json: &mut serde_json::Value,
-        original_paths: &[String],
+        original_paths: &HashSet<String>,
         safe_name: &str,
     ) {
         let Some(hooks) = json.get_mut("hooks").and_then(|h| h.as_object_mut()) else {
@@ -92,9 +93,10 @@ impl ComponentDeployment {
             .flatten();
 
         for hook in hook_defs {
-            let bash = hook.get("bash").and_then(|b| b.as_str()).map(String::from);
-            let Some(bash) = bash else { continue };
-            if !original_paths.contains(&bash) {
+            let Some(bash) = hook.get("bash").and_then(|b| b.as_str()) else {
+                continue;
+            };
+            if !original_paths.contains(bash) {
                 continue;
             }
             let new_path = bash.replacen(&original_prefix, &namespaced_prefix, 1);
@@ -128,7 +130,7 @@ impl ComponentDeployment {
 
         // 4. wrapper パスを名前空間付きに書き換え（生成された wrapper がある場合のみ）
         if !convert_result.wrapper_scripts.is_empty() {
-            let original_paths: Vec<String> = convert_result
+            let original_paths: HashSet<String> = convert_result
                 .wrapper_scripts
                 .iter()
                 .map(|s| format!("./{}", s.path))
