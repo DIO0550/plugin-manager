@@ -132,7 +132,7 @@ impl ComponentDeployment {
         // 7. 変換済み JSON を書き出し
         fs::write(&self.target_path, &json_str)?;
 
-        // 7. wrapper スクリプトを配置
+        // 8. wrapper スクリプトを配置
         let wrapper_count = convert_result.wrapper_scripts.len();
         for script in &convert_result.wrapper_scripts {
             let filename = Path::new(&script.path)
