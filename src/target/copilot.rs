@@ -35,7 +35,7 @@ impl CopilotTarget {
     fn can_place(kind: ComponentKind, scope: Scope) -> bool {
         matches!(
             (kind, scope),
-            (ComponentKind::Agent, _) | (ComponentKind::Hook, _) | (_, Scope::Project)
+            (ComponentKind::Agent, _) | (_, Scope::Project)
         )
     }
 
