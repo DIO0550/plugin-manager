@@ -120,11 +120,6 @@ impl ComponentDeployment {
             return Ok(DeploymentResult::Copied);
         }
 
-        // 4. plugin_root を取得
-        let plugin_root = self.plugin_root.as_ref().ok_or_else(|| {
-            PlmError::Validation("plugin_root is required for hook conversion".to_string())
-        })?;
-
         // Hook 名をサニタイズ（パスセグメント・シェルコマンドで安全に使えるようにする）
         let safe_name = Self::sanitize_hook_name(&self.name);
 
@@ -164,53 +159,59 @@ impl ComponentDeployment {
 
         // 8. wrapper スクリプトを配置
         let wrapper_count = convert_result.wrapper_scripts.len();
-        let wrapper_dir = self
-            .target_path
-            .parent()
-            .unwrap()
-            .join(WRAPPERS_DIR)
-            .join(&safe_name);
         if wrapper_count > 0 {
-            fs::create_dir_all(&wrapper_dir)?;
-        }
-
-        for script in &convert_result.wrapper_scripts {
-            let filename = Path::new(&script.path)
-                .file_name()
-                .map(|f| f.to_string_lossy().to_string())
-                .unwrap_or_else(|| script.path.clone());
-
-            let wrapper_path = wrapper_dir.join(&filename);
-
-            // @@PLUGIN_ROOT@@ を実パスに置換
-            // bash ダブルクオート内で特別な意味を持つ文字のみをエスケープする
+            let plugin_root = self.plugin_root.as_ref().ok_or_else(|| {
+                PlmError::Validation(
+                    "plugin_root is required when wrapper scripts are generated".to_string(),
+                )
+            })?;
             let plugin_root_str = plugin_root.display().to_string();
-            let escaped = {
-                let mut out = String::with_capacity(plugin_root_str.len());
-                for ch in plugin_root_str.chars() {
-                    match ch {
-                        '\\' | '"' | '$' | '`' => {
-                            out.push('\\');
-                            out.push(ch);
+
+            let wrapper_dir = self
+                .target_path
+                .parent()
+                .unwrap()
+                .join(WRAPPERS_DIR)
+                .join(&safe_name);
+            fs::create_dir_all(&wrapper_dir)?;
+
+            for script in &convert_result.wrapper_scripts {
+                let filename = Path::new(&script.path)
+                    .file_name()
+                    .map(|f| f.to_string_lossy().to_string())
+                    .unwrap_or_else(|| script.path.clone());
+
+                let wrapper_path = wrapper_dir.join(&filename);
+
+                // @@PLUGIN_ROOT@@ を実パスに置換
+                // bash ダブルクオート内で特別な意味を持つ文字のみをエスケープする
+                let escaped = {
+                    let mut out = String::with_capacity(plugin_root_str.len());
+                    for ch in plugin_root_str.chars() {
+                        match ch {
+                            '\\' | '"' | '$' | '`' => {
+                                out.push('\\');
+                                out.push(ch);
+                            }
+                            '\n' => {
+                                out.push('\\');
+                                out.push('n');
+                            }
+                            _ => out.push(ch),
                         }
-                        '\n' => {
-                            out.push('\\');
-                            out.push('n');
-                        }
-                        _ => out.push(ch),
                     }
+                    out
+                };
+                let content = script.content.replace("@@PLUGIN_ROOT@@", &escaped);
+
+                fs::write(&wrapper_path, &content)?;
+
+                // Unix: 実行権限を設定
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    fs::set_permissions(&wrapper_path, fs::Permissions::from_mode(0o755))?;
                 }
-                out
-            };
-            let content = script.content.replace("@@PLUGIN_ROOT@@", &escaped);
-
-            fs::write(&wrapper_path, &content)?;
-
-            // Unix: 実行権限を設定
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                fs::set_permissions(&wrapper_path, fs::Permissions::from_mode(0o755))?;
             }
         }
 
@@ -416,11 +417,6 @@ impl ComponentDeploymentBuilder {
             .ok_or_else(|| PlmError::Validation("target_path is required".to_string()))?;
 
         let hook_convert = self.hook_convert.unwrap_or(false);
-        if kind == ComponentKind::Hook && hook_convert && self.plugin_root.is_none() {
-            return Err(PlmError::Validation(
-                "plugin_root is required when hook_convert is true".to_string(),
-            ));
-        }
 
         Ok(ComponentDeployment {
             kind,

@@ -688,19 +688,56 @@ fn test_builder_hook_convert_default_false() {
 }
 
 #[test]
-fn test_builder_hook_convert_true_requires_plugin_root() {
-    let result = ComponentDeployment::builder()
+fn test_hook_convert_without_plugin_root_errors_when_wrappers_needed() {
+    let temp = TempDir::new().unwrap();
+    let source = temp.path().join("hook.json");
+    let target = temp.path().join("dest/hook.json");
+
+    // Claude Code 形式 → wrapper が生成される → plugin_root 必須
+    fs::write(&source, sample_claude_code_hook_json()).unwrap();
+
+    let deployment = ComponentDeployment::builder()
         .kind(ComponentKind::Hook)
         .name("test-hook")
         .scope(Scope::Project)
-        .source_path("/src/hook.json")
-        .target_path("/dest/hook.json")
+        .source_path(&source)
+        .target_path(&target)
         .hook_convert(true)
-        .build();
+        .build()
+        .unwrap(); // build() は成功する
 
-    assert!(result.is_err());
-    let err = result.unwrap_err().to_string();
-    assert!(err.contains("plugin_root"));
+    let err = deployment.execute().unwrap_err();
+    assert!(err.to_string().contains("plugin_root"));
+}
+
+#[test]
+fn test_hook_convert_without_plugin_root_ok_for_warnings_only() {
+    let temp = TempDir::new().unwrap();
+    let source = temp.path().join("hook.json");
+    let target = temp.path().join("dest/hook.json");
+
+    // Copilot CLI 形式 + version 欠落 → warnings あり、wrapper なし → plugin_root 不要
+    let json = r#"{"hooks":{"preToolUse":[{"type":"command","bash":"echo hi"}]}}"#;
+    fs::write(&source, json).unwrap();
+
+    let deployment = ComponentDeployment::builder()
+        .kind(ComponentKind::Hook)
+        .name("test-hook")
+        .scope(Scope::Project)
+        .source_path(&source)
+        .target_path(&target)
+        .hook_convert(true)
+        .build()
+        .unwrap();
+
+    let result = deployment.execute().unwrap();
+    match result {
+        DeploymentResult::HookConverted(hr) => {
+            assert!(!hr.warnings.is_empty());
+            assert_eq!(hr.wrapper_count, 0);
+        }
+        _ => panic!("Expected HookConverted with warnings only"),
+    }
 }
 
 // ========================================
