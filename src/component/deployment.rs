@@ -190,7 +190,11 @@ impl ComponentDeployment {
             let wrapper_dir = self
                 .target_path
                 .parent()
-                .unwrap()
+                .ok_or_else(|| {
+                    PlmError::Validation(
+                        "target_path must have a parent directory for wrapper scripts".to_string(),
+                    )
+                })?
                 .join(WRAPPERS_DIR)
                 .join(&safe_name);
             fs::create_dir_all(&wrapper_dir)?;
