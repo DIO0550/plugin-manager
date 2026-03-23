@@ -79,26 +79,27 @@ impl ComponentDeployment {
         original_paths: &[String],
         safe_name: &str,
     ) {
-        let hooks = json.get_mut("hooks").and_then(|h| h.as_object_mut());
-        let Some(hooks) = hooks else { return };
+        let Some(hooks) = json.get_mut("hooks").and_then(|h| h.as_object_mut()) else {
+            return;
+        };
 
         let namespaced_prefix = format!("./wrappers/{}/", safe_name);
 
-        for hook_list in hooks.values_mut() {
-            let Some(arr) = hook_list.as_array_mut() else {
+        let hook_defs = hooks
+            .values_mut()
+            .filter_map(|v| v.as_array_mut())
+            .flatten();
+
+        for hook in hook_defs {
+            let bash = hook.get("bash").and_then(|b| b.as_str()).map(String::from);
+            let Some(bash) = bash else { continue };
+            if !original_paths.contains(&bash) {
                 continue;
-            };
-            for hook in arr {
-                let bash = hook.get("bash").and_then(|b| b.as_str()).map(String::from);
-                let Some(bash) = bash else { continue };
-                if !original_paths.contains(&bash) {
-                    continue;
-                }
-                let new_path = bash.replacen("./wrappers/", &namespaced_prefix, 1);
-                hook.as_object_mut()
-                    .unwrap()
-                    .insert("bash".to_string(), serde_json::Value::String(new_path));
             }
+            let new_path = bash.replacen("./wrappers/", &namespaced_prefix, 1);
+            hook.as_object_mut()
+                .unwrap()
+                .insert("bash".to_string(), serde_json::Value::String(new_path));
         }
     }
 
