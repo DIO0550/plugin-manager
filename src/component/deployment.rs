@@ -79,8 +79,8 @@ impl ComponentDeployment {
             let mut hasher = DefaultHasher::new();
             name.hash(&mut hasher);
             let hash = hasher.finish();
-            let mut suffix = String::with_capacity(9);
-            let _ = write!(suffix, "-{:08x}", hash as u32);
+            let mut suffix = String::with_capacity(17);
+            let _ = write!(suffix, "-{:016x}", hash);
             format!("{}{}", base, suffix)
         }
     }
