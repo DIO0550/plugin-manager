@@ -6,7 +6,9 @@ use crate::error::{PlmError, Result};
 use crate::hooks::converter::{self, WRAPPERS_DIR};
 use crate::path_ext::PathExt;
 use std::collections::HashSet;
+use std::fmt::Write as _;
 use std::fs;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::path::{Path, PathBuf};
 
 /// コンポーネントのデプロイ情報
@@ -54,7 +56,8 @@ impl ComponentDeployment {
     ///
     /// - `[A-Za-z0-9_-]` 以外をハイフンに置換（`.` も含めて `-` に置換）
     /// - 先頭・末尾のハイフンを除去
-    /// - サニタイズ後の結果が空文字列、`.`、`..` の場合はフォールバック名 `_hook` を返す
+    /// - サニタイズ後の結果が空文字列の場合はフォールバック名 `_hook` を使用
+    /// - サニタイズにより元名と異なる場合は短いハッシュサフィックスを付加して衝突を防止
     pub(crate) fn sanitize_hook_name(name: &str) -> String {
         let sanitized: String = name
             .chars()
@@ -67,10 +70,18 @@ impl ComponentDeployment {
             })
             .collect();
         let trimmed = sanitized.trim_matches('-');
-        if trimmed.is_empty() || trimmed == "." || trimmed == ".." {
-            "_hook".to_string()
+        let base = if trimmed.is_empty() { "_hook" } else { trimmed };
+
+        // サニタイズで変化した場合はハッシュサフィックスで衝突を防ぐ
+        if base == name {
+            base.to_string()
         } else {
-            trimmed.to_string()
+            let mut hasher = DefaultHasher::new();
+            name.hash(&mut hasher);
+            let hash = hasher.finish();
+            let mut suffix = String::with_capacity(9);
+            let _ = write!(suffix, "-{:08x}", hash as u32);
+            format!("{}{}", base, suffix)
         }
     }
 

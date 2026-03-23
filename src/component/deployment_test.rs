@@ -1146,40 +1146,49 @@ fn test_sanitize_hook_name_safe_chars_unchanged() {
 }
 
 #[test]
-fn test_sanitize_hook_name_replaces_unsafe_chars() {
-    assert_eq!(
-        ComponentDeployment::sanitize_hook_name("my hook$`name"),
-        "my-hook--name"
-    );
+fn test_sanitize_hook_name_replaces_unsafe_chars_with_hash() {
+    let result = ComponentDeployment::sanitize_hook_name("my hook$`name");
+    // サニタイズで変化 → ハッシュサフィックス付き
+    assert!(result.starts_with("my-hook--name-"));
+    assert!(result.len() > "my-hook--name".len());
 }
 
 #[test]
-fn test_sanitize_hook_name_dots_replaced() {
-    assert_eq!(
-        ComponentDeployment::sanitize_hook_name("my-hook.v1"),
-        "my-hook-v1"
-    );
+fn test_sanitize_hook_name_dots_replaced_with_hash() {
+    let result = ComponentDeployment::sanitize_hook_name("my-hook.v1");
+    assert!(result.starts_with("my-hook-v1-"));
 }
 
 #[test]
-fn test_sanitize_hook_name_dotdot_fallback() {
-    assert_eq!(ComponentDeployment::sanitize_hook_name(".."), "_hook");
+fn test_sanitize_hook_name_dotdot_gets_hash() {
+    let result = ComponentDeployment::sanitize_hook_name("..");
+    assert!(result.starts_with("_hook-"));
 }
 
 #[test]
-fn test_sanitize_hook_name_empty_fallback() {
-    assert_eq!(ComponentDeployment::sanitize_hook_name(""), "_hook");
+fn test_sanitize_hook_name_empty_gets_hash() {
+    let result = ComponentDeployment::sanitize_hook_name("");
+    assert!(result.starts_with("_hook-"));
 }
 
 #[test]
-fn test_sanitize_hook_name_only_special_chars_fallback() {
-    assert_eq!(ComponentDeployment::sanitize_hook_name("$@!"), "_hook");
+fn test_sanitize_hook_name_only_special_chars_gets_hash() {
+    let result = ComponentDeployment::sanitize_hook_name("$@!");
+    assert!(result.starts_with("_hook-"));
 }
 
 #[test]
-fn test_sanitize_hook_name_dotfile_fallback() {
-    // ".env" → dots become hyphens → "--env" → trimmed → "env"
-    assert_eq!(ComponentDeployment::sanitize_hook_name(".env"), "env");
+fn test_sanitize_hook_name_dotfile_gets_hash() {
+    let result = ComponentDeployment::sanitize_hook_name(".env");
+    assert!(result.starts_with("env-"));
+}
+
+#[test]
+fn test_sanitize_hook_name_different_inputs_produce_different_results() {
+    let a = ComponentDeployment::sanitize_hook_name("my hook");
+    let b = ComponentDeployment::sanitize_hook_name("my-hook");
+    // "my hook" → sanitized "my-hook" + hash, "my-hook" → unchanged
+    assert_ne!(a, b);
 }
 
 #[test]
@@ -1206,11 +1215,13 @@ fn test_hook_convert_with_unsafe_name_uses_sanitized_dir() {
 
     deployment.execute().unwrap();
 
+    let safe_name = ComponentDeployment::sanitize_hook_name("my hook$name");
+
     // サニタイズされたディレクトリ名が使われること
-    assert!(target_dir.join("wrappers/my-hook-name").exists());
+    assert!(target_dir.join("wrappers").join(&safe_name).exists());
     // JSON 内のパスもサニタイズされた名前を参照
     let json_content = fs::read_to_string(&target).unwrap();
-    assert!(json_content.contains("./wrappers/my-hook-name/"));
+    assert!(json_content.contains(&format!("./wrappers/{}/", safe_name)));
 }
 
 /// 変換後 JSON に version: 1 が含まれること
