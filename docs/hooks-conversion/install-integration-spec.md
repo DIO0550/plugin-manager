@@ -36,7 +36,7 @@ flowchart TD
     G --> H["実行権限を付与"]
     H --> I{警告あり?}
     I -->|Yes| J["警告を表示"]
-    I -->|No| K["DeploymentResult::Converted"]
+    I -->|No| K["DeploymentResult::HookConverted"]
     J --> K
     C --> L["DeploymentResult::Copied"]
 ```
@@ -134,7 +134,7 @@ sequenceDiagram
             Deploy->>FS: wrappers/{hook-name}/{script}.sh を書き出し
             Deploy->>FS: chmod +x
         end
-        Deploy-->>App: DeploymentResult::Converted
+        Deploy-->>App: DeploymentResult::HookConverted(HookConvertResult)
     end
 
     App->>CLI: 結果表示（警告含む）
@@ -172,7 +172,7 @@ src/
 | ソース JSON パースエラー | 不正な JSON | エラーを返す（インストール中止） |
 | 変換後 JSON 書き込み失敗 | ディスク容量不足 / 書き込み権限なし | エラーを返す（インストール中止） |
 | ラッパースクリプト書き込み失敗 | 同上 | エラーを返す（インストール中止） |
-| 全イベントが非対応 | Claude Code 固有イベントのみの設定 | 警告を出力し、空の hooks.json を配置 |
+| 全イベントが非対応 | Claude Code 固有イベントのみの設定 | 警告を出力し、空の {name}.json を配置 |
 
 ## 制限事項
 
