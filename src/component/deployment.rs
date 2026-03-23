@@ -3,7 +3,7 @@
 use super::convert::{self, AgentConversionResult, AgentFormat, CommandFormat, ConversionResult};
 use crate::component::{Component, ComponentKind, Scope};
 use crate::error::{PlmError, Result};
-use crate::hooks::converter;
+use crate::hooks::converter::{self, WRAPPERS_DIR};
 use crate::path_ext::PathExt;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -83,7 +83,8 @@ impl ComponentDeployment {
             return;
         };
 
-        let namespaced_prefix = format!("./wrappers/{}/", safe_name);
+        let original_prefix = format!("./{}/", WRAPPERS_DIR);
+        let namespaced_prefix = format!("./{}/{}/", WRAPPERS_DIR, safe_name);
 
         let hook_defs = hooks
             .values_mut()
@@ -96,7 +97,7 @@ impl ComponentDeployment {
             if !original_paths.contains(&bash) {
                 continue;
             }
-            let new_path = bash.replacen("./wrappers/", &namespaced_prefix, 1);
+            let new_path = bash.replacen(&original_prefix, &namespaced_prefix, 1);
             hook.as_object_mut()
                 .unwrap()
                 .insert("bash".to_string(), serde_json::Value::String(new_path));
@@ -139,9 +140,10 @@ impl ComponentDeployment {
                 &safe_name,
             );
 
+            let prefix_with_slash = format!("{}/", WRAPPERS_DIR);
             for script in &mut convert_result.wrapper_scripts {
-                if let Some(filename) = script.path.strip_prefix("wrappers/") {
-                    script.path = format!("wrappers/{}/{}", safe_name, filename);
+                if let Some(filename) = script.path.strip_prefix(&prefix_with_slash) {
+                    script.path = format!("{}/{}/{}", WRAPPERS_DIR, safe_name, filename);
                 }
             }
         }
@@ -170,7 +172,7 @@ impl ComponentDeployment {
                 .target_path
                 .parent()
                 .unwrap()
-                .join("wrappers")
+                .join(WRAPPERS_DIR)
                 .join(&safe_name);
             fs::create_dir_all(&wrapper_dir)?;
 

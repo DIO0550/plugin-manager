@@ -10,6 +10,9 @@ use serde_json::Value;
 use crate::error::PlmError;
 use crate::hooks::event_map::event_claude_to_copilot;
 
+/// wrapper スクリプトの配置ディレクトリ prefix
+pub const WRAPPERS_DIR: &str = "wrappers";
+
 /// Conversion result containing the transformed JSON, warnings, and wrapper script info.
 #[derive(Debug, Clone)]
 pub struct ConvertResult {
@@ -579,7 +582,7 @@ fn convert_command_hook(
     );
 
     wrapper_scripts.push(WrapperScriptInfo {
-        path: format!("wrappers/{}", script_name),
+        path: format!("{}/{}", WRAPPERS_DIR, script_name),
         content: script_content,
         original_config: hook.clone(),
         matcher: matcher.map(|s| s.to_string()),
@@ -587,7 +590,7 @@ fn convert_command_hook(
 
     output.insert(
         "bash".to_string(),
-        Value::from(format!("./wrappers/{}", script_name)),
+        Value::from(format!("./{}/{}", WRAPPERS_DIR, script_name)),
     );
 
     if let Some(t) = timeout_value {
@@ -780,7 +783,7 @@ exit 0
     );
 
     wrapper_scripts.push(WrapperScriptInfo {
-        path: format!("wrappers/{}", script_name),
+        path: format!("{}/{}", WRAPPERS_DIR, script_name),
         content: script_content,
         original_config: hook.clone(),
         matcher: matcher.map(|s| s.to_string()),
@@ -790,7 +793,7 @@ exit 0
     output.insert("type".to_string(), Value::from("command"));
     output.insert(
         "bash".to_string(),
-        Value::from(format!("./wrappers/{}", script_name)),
+        Value::from(format!("./{}/{}", WRAPPERS_DIR, script_name)),
     );
 
     if let Some(timeout) = hook_obj.get("timeout") {
@@ -829,7 +832,7 @@ fn convert_prompt_agent_hook(
     );
 
     wrapper_scripts.push(WrapperScriptInfo {
-        path: format!("wrappers/{}", script_name),
+        path: format!("{}/{}", WRAPPERS_DIR, script_name),
         content: script_content,
         original_config: hook.clone(),
         matcher: matcher.map(|s| s.to_string()),
@@ -846,7 +849,7 @@ fn convert_prompt_agent_hook(
     output.insert("type".to_string(), Value::from("command"));
     output.insert(
         "bash".to_string(),
-        Value::from(format!("./wrappers/{}", script_name)),
+        Value::from(format!("./{}/{}", WRAPPERS_DIR, script_name)),
     );
 
     if let Some(obj) = hook_obj {
