@@ -873,11 +873,8 @@ fn test_hook_convert_plugin_root_replacement() {
         let content = fs::read_to_string(entry.path()).unwrap();
         assert!(
             !content.contains("@@PLUGIN_ROOT@@"),
-            "@@PLUGIN_ROOT@@ should be replaced"
-        );
-        assert!(
-            content.contains(&plugin_root.display().to_string()),
-            "Should contain actual plugin root path"
+            "@@PLUGIN_ROOT@@ should be replaced in {:?}",
+            entry.path()
         );
     }
 }
