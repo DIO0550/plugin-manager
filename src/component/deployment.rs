@@ -50,16 +50,27 @@ impl ComponentDeployment {
     }
 
     /// Hook 名をパスセグメントとして安全な文字列にサニタイズ
+    ///
+    /// - `[A-Za-z0-9_-]` 以外をハイフンに置換（`.` も除去してトラバーサル防止）
+    /// - 先頭・末尾のハイフンを除去
+    /// - 空文字列、`.`、`..` の場合はフォールバック名 `_hook` を返す
     pub(crate) fn sanitize_hook_name(name: &str) -> String {
-        name.chars()
+        let sanitized: String = name
+            .chars()
             .map(|c| {
-                if c.is_ascii_alphanumeric() || c == '.' || c == '_' || c == '-' {
+                if c.is_ascii_alphanumeric() || c == '_' || c == '-' {
                     c
                 } else {
                     '-'
                 }
             })
-            .collect()
+            .collect();
+        let trimmed = sanitized.trim_matches('-');
+        if trimmed.is_empty() || trimmed == "." || trimmed == ".." {
+            "_hook".to_string()
+        } else {
+            trimmed.to_string()
+        }
     }
 
     /// Hook 変換デプロイを実行

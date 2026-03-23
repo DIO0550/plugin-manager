@@ -1111,8 +1111,8 @@ fn test_hook_convert_multiple_hooks_no_name_collision() {
 #[test]
 fn test_sanitize_hook_name_safe_chars_unchanged() {
     assert_eq!(
-        ComponentDeployment::sanitize_hook_name("my-hook_v1.0"),
-        "my-hook_v1.0"
+        ComponentDeployment::sanitize_hook_name("my-hook_v1"),
+        "my-hook_v1"
     );
 }
 
@@ -1122,6 +1122,35 @@ fn test_sanitize_hook_name_replaces_unsafe_chars() {
         ComponentDeployment::sanitize_hook_name("my hook$`name"),
         "my-hook--name"
     );
+}
+
+#[test]
+fn test_sanitize_hook_name_dots_replaced() {
+    assert_eq!(
+        ComponentDeployment::sanitize_hook_name("my-hook.v1"),
+        "my-hook-v1"
+    );
+}
+
+#[test]
+fn test_sanitize_hook_name_dotdot_fallback() {
+    assert_eq!(ComponentDeployment::sanitize_hook_name(".."), "_hook");
+}
+
+#[test]
+fn test_sanitize_hook_name_empty_fallback() {
+    assert_eq!(ComponentDeployment::sanitize_hook_name(""), "_hook");
+}
+
+#[test]
+fn test_sanitize_hook_name_only_special_chars_fallback() {
+    assert_eq!(ComponentDeployment::sanitize_hook_name("$@!"), "_hook");
+}
+
+#[test]
+fn test_sanitize_hook_name_dotfile_fallback() {
+    // ".env" → dots become hyphens → "--env" → trimmed → "env"
+    assert_eq!(ComponentDeployment::sanitize_hook_name(".env"), "env");
 }
 
 #[test]
