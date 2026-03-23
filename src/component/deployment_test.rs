@@ -649,6 +649,7 @@ fn test_builder_hook_convert() {
         .source_path("/src/hook.json")
         .target_path("/dest/hook.json")
         .hook_convert(true)
+        .plugin_root("/cache/plugin")
         .build()
         .unwrap();
 
@@ -684,6 +685,22 @@ fn test_builder_hook_convert_default_false() {
 
     // hook_convert defaults to false: Hook should be file-copied
     assert_eq!(deployment.kind, ComponentKind::Hook);
+}
+
+#[test]
+fn test_builder_hook_convert_true_requires_plugin_root() {
+    let result = ComponentDeployment::builder()
+        .kind(ComponentKind::Hook)
+        .name("test-hook")
+        .scope(Scope::Project)
+        .source_path("/src/hook.json")
+        .target_path("/dest/hook.json")
+        .hook_convert(true)
+        .build();
+
+    assert!(result.is_err());
+    let err = result.unwrap_err().to_string();
+    assert!(err.contains("plugin_root"));
 }
 
 // ========================================

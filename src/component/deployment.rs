@@ -370,6 +370,13 @@ impl ComponentDeploymentBuilder {
             .target_path
             .ok_or_else(|| PlmError::Validation("target_path is required".to_string()))?;
 
+        let hook_convert = self.hook_convert.unwrap_or(false);
+        if kind == ComponentKind::Hook && hook_convert && self.plugin_root.is_none() {
+            return Err(PlmError::Validation(
+                "plugin_root is required when hook_convert is true".to_string(),
+            ));
+        }
+
         Ok(ComponentDeployment {
             kind,
             name,
@@ -380,7 +387,7 @@ impl ComponentDeploymentBuilder {
             dest_format: self.dest_format,
             source_agent_format: self.source_agent_format,
             dest_agent_format: self.dest_agent_format,
-            hook_convert: self.hook_convert.unwrap_or(false),
+            hook_convert,
             plugin_root: self.plugin_root,
         })
     }
