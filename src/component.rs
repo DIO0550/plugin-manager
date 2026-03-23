@@ -9,7 +9,8 @@ mod placement;
 mod summary;
 
 pub use convert::{AgentFormat, CommandFormat};
-pub use deployment::{ComponentDeployment, DeploymentResult};
+#[allow(unused_imports)]
+pub use deployment::{ComponentDeployment, DeploymentResult, HookConvertResult};
 pub use kind::{Component, ComponentKind, Scope};
 pub use placement::{
     ComponentRef, PlacementContext, PlacementLocation, PlacementScope, ProjectContext,

@@ -3,7 +3,9 @@
 use super::convert::{self, AgentConversionResult, AgentFormat, CommandFormat, ConversionResult};
 use crate::component::{Component, ComponentKind, Scope};
 use crate::error::{PlmError, Result};
+use crate::hooks::converter;
 use crate::path_ext::PathExt;
+use std::fs;
 use std::path::{Path, PathBuf};
 
 /// コンポーネントのデプロイ情報
@@ -25,6 +27,10 @@ pub struct ComponentDeployment {
     source_agent_format: Option<AgentFormat>,
     /// ターゲットの Agent フォーマット（Agent の場合のみ有効）
     dest_agent_format: Option<AgentFormat>,
+    /// Hook 変換を実行するかどうか
+    hook_convert: bool,
+    /// @@PLUGIN_ROOT@@ 置換用のプラグインキャッシュルートパス
+    plugin_root: Option<PathBuf>,
 }
 
 impl ComponentDeployment {
@@ -41,6 +47,116 @@ impl ComponentDeployment {
     /// ソースパスを取得
     pub fn source_path(&self) -> &Path {
         &self.source_path
+    }
+
+    /// Hook 変換デプロイを実行
+    fn deploy_hook_converted(&self) -> Result<DeploymentResult> {
+        // 1. ソース JSON を読み込み
+        let input = fs::read_to_string(&self.source_path)?;
+
+        // 2. converter で変換
+        let mut convert_result = converter::convert(&input)?;
+
+        // 3. plugin_root を取得
+        let plugin_root = self.plugin_root.as_ref().ok_or_else(|| {
+            PlmError::Validation("plugin_root is required for hook conversion".to_string())
+        })?;
+
+        // 4. wrapper パスを名前空間付きに書き換え（生成された wrapper がある場合のみ）
+        if !convert_result.wrapper_scripts.is_empty() {
+            // JSON 内の bash パスを構造的に書き換え: 生成された wrapper パスのみ対象
+            let original_paths: Vec<String> = convert_result
+                .wrapper_scripts
+                .iter()
+                .map(|s| format!("./{}", s.path))
+                .collect();
+
+            if let Some(obj) = convert_result.json.as_object_mut() {
+                if let Some(hooks) = obj.get_mut("hooks").and_then(|h| h.as_object_mut()) {
+                    for (_event, hook_list) in hooks.iter_mut() {
+                        if let Some(arr) = hook_list.as_array_mut() {
+                            for hook in arr.iter_mut() {
+                                if let Some(bash) = hook.get("bash").and_then(|b| b.as_str()) {
+                                    if original_paths.contains(&bash.to_string()) {
+                                        // ./wrappers/xxx.sh → ./wrappers/{hook-name}/xxx.sh
+                                        let new_path = bash.replacen(
+                                            "./wrappers/",
+                                            &format!("./wrappers/{}/", self.name),
+                                            1,
+                                        );
+                                        hook.as_object_mut().unwrap().insert(
+                                            "bash".to_string(),
+                                            serde_json::Value::String(new_path),
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // WrapperScriptInfo のパスも更新
+            for script in &mut convert_result.wrapper_scripts {
+                if let Some(filename) = script.path.strip_prefix("wrappers/") {
+                    script.path = format!("wrappers/{}/{}", self.name, filename);
+                }
+            }
+        }
+
+        // 5. JSON をシリアライズ
+        let json_str = serde_json::to_string_pretty(&convert_result.json)
+            .map_err(|e| PlmError::HookConversion(format!("Failed to serialize JSON: {}", e)))?;
+
+        // 6. ターゲットディレクトリを作成
+        if let Some(parent) = self.target_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+
+        // 7. 変換済み JSON を書き出し
+        fs::write(&self.target_path, &json_str)?;
+
+        // 7. wrapper スクリプトを配置
+        let wrapper_count = convert_result.wrapper_scripts.len();
+        for script in &convert_result.wrapper_scripts {
+            let filename = Path::new(&script.path)
+                .file_name()
+                .map(|f| f.to_string_lossy().to_string())
+                .unwrap_or_else(|| script.path.clone());
+
+            let wrapper_dir = self
+                .target_path
+                .parent()
+                .unwrap()
+                .join("wrappers")
+                .join(&self.name);
+            fs::create_dir_all(&wrapper_dir)?;
+
+            let wrapper_path = wrapper_dir.join(&filename);
+
+            // @@PLUGIN_ROOT@@ を実パスに置換（ダブルクオート内に埋め込まれるためエスケープ）
+            let plugin_root_str = plugin_root.display().to_string();
+            let escaped = plugin_root_str
+                .replace('\\', "\\\\")
+                .replace('"', "\\\"")
+                .replace('$', "\\$")
+                .replace('`', "\\`");
+            let content = script.content.replace("@@PLUGIN_ROOT@@", &escaped);
+
+            fs::write(&wrapper_path, &content)?;
+
+            // Unix: 実行権限を設定
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                fs::set_permissions(&wrapper_path, fs::Permissions::from_mode(0o755))?;
+            }
+        }
+
+        Ok(DeploymentResult::HookConverted(HookConvertResult {
+            warnings: convert_result.warnings,
+            wrapper_count,
+        }))
     }
 
     /// 配置を実行（ファイルコピー）
@@ -88,10 +204,17 @@ impl ComponentDeployment {
                     Ok(DeploymentResult::Copied)
                 }
             }
-            ComponentKind::Instruction | ComponentKind::Hook => {
-                // These are files (no conversion)
+            ComponentKind::Instruction => {
                 self.source_path.copy_file_to(&self.target_path)?;
                 Ok(DeploymentResult::Copied)
+            }
+            ComponentKind::Hook => {
+                if self.hook_convert {
+                    self.deploy_hook_converted()
+                } else {
+                    self.source_path.copy_file_to(&self.target_path)?;
+                    Ok(DeploymentResult::Copied)
+                }
             }
         }
     }
@@ -106,6 +229,15 @@ pub enum DeploymentResult {
     Converted(ConversionResult),
     /// Agent フォーマット変換が行われた
     AgentConverted(AgentConversionResult),
+    /// Hook 変換が行われた
+    HookConverted(HookConvertResult),
+}
+
+/// Hook 変換結果
+#[derive(Debug)]
+pub struct HookConvertResult {
+    pub warnings: Vec<crate::hooks::converter::ConversionWarning>,
+    pub wrapper_count: usize,
 }
 
 /// ComponentDeployment のビルダー
@@ -120,6 +252,8 @@ pub struct ComponentDeploymentBuilder {
     dest_format: Option<CommandFormat>,
     source_agent_format: Option<AgentFormat>,
     dest_agent_format: Option<AgentFormat>,
+    hook_convert: Option<bool>,
+    plugin_root: Option<PathBuf>,
 }
 
 impl ComponentDeploymentBuilder {
@@ -190,6 +324,18 @@ impl ComponentDeploymentBuilder {
         self
     }
 
+    /// Hook 変換を有効化
+    pub fn hook_convert(mut self, convert: bool) -> Self {
+        self.hook_convert = Some(convert);
+        self
+    }
+
+    /// プラグインルートパスを設定（@@PLUGIN_ROOT@@ 置換用）
+    pub fn plugin_root(mut self, path: impl Into<PathBuf>) -> Self {
+        self.plugin_root = Some(path.into());
+        self
+    }
+
     /// ComponentDeployment を構築
     pub fn build(self) -> Result<ComponentDeployment> {
         let kind = self
@@ -218,6 +364,8 @@ impl ComponentDeploymentBuilder {
             dest_format: self.dest_format,
             source_agent_format: self.source_agent_format,
             dest_agent_format: self.dest_agent_format,
+            hook_convert: self.hook_convert.unwrap_or(false),
+            plugin_root: self.plugin_root,
         })
     }
 }
