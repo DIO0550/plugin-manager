@@ -180,13 +180,26 @@ impl ComponentDeployment {
 
             let wrapper_path = wrapper_dir.join(&filename);
 
-            // @@PLUGIN_ROOT@@ を実パスに置換（ダブルクオート内に埋め込まれるためエスケープ）
+            // @@PLUGIN_ROOT@@ を実パスに置換
+            // bash ダブルクオート内で特別な意味を持つ文字のみをエスケープする
             let plugin_root_str = plugin_root.display().to_string();
-            let escaped = plugin_root_str
-                .replace('\\', "\\\\")
-                .replace('"', "\\\"")
-                .replace('$', "\\$")
-                .replace('`', "\\`");
+            let escaped = {
+                let mut out = String::with_capacity(plugin_root_str.len());
+                for ch in plugin_root_str.chars() {
+                    match ch {
+                        '\\' | '"' | '$' | '`' => {
+                            out.push('\\');
+                            out.push(ch);
+                        }
+                        '\n' => {
+                            out.push('\\');
+                            out.push('n');
+                        }
+                        _ => out.push(ch),
+                    }
+                }
+                out
+            };
             let content = script.content.replace("@@PLUGIN_ROOT@@", &escaped);
 
             fs::write(&wrapper_path, &content)?;
