@@ -56,7 +56,7 @@ impl ComponentDeployment {
     ///
     /// - `[A-Za-z0-9_-]` 以外をハイフンに置換（`.` も含めて `-` に置換）
     /// - 先頭・末尾のハイフンを除去
-    /// - サニタイズ後の結果が空文字列の場合はフォールバック名 `_hook` を使用
+    /// - サニタイズ後の結果が空文字列の場合はフォールバック名として `_hook` をベースに使用
     /// - サニタイズにより元名と異なる場合は短いハッシュサフィックスを付加して衝突を防止
     pub(crate) fn sanitize_hook_name(name: &str) -> String {
         let sanitized: String = name
