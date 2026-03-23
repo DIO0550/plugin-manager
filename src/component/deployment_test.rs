@@ -1087,6 +1087,57 @@ fn test_hook_convert_multiple_hooks_no_name_collision() {
     assert!(!json_b.contains("./wrappers/hook-a/"));
 }
 
+// ========================================
+// Hook name sanitization tests
+// ========================================
+
+#[test]
+fn test_sanitize_hook_name_safe_chars_unchanged() {
+    assert_eq!(
+        ComponentDeployment::sanitize_hook_name("my-hook_v1.0"),
+        "my-hook_v1.0"
+    );
+}
+
+#[test]
+fn test_sanitize_hook_name_replaces_unsafe_chars() {
+    assert_eq!(
+        ComponentDeployment::sanitize_hook_name("my hook$`name"),
+        "my-hook--name"
+    );
+}
+
+#[test]
+fn test_hook_convert_with_unsafe_name_uses_sanitized_dir() {
+    let temp = TempDir::new().unwrap();
+    let source = temp.path().join("hook.json");
+    let target_dir = temp.path().join("dest");
+    let target = target_dir.join("hook.json");
+    let plugin_root = temp.path().join("cache/plugin");
+    fs::create_dir_all(&plugin_root).unwrap();
+
+    fs::write(&source, sample_claude_code_hook_json()).unwrap();
+
+    let deployment = ComponentDeployment::builder()
+        .kind(ComponentKind::Hook)
+        .name("my hook$name")
+        .scope(Scope::Project)
+        .source_path(&source)
+        .target_path(&target)
+        .hook_convert(true)
+        .plugin_root(&plugin_root)
+        .build()
+        .unwrap();
+
+    deployment.execute().unwrap();
+
+    // サニタイズされたディレクトリ名が使われること
+    assert!(target_dir.join("wrappers/my-hook-name").exists());
+    // JSON 内のパスもサニタイズされた名前を参照
+    let json_content = fs::read_to_string(&target).unwrap();
+    assert!(json_content.contains("./wrappers/my-hook-name/"));
+}
+
 /// 変換後 JSON に version: 1 が含まれること
 #[test]
 fn test_hook_convert_output_has_version() {

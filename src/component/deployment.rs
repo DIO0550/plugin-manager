@@ -49,6 +49,19 @@ impl ComponentDeployment {
         &self.source_path
     }
 
+    /// Hook 名をパスセグメントとして安全な文字列にサニタイズ
+    pub(crate) fn sanitize_hook_name(name: &str) -> String {
+        name.chars()
+            .map(|c| {
+                if c.is_ascii_alphanumeric() || c == '.' || c == '_' || c == '-' {
+                    c
+                } else {
+                    '-'
+                }
+            })
+            .collect()
+    }
+
     /// Hook 変換デプロイを実行
     fn deploy_hook_converted(&self) -> Result<DeploymentResult> {
         // 1. ソース JSON を読み込み
@@ -61,6 +74,9 @@ impl ComponentDeployment {
         let plugin_root = self.plugin_root.as_ref().ok_or_else(|| {
             PlmError::Validation("plugin_root is required for hook conversion".to_string())
         })?;
+
+        // Hook 名をサニタイズ（パスセグメント・シェルコマンドで安全に使えるようにする）
+        let safe_name = Self::sanitize_hook_name(&self.name);
 
         // 4. wrapper パスを名前空間付きに書き換え（生成された wrapper がある場合のみ）
         if !convert_result.wrapper_scripts.is_empty() {
@@ -81,7 +97,7 @@ impl ComponentDeployment {
                                         // ./wrappers/xxx.sh → ./wrappers/{hook-name}/xxx.sh
                                         let new_path = bash.replacen(
                                             "./wrappers/",
-                                            &format!("./wrappers/{}/", self.name),
+                                            &format!("./wrappers/{}/", safe_name),
                                             1,
                                         );
                                         hook.as_object_mut().unwrap().insert(
@@ -99,7 +115,7 @@ impl ComponentDeployment {
             // WrapperScriptInfo のパスも更新
             for script in &mut convert_result.wrapper_scripts {
                 if let Some(filename) = script.path.strip_prefix("wrappers/") {
-                    script.path = format!("wrappers/{}/{}", self.name, filename);
+                    script.path = format!("wrappers/{}/{}", safe_name, filename);
                 }
             }
         }
@@ -129,7 +145,7 @@ impl ComponentDeployment {
                 .parent()
                 .unwrap()
                 .join("wrappers")
-                .join(&self.name);
+                .join(&safe_name);
             fs::create_dir_all(&wrapper_dir)?;
 
             let wrapper_path = wrapper_dir.join(&filename);
