@@ -10,6 +10,26 @@ use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Clear, Gauge, List, ListItem, ListState, Paragraph, Tabs};
 use std::collections::HashSet;
 
+/// 描画用共通コンテキスト（DataStore + フィルタ情報）
+struct ViewCtx<'a> {
+    data: &'a DataStore,
+    filter_text: &'a str,
+    filter_focused: bool,
+}
+
+/// フィルタ情報のみのコンテキスト
+struct FilterCtx<'a> {
+    text: &'a str,
+    focused: bool,
+}
+
+/// ブラウズ画面のデータ
+struct BrowseData<'a> {
+    plugins: &'a [BrowsePlugin],
+    selected_plugins: &'a HashSet<String>,
+    highlighted_idx: usize,
+}
+
 /// 画面を描画
 pub fn view(
     f: &mut Frame,
@@ -18,6 +38,15 @@ pub fn view(
     filter_text: &str,
     filter_focused: bool,
 ) {
+    let ctx = ViewCtx {
+        data,
+        filter_text,
+        filter_focused,
+    };
+    let filter = FilterCtx {
+        text: filter_text,
+        focused: filter_focused,
+    };
     match model {
         Model::MarketList {
             state,
@@ -25,15 +54,7 @@ pub fn view(
             error_message,
             ..
         } => {
-            view_market_list(
-                f,
-                *state,
-                data,
-                filter_text,
-                filter_focused,
-                operation_status,
-                error_message,
-            );
+            view_market_list(f, *state, &ctx, operation_status, error_message);
         }
         Model::MarketDetail {
             marketplace_name,
@@ -41,15 +62,7 @@ pub fn view(
             error_message,
             ..
         } => {
-            view_market_detail(
-                f,
-                marketplace_name,
-                *state,
-                data,
-                filter_text,
-                filter_focused,
-                error_message,
-            );
+            view_market_detail(f, marketplace_name, *state, &ctx, error_message);
         }
         Model::PluginList {
             marketplace_name,
@@ -57,14 +70,7 @@ pub fn view(
             plugins,
             ..
         } => {
-            view_plugin_list(
-                f,
-                marketplace_name,
-                *state,
-                plugins,
-                filter_text,
-                filter_focused,
-            );
+            view_plugin_list(f, marketplace_name, *state, plugins, &filter);
         }
         Model::AddForm(form) => {
             view_add_form(f, form, filter_text, filter_focused);
@@ -76,16 +82,12 @@ pub fn view(
             highlighted_idx,
             state,
         } => {
-            view_plugin_browse(
-                f,
-                marketplace_name,
+            let browse = BrowseData {
                 plugins,
                 selected_plugins,
-                *highlighted_idx,
-                *state,
-                filter_text,
-                filter_focused,
-            );
+                highlighted_idx: *highlighted_idx,
+            };
+            view_plugin_browse(f, marketplace_name, &browse, *state, &filter);
         }
         Model::TargetSelect {
             targets,
@@ -132,18 +134,15 @@ fn render_tab_bar(f: &mut Frame, area: Rect) {
 }
 
 /// マーケットプレイス一覧画面を描画
-#[allow(clippy::too_many_arguments)]
 fn view_market_list(
     f: &mut Frame,
     mut state: ListState,
-    data: &DataStore,
-    filter_text: &str,
-    filter_focused: bool,
+    ctx: &ViewCtx<'_>,
     operation_status: &Option<OperationStatus>,
     error_message: &Option<String>,
 ) {
     // リスト長: マーケットプレイス数 + 1（"+ Add new"）
-    let list_len = data.marketplaces.len() + 1;
+    let list_len = ctx.data.marketplaces.len() + 1;
     let has_status = operation_status.is_some();
     let has_error = error_message.is_some();
     let extra_lines = if has_status { 1 } else { 0 } + if has_error { 1 } else { 0 };
@@ -169,7 +168,7 @@ fn view_market_list(
     render_tab_bar(f, chunks[0]);
 
     // フィルタバー
-    render_filter_bar(f, chunks[1], filter_text, filter_focused);
+    render_filter_bar(f, chunks[1], ctx.filter_text, ctx.filter_focused);
 
     // コンテンツ領域を分割（リスト + ステータス/エラー）
     let content_chunks = Layout::default()
@@ -181,8 +180,9 @@ fn view_market_list(
         .split(chunks[2]);
 
     // マーケットプレイスリスト
-    let title = format!(" Marketplaces ({}) ", data.marketplaces.len());
-    let mut items: Vec<ListItem> = data
+    let title = format!(" Marketplaces ({}) ", ctx.data.marketplaces.len());
+    let mut items: Vec<ListItem> = ctx
+        .data
         .marketplaces
         .iter()
         .map(|m| {
@@ -252,14 +252,11 @@ fn view_market_list(
 }
 
 /// マーケットプレイス詳細画面を描画
-#[allow(clippy::too_many_arguments)]
 fn view_market_detail(
     f: &mut Frame,
     marketplace_name: &str,
     mut state: ListState,
-    data: &DataStore,
-    filter_text: &str,
-    filter_focused: bool,
+    ctx: &ViewCtx<'_>,
     error_message: &Option<String>,
 ) {
     let dialog_width = 65u16;
@@ -287,10 +284,10 @@ fn view_market_detail(
     render_tab_bar(f, chunks[0]);
 
     // フィルタバー（read-only）
-    render_filter_bar(f, chunks[1], filter_text, filter_focused);
+    render_filter_bar(f, chunks[1], ctx.filter_text, ctx.filter_focused);
 
     // マーケットプレイス情報
-    let marketplace = data.find_marketplace(marketplace_name);
+    let marketplace = ctx.data.find_marketplace(marketplace_name);
     let title = format!(" {} ", marketplace_name);
 
     let info_lines = if let Some(m) = marketplace {
@@ -364,8 +361,7 @@ fn view_plugin_list(
     marketplace_name: &str,
     mut state: ListState,
     plugins: &[(String, Option<String>)],
-    filter_text: &str,
-    filter_focused: bool,
+    filter: &FilterCtx<'_>,
 ) {
     let content_height = (plugins.len() as u16).max(1) + 2; // +2 for borders
     let dialog_width = 65u16;
@@ -388,7 +384,7 @@ fn view_plugin_list(
     render_tab_bar(f, chunks[0]);
 
     // フィルタバー（read-only）
-    render_filter_bar(f, chunks[1], filter_text, filter_focused);
+    render_filter_bar(f, chunks[1], filter.text, filter.focused);
 
     // プラグインリスト
     let title = format!(" {} > Plugins ({}) ", marketplace_name, plugins.len());
@@ -572,16 +568,12 @@ fn view_add_form(f: &mut Frame, form: &AddFormModel, filter_text: &str, filter_f
 }
 
 /// プラグインブラウズ画面を描画
-#[allow(clippy::too_many_arguments)]
 fn view_plugin_browse(
     f: &mut Frame,
     marketplace_name: &str,
-    plugins: &[BrowsePlugin],
-    selected_plugins: &HashSet<String>,
-    highlighted_idx: usize,
+    browse: &BrowseData<'_>,
     mut state: ListState,
-    filter_text: &str,
-    filter_focused: bool,
+    filter: &FilterCtx<'_>,
 ) {
     let dialog_width = 80u16;
     let dialog_height = 24u16;
@@ -603,20 +595,20 @@ fn view_plugin_browse(
     render_tab_bar(f, chunks[0]);
 
     // フィルタバー
-    render_filter_bar(f, chunks[1], filter_text, filter_focused);
+    render_filter_bar(f, chunks[1], filter.text, filter.focused);
 
     // コンテンツ領域
-    let title = format!(" {} > Browse ({}) ", marketplace_name, plugins.len());
+    let title = format!(" {} > Browse ({}) ", marketplace_name, browse.plugins.len());
     let content_area = chunks[2];
 
-    if plugins.is_empty() {
+    if browse.plugins.is_empty() {
         let msg = Paragraph::new("  No plugins available.")
             .block(Block::default().title(title).borders(Borders::ALL))
             .style(Style::default().fg(Color::DarkGray));
         f.render_widget(msg, content_area);
     } else if !should_split_layout(content_area.width) {
         // 狭い端末: リストのみ描画
-        let items = build_browse_list_items(plugins, selected_plugins);
+        let items = build_browse_list_items(browse.plugins, browse.selected_plugins);
         let list = List::new(items)
             .block(Block::default().title(title).borders(Borders::ALL))
             .highlight_style(Style::default().add_modifier(Modifier::BOLD | Modifier::REVERSED))
@@ -630,7 +622,7 @@ fn view_plugin_browse(
             .split(content_area);
 
         // 左パネル: プラグインリスト
-        let items = build_browse_list_items(plugins, selected_plugins);
+        let items = build_browse_list_items(browse.plugins, browse.selected_plugins);
         let list = List::new(items)
             .block(Block::default().title(title).borders(Borders::ALL))
             .highlight_style(Style::default().add_modifier(Modifier::BOLD | Modifier::REVERSED))
@@ -638,8 +630,8 @@ fn view_plugin_browse(
         f.render_stateful_widget(list, h_chunks[0], &mut state);
 
         // 右パネル: プラグイン詳細（state.selected() から導出して一貫性を保つ）
-        let detail_idx = state.selected().unwrap_or(highlighted_idx);
-        render_plugin_detail(f, plugins, detail_idx, h_chunks[1]);
+        let detail_idx = state.selected().unwrap_or(browse.highlighted_idx);
+        render_plugin_detail(f, browse.plugins, detail_idx, h_chunks[1]);
     }
 
     // ヘルプ

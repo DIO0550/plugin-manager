@@ -115,7 +115,12 @@ pub(crate) fn sync_with_fs(
     }
 
     // 5. 実行
-    execute_sync(source, dest, to_create, to_update, to_delete, fs)
+    let plan = SyncPlan {
+        to_create,
+        to_update,
+        to_delete,
+    };
+    execute_sync(source, dest, plan, fs)
 }
 
 /// 更新が必要かを判定（mtime または内容比較）
@@ -141,19 +146,24 @@ fn needs_update(
     Ok(fs.content_hash(&src.path)? != fs.content_hash(&dest.path)?)
 }
 
+/// 同期の実行計画
+struct SyncPlan {
+    to_create: Vec<PlacedComponent>,
+    to_update: Vec<PlacedComponent>,
+    to_delete: Vec<PlacedComponent>,
+}
+
 /// 同期を実行
 fn execute_sync(
     source: &SyncSource,
     dest: &SyncDestination,
-    to_create: Vec<PlacedComponent>,
-    to_update: Vec<PlacedComponent>,
-    to_delete: Vec<PlacedComponent>,
+    plan: SyncPlan,
     fs: &dyn FileSystem,
 ) -> Result<SyncResult> {
     let mut result = SyncResult::default();
 
     // Create
-    for component in to_create {
+    for component in plan.to_create {
         match execute_create(source, dest, &component, fs) {
             Ok(()) => result.created.push(component),
             Err(e) => result.failed.push(SyncFailure::new(
@@ -165,7 +175,7 @@ fn execute_sync(
     }
 
     // Update
-    for component in to_update {
+    for component in plan.to_update {
         match execute_update(source, dest, &component, fs) {
             Ok(()) => result.updated.push(component),
             Err(e) => result.failed.push(SyncFailure::new(
@@ -177,7 +187,7 @@ fn execute_sync(
     }
 
     // Delete
-    for component in to_delete {
+    for component in plan.to_delete {
         match execute_delete(&component, fs) {
             Ok(()) => result.deleted.push(component),
             Err(e) => result.failed.push(SyncFailure::new(

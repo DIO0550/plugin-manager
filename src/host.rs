@@ -12,6 +12,9 @@ use crate::repo::Repo;
 use std::future::Future;
 use std::pin::Pin;
 
+/// 非同期メソッドの戻り値型エイリアス
+type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = Result<T>> + Send + 'a>>;
+
 /// ホスト種別
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum HostKind {
@@ -38,39 +41,24 @@ impl std::fmt::Display for HostKind {
 }
 
 /// ホスト別クライアント trait
-#[allow(clippy::type_complexity)]
 pub trait HostClient: Send + Sync {
     /// デフォルトブランチを取得
-    fn get_default_branch<'a>(
-        &'a self,
-        repo: &'a Repo,
-    ) -> Pin<Box<dyn Future<Output = Result<String>> + Send + 'a>>;
+    fn get_default_branch<'a>(&'a self, repo: &'a Repo) -> BoxFuture<'a, String>;
 
     /// コミットSHAを取得
-    fn get_commit_sha<'a>(
-        &'a self,
-        repo: &'a Repo,
-        git_ref: &'a str,
-    ) -> Pin<Box<dyn Future<Output = Result<String>> + Send + 'a>>;
+    fn get_commit_sha<'a>(&'a self, repo: &'a Repo, git_ref: &'a str) -> BoxFuture<'a, String>;
 
     /// リポジトリをzipアーカイブとしてダウンロード
-    fn download_archive<'a>(
-        &'a self,
-        repo: &'a Repo,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>>> + Send + 'a>>;
+    fn download_archive<'a>(&'a self, repo: &'a Repo) -> BoxFuture<'a, Vec<u8>>;
 
     /// リポジトリをダウンロードし、コミットSHAも一緒に返す
     fn download_archive_with_sha<'a>(
         &'a self,
         repo: &'a Repo,
-    ) -> Pin<Box<dyn Future<Output = Result<(Vec<u8>, String, String)>> + Send + 'a>>;
+    ) -> BoxFuture<'a, (Vec<u8>, String, String)>;
 
     /// リポジトリ内のファイルを取得
-    fn fetch_file<'a>(
-        &'a self,
-        repo: &'a Repo,
-        path: &'a str,
-    ) -> Pin<Box<dyn Future<Output = Result<String>> + Send + 'a>>;
+    fn fetch_file<'a>(&'a self, repo: &'a Repo, path: &'a str) -> BoxFuture<'a, String>;
 }
 
 /// ホストクライアントファクトリー

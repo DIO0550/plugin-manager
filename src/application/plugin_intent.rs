@@ -16,6 +16,10 @@ use crate::fs::{FileSystem, RealFs};
 use crate::target::{all_targets, AffectedTargets, OperationResult, PluginOrigin, Target};
 use std::path::{Path, PathBuf};
 
+/// 単一コンポーネントの操作生成結果
+type CreateOperationResult =
+    std::result::Result<Option<(TargetId, FileOperation)>, (TargetId, String)>;
+
 /// `expand()` の結果
 #[derive(Debug)]
 pub struct ExpandResult {
@@ -135,7 +139,7 @@ impl PluginIntent {
         target: &dyn Target,
         component: &Component,
         origin: &PluginOrigin,
-    ) -> Result<Option<(TargetId, FileOperation)>, (TargetId, String)> {
+    ) -> CreateOperationResult {
         let context = PlacementContext {
             component: ComponentRef::new(component.kind, &component.name),
             origin,

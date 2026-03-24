@@ -188,74 +188,76 @@ pub async fn update_plugin(
     }
 
     // 更新処理実行
-    do_update(
-        plugin_name,
-        &latest_sha,
+    let ctx = UpdateCtx {
         cache,
-        &*client,
-        &repo,
-        &plugin_meta,
+        client: &*client,
+        repo: &repo,
+        plugin_meta: &plugin_meta,
         project_root,
         target_filter,
-    )
-    .await
+    };
+    do_update(plugin_name, &latest_sha, &ctx).await
+}
+
+/// 更新処理のコンテキスト
+struct UpdateCtx<'a> {
+    cache: &'a dyn PluginCacheAccess,
+    client: &'a dyn crate::host::HostClient,
+    repo: &'a Repo,
+    plugin_meta: &'a PluginMeta,
+    project_root: &'a Path,
+    target_filter: Option<&'a str>,
 }
 
 /// 更新処理の実行
-#[allow(clippy::too_many_arguments)]
-async fn do_update(
-    plugin_name: &str,
-    latest_sha: &str,
-    cache: &dyn PluginCacheAccess,
-    client: &dyn crate::host::HostClient,
-    repo: &Repo,
-    plugin_meta: &PluginMeta,
-    project_root: &Path,
-    target_filter: Option<&str>,
-) -> UpdateResult {
-    let current_sha = plugin_meta.commit_sha.clone();
-    let git_ref = plugin_meta.git_ref.as_deref().unwrap_or("HEAD");
+async fn do_update(plugin_name: &str, latest_sha: &str, ctx: &UpdateCtx<'_>) -> UpdateResult {
+    let current_sha = ctx.plugin_meta.commit_sha.clone();
+    let git_ref = ctx.plugin_meta.git_ref.as_deref().unwrap_or("HEAD");
 
     // バックアップ作成
     println!("  Creating backup...");
-    if let Err(e) = cache.backup(Some("github"), plugin_name) {
+    if let Err(e) = ctx.cache.backup(Some("github"), plugin_name) {
         return UpdateResult::failed(plugin_name, format!("Backup failed: {}", e));
     }
 
     // ダウンロード（リトライ付き）
     println!("  Downloading...");
-    let archive = match with_retry(|| client.download_archive(repo), 3).await {
+    let archive = match with_retry(|| ctx.client.download_archive(ctx.repo), 3).await {
         Ok(a) => a,
         Err(e) => {
             // ロールバック
-            let _ = cache.restore(Some("github"), plugin_name);
+            let _ = ctx.cache.restore(Some("github"), plugin_name);
             return UpdateResult::failed(plugin_name, format!("Download failed: {}", e));
         }
     };
 
     // アトミック更新
     println!("  Extracting...");
-    let plugin_path = match cache.atomic_update(Some("github"), plugin_name, &archive) {
+    let plugin_path = match ctx
+        .cache
+        .atomic_update(Some("github"), plugin_name, &archive)
+    {
         Ok(p) => p,
         Err(e) => {
             // ロールバック
-            let _ = cache.restore(Some("github"), plugin_name);
+            let _ = ctx.cache.restore(Some("github"), plugin_name);
             return UpdateResult::failed(plugin_name, format!("Extraction failed: {}", e));
         }
     };
 
     // 再デプロイ
     println!("  Deploying...");
-    let enabled = plugin_meta.enabled_targets();
-    let targets: Vec<&str> = match target_filter {
+    let enabled = ctx.plugin_meta.enabled_targets();
+    let targets: Vec<&str> = match ctx.target_filter {
         Some(f) => enabled.into_iter().filter(|t| *t == f).collect(),
         None => enabled,
     };
 
-    let (deployed, failed) = redeploy_to_targets(cache, plugin_name, &targets, project_root);
+    let (deployed, failed) =
+        redeploy_to_targets(ctx.cache, plugin_name, &targets, ctx.project_root);
 
     // メタデータ更新
-    let mut new_meta = plugin_meta.clone();
+    let mut new_meta = ctx.plugin_meta.clone();
     new_meta.set_git_info(git_ref, latest_sha);
     for t in &failed {
         new_meta.set_status(t, "disabled");
@@ -265,7 +267,7 @@ async fn do_update(
     }
 
     // バックアップ削除
-    let _ = cache.remove_backup(Some("github"), plugin_name);
+    let _ = ctx.cache.remove_backup(Some("github"), plugin_name);
 
     UpdateResult::updated(
         plugin_name,
@@ -424,17 +426,15 @@ pub async fn update_all_plugins(
         let update_factory = HostClientFactory::with_defaults();
         let update_client = update_factory.create(HostKind::GitHub);
 
-        let result = do_update(
-            name,
-            latest_sha,
+        let update_ctx = UpdateCtx {
             cache,
-            &*update_client,
-            &repo,
-            meta,
+            client: &*update_client,
+            repo: &repo,
+            plugin_meta: meta,
             project_root,
             target_filter,
-        )
-        .await;
+        };
+        let result = do_update(name, latest_sha, &update_ctx).await;
 
         // 結果表示
         match &result.status {
