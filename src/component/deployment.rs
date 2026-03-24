@@ -386,6 +386,44 @@ pub struct HookConvertResult {
     pub summary: Option<ConvertedSummaryResult>,
 }
 
+impl std::fmt::Display for DeploymentResult {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DeploymentResult::Copied => write!(f, "Copied"),
+            DeploymentResult::Converted(conv) => {
+                if conv.converted {
+                    write!(
+                        f,
+                        "Converted: {} -> {}",
+                        conv.source_format, conv.dest_format
+                    )
+                } else {
+                    write!(f, "Copied (no conversion needed)")
+                }
+            }
+            DeploymentResult::AgentConverted(conv) => {
+                if conv.converted {
+                    write!(
+                        f,
+                        "Agent converted: {} -> {}",
+                        conv.source_format, conv.dest_format
+                    )
+                } else {
+                    write!(f, "Copied (no agent conversion needed)")
+                }
+            }
+            DeploymentResult::HookConverted(hr) => {
+                write!(
+                    f,
+                    "Hook converted ({} wrappers, {} warnings)",
+                    hr.wrapper_count,
+                    hr.warnings.len()
+                )
+            }
+        }
+    }
+}
+
 /// ComponentDeployment のビルダー
 #[derive(Debug, Default)]
 pub struct ComponentDeploymentBuilder {

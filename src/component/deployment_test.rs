@@ -1385,6 +1385,69 @@ fn test_hook_convert_result_summary_some() {
     assert_eq!(s.mappings.len(), 1);
 }
 
+// ========================================
+// Display trait tests
+// ========================================
+
+#[test]
+fn test_display_copied() {
+    let result = DeploymentResult::Copied;
+    assert_eq!(result.to_string(), "Copied");
+}
+
+#[test]
+fn test_display_converted_true() {
+    let result = DeploymentResult::Converted(ConversionResult {
+        converted: true,
+        source_format: CommandFormat::ClaudeCode,
+        dest_format: CommandFormat::Copilot,
+    });
+    assert_eq!(result.to_string(), "Converted: ClaudeCode -> Copilot");
+}
+
+#[test]
+fn test_display_converted_false() {
+    let result = DeploymentResult::Converted(ConversionResult {
+        converted: false,
+        source_format: CommandFormat::ClaudeCode,
+        dest_format: CommandFormat::ClaudeCode,
+    });
+    assert_eq!(result.to_string(), "Copied (no conversion needed)");
+}
+
+#[test]
+fn test_display_agent_converted_true() {
+    let result = DeploymentResult::AgentConverted(AgentConversionResult {
+        converted: true,
+        source_format: AgentFormat::ClaudeCode,
+        dest_format: AgentFormat::Copilot,
+    });
+    assert_eq!(result.to_string(), "Agent converted: ClaudeCode -> Copilot");
+}
+
+#[test]
+fn test_display_agent_converted_false() {
+    let result = DeploymentResult::AgentConverted(AgentConversionResult {
+        converted: false,
+        source_format: AgentFormat::ClaudeCode,
+        dest_format: AgentFormat::ClaudeCode,
+    });
+    assert_eq!(result.to_string(), "Copied (no agent conversion needed)");
+}
+
+#[test]
+fn test_display_hook_converted() {
+    let result = DeploymentResult::HookConverted(HookConvertResult {
+        warnings: vec![ConversionWarning::MissingVersion],
+        wrapper_count: 3,
+        summary: None,
+    });
+    assert_eq!(
+        result.to_string(),
+        "Hook converted (3 wrappers, 1 warnings)"
+    );
+}
+
 /// 変換後 JSON に version: 1 が含まれること
 #[test]
 fn test_hook_convert_output_has_version() {
