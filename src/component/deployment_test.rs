@@ -1257,15 +1257,20 @@ fn test_hook_convert_with_unsafe_name_uses_sanitized_dir() {
 // ========================================
 
 #[test]
-fn test_exclude_reason_unsupported_event() {
-    let reason = ExcludeReason::UnsupportedEvent;
-    assert!(matches!(reason, ExcludeReason::UnsupportedEvent));
-}
+fn test_exclude_reason_variants_are_distinct() {
+    let unsupported_event = ExcludeReason::UnsupportedEvent;
+    let no_mapping = ExcludeReason::NoMapping;
+    let unsupported_hook_type = ExcludeReason::UnsupportedHookType {
+        hook_type: "command".into(),
+    };
 
-#[test]
-fn test_exclude_reason_no_mapping() {
-    let reason = ExcludeReason::NoMapping;
-    assert!(matches!(reason, ExcludeReason::NoMapping));
+    let disc_event = std::mem::discriminant(&unsupported_event);
+    let disc_mapping = std::mem::discriminant(&no_mapping);
+    let disc_hook_type = std::mem::discriminant(&unsupported_hook_type);
+
+    assert_ne!(disc_event, disc_mapping);
+    assert_ne!(disc_event, disc_hook_type);
+    assert_ne!(disc_mapping, disc_hook_type);
 }
 
 #[test]
