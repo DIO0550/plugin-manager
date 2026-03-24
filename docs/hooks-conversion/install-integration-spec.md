@@ -36,7 +36,7 @@ flowchart TD
     G --> H["実行権限を付与"]
     H --> I{警告あり?}
     I -->|Yes| J["警告を表示"]
-    I -->|No| K["DeploymentResult::Converted"]
+    I -->|No| K["DeploymentResult::HookConverted"]
     J --> K
     C --> L["DeploymentResult::Copied"]
 ```
@@ -48,19 +48,25 @@ flowchart TD
 **Project スコープ:**
 ```
 {project}/.github/hooks/{marketplace}/{plugin}/
-├── hooks.json
+├── {hook-name-1}.json
+├── {hook-name-2}.json
 └── wrappers/
-    ├── {hook-name-1}.sh
-    └── {hook-name-2}.sh
+    ├── {hook-name-1}/
+    │   └── cmd-preToolUse-0.sh
+    └── {hook-name-2}/
+        └── cmd-preToolUse-0.sh
 ```
 
 **Personal スコープ:**
 ```
 ~/.copilot/hooks/{marketplace}/{plugin}/
-├── hooks.json
+├── {hook-name-1}.json
+├── {hook-name-2}.json
 └── wrappers/
-    ├── {hook-name-1}.sh
-    └── {hook-name-2}.sh
+    ├── {hook-name-1}/
+    │   └── cmd-preToolUse-0.sh
+    └── {hook-name-2}/
+        └── cmd-preToolUse-0.sh
 ```
 
 ### BL-004: `@@PLUGIN_ROOT@@` プレースホルダーの解決
@@ -123,12 +129,12 @@ sequenceDiagram
     else Claude Code 形式
         Deploy->>Conv: convert_config(source_json)
         Conv-->>Deploy: (converted_json, warnings, wrapper_scripts)
-        Deploy->>FS: hooks.json を書き出し
+        Deploy->>FS: {name}.json を書き出し
         loop 各ラッパースクリプト
-            Deploy->>FS: wrappers/{name}.sh を書き出し
+            Deploy->>FS: wrappers/{hook-name}/{script}.sh を書き出し
             Deploy->>FS: chmod +x
         end
-        Deploy-->>App: DeploymentResult::Converted
+        Deploy-->>App: DeploymentResult::HookConverted(HookConvertResult)
     end
 
     App->>CLI: 結果表示（警告含む）
@@ -166,12 +172,12 @@ src/
 | ソース JSON パースエラー | 不正な JSON | エラーを返す（インストール中止） |
 | 変換後 JSON 書き込み失敗 | ディスク容量不足 / 書き込み権限なし | エラーを返す（インストール中止） |
 | ラッパースクリプト書き込み失敗 | 同上 | エラーを返す（インストール中止） |
-| 全イベントが非対応 | Claude Code 固有イベントのみの設定 | 警告を出力し、空の hooks.json を配置 |
+| 全イベントが非対応 | Claude Code 固有イベントのみの設定 | 警告を出力し、空の {name}.json を配置 |
 
 ## 制限事項
 
 - 変換は `install` 時のみ実行される（`update` 時も同じロジックを適用するが、既存の変換結果は上書きされる）
-- `uninstall` 時は通常のファイル削除で対応（`wrappers/` ディレクトリも削除対象）
+- `uninstall` 時は通常のファイル削除で対応する（現状は配置済みの Hook JSON ファイルのみ削除され、`wrappers/{hook-name}/` ディレクトリは自動削除されない。wrapper の cleanup は別 Issue で対応予定）
 - `list` コマンドでは変換元の形式を表示しない（通常の Hook として一覧表示）
 
 ## 関連仕様

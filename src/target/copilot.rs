@@ -35,7 +35,7 @@ impl CopilotTarget {
     fn can_place(kind: ComponentKind, scope: Scope) -> bool {
         matches!(
             (kind, scope),
-            (ComponentKind::Agent, _) | (_, Scope::Project)
+            (ComponentKind::Agent, _) | (ComponentKind::Hook, _) | (_, Scope::Project)
         )
     }
 
@@ -53,6 +53,13 @@ impl CopilotTarget {
             }
             ComponentKind::Command if !c.is_dir && c.name.ends_with(".prompt.md") => {
                 let name = c.name.trim_end_matches(".prompt.md");
+                Some(format!(
+                    "{}/{}/{}",
+                    c.origin.marketplace, c.origin.plugin, name
+                ))
+            }
+            ComponentKind::Hook if !c.is_dir && c.name.ends_with(".json") => {
+                let name = c.name.trim_end_matches(".json");
                 Some(format!(
                     "{}/{}/{}",
                     c.origin.marketplace, c.origin.plugin, name
@@ -88,6 +95,7 @@ impl Target for CopilotTarget {
             ComponentKind::Agent,
             ComponentKind::Command,
             ComponentKind::Instruction,
+            ComponentKind::Hook,
         ]
     }
 
@@ -128,7 +136,12 @@ impl Target for CopilotTarget {
             ComponentKind::Instruction => {
                 PlacementLocation::file(base.join("copilot-instructions.md"))
             }
-            ComponentKind::Hook => return None,
+            ComponentKind::Hook => PlacementLocation::file(
+                base.join("hooks")
+                    .join(&origin.marketplace)
+                    .join(&origin.plugin)
+                    .join(format!("{}.json", name)),
+            ),
         })
     }
 
@@ -164,6 +177,7 @@ impl Target for CopilotTarget {
             ComponentKind::Skill => base.join("skills"),
             ComponentKind::Agent => base.join("agents"),
             ComponentKind::Command => base.join("prompts"),
+            ComponentKind::Hook => base.join("hooks"),
             _ => return Ok(vec![]),
         };
 
