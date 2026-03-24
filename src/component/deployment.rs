@@ -5,7 +5,7 @@ use crate::component::{Component, ComponentKind, Scope};
 use crate::error::{PlmError, Result};
 use crate::hooks::converter::{self, WRAPPERS_DIR};
 use crate::path_ext::PathExt;
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::fmt::Write as _;
 use std::fs;
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -258,6 +258,7 @@ impl ComponentDeployment {
         Ok(DeploymentResult::HookConverted(HookConvertResult {
             warnings: convert_result.warnings,
             wrapper_count,
+            summary: None,
         }))
     }
 
@@ -322,6 +323,47 @@ impl ComponentDeployment {
     }
 }
 
+/// 変換時に除外された理由
+#[derive(Debug)]
+pub enum ExcludeReason {
+    /// サポートされていないイベント
+    UnsupportedEvent,
+    /// マッピングが存在しない
+    NoMapping,
+    /// サポートされていないフック種別
+    UnsupportedHookType { hook_type: String },
+}
+
+impl std::fmt::Display for ExcludeReason {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ExcludeReason::UnsupportedEvent => write!(f, "Unsupported event"),
+            ExcludeReason::NoMapping => write!(f, "No mapping available"),
+            ExcludeReason::UnsupportedHookType { hook_type } => {
+                write!(f, "Unsupported hook type: {}", hook_type)
+            }
+        }
+    }
+}
+
+/// 変換時に除外されたアイテム
+#[derive(Debug)]
+pub struct ExcludedItem {
+    /// 除外されたイベント名
+    pub event_name: String,
+    /// 除外理由
+    pub reason: ExcludeReason,
+}
+
+/// 変換サマリー結果
+#[derive(Debug)]
+pub struct ConvertedSummaryResult {
+    /// 変換マッピング（変換元イベント名 -> 変換先イベント名）
+    pub mappings: BTreeMap<String, String>,
+    /// 除外されたアイテムのリスト
+    pub excluded: Vec<ExcludedItem>,
+}
+
 /// デプロイ結果
 #[derive(Debug)]
 pub enum DeploymentResult {
@@ -340,6 +382,48 @@ pub enum DeploymentResult {
 pub struct HookConvertResult {
     pub warnings: Vec<crate::hooks::converter::ConversionWarning>,
     pub wrapper_count: usize,
+    /// 変換サマリー（変換マッピング + 除外リスト）
+    pub summary: Option<ConvertedSummaryResult>,
+}
+
+impl std::fmt::Display for DeploymentResult {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DeploymentResult::Copied => write!(f, "Copied"),
+            DeploymentResult::Converted(conv) => {
+                if conv.converted {
+                    write!(
+                        f,
+                        "Converted: {} → {}",
+                        conv.source_format, conv.dest_format
+                    )
+                } else {
+                    write!(f, "Copied (no conversion needed)")
+                }
+            }
+            DeploymentResult::AgentConverted(conv) => {
+                if conv.converted {
+                    write!(
+                        f,
+                        "Agent converted: {} → {}",
+                        conv.source_format, conv.dest_format
+                    )
+                } else {
+                    write!(f, "Copied (no agent conversion needed)")
+                }
+            }
+            DeploymentResult::HookConverted(hr) => {
+                write!(
+                    f,
+                    "Hook converted ({} wrapper{}, {} warning{})",
+                    hr.wrapper_count,
+                    if hr.wrapper_count == 1 { "" } else { "s" },
+                    hr.warnings.len(),
+                    if hr.warnings.len() == 1 { "" } else { "s" }
+                )
+            }
+        }
+    }
 }
 
 /// ComponentDeployment のビルダー
