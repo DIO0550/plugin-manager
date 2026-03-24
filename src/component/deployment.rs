@@ -415,9 +415,11 @@ impl std::fmt::Display for DeploymentResult {
             DeploymentResult::HookConverted(hr) => {
                 write!(
                     f,
-                    "Hook converted ({} wrappers, {} warnings)",
+                    "Hook converted ({} wrapper{}, {} warning{})",
                     hr.wrapper_count,
-                    hr.warnings.len()
+                    if hr.wrapper_count == 1 { "" } else { "s" },
+                    hr.warnings.len(),
+                    if hr.warnings.len() == 1 { "" } else { "s" }
                 )
             }
         }

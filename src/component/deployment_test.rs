@@ -1442,10 +1442,7 @@ fn test_display_hook_converted() {
         wrapper_count: 3,
         summary: None,
     });
-    assert_eq!(
-        result.to_string(),
-        "Hook converted (3 wrappers, 1 warnings)"
-    );
+    assert_eq!(result.to_string(), "Hook converted (3 wrappers, 1 warning)");
 }
 
 /// 変換後 JSON に version: 1 が含まれること
