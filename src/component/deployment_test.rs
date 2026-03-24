@@ -1,6 +1,7 @@
 use super::*;
 use crate::component::CommandFormat;
 use crate::hooks::converter::ConversionWarning;
+use std::collections::HashMap;
 use std::fs;
 use tempfile::TempDir;
 
@@ -613,6 +614,7 @@ fn test_hook_convert_result_has_expected_fields() {
     let result = HookConvertResult {
         warnings: vec![ConversionWarning::MissingVersion],
         wrapper_count: 2,
+        summary: None,
     };
 
     assert_eq!(result.warnings.len(), 1);
@@ -624,6 +626,7 @@ fn test_deployment_result_hook_converted_variant() {
     let hook_result = HookConvertResult {
         warnings: vec![],
         wrapper_count: 0,
+        summary: None,
     };
     let result = DeploymentResult::HookConverted(hook_result);
 
@@ -1247,6 +1250,139 @@ fn test_hook_convert_with_unsafe_name_uses_sanitized_dir() {
     // JSON 内のパスもサニタイズされた名前を参照
     let json_content = fs::read_to_string(&target).unwrap();
     assert!(json_content.contains(&format!("./wrappers/{}/", safe_name)));
+}
+
+// ========================================
+// ExcludeReason / ExcludedItem tests
+// ========================================
+
+#[test]
+fn test_exclude_reason_unsupported_event() {
+    let reason = ExcludeReason::UnsupportedEvent;
+    assert!(matches!(reason, ExcludeReason::UnsupportedEvent));
+}
+
+#[test]
+fn test_exclude_reason_no_mapping() {
+    let reason = ExcludeReason::NoMapping;
+    assert!(matches!(reason, ExcludeReason::NoMapping));
+}
+
+#[test]
+fn test_exclude_reason_unsupported_hook_type() {
+    let reason = ExcludeReason::UnsupportedHookType {
+        hook_type: "prompt_agent".into(),
+    };
+    match reason {
+        ExcludeReason::UnsupportedHookType { hook_type } => {
+            assert_eq!(hook_type, "prompt_agent");
+        }
+        _ => panic!("Expected UnsupportedHookType"),
+    }
+}
+
+#[test]
+fn test_excluded_item_has_fields() {
+    let item = ExcludedItem {
+        event_name: "PreToolUse".to_string(),
+        reason: ExcludeReason::UnsupportedEvent,
+    };
+    assert_eq!(item.event_name, "PreToolUse");
+    assert!(matches!(item.reason, ExcludeReason::UnsupportedEvent));
+}
+
+#[test]
+fn test_exclude_reason_display_unsupported_event() {
+    let reason = ExcludeReason::UnsupportedEvent;
+    assert_eq!(reason.to_string(), "Unsupported event");
+}
+
+#[test]
+fn test_exclude_reason_display_no_mapping() {
+    let reason = ExcludeReason::NoMapping;
+    assert_eq!(reason.to_string(), "No mapping available");
+}
+
+#[test]
+fn test_exclude_reason_display_unsupported_hook_type() {
+    let reason = ExcludeReason::UnsupportedHookType {
+        hook_type: "prompt_agent".into(),
+    };
+    assert_eq!(reason.to_string(), "Unsupported hook type: prompt_agent");
+}
+
+// ========================================
+// ConvertedSummaryResult tests
+// ========================================
+
+#[test]
+fn test_converted_summary_result_empty() {
+    let summary = ConvertedSummaryResult {
+        mappings: HashMap::new(),
+        excluded: vec![],
+    };
+    assert!(summary.mappings.is_empty());
+    assert!(summary.excluded.is_empty());
+}
+
+#[test]
+fn test_converted_summary_result_with_entries() {
+    let mut mappings = HashMap::new();
+    mappings.insert("PreToolUse".to_string(), "preToolUse".to_string());
+    mappings.insert("PostToolUse".to_string(), "postToolUse".to_string());
+
+    let excluded = vec![
+        ExcludedItem {
+            event_name: "UnknownEvent".to_string(),
+            reason: ExcludeReason::UnsupportedEvent,
+        },
+        ExcludedItem {
+            event_name: "CustomEvent".to_string(),
+            reason: ExcludeReason::UnsupportedHookType {
+                hook_type: "prompt_agent".into(),
+            },
+        },
+    ];
+
+    let summary = ConvertedSummaryResult { mappings, excluded };
+    assert_eq!(summary.mappings.len(), 2);
+    assert_eq!(summary.mappings.get("PreToolUse").unwrap(), "preToolUse");
+    assert_eq!(summary.excluded.len(), 2);
+}
+
+// ========================================
+// HookConvertResult.summary tests
+// ========================================
+
+#[test]
+fn test_hook_convert_result_summary_none() {
+    let result = HookConvertResult {
+        warnings: vec![],
+        wrapper_count: 0,
+        summary: None,
+    };
+    assert!(result.summary.is_none());
+}
+
+#[test]
+fn test_hook_convert_result_summary_some() {
+    let mut mappings = HashMap::new();
+    mappings.insert("PreToolUse".to_string(), "preToolUse".to_string());
+
+    let summary = ConvertedSummaryResult {
+        mappings,
+        excluded: vec![],
+    };
+
+    let result = HookConvertResult {
+        warnings: vec![],
+        wrapper_count: 1,
+        summary: Some(summary),
+    };
+
+    assert!(result.summary.is_some());
+    let s = result.summary.unwrap();
+    assert_eq!(s.mappings.len(), 1);
 }
 
 /// 変換後 JSON に version: 1 が含まれること
