@@ -177,7 +177,7 @@ src/
 ## 制限事項
 
 - 変換は `install` 時のみ実行される（`update` 時も同じロジックを適用するが、既存の変換結果は上書きされる）
-- `uninstall` 時は通常のファイル削除で対応（`wrappers/{hook-name}/` ディレクトリも削除対象）
+- `uninstall` 時は通常のファイル削除で対応する（現状は配置済みの Hook JSON ファイルのみ削除され、`wrappers/{hook-name}/` ディレクトリは自動削除されない。wrapper の cleanup は別 Issue で対応予定）
 - `list` コマンドでは変換元の形式を表示しない（通常の Hook として一覧表示）
 
 ## 関連仕様
