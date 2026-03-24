@@ -1,4 +1,4 @@
-use super::{execute_add_with, execute_remove_with, execute_update_with, update};
+use super::{execute_add_with, execute_remove_with, execute_update_with, update, AddEntry};
 use crate::tui::manager::core::{DataStore, MarketplaceItem};
 use crate::tui::manager::screens::marketplaces::actions::AddResult;
 use crate::tui::manager::screens::marketplaces::model::{
@@ -1565,9 +1565,12 @@ fn execute_add_success_transitions_to_market_list() {
         error_message: None,
     });
 
+    let entry = AddEntry {
+        source: "owner/repo",
+        name: "my-repo",
+    };
     execute_add_with(
-        "owner/repo",
-        "my-repo",
+        &entry,
         &mut model,
         &mut data,
         |_source, name| Ok(make_add_result(name)),
@@ -1598,9 +1601,12 @@ fn execute_add_failure_returns_to_confirm_with_error() {
         error_message: None,
     });
 
+    let entry = AddEntry {
+        source: "owner/repo",
+        name: "my-repo",
+    };
     execute_add_with(
-        "owner/repo",
-        "my-repo",
+        &entry,
         &mut model,
         &mut data,
         |_source, _name| Err("network error".to_string()),

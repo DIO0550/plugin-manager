@@ -214,24 +214,30 @@ fn make_all_failed_summary(plugin_names: &[String], error: &str) -> InstallSumma
     build_install_summary(results)
 }
 
+/// インストール処理のコンテキスト
+struct InstallCtx<'a> {
+    handle: &'a tokio::runtime::Handle,
+    targets: &'a [Box<dyn crate::target::Target>],
+    scope: Scope,
+    project_root: &'a Path,
+    cache: &'a dyn PluginCacheAccess,
+}
+
 /// 個別プラグインの download -> scan -> place パイプライン
 fn install_single_plugin(
-    handle: &tokio::runtime::Handle,
+    ctx: &InstallCtx<'_>,
     marketplace_name: &str,
     plugin_name: &str,
-    targets: &[Box<dyn crate::target::Target>],
-    scope: Scope,
-    project_root: &Path,
-    cache: &dyn PluginCacheAccess,
 ) -> PluginInstallResult {
     // Download (async -> sync bridge)
     let downloaded = match tokio::task::block_in_place(|| {
-        handle.block_on(install::download_marketplace_plugin_with_cache(
-            plugin_name,
-            marketplace_name,
-            false,
-            cache,
-        ))
+        ctx.handle
+            .block_on(install::download_marketplace_plugin_with_cache(
+                plugin_name,
+                marketplace_name,
+                false,
+                ctx.cache,
+            ))
     }) {
         Ok(d) => d,
         Err(e) => {
@@ -258,9 +264,9 @@ fn install_single_plugin(
     // Place
     let place_result = install::place_plugin(&PlaceRequest {
         scanned: &scanned,
-        targets,
-        scope,
-        project_root,
+        targets: ctx.targets,
+        scope: ctx.scope,
+        project_root: ctx.project_root,
     });
 
     if !place_result.failures.is_empty() {
@@ -341,19 +347,16 @@ pub fn install_plugins(
     };
 
     // 各プラグインに対して download -> scan -> place
+    let install_ctx = InstallCtx {
+        handle: &handle,
+        targets: &targets,
+        scope,
+        project_root: &project_root,
+        cache: &cache,
+    };
     let results: Vec<PluginInstallResult> = plugin_names
         .iter()
-        .map(|plugin_name| {
-            install_single_plugin(
-                &handle,
-                marketplace_name,
-                plugin_name,
-                &targets,
-                scope,
-                &project_root,
-                &cache,
-            )
-        })
+        .map(|plugin_name| install_single_plugin(&install_ctx, marketplace_name, plugin_name))
         .collect();
 
     build_install_summary(results)

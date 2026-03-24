@@ -446,9 +446,12 @@ fn enter_form(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
             // Add は直接実行（source 情報を保持するため 2段階方式を使わない）
             let source = source.clone();
             let name = name.clone();
+            let entry = AddEntry {
+                source: &source,
+                name: &name,
+            };
             execute_add_with(
-                &source,
-                &name,
+                &entry,
                 model,
                 data,
                 |s, n| actions::add_marketplace(s, n, None),
@@ -459,17 +462,22 @@ fn enter_form(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
     }
 }
 
+/// マーケットプレイス追加エントリ
+struct AddEntry<'a> {
+    source: &'a str,
+    name: &'a str,
+}
+
 /// ExecuteAdd の実装本体（依存関数注入パターン）
 fn execute_add_with(
-    source: &str,
-    name: &str,
+    entry: &AddEntry<'_>,
     model: &mut Model,
     data: &mut DataStore,
     run_add: impl FnOnce(&str, &str) -> Result<actions::AddResult, String>,
     reload: impl FnOnce(&mut DataStore),
 ) -> UpdateEffect {
-    let source_owned = source.to_string();
-    let name_owned = name.to_string();
+    let source_owned = entry.source.to_string();
+    let name_owned = entry.name.to_string();
 
     match run_add(&source_owned, &name_owned) {
         Ok(_result) => {

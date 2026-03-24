@@ -460,14 +460,12 @@ fn convert_hook_definition(
             Ok(Some(converted))
         }
         "prompt" | "agent" => {
-            let converted = convert_prompt_agent_hook(
-                hook,
-                hook_type,
-                event,
-                matcher,
+            let mut collector = ConversionCollector {
                 warnings,
                 wrapper_scripts,
-            );
+            };
+            let converted =
+                convert_prompt_agent_hook(hook, hook_type, event, matcher, &mut collector);
             Ok(Some(converted))
         }
         unknown => {
@@ -806,16 +804,26 @@ exit 0
     Ok(Value::Object(output))
 }
 
+/// Mutable collectors for warnings and wrapper scripts during conversion.
+struct ConversionCollector<'a> {
+    warnings: &'a mut Vec<ConversionWarning>,
+    wrapper_scripts: &'a mut Vec<WrapperScriptInfo>,
+}
+
 /// BL-006: Convert a prompt/agent hook to a stub script with warning.
 fn convert_prompt_agent_hook(
     hook: &Value,
     hook_type: &str,
     event: &str,
     matcher: Option<&str>,
-    warnings: &mut Vec<ConversionWarning>,
-    wrapper_scripts: &mut Vec<WrapperScriptInfo>,
+    collector: &mut ConversionCollector<'_>,
 ) -> Value {
-    let script_name = format!("{}-{}-{}.sh", hook_type, event, wrapper_scripts.len());
+    let script_name = format!(
+        "{}-{}-{}.sh",
+        hook_type,
+        event,
+        collector.wrapper_scripts.len()
+    );
 
     let original_json = serde_json::to_string_pretty(hook).unwrap_or_default();
 
@@ -831,17 +839,19 @@ fn convert_prompt_agent_hook(
         event
     );
 
-    wrapper_scripts.push(WrapperScriptInfo {
+    collector.wrapper_scripts.push(WrapperScriptInfo {
         path: format!("{}/{}", WRAPPERS_DIR, script_name),
         content: script_content,
         original_config: hook.clone(),
         matcher: matcher.map(|s| s.to_string()),
     });
 
-    warnings.push(ConversionWarning::PromptAgentHookStub {
-        event: event.to_string(),
-        hook_type: hook_type.to_string(),
-    });
+    collector
+        .warnings
+        .push(ConversionWarning::PromptAgentHookStub {
+            event: event.to_string(),
+            hook_type: hook_type.to_string(),
+        });
 
     let hook_obj = hook.as_object();
 

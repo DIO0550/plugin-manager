@@ -11,6 +11,13 @@ use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Tabs};
 use std::collections::{HashMap, HashSet};
 
+/// 描画用共通コンテキスト
+struct ViewCtx<'a> {
+    data: &'a DataStore,
+    filter_text: &'a str,
+    filter_focused: bool,
+}
+
 /// ComponentKind の表示用タイトルを取得（複数形）
 fn component_kind_title(kind: ComponentKind) -> &'static str {
     match kind {
@@ -30,6 +37,11 @@ pub fn view(
     filter_text: &str,
     filter_focused: bool,
 ) {
+    let ctx = ViewCtx {
+        data,
+        filter_text,
+        filter_focused,
+    };
     match model {
         Model::PluginList {
             state,
@@ -37,25 +49,17 @@ pub fn view(
             update_statuses,
             ..
         } => {
-            view_plugin_list(
-                f,
-                *state,
-                data,
-                filter_text,
-                filter_focused,
-                marked_ids,
-                update_statuses,
-            );
+            view_plugin_list(f, *state, &ctx, marked_ids, update_statuses);
         }
         Model::PluginDetail {
             plugin_id, state, ..
         } => {
-            view_plugin_detail(f, plugin_id, *state, data, filter_text, filter_focused);
+            view_plugin_detail(f, plugin_id, *state, &ctx);
         }
         Model::ComponentTypes {
             plugin_id, state, ..
         } => {
-            view_component_types(f, plugin_id, *state, data, filter_text, filter_focused);
+            view_component_types(f, plugin_id, *state, &ctx);
         }
         Model::ComponentList {
             plugin_id,
@@ -63,15 +67,7 @@ pub fn view(
             state,
             ..
         } => {
-            view_component_list(
-                f,
-                plugin_id,
-                *kind,
-                *state,
-                data,
-                filter_text,
-                filter_focused,
-            );
+            view_component_list(f, plugin_id, *kind, *state, &ctx);
         }
     }
 }
@@ -114,17 +110,14 @@ fn update_status_span(status: &UpdateStatusDisplay) -> Span<'_> {
 }
 
 /// プラグイン一覧画面を描画
-#[allow(clippy::too_many_arguments)]
 fn view_plugin_list(
     f: &mut Frame,
     mut state: ListState,
-    data: &DataStore,
-    filter_text: &str,
-    filter_focused: bool,
+    ctx: &ViewCtx<'_>,
     marked_ids: &HashSet<PluginId>,
     update_statuses: &HashMap<PluginId, UpdateStatusDisplay>,
 ) {
-    let filtered = filter_plugins(&data.plugins, filter_text);
+    let filtered = filter_plugins(&ctx.data.plugins, ctx.filter_text);
     let content_height = (filtered.len() as u16).max(1) + 9; // +3 for filter bar
     let dialog_width = 55u16;
     let dialog_height = content_height.min(24);
@@ -156,7 +149,7 @@ fn view_plugin_list(
     f.render_widget(tabs, chunks[0]);
 
     // フィルタバー
-    render_filter_bar(f, chunks[1], filter_text, filter_focused);
+    render_filter_bar(f, chunks[1], ctx.filter_text, ctx.filter_focused);
 
     // タイトル（マーク数表示付き）
     let marked_count = marked_ids.len();
@@ -164,14 +157,14 @@ fn view_plugin_list(
         format!(
             " Installed Plugins ({}/{}) [{} marked] ",
             filtered.len(),
-            data.plugins.len(),
+            ctx.data.plugins.len(),
             marked_count
         )
     } else {
         format!(
             " Installed Plugins ({}/{}) ",
             filtered.len(),
-            data.plugins.len()
+            ctx.data.plugins.len()
         )
     };
 
@@ -250,11 +243,9 @@ fn view_plugin_detail(
     f: &mut Frame,
     plugin_id: &PluginId,
     mut state: ListState,
-    data: &DataStore,
-    filter_text: &str,
-    filter_focused: bool,
+    ctx: &ViewCtx<'_>,
 ) {
-    let Some(plugin) = data.find_plugin(plugin_id) else {
+    let Some(plugin) = ctx.data.find_plugin(plugin_id) else {
         return;
     };
 
@@ -289,7 +280,7 @@ fn view_plugin_detail(
     f.render_widget(tabs, chunks[0]);
 
     // フィルタバー（read-only）
-    render_filter_bar(f, chunks[1], filter_text, filter_focused);
+    render_filter_bar(f, chunks[1], ctx.filter_text, ctx.filter_focused);
 
     // プラグイン情報
     let marketplace_str = plugin
@@ -353,15 +344,13 @@ fn view_component_types(
     f: &mut Frame,
     plugin_id: &PluginId,
     mut state: ListState,
-    data: &DataStore,
-    filter_text: &str,
-    filter_focused: bool,
+    ctx: &ViewCtx<'_>,
 ) {
-    let Some(plugin) = data.find_plugin(plugin_id) else {
+    let Some(plugin) = ctx.data.find_plugin(plugin_id) else {
         return;
     };
 
-    let counts = data.available_component_kinds(plugin);
+    let counts = ctx.data.available_component_kinds(plugin);
     let has_marketplace = plugin.marketplace.is_some();
     let base_lines = if has_marketplace { 4 } else { 3 };
     let type_lines = if counts.is_empty() { 1 } else { counts.len() };
@@ -382,7 +371,7 @@ fn view_component_types(
         .split(dialog_area);
 
     // フィルタバー（read-only）
-    render_filter_bar(f, chunks[0], filter_text, filter_focused);
+    render_filter_bar(f, chunks[0], ctx.filter_text, ctx.filter_focused);
 
     let title = format!(" {} ", plugin.name);
 
@@ -437,15 +426,13 @@ fn view_component_list(
     plugin_id: &PluginId,
     kind: ComponentKind,
     mut state: ListState,
-    data: &DataStore,
-    filter_text: &str,
-    filter_focused: bool,
+    ctx: &ViewCtx<'_>,
 ) {
-    let Some(plugin) = data.find_plugin(plugin_id) else {
+    let Some(plugin) = ctx.data.find_plugin(plugin_id) else {
         return;
     };
 
-    let components = data.component_names(plugin, kind);
+    let components = ctx.data.component_names(plugin, kind);
     let items: Vec<ListItem> = components
         .iter()
         .map(|c| ListItem::new(format!("  {}", c.name)))
@@ -468,7 +455,7 @@ fn view_component_list(
         .split(dialog_area);
 
     // フィルタバー（read-only）
-    render_filter_bar(f, chunks[0], filter_text, filter_focused);
+    render_filter_bar(f, chunks[0], ctx.filter_text, ctx.filter_focused);
 
     let title = format!(
         " {} > {} ({}) ",
