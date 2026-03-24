@@ -129,18 +129,24 @@ impl ComponentDeployment {
         //    wrapper/warning が空なだけでは、Claude Code 形式など
         //    「変換が必要だが wrapper 不要」のケースを取りこぼす可能性があるため、
         //    Copilot CLI のバージョン情報が明示されている場合にのみパススルーする。
-        let version = convert_result.json.get("version").and_then(|v| v.as_u64());
-        let is_copilot_cli_v1 = version == Some(1);
-
-        // version が存在するが 1 でない場合はエラー
-        if let Some(v) = version {
-            if v != 1 {
-                return Err(PlmError::HookConversion(format!(
-                    "Unsupported hooks config version: {} (expected 1)",
-                    v
-                )));
+        let version_value = convert_result.json.get("version");
+        let is_copilot_cli_v1 = if let Some(v) = version_value {
+            if let Some(num) = v.as_u64() {
+                if num != 1 {
+                    return Err(PlmError::HookConversion(format!(
+                        "Unsupported hooks config version: {} (expected 1)",
+                        num
+                    )));
+                }
+                true
+            } else {
+                return Err(PlmError::HookConversion(
+                    "Unsupported hooks config version type (expected integer 1)".to_string(),
+                ));
             }
-        }
+        } else {
+            false
+        };
 
         if convert_result.wrapper_scripts.is_empty()
             && convert_result.warnings.is_empty()
