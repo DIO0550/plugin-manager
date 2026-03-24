@@ -1402,7 +1402,7 @@ fn test_display_converted_true() {
         source_format: CommandFormat::ClaudeCode,
         dest_format: CommandFormat::Copilot,
     });
-    assert_eq!(result.to_string(), "Converted: ClaudeCode -> Copilot");
+    assert_eq!(result.to_string(), "Converted: ClaudeCode → Copilot");
 }
 
 #[test]
@@ -1422,7 +1422,7 @@ fn test_display_agent_converted_true() {
         source_format: AgentFormat::ClaudeCode,
         dest_format: AgentFormat::Copilot,
     });
-    assert_eq!(result.to_string(), "Agent converted: ClaudeCode -> Copilot");
+    assert_eq!(result.to_string(), "Agent converted: ClaudeCode → Copilot");
 }
 
 #[test]

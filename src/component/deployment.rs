@@ -394,7 +394,7 @@ impl std::fmt::Display for DeploymentResult {
                 if conv.converted {
                     write!(
                         f,
-                        "Converted: {} -> {}",
+                        "Converted: {} → {}",
                         conv.source_format, conv.dest_format
                     )
                 } else {
@@ -405,7 +405,7 @@ impl std::fmt::Display for DeploymentResult {
                 if conv.converted {
                     write!(
                         f,
-                        "Agent converted: {} -> {}",
+                        "Agent converted: {} → {}",
                         conv.source_format, conv.dest_format
                     )
                 } else {
