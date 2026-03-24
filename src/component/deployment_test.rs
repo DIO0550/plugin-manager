@@ -1,7 +1,7 @@
 use super::*;
 use crate::component::CommandFormat;
 use crate::hooks::converter::ConversionWarning;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::fs;
 use tempfile::TempDir;
 
@@ -1323,7 +1323,7 @@ fn test_exclude_reason_display_unsupported_hook_type() {
 #[test]
 fn test_converted_summary_result_empty() {
     let summary = ConvertedSummaryResult {
-        mappings: HashMap::new(),
+        mappings: BTreeMap::new(),
         excluded: vec![],
     };
     assert!(summary.mappings.is_empty());
@@ -1332,7 +1332,7 @@ fn test_converted_summary_result_empty() {
 
 #[test]
 fn test_converted_summary_result_with_entries() {
-    let mut mappings = HashMap::new();
+    let mut mappings = BTreeMap::new();
     mappings.insert("PreToolUse".to_string(), "preToolUse".to_string());
     mappings.insert("PostToolUse".to_string(), "postToolUse".to_string());
 
@@ -1371,7 +1371,7 @@ fn test_hook_convert_result_summary_none() {
 
 #[test]
 fn test_hook_convert_result_summary_some() {
-    let mut mappings = HashMap::new();
+    let mut mappings = BTreeMap::new();
     mappings.insert("PreToolUse".to_string(), "preToolUse".to_string());
 
     let summary = ConvertedSummaryResult {

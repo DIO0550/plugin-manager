@@ -5,7 +5,7 @@ use crate::component::{Component, ComponentKind, Scope};
 use crate::error::{PlmError, Result};
 use crate::hooks::converter::{self, WRAPPERS_DIR};
 use crate::path_ext::PathExt;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
 use std::fmt::Write as _;
 use std::fs;
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -359,7 +359,7 @@ pub struct ExcludedItem {
 #[derive(Debug)]
 pub struct ConvertedSummaryResult {
     /// 変換マッピング（変換元イベント名 -> 変換先イベント名）
-    pub mappings: HashMap<String, String>,
+    pub mappings: BTreeMap<String, String>,
     /// 除外されたアイテムのリスト
     pub excluded: Vec<ExcludedItem>,
 }
