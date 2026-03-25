@@ -3,8 +3,9 @@
 use super::convert::{self, AgentConversionResult, AgentFormat, CommandFormat, ConversionResult};
 use crate::component::{Component, ComponentKind, Scope};
 use crate::error::{PlmError, Result};
-use crate::hooks::converter::{self, WRAPPERS_DIR};
+use crate::hooks::converter::{self, SCRIPTS_DIR};
 use crate::path_ext::PathExt;
+use crate::target::TargetKind;
 use std::collections::{BTreeMap, HashSet};
 use std::fmt::Write as _;
 use std::fs;
@@ -32,6 +33,8 @@ pub struct ComponentDeployment {
     dest_agent_format: Option<AgentFormat>,
     /// Hook 変換を実行するかどうか
     hook_convert: bool,
+    /// Hook 変換のターゲット種別
+    target_kind: Option<TargetKind>,
     /// @@PLUGIN_ROOT@@ 置換用のプラグインキャッシュルートパス
     plugin_root: Option<PathBuf>,
 }
@@ -86,7 +89,7 @@ impl ComponentDeployment {
     }
 
     /// JSON 内の hooks[].bash パスを名前空間付きに書き換える
-    fn rewrite_wrapper_paths_in_json(
+    fn rewrite_script_paths_in_json(
         json: &mut serde_json::Value,
         original_paths: &HashSet<String>,
         safe_name: &str,
@@ -95,8 +98,8 @@ impl ComponentDeployment {
             return;
         };
 
-        let original_prefix = format!("./{}/", WRAPPERS_DIR);
-        let namespaced_prefix = format!("./{}/{}/", WRAPPERS_DIR, safe_name);
+        let original_prefix = format!("./{}/", SCRIPTS_DIR);
+        let namespaced_prefix = format!("./{}/{}/", SCRIPTS_DIR, safe_name);
 
         let hook_defs = hooks
             .values_mut()
@@ -123,7 +126,10 @@ impl ComponentDeployment {
         let input = fs::read_to_string(&self.source_path)?;
 
         // 2. converter で変換
-        let mut convert_result = converter::convert(&input)?;
+        let target_kind = self.target_kind.ok_or_else(|| {
+            PlmError::Validation("target_kind is required for hook conversion".to_string())
+        })?;
+        let mut convert_result = converter::convert(&input, target_kind)?;
 
         // 3. Copilot CLI 形式（version:1 が存在 & wrapper 不要・警告なし）の場合はファイルコピーにフォールバック
         //    wrapper/warning が空なだけでは、Claude Code 形式など
@@ -148,7 +154,7 @@ impl ComponentDeployment {
             false
         };
 
-        if convert_result.wrapper_scripts.is_empty()
+        if convert_result.scripts.is_empty()
             && convert_result.warnings.is_empty()
             && is_copilot_cli_v1
         {
@@ -160,23 +166,23 @@ impl ComponentDeployment {
         let safe_name = Self::sanitize_hook_name(&self.name);
 
         // 4. wrapper パスを名前空間付きに書き換え（生成された wrapper がある場合のみ）
-        if !convert_result.wrapper_scripts.is_empty() {
+        if !convert_result.scripts.is_empty() {
             let original_paths: HashSet<String> = convert_result
-                .wrapper_scripts
+                .scripts
                 .iter()
                 .map(|s| format!("./{}", s.path))
                 .collect();
 
-            Self::rewrite_wrapper_paths_in_json(
+            Self::rewrite_script_paths_in_json(
                 &mut convert_result.json,
                 &original_paths,
                 &safe_name,
             );
 
-            let prefix_with_slash = format!("{}/", WRAPPERS_DIR);
-            for script in &mut convert_result.wrapper_scripts {
+            let prefix_with_slash = format!("{}/", SCRIPTS_DIR);
+            for script in &mut convert_result.scripts {
                 if let Some(filename) = script.path.strip_prefix(&prefix_with_slash) {
-                    script.path = format!("{}/{}/{}", WRAPPERS_DIR, safe_name, filename);
+                    script.path = format!("{}/{}/{}", SCRIPTS_DIR, safe_name, filename);
                 }
             }
         }
@@ -194,8 +200,8 @@ impl ComponentDeployment {
         fs::write(&self.target_path, &json_str)?;
 
         // 8. wrapper スクリプトを配置
-        let wrapper_count = convert_result.wrapper_scripts.len();
-        if wrapper_count > 0 {
+        let script_count = convert_result.scripts.len();
+        if script_count > 0 {
             let plugin_root = self.plugin_root.as_ref().ok_or_else(|| {
                 PlmError::Validation(
                     "plugin_root is required when wrapper scripts are generated".to_string(),
@@ -211,11 +217,11 @@ impl ComponentDeployment {
                         "target_path must have a parent directory for wrapper scripts".to_string(),
                     )
                 })?
-                .join(WRAPPERS_DIR)
+                .join(SCRIPTS_DIR)
                 .join(&safe_name);
             fs::create_dir_all(&wrapper_dir)?;
 
-            for script in &convert_result.wrapper_scripts {
+            for script in &convert_result.scripts {
                 let filename = Path::new(&script.path)
                     .file_name()
                     .map(|f| f.to_string_lossy().to_string())
@@ -257,7 +263,7 @@ impl ComponentDeployment {
 
         Ok(DeploymentResult::HookConverted(HookConvertResult {
             warnings: convert_result.warnings,
-            wrapper_count,
+            script_count,
             summary: None,
         }))
     }
@@ -381,7 +387,7 @@ pub enum DeploymentResult {
 #[derive(Debug)]
 pub struct HookConvertResult {
     pub warnings: Vec<crate::hooks::converter::ConversionWarning>,
-    pub wrapper_count: usize,
+    pub script_count: usize,
     /// 変換サマリー（変換マッピング + 除外リスト）
     pub summary: Option<ConvertedSummaryResult>,
 }
@@ -415,9 +421,9 @@ impl std::fmt::Display for DeploymentResult {
             DeploymentResult::HookConverted(hr) => {
                 write!(
                     f,
-                    "Hook converted ({} wrapper{}, {} warning{})",
-                    hr.wrapper_count,
-                    if hr.wrapper_count == 1 { "" } else { "s" },
+                    "Hook converted ({} script{}, {} warning{})",
+                    hr.script_count,
+                    if hr.script_count == 1 { "" } else { "s" },
                     hr.warnings.len(),
                     if hr.warnings.len() == 1 { "" } else { "s" }
                 )
@@ -439,6 +445,7 @@ pub struct ComponentDeploymentBuilder {
     source_agent_format: Option<AgentFormat>,
     dest_agent_format: Option<AgentFormat>,
     hook_convert: Option<bool>,
+    target_kind: Option<TargetKind>,
     plugin_root: Option<PathBuf>,
 }
 
@@ -516,6 +523,12 @@ impl ComponentDeploymentBuilder {
         self
     }
 
+    /// Hook 変換のターゲット種別を設定
+    pub fn target_kind(mut self, kind: TargetKind) -> Self {
+        self.target_kind = Some(kind);
+        self
+    }
+
     /// プラグインルートパスを設定（@@PLUGIN_ROOT@@ 置換用）
     pub fn plugin_root(mut self, path: impl Into<PathBuf>) -> Self {
         self.plugin_root = Some(path.into());
@@ -553,6 +566,7 @@ impl ComponentDeploymentBuilder {
             source_agent_format: self.source_agent_format,
             dest_agent_format: self.dest_agent_format,
             hook_convert,
+            target_kind: self.target_kind,
             plugin_root: self.plugin_root,
         })
     }
