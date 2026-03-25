@@ -125,10 +125,8 @@ impl ComponentDeployment {
         // 1. ソース JSON を読み込み
         let input = fs::read_to_string(&self.source_path)?;
 
-        // 2. converter で変換
-        let target_kind = self.target_kind.ok_or_else(|| {
-            PlmError::Validation("target_kind is required for hook conversion".to_string())
-        })?;
+        // 2. converter で変換（target_kind は build() で検証済み）
+        let target_kind = self.target_kind.unwrap();
         let mut convert_result = converter::convert(&input, target_kind)?;
 
         // 3. Copilot CLI 形式（version:1 が存在 & script 不要・警告なし）の場合はファイルコピーにフォールバック
@@ -554,6 +552,12 @@ impl ComponentDeploymentBuilder {
             .ok_or_else(|| PlmError::Validation("target_path is required".to_string()))?;
 
         let hook_convert = self.hook_convert.unwrap_or(false);
+
+        if hook_convert && self.target_kind.is_none() {
+            return Err(PlmError::Validation(
+                "target_kind is required when hook_convert is enabled".to_string(),
+            ));
+        }
 
         Ok(ComponentDeployment {
             kind,
