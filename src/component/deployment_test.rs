@@ -831,14 +831,14 @@ fn test_hook_convert_true_deploys_converted() {
     let parsed: serde_json::Value = serde_json::from_str(&json_content).unwrap();
     assert_eq!(parsed.get("version").unwrap(), 1);
 
-    // wrapper スクリプトが wrappers/{hook-name}/ に配置されていること
-    let wrappers_dir = target_dir.join("wrappers").join("my-hook");
-    assert!(wrappers_dir.exists());
-    let wrapper_files: Vec<_> = fs::read_dir(&wrappers_dir)
+    // スクリプトが wrappers/{hook-name}/ に配置されていること
+    let scripts_dir = target_dir.join("wrappers").join("my-hook");
+    assert!(scripts_dir.exists());
+    let script_files: Vec<_> = fs::read_dir(&scripts_dir)
         .unwrap()
         .filter_map(|e| e.ok())
         .collect();
-    assert!(!wrapper_files.is_empty());
+    assert!(!script_files.is_empty());
 
     // JSON 内の bash パスが ./wrappers/my-hook/... を参照していること
     assert!(json_content.contains("./wrappers/my-hook/"));

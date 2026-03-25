@@ -131,9 +131,9 @@ impl ComponentDeployment {
         })?;
         let mut convert_result = converter::convert(&input, target_kind)?;
 
-        // 3. Copilot CLI 形式（version:1 が存在 & wrapper 不要・警告なし）の場合はファイルコピーにフォールバック
-        //    wrapper/warning が空なだけでは、Claude Code 形式など
-        //    「変換が必要だが wrapper 不要」のケースを取りこぼす可能性があるため、
+        // 3. Copilot CLI 形式（version:1 が存在 & script 不要・警告なし）の場合はファイルコピーにフォールバック
+        //    script/warning が空なだけでは、Claude Code 形式など
+        //    「変換が必要だが script 不要」のケースを取りこぼす可能性があるため、
         //    Copilot CLI のバージョン情報が明示されている場合にのみパススルーする。
         let version_value = convert_result.json.get("version");
         let is_copilot_cli_v1 = if let Some(v) = version_value {
@@ -165,7 +165,7 @@ impl ComponentDeployment {
         // Hook 名をサニタイズ（パスセグメント・シェルコマンドで安全に使えるようにする）
         let safe_name = Self::sanitize_hook_name(&self.name);
 
-        // 4. wrapper パスを名前空間付きに書き換え（生成された wrapper がある場合のみ）
+        // 4. script パスを名前空間付きに書き換え（生成された script がある場合のみ）
         if !convert_result.scripts.is_empty() {
             let original_paths: HashSet<String> = convert_result
                 .scripts
@@ -199,27 +199,27 @@ impl ComponentDeployment {
         // 7. 変換済み JSON を書き出し
         fs::write(&self.target_path, &json_str)?;
 
-        // 8. wrapper スクリプトを配置
+        // 8. スクリプトを配置
         let script_count = convert_result.scripts.len();
         if script_count > 0 {
             let plugin_root = self.plugin_root.as_ref().ok_or_else(|| {
                 PlmError::Validation(
-                    "plugin_root is required when wrapper scripts are generated".to_string(),
+                    "plugin_root is required when scripts are generated".to_string(),
                 )
             })?;
             let plugin_root_str = plugin_root.display().to_string();
 
-            let wrapper_dir = self
+            let script_dir = self
                 .target_path
                 .parent()
                 .ok_or_else(|| {
                     PlmError::Validation(
-                        "target_path must have a parent directory for wrapper scripts".to_string(),
+                        "target_path must have a parent directory for scripts".to_string(),
                     )
                 })?
                 .join(SCRIPTS_DIR)
                 .join(&safe_name);
-            fs::create_dir_all(&wrapper_dir)?;
+            fs::create_dir_all(&script_dir)?;
 
             for script in &convert_result.scripts {
                 let filename = Path::new(&script.path)
@@ -227,7 +227,7 @@ impl ComponentDeployment {
                     .map(|f| f.to_string_lossy().to_string())
                     .unwrap_or_else(|| script.path.clone());
 
-                let wrapper_path = wrapper_dir.join(&filename);
+                let script_path = script_dir.join(&filename);
 
                 // @@PLUGIN_ROOT@@ を実パスに置換
                 // bash ダブルクオート内で特別な意味を持つ文字のみをエスケープする
@@ -250,13 +250,13 @@ impl ComponentDeployment {
                 };
                 let content = script.content.replace("@@PLUGIN_ROOT@@", &escaped);
 
-                fs::write(&wrapper_path, &content)?;
+                fs::write(&script_path, &content)?;
 
                 // Unix: 実行権限を設定
                 #[cfg(unix)]
                 {
                     use std::os::unix::fs::PermissionsExt;
-                    fs::set_permissions(&wrapper_path, fs::Permissions::from_mode(0o755))?;
+                    fs::set_permissions(&script_path, fs::Permissions::from_mode(0o755))?;
                 }
             }
         }
