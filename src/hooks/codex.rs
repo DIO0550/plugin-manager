@@ -1,7 +1,10 @@
 //! Codex skeleton implementation of the 4 hook conversion layers.
 //!
-//! These are placeholder implementations that return errors for unsupported operations.
-//! They will be filled in when Codex hook conversion is actually implemented.
+//! These are placeholder implementations. `EventMap` returns `None` for all events,
+//! `KeyMap` passes through as-is, `StructureConverter` performs no transformation,
+//! and `ScriptGenerator` returns empty stubs (or errors for http).
+//! These skeletons are not wired into production via `create_layers()`;
+//! they exist as a structural foundation for future Codex hook conversion.
 
 use serde_json::Value;
 
