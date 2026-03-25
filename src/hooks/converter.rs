@@ -231,14 +231,19 @@ pub fn convert(input: &str, target: TargetKind) -> Result<ConvertResult, PlmErro
     let value: Value = serde_json::from_str(input)
         .map_err(|e| PlmError::HookConversion(format!("Invalid JSON: {}", e)))?;
 
-    let hooks_value = value
-        .get("hooks")
-        .ok_or_else(|| PlmError::HookConversion("Missing 'hooks' field".to_string()))?;
-
-    if !hooks_value.is_object() {
-        return Err(PlmError::HookConversion(
-            "'hooks' field must be an object".to_string(),
-        ));
+    // Validate hooks field exists and is an object (borrow is dropped before match)
+    match value.get("hooks") {
+        Some(h) if h.is_object() => {}
+        Some(_) => {
+            return Err(PlmError::HookConversion(
+                "'hooks' field must be an object".to_string(),
+            ));
+        }
+        None => {
+            return Err(PlmError::HookConversion(
+                "Missing 'hooks' field".to_string(),
+            ));
+        }
     }
 
     match layers.structure.detect_format(&value) {
@@ -254,7 +259,10 @@ pub fn convert(input: &str, target: TargetKind) -> Result<ConvertResult, PlmErro
             let (mut result, mut warnings) = layers.structure.convert_top_level(&value);
             let mut scripts = Vec::new();
 
-            let new_hooks = convert_event_hooks(hooks_value, &layers, &mut warnings, &mut scripts)?;
+            // Re-access hooks from the original value (validation done above)
+            let hooks_value = value.get("hooks").unwrap();
+            let new_hooks =
+                convert_event_hooks(hooks_value, &layers, &mut warnings, &mut scripts)?;
             result
                 .as_object_mut()
                 .unwrap()
