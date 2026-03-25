@@ -369,6 +369,16 @@ fn flatten_matchers(
     Ok(result)
 }
 
+/// Insert `bash` script path and `type: "command"` into a mapped hook value.
+fn insert_script_fields(mapped: &mut Value, script_path: String) -> Result<(), PlmError> {
+    let obj = mapped.as_object_mut().ok_or_else(|| {
+        PlmError::HookConversion("map_keys must return a JSON object".to_string())
+    })?;
+    obj.insert("bash".to_string(), Value::from(script_path));
+    obj.insert("type".to_string(), Value::from("command"));
+    Ok(())
+}
+
 /// Convert an individual hook definition using layers.
 #[allow(clippy::too_many_arguments)]
 fn convert_hook_definition(
@@ -415,9 +425,7 @@ fn convert_hook_definition(
             let script_path = format!("./{}", script_info.path);
             scripts.push(script_info);
 
-            let obj = mapped.as_object_mut().unwrap();
-            obj.insert("bash".to_string(), Value::from(script_path));
-            obj.insert("type".to_string(), Value::from("command"));
+            insert_script_fields(&mut mapped, script_path)?;
 
             Ok(Some(mapped))
         }
@@ -432,9 +440,7 @@ fn convert_hook_definition(
             let script_path = format!("./{}", script_info.path);
             scripts.push(script_info);
 
-            let obj = mapped.as_object_mut().unwrap();
-            obj.insert("bash".to_string(), Value::from(script_path));
-            obj.insert("type".to_string(), Value::from("command"));
+            insert_script_fields(&mut mapped, script_path)?;
 
             Ok(Some(mapped))
         }
@@ -457,9 +463,7 @@ fn convert_hook_definition(
                 hook_type: hook_type.to_string(),
             });
 
-            let obj = mapped.as_object_mut().unwrap();
-            obj.insert("bash".to_string(), Value::from(script_path));
-            obj.insert("type".to_string(), Value::from("command"));
+            insert_script_fields(&mut mapped, script_path)?;
 
             Ok(Some(mapped))
         }
