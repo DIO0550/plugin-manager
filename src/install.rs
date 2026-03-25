@@ -280,9 +280,7 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
                     .dest_agent_format(target.agent_format());
             }
 
-            if component.kind == ComponentKind::Hook
-                && matches!(target.kind(), TargetKind::Copilot | TargetKind::Codex)
-            {
+            if component.kind == ComponentKind::Hook && target.kind() == TargetKind::Copilot {
                 builder = builder
                     .hook_convert(true)
                     .target_kind(target.kind())
