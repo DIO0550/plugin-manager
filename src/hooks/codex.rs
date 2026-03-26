@@ -48,8 +48,11 @@ impl StructureConverter for CodexStructureConverter {
         SourceFormat::ClaudeCode
     }
 
-    fn handle_target_format(&self, value: Value) -> (Value, Vec<ConversionWarning>) {
-        (value, vec![])
+    fn handle_target_format(
+        &self,
+        value: Value,
+    ) -> Result<(Value, Vec<ConversionWarning>), PlmError> {
+        Ok((value, vec![]))
     }
 
     fn convert_top_level(&self, value: &Value) -> (Value, Vec<ConversionWarning>) {

@@ -147,7 +147,7 @@ fn test_detect_format_camel_case() {
 fn test_handle_target_format_adds_version() {
     let conv = CopilotStructureConverter;
     let value = json!({ "hooks": { "sessionStart": [] } });
-    let (result, warnings) = conv.handle_target_format(value);
+    let (result, warnings) = conv.handle_target_format(value).unwrap();
     assert_eq!(result["version"], 1);
     assert!(warnings
         .iter()
@@ -158,7 +158,7 @@ fn test_handle_target_format_adds_version() {
 fn test_handle_target_format_with_version() {
     let conv = CopilotStructureConverter;
     let value = json!({ "version": 1, "hooks": {} });
-    let (result, warnings) = conv.handle_target_format(value);
+    let (result, warnings) = conv.handle_target_format(value).unwrap();
     assert_eq!(result["version"], 1);
     assert!(warnings.is_empty());
 }

@@ -152,18 +152,37 @@ impl StructureConverter for CopilotStructureConverter {
         }
     }
 
-    fn handle_target_format(&self, value: Value) -> (Value, Vec<ConversionWarning>) {
+    fn handle_target_format(
+        &self,
+        value: Value,
+    ) -> Result<(Value, Vec<ConversionWarning>), PlmError> {
         let mut warnings = Vec::new();
         let mut result = value;
 
-        if result.get("version").is_none() {
-            warnings.push(ConversionWarning::MissingVersion);
-            if let Some(obj) = result.as_object_mut() {
-                obj.insert("version".to_string(), Value::from(1));
+        match result.get("version") {
+            Some(v) => {
+                let num = v.as_i64().ok_or_else(|| {
+                    PlmError::HookConversion(format!(
+                        "Invalid 'version' type: expected integer 1, got {}",
+                        v
+                    ))
+                })?;
+                if num != 1 {
+                    return Err(PlmError::HookConversion(format!(
+                        "Unsupported hooks config 'version': {} (only 1 is supported)",
+                        num
+                    )));
+                }
+            }
+            None => {
+                warnings.push(ConversionWarning::MissingVersion);
+                if let Some(obj) = result.as_object_mut() {
+                    obj.insert("version".to_string(), Value::from(1));
+                }
             }
         }
 
-        (result, warnings)
+        Ok((result, warnings))
     }
 
     fn convert_top_level(&self, value: &Value) -> (Value, Vec<ConversionWarning>) {
