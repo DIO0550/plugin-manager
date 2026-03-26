@@ -32,6 +32,7 @@ pub struct ConvertResult {
     pub json: Value,
     pub warnings: Vec<ConversionWarning>,
     pub scripts: Vec<ScriptInfo>,
+    pub source_format: SourceFormat,
 }
 
 /// Warnings emitted during conversion.
@@ -91,7 +92,8 @@ pub struct ScriptInfo {
 }
 
 /// Detected source format.
-pub(crate) enum SourceFormat {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SourceFormat {
     /// Input is in Claude Code format and needs conversion.
     ClaudeCode,
     /// Input is already in the target format (passthrough).
@@ -253,6 +255,7 @@ pub fn convert(input: &str, target: TargetKind) -> Result<ConvertResult, PlmErro
                 json,
                 warnings,
                 scripts: vec![],
+                source_format: SourceFormat::TargetFormat,
             })
         }
         SourceFormat::ClaudeCode => {
@@ -271,6 +274,7 @@ pub fn convert(input: &str, target: TargetKind) -> Result<ConvertResult, PlmErro
                 json: result,
                 warnings,
                 scripts,
+                source_format: SourceFormat::ClaudeCode,
             })
         }
     }

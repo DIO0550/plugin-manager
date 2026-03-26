@@ -3,7 +3,7 @@
 use super::convert::{self, AgentConversionResult, AgentFormat, CommandFormat, ConversionResult};
 use crate::component::{Component, ComponentKind, Scope};
 use crate::error::{PlmError, Result};
-use crate::hooks::converter::{self, SCRIPTS_DIR};
+use crate::hooks::converter::{self, SourceFormat, SCRIPTS_DIR};
 use crate::path_ext::PathExt;
 use crate::target::TargetKind;
 use std::collections::{BTreeMap, HashSet};
@@ -129,32 +129,12 @@ impl ComponentDeployment {
         let target_kind = self.target_kind.unwrap();
         let mut convert_result = converter::convert(&input, target_kind)?;
 
-        // 3. Copilot CLI 形式（version:1 が存在 & script 不要・警告なし）の場合はファイルコピーにフォールバック
-        //    script/warning が空なだけでは、Claude Code 形式など
-        //    「変換が必要だが script 不要」のケースを取りこぼす可能性があるため、
-        //    Copilot CLI のバージョン情報が明示されている場合にのみパススルーする。
-        let version_value = convert_result.json.get("version");
-        let is_copilot_cli_v1 = if let Some(v) = version_value {
-            if let Some(num) = v.as_u64() {
-                if num != 1 {
-                    return Err(PlmError::HookConversion(format!(
-                        "Unsupported hooks config version: {} (expected 1)",
-                        num
-                    )));
-                }
-                true
-            } else {
-                return Err(PlmError::HookConversion(
-                    "Unsupported hooks config version type (expected integer 1)".to_string(),
-                ));
-            }
-        } else {
-            false
-        };
-
-        if convert_result.scripts.is_empty()
+        // 3. ソース形式が既にターゲット形式（passthrough）で、script/warning が不要な場合はファイルコピー
+        //    変換後 JSON の version フィールドではなく、converter が検出した source_format で判定する。
+        //    これにより Claude Code 入力が誤って passthrough 扱いされることを防ぐ。
+        if convert_result.source_format == SourceFormat::TargetFormat
+            && convert_result.scripts.is_empty()
             && convert_result.warnings.is_empty()
-            && is_copilot_cli_v1
         {
             self.source_path.copy_file_to(&self.target_path)?;
             return Ok(DeploymentResult::Copied);
