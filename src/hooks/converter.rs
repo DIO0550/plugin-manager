@@ -261,8 +261,7 @@ pub fn convert(input: &str, target: TargetKind) -> Result<ConvertResult, PlmErro
 
             // Re-access hooks from the original value (validation done above)
             let hooks_value = value.get("hooks").unwrap();
-            let new_hooks =
-                convert_event_hooks(hooks_value, &layers, &mut warnings, &mut scripts)?;
+            let new_hooks = convert_event_hooks(hooks_value, &layers, &mut warnings, &mut scripts)?;
             result
                 .as_object_mut()
                 .unwrap()
