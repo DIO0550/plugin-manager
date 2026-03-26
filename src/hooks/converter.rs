@@ -445,6 +445,10 @@ fn convert_hook_definition(
             Ok(Some(mapped))
         }
         "http" => {
+            hook.as_object().ok_or_else(|| {
+                PlmError::HookConversion("Hook definition must be an object".to_string())
+            })?;
+
             let (mut mapped, key_warnings) = layers.key_map.map_keys(hook, hook_type);
             warnings.extend(key_warnings);
 
@@ -460,6 +464,10 @@ fn convert_hook_definition(
             Ok(Some(mapped))
         }
         "prompt" | "agent" => {
+            hook.as_object().ok_or_else(|| {
+                PlmError::HookConversion("Hook definition must be an object".to_string())
+            })?;
+
             let (mut mapped, key_warnings) = layers.key_map.map_keys(hook, hook_type);
             warnings.extend(key_warnings);
 
