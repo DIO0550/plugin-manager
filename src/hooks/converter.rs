@@ -250,6 +250,23 @@ pub fn convert(input: &str, target: TargetKind) -> Result<ConvertResult, PlmErro
 
     match layers.structure.detect_format(&value) {
         SourceFormat::TargetFormat => {
+            // Validate version field if present (missing version is handled by
+            // handle_target_format which inserts version:1 with a warning).
+            if let Some(version_value) = value.get("version") {
+                let version_number = version_value.as_i64().ok_or_else(|| {
+                    PlmError::HookConversion(format!(
+                        "Invalid 'version' type: expected integer 1, got {}",
+                        version_value
+                    ))
+                })?;
+                if version_number != 1 {
+                    return Err(PlmError::HookConversion(format!(
+                        "Unsupported hooks config 'version': {} (only 1 is supported)",
+                        version_number
+                    )));
+                }
+            }
+
             let (json, warnings) = layers.structure.handle_target_format(value);
             Ok(ConvertResult {
                 json,
