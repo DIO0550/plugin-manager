@@ -361,10 +361,7 @@ fn flatten_matchers(
         if let Some(m) = matcher {
             warnings.push(ConversionWarning::RemovedField {
                 field: "matcher".to_string(),
-                reason: format!(
-                    "Matcher '{}' moved to wrapper script for event '{}'",
-                    m, event
-                ),
+                reason: format!("Matcher '{}' moved to script for event '{}'", m, event),
             });
         }
 
