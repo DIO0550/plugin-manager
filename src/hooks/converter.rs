@@ -425,10 +425,13 @@ fn convert_hook_definition(
             let (mut mapped, key_warnings) = layers.key_map.map_keys(hook, hook_type);
             warnings.extend(key_warnings);
 
-            let script_info =
+            let mut script_info =
                 layers
                     .script_gen
                     .generate_command_script(command, event, matcher, scripts.len());
+            if script_info.original_config.is_null() {
+                script_info.original_config = hook.clone();
+            }
             let script_path = format!("./{}", script_info.path);
             scripts.push(script_info);
 
