@@ -1,6 +1,7 @@
 use super::*;
 use crate::component::CommandFormat;
 use crate::hooks::converter::ConversionWarning;
+use crate::target::TargetKind;
 use std::collections::BTreeMap;
 use std::fs;
 use tempfile::TempDir;
@@ -613,26 +614,26 @@ fn test_builder_agent_format() {
 fn test_hook_convert_result_has_expected_fields() {
     let result = HookConvertResult {
         warnings: vec![ConversionWarning::MissingVersion],
-        wrapper_count: 2,
+        script_count: 2,
         summary: None,
     };
 
     assert_eq!(result.warnings.len(), 1);
-    assert_eq!(result.wrapper_count, 2);
+    assert_eq!(result.script_count, 2);
 }
 
 #[test]
 fn test_deployment_result_hook_converted_variant() {
     let hook_result = HookConvertResult {
         warnings: vec![],
-        wrapper_count: 0,
+        script_count: 0,
         summary: None,
     };
     let result = DeploymentResult::HookConverted(hook_result);
 
     match result {
         DeploymentResult::HookConverted(hr) => {
-            assert_eq!(hr.wrapper_count, 0);
+            assert_eq!(hr.script_count, 0);
             assert!(hr.warnings.is_empty());
         }
         _ => panic!("Expected HookConverted"),
@@ -652,6 +653,7 @@ fn test_builder_hook_convert() {
         .source_path("/src/hook.json")
         .target_path("/dest/hook.json")
         .hook_convert(true)
+        .target_kind(TargetKind::Copilot)
         .plugin_root("/cache/plugin")
         .build()
         .unwrap();
@@ -668,6 +670,7 @@ fn test_builder_plugin_root() {
         .source_path("/src/hook.json")
         .target_path("/dest/hook.json")
         .hook_convert(true)
+        .target_kind(TargetKind::Copilot)
         .plugin_root("/cache/plugin")
         .build()
         .unwrap();
@@ -706,6 +709,7 @@ fn test_hook_convert_without_plugin_root_errors_when_wrappers_needed() {
         .source_path(&source)
         .target_path(&target)
         .hook_convert(true)
+        .target_kind(TargetKind::Copilot)
         .build()
         .unwrap(); // build() は成功する
 
@@ -730,6 +734,7 @@ fn test_hook_convert_without_plugin_root_ok_for_warnings_only() {
         .source_path(&source)
         .target_path(&target)
         .hook_convert(true)
+        .target_kind(TargetKind::Copilot)
         .build()
         .unwrap();
 
@@ -737,7 +742,7 @@ fn test_hook_convert_without_plugin_root_ok_for_warnings_only() {
     match result {
         DeploymentResult::HookConverted(hr) => {
             assert!(!hr.warnings.is_empty());
-            assert_eq!(hr.wrapper_count, 0);
+            assert_eq!(hr.script_count, 0);
         }
         _ => panic!("Expected HookConverted with warnings only"),
     }
@@ -806,6 +811,7 @@ fn test_hook_convert_true_deploys_converted() {
         .source_path(&source)
         .target_path(&target)
         .hook_convert(true)
+        .target_kind(TargetKind::Copilot)
         .plugin_root(&plugin_root)
         .build()
         .unwrap();
@@ -814,7 +820,7 @@ fn test_hook_convert_true_deploys_converted() {
 
     match result {
         DeploymentResult::HookConverted(hr) => {
-            assert!(hr.wrapper_count > 0);
+            assert!(hr.script_count > 0);
         }
         _ => panic!("Expected HookConverted"),
     }
@@ -825,14 +831,14 @@ fn test_hook_convert_true_deploys_converted() {
     let parsed: serde_json::Value = serde_json::from_str(&json_content).unwrap();
     assert_eq!(parsed.get("version").unwrap(), 1);
 
-    // wrapper スクリプトが wrappers/{hook-name}/ に配置されていること
-    let wrappers_dir = target_dir.join("wrappers").join("my-hook");
-    assert!(wrappers_dir.exists());
-    let wrapper_files: Vec<_> = fs::read_dir(&wrappers_dir)
+    // スクリプトが wrappers/{hook-name}/ に配置されていること
+    let scripts_dir = target_dir.join("wrappers").join("my-hook");
+    assert!(scripts_dir.exists());
+    let script_files: Vec<_> = fs::read_dir(&scripts_dir)
         .unwrap()
         .filter_map(|e| e.ok())
         .collect();
-    assert!(!wrapper_files.is_empty());
+    assert!(!script_files.is_empty());
 
     // JSON 内の bash パスが ./wrappers/my-hook/... を参照していること
     assert!(json_content.contains("./wrappers/my-hook/"));
@@ -867,6 +873,7 @@ fn test_hook_convert_copilot_format_passthrough() {
         .source_path(&source)
         .target_path(&target)
         .hook_convert(true)
+        .target_kind(TargetKind::Copilot)
         .plugin_root(&plugin_root)
         .build()
         .unwrap();
@@ -900,6 +907,7 @@ fn test_hook_convert_plugin_root_replacement() {
         .source_path(&source)
         .target_path(&target)
         .hook_convert(true)
+        .target_kind(TargetKind::Copilot)
         .plugin_root(&plugin_root)
         .build()
         .unwrap();
@@ -941,6 +949,7 @@ fn test_hook_convert_wrapper_executable_permission() {
         .source_path(&source)
         .target_path(&target)
         .hook_convert(true)
+        .target_kind(TargetKind::Copilot)
         .plugin_root(&plugin_root)
         .build()
         .unwrap();
@@ -970,6 +979,7 @@ fn test_hook_convert_missing_source_returns_err() {
         .source_path(&source)
         .target_path(&target)
         .hook_convert(true)
+        .target_kind(TargetKind::Copilot)
         .plugin_root(&plugin_root)
         .build()
         .unwrap();
@@ -995,6 +1005,7 @@ fn test_hook_convert_creates_parent_dir() {
         .source_path(&source)
         .target_path(&target)
         .hook_convert(true)
+        .target_kind(TargetKind::Copilot)
         .plugin_root(&plugin_root)
         .build()
         .unwrap();
@@ -1029,6 +1040,7 @@ fn test_hook_convert_unsupported_events_produce_warnings() {
         .source_path(&source)
         .target_path(&target)
         .hook_convert(true)
+        .target_kind(TargetKind::Copilot)
         .plugin_root(&plugin_root)
         .build()
         .unwrap();
@@ -1089,6 +1101,7 @@ fn test_hook_convert_original_scripts_not_copied() {
         .source_path(&source)
         .target_path(&target)
         .hook_convert(true)
+        .target_kind(TargetKind::Copilot)
         .plugin_root(&plugin_root)
         .build()
         .unwrap();
@@ -1129,6 +1142,7 @@ fn test_hook_convert_multiple_hooks_no_name_collision() {
         .source_path(&source)
         .target_path(&target_a)
         .hook_convert(true)
+        .target_kind(TargetKind::Copilot)
         .plugin_root(&plugin_root)
         .build()
         .unwrap();
@@ -1143,6 +1157,7 @@ fn test_hook_convert_multiple_hooks_no_name_collision() {
         .source_path(&source)
         .target_path(&target_b)
         .hook_convert(true)
+        .target_kind(TargetKind::Copilot)
         .plugin_root(&plugin_root)
         .build()
         .unwrap();
@@ -1237,6 +1252,7 @@ fn test_hook_convert_with_unsafe_name_uses_sanitized_dir() {
         .source_path(&source)
         .target_path(&target)
         .hook_convert(true)
+        .target_kind(TargetKind::Copilot)
         .plugin_root(&plugin_root)
         .build()
         .unwrap();
@@ -1346,7 +1362,7 @@ fn test_converted_summary_result_with_entries() {
 fn test_hook_convert_result_summary_none() {
     let result = HookConvertResult {
         warnings: vec![],
-        wrapper_count: 0,
+        script_count: 0,
         summary: None,
     };
     assert!(result.summary.is_none());
@@ -1364,7 +1380,7 @@ fn test_hook_convert_result_summary_some() {
 
     let result = HookConvertResult {
         warnings: vec![],
-        wrapper_count: 1,
+        script_count: 1,
         summary: Some(summary),
     };
 
@@ -1427,10 +1443,10 @@ fn test_display_agent_converted_false() {
 fn test_display_hook_converted() {
     let result = DeploymentResult::HookConverted(HookConvertResult {
         warnings: vec![ConversionWarning::MissingVersion],
-        wrapper_count: 3,
+        script_count: 3,
         summary: None,
     });
-    assert_eq!(result.to_string(), "Hook converted (3 wrappers, 1 warning)");
+    assert_eq!(result.to_string(), "Hook converted (3 scripts, 1 warning)");
 }
 
 /// 変換後 JSON に version: 1 が含まれること
@@ -1451,6 +1467,7 @@ fn test_hook_convert_output_has_version() {
         .source_path(&source)
         .target_path(&target)
         .hook_convert(true)
+        .target_kind(TargetKind::Copilot)
         .plugin_root(&plugin_root)
         .build()
         .unwrap();

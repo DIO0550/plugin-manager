@@ -3,6 +3,7 @@
 use super::converter::*;
 use crate::error::RichError;
 use crate::error::{ErrorCode, PlmError};
+use crate::target::TargetKind;
 
 // ============================================================================
 // ConversionWarning Display
@@ -67,10 +68,10 @@ fn test_detect_copilot_format_with_version() {
             "sessionStart": [{ "bash": "echo hi" }]
         }
     }"#;
-    let result = convert(input).unwrap();
+    let result = convert(input, TargetKind::Copilot).unwrap();
     assert_eq!(result.json["version"], 1);
     assert!(result.warnings.is_empty());
-    assert!(result.wrapper_scripts.is_empty());
+    assert!(result.scripts.is_empty());
 }
 
 #[test]
@@ -80,7 +81,7 @@ fn test_detect_copilot_format_with_camelcase() {
             "sessionStart": [{ "bash": "echo hi" }]
         }
     }"#;
-    let result = convert(input).unwrap();
+    let result = convert(input, TargetKind::Copilot).unwrap();
     // camelCase without version -> CopilotCli, version:1 inserted with warning
     assert_eq!(result.json["version"], 1);
     assert!(result
@@ -102,7 +103,7 @@ fn test_detect_claude_format_with_pascalcase() {
             ]
         }
     }"#;
-    let result = convert(input).unwrap();
+    let result = convert(input, TargetKind::Copilot).unwrap();
     assert_eq!(result.json["version"], 1);
     assert!(result.json["hooks"].get("sessionStart").is_some());
 }
@@ -110,7 +111,7 @@ fn test_detect_claude_format_with_pascalcase() {
 #[test]
 fn test_detect_format_empty_hooks() {
     let input = r#"{ "hooks": {} }"#;
-    let result = convert(input).unwrap();
+    let result = convert(input, TargetKind::Copilot).unwrap();
     // Empty hooks with no version -> CopilotCli passthrough with MissingVersion warning
     assert!(result
         .warnings
@@ -131,7 +132,7 @@ fn test_add_version_field() {
             ]
         }
     }"#;
-    let result = convert(input).unwrap();
+    let result = convert(input, TargetKind::Copilot).unwrap();
     assert_eq!(result.json["version"], 1);
 }
 
@@ -145,7 +146,7 @@ fn test_remove_disable_all_hooks() {
             ]
         }
     }"#;
-    let result = convert(input).unwrap();
+    let result = convert(input, TargetKind::Copilot).unwrap();
     assert!(result.json.get("disableAllHooks").is_none());
     assert!(result.warnings.iter().any(|w| matches!(
         w,
@@ -162,7 +163,7 @@ fn test_no_disable_all_hooks() {
             ]
         }
     }"#;
-    let result = convert(input).unwrap();
+    let result = convert(input, TargetKind::Copilot).unwrap();
     assert!(!result.warnings.iter().any(|w| matches!(
         w,
         ConversionWarning::RemovedField { field, .. } if field == "disableAllHooks"
@@ -186,7 +187,7 @@ fn test_convert_supported_events() {
             "SubagentStop": [{ "hooks": [{ "type": "command", "command": "echo 7" }] }]
         }
     }"#;
-    let result = convert(input).unwrap();
+    let result = convert(input, TargetKind::Copilot).unwrap();
     let hooks = result.json["hooks"].as_object().unwrap();
     assert!(hooks.contains_key("sessionStart"));
     assert!(hooks.contains_key("sessionEnd"));
@@ -207,7 +208,7 @@ fn test_exclude_unsupported_events() {
             "Notification": [{ "hooks": [{ "type": "command", "command": "echo 3" }] }]
         }
     }"#;
-    let result = convert(input).unwrap();
+    let result = convert(input, TargetKind::Copilot).unwrap();
     let hooks = result.json["hooks"].as_object().unwrap();
     assert!(hooks.is_empty());
     assert_eq!(
@@ -227,7 +228,7 @@ fn test_exclude_unknown_events() {
             "SomeNewEvent": [{ "hooks": [{ "type": "command", "command": "echo" }] }]
         }
     }"#;
-    let result = convert(input).unwrap();
+    let result = convert(input, TargetKind::Copilot).unwrap();
     let hooks = result.json["hooks"].as_object().unwrap();
     assert!(hooks.is_empty());
     assert!(result.warnings.iter().any(|w| matches!(
@@ -252,17 +253,17 @@ fn test_flatten_single_matcher() {
             ]
         }
     }"#;
-    let result = convert(input).unwrap();
+    let result = convert(input, TargetKind::Copilot).unwrap();
     let hooks = &result.json["hooks"]["preToolUse"];
     let arr = hooks.as_array().unwrap();
     assert_eq!(arr.len(), 1);
     assert!(arr[0].get("steps").is_none());
     // matcher present -> wrapper script generated, bash points to wrapper
     assert!(arr[0]["bash"].as_str().unwrap().ends_with(".sh"));
-    assert_eq!(result.wrapper_scripts.len(), 1);
-    assert!(result.wrapper_scripts[0].content.contains("cargo check"));
-    assert!(result.wrapper_scripts[0].content.contains("Bash"));
-    assert_eq!(result.wrapper_scripts[0].matcher, Some("Bash".to_string()));
+    assert_eq!(result.scripts.len(), 1);
+    assert!(result.scripts[0].content.contains("cargo check"));
+    assert!(result.scripts[0].content.contains("Bash"));
+    assert_eq!(result.scripts[0].matcher, Some("Bash".to_string()));
     // matcher moved to wrapper script with warning
     assert!(result.warnings.iter().any(|w| matches!(
         w,
@@ -290,16 +291,16 @@ fn test_flatten_multiple_matchers() {
             ]
         }
     }"#;
-    let result = convert(input).unwrap();
+    let result = convert(input, TargetKind::Copilot).unwrap();
     let arr = result.json["hooks"]["preToolUse"].as_array().unwrap();
     assert_eq!(arr.len(), 2);
     assert!(arr[0].get("steps").is_none());
     // Each matcher produces a wrapper script
     assert!(arr[0]["bash"].as_str().unwrap().ends_with(".sh"));
     assert!(arr[1]["bash"].as_str().unwrap().ends_with(".sh"));
-    assert_eq!(result.wrapper_scripts.len(), 2);
-    assert!(result.wrapper_scripts[0].content.contains("cargo check"));
-    assert!(result.wrapper_scripts[1].content.contains("tsc --noEmit"));
+    assert_eq!(result.scripts.len(), 2);
+    assert!(result.scripts[0].content.contains("cargo check"));
+    assert!(result.scripts[1].content.contains("tsc --noEmit"));
     // 2 matcher warnings
     assert_eq!(
         result
@@ -325,12 +326,12 @@ fn test_flatten_empty_matcher() {
             ]
         }
     }"#;
-    let result = convert(input).unwrap();
+    let result = convert(input, TargetKind::Copilot).unwrap();
     let arr = result.json["hooks"]["preToolUse"].as_array().unwrap();
     assert_eq!(arr.len(), 1);
     assert!(arr[0].get("steps").is_none());
     assert!(arr[0]["bash"].as_str().unwrap().ends_with(".sh"));
-    assert!(result.wrapper_scripts[0].content.contains("echo all"));
+    assert!(result.scripts[0].content.contains("echo all"));
 }
 
 // ============================================================================
@@ -346,13 +347,13 @@ fn test_command_to_bash() {
             ]
         }
     }"#;
-    let result = convert(input).unwrap();
+    let result = convert(input, TargetKind::Copilot).unwrap();
     let hook = &result.json["hooks"]["sessionStart"][0];
     // Always wrapped: bash points to a generated wrapper script
     assert!(hook["bash"].as_str().unwrap().ends_with(".sh"));
     assert!(hook.get("command").is_none());
     // Wrapper contains the original command
-    assert!(result.wrapper_scripts[0].content.contains("./script.sh"));
+    assert!(result.scripts[0].content.contains("./script.sh"));
 }
 
 #[test]
@@ -364,7 +365,7 @@ fn test_timeout_to_timeout_sec() {
             ]
         }
     }"#;
-    let result = convert(input).unwrap();
+    let result = convert(input, TargetKind::Copilot).unwrap();
     let hook = &result.json["hooks"]["sessionStart"][0];
     assert_eq!(hook["timeoutSec"], 30);
     assert!(hook.get("timeout").is_none());
@@ -379,7 +380,7 @@ fn test_status_message_to_comment() {
             ]
         }
     }"#;
-    let result = convert(input).unwrap();
+    let result = convert(input, TargetKind::Copilot).unwrap();
     let hook = &result.json["hooks"]["sessionStart"][0];
     assert_eq!(hook["comment"], "Running...");
     assert!(hook.get("statusMessage").is_none());
@@ -394,7 +395,7 @@ fn test_remove_async_with_warning() {
             ]
         }
     }"#;
-    let result = convert(input).unwrap();
+    let result = convert(input, TargetKind::Copilot).unwrap();
     let hook = &result.json["hooks"]["sessionStart"][0];
     assert!(hook.get("async").is_none());
     assert!(result.warnings.iter().any(|w| matches!(
@@ -412,7 +413,7 @@ fn test_remove_once() {
             ]
         }
     }"#;
-    let result = convert(input).unwrap();
+    let result = convert(input, TargetKind::Copilot).unwrap();
     let hook = &result.json["hooks"]["sessionStart"][0];
     assert!(hook.get("once").is_none());
     assert!(result.warnings.iter().any(|w| matches!(
@@ -435,11 +436,11 @@ fn test_command_hook_always_has_type() {
             ]
         }
     }"#;
-    let result = convert(input).unwrap();
+    let result = convert(input, TargetKind::Copilot).unwrap();
     let hook = &result.json["hooks"]["sessionStart"][0];
     assert_eq!(hook["type"], "command");
     assert!(hook["bash"].as_str().unwrap().ends_with(".sh"));
-    assert!(result.wrapper_scripts[0].content.contains("echo hi"));
+    assert!(result.scripts[0].content.contains("echo hi"));
 }
 
 #[test]
@@ -451,19 +452,15 @@ fn test_command_hook_passthrough() {
             ]
         }
     }"#;
-    let result = convert(input).unwrap();
+    let result = convert(input, TargetKind::Copilot).unwrap();
     let hook = &result.json["hooks"]["sessionStart"][0];
     assert!(hook["bash"].as_str().unwrap().ends_with(".sh"));
     assert_eq!(hook["timeoutSec"], 10);
     assert_eq!(hook["type"], "command");
-    assert!(result.wrapper_scripts[0].content.contains("./run.sh"));
+    assert!(result.scripts[0].content.contains("./run.sh"));
     // Wrapper includes exit code handler
-    assert!(result.wrapper_scripts[0]
-        .content
-        .contains("permissionDecision"));
-    assert!(result.wrapper_scripts[0]
-        .content
-        .contains("hookSpecificOutput"));
+    assert!(result.scripts[0].content.contains("permissionDecision"));
+    assert!(result.scripts[0].content.contains("hookSpecificOutput"));
 }
 
 #[test]
@@ -484,13 +481,13 @@ fn test_http_hook_to_curl_wrapper() {
             ]
         }
     }"#;
-    let result = convert(input).unwrap();
+    let result = convert(input, TargetKind::Copilot).unwrap();
     let hook = &result.json["hooks"]["postToolUse"][0];
     assert!(hook["bash"].as_str().unwrap().ends_with(".sh"));
     assert_eq!(hook["type"], "command");
 
-    assert_eq!(result.wrapper_scripts.len(), 1);
-    let script = &result.wrapper_scripts[0];
+    assert_eq!(result.scripts.len(), 1);
+    let script = &result.scripts[0];
     // Core curl invocation
     assert!(script.content.contains("curl"));
     assert!(script.content.contains("https://example.com/webhook"));
@@ -528,9 +525,9 @@ fn test_http_hook_with_matcher_has_filter() {
             ]
         }
     }"#;
-    let result = convert(input).unwrap();
-    assert_eq!(result.wrapper_scripts.len(), 1);
-    let script = &result.wrapper_scripts[0];
+    let result = convert(input, TargetKind::Copilot).unwrap();
+    assert_eq!(result.scripts.len(), 1);
+    let script = &result.scripts[0];
     assert!(script.content.contains("curl"));
     assert!(script.content.contains("matcher filter"));
     assert!(script.content.contains("Bash"));
@@ -550,13 +547,13 @@ fn test_prompt_hook_to_stub() {
             ]
         }
     }"#;
-    let result = convert(input).unwrap();
+    let result = convert(input, TargetKind::Copilot).unwrap();
     let hook = &result.json["hooks"]["preToolUse"][0];
     assert!(hook["bash"].as_str().unwrap().ends_with(".sh"));
     assert_eq!(hook["type"], "command");
 
-    assert_eq!(result.wrapper_scripts.len(), 1);
-    let script = &result.wrapper_scripts[0];
+    assert_eq!(result.scripts.len(), 1);
+    let script = &result.scripts[0];
     assert!(script.content.contains("STUB"));
     assert!(script.content.contains("COPILOT_INPUT=$(cat)"));
     assert!(script.content.contains("CLAUDE_PROJECT_DIR"));
@@ -584,7 +581,7 @@ fn test_agent_hook_to_stub() {
             ]
         }
     }"#;
-    let result = convert(input).unwrap();
+    let result = convert(input, TargetKind::Copilot).unwrap();
     let hook = &result.json["hooks"]["agentStop"][0];
     assert!(hook["bash"].as_str().unwrap().ends_with(".sh"));
     assert_eq!(hook["type"], "command");
@@ -610,9 +607,9 @@ fn test_prompt_hook_with_matcher_has_filter() {
             ]
         }
     }"#;
-    let result = convert(input).unwrap();
-    assert_eq!(result.wrapper_scripts.len(), 1);
-    let script = &result.wrapper_scripts[0];
+    let result = convert(input, TargetKind::Copilot).unwrap();
+    assert_eq!(result.scripts.len(), 1);
+    let script = &result.scripts[0];
     assert!(script.content.contains("STUB"));
     assert!(script.content.contains("matcher filter"));
     assert!(script.content.contains("Bash"));
@@ -634,7 +631,7 @@ fn test_prompt_hook_preserves_timeout_and_status_message() {
             ]
         }
     }"#;
-    let result = convert(input).unwrap();
+    let result = convert(input, TargetKind::Copilot).unwrap();
     let hook = &result.json["hooks"]["preToolUse"][0];
     assert_eq!(hook["type"], "command");
     assert_eq!(hook["timeoutSec"], 20);
@@ -652,7 +649,7 @@ fn test_unknown_hook_type_excluded() {
             ]
         }
     }"#;
-    let result = convert(input).unwrap();
+    let result = convert(input, TargetKind::Copilot).unwrap();
     let hooks = result.json["hooks"]["sessionStart"].as_array();
     assert!(hooks.is_none() || hooks.unwrap().is_empty());
     assert!(result.warnings.iter().any(|w| matches!(
@@ -670,7 +667,7 @@ fn test_http_hook_invalid_method() {
             ]
         }
     }"#;
-    let result = convert(input);
+    let result = convert(input, TargetKind::Copilot);
     assert!(result.is_err());
     match result.unwrap_err() {
         PlmError::HookConversion(msg) => assert!(msg.contains("unsupported method")),
@@ -693,8 +690,8 @@ fn test_http_hook_shell_escape() {
             ]
         }
     }"#;
-    let result = convert(input).unwrap();
-    let script = &result.wrapper_scripts[0];
+    let result = convert(input, TargetKind::Copilot).unwrap();
+    let script = &result.scripts[0];
     // Single quote in URL should be escaped
     assert!(script.content.contains("'\\''"));
     assert!(!script.content.contains("it's'"));
@@ -713,7 +710,7 @@ fn test_http_header_invalid_name_rejected() {
             ]
         }
     }"#;
-    let result = convert(input);
+    let result = convert(input, TargetKind::Copilot);
     assert!(result.is_err());
     match result.unwrap_err() {
         PlmError::HookConversion(msg) => assert!(msg.contains("invalid characters")),
@@ -724,7 +721,7 @@ fn test_http_header_invalid_name_rejected() {
 #[test]
 fn test_http_header_value_newline_rejected() {
     let input = "{\n\"hooks\": {\n\"SessionStart\": [\n{ \"hooks\": [{ \"type\": \"http\", \"url\": \"https://example.com\", \"headers\": { \"X-Test\": \"val\\nue\" } }] }\n]\n}\n}";
-    let result = convert(input);
+    let result = convert(input, TargetKind::Copilot);
     assert!(result.is_err());
     match result.unwrap_err() {
         PlmError::HookConversion(msg) => assert!(msg.contains("newline")),
@@ -741,7 +738,7 @@ fn test_http_header_value_command_substitution_rejected() {
             ]
         }
     }"#;
-    let result = convert(input);
+    let result = convert(input, TargetKind::Copilot);
     assert!(result.is_err());
     match result.unwrap_err() {
         PlmError::HookConversion(msg) => assert!(msg.contains("command substitution")),
@@ -758,7 +755,7 @@ fn test_http_header_value_backtick_rejected() {
             ]
         }
     }"#;
-    let result = convert(input);
+    let result = convert(input, TargetKind::Copilot);
     assert!(result.is_err());
     match result.unwrap_err() {
         PlmError::HookConversion(msg) => assert!(msg.contains("command substitution")),
@@ -775,7 +772,7 @@ fn test_http_header_non_string_value_rejected() {
             ]
         }
     }"#;
-    let result = convert(input);
+    let result = convert(input, TargetKind::Copilot);
     assert!(result.is_err());
     match result.unwrap_err() {
         PlmError::HookConversion(msg) => assert!(msg.contains("non-string")),
@@ -789,7 +786,7 @@ fn test_http_header_non_string_value_rejected() {
 
 #[test]
 fn test_invalid_json_error() {
-    let result = convert("not valid json");
+    let result = convert("not valid json", TargetKind::Copilot);
     assert!(result.is_err());
     match result.unwrap_err() {
         PlmError::HookConversion(msg) => assert!(msg.contains("Invalid JSON")),
@@ -800,7 +797,7 @@ fn test_invalid_json_error() {
 #[test]
 fn test_command_with_newline_rejected() {
     let input = "{\n\"hooks\": {\n\"SessionStart\": [\n{ \"hooks\": [{ \"type\": \"command\", \"command\": \"echo\\ninjected\" }] }\n]\n}\n}";
-    let result = convert(input);
+    let result = convert(input, TargetKind::Copilot);
     assert!(result.is_err());
     match result.unwrap_err() {
         PlmError::HookConversion(msg) => assert!(msg.contains("newline")),
@@ -811,7 +808,7 @@ fn test_command_with_newline_rejected() {
 #[test]
 fn test_command_with_carriage_return_rejected() {
     let input = "{\n\"hooks\": {\n\"SessionStart\": [\n{ \"hooks\": [{ \"type\": \"command\", \"command\": \"echo\\rinjected\" }] }\n]\n}\n}";
-    let result = convert(input);
+    let result = convert(input, TargetKind::Copilot);
     assert!(result.is_err());
     match result.unwrap_err() {
         PlmError::HookConversion(msg) => {
@@ -830,7 +827,7 @@ fn test_command_missing_command_field() {
             ]
         }
     }"#;
-    let result = convert(input);
+    let result = convert(input, TargetKind::Copilot);
     assert!(result.is_err());
     match result.unwrap_err() {
         PlmError::HookConversion(msg) => assert!(msg.contains("command")),
@@ -847,7 +844,7 @@ fn test_http_missing_url_field() {
             ]
         }
     }"#;
-    let result = convert(input);
+    let result = convert(input, TargetKind::Copilot);
     assert!(result.is_err());
     match result.unwrap_err() {
         PlmError::HookConversion(msg) => assert!(msg.contains("url")),
@@ -858,7 +855,7 @@ fn test_http_missing_url_field() {
 #[test]
 fn test_missing_hooks_field() {
     let input = r#"{ "version": 1 }"#;
-    let result = convert(input);
+    let result = convert(input, TargetKind::Copilot);
     assert!(result.is_err());
     match result.unwrap_err() {
         PlmError::HookConversion(msg) => assert!(msg.contains("hooks")),
@@ -869,7 +866,7 @@ fn test_missing_hooks_field() {
 #[test]
 fn test_hooks_not_object() {
     let input = r#"{ "hooks": [1, 2, 3] }"#;
-    let result = convert(input);
+    let result = convert(input, TargetKind::Copilot);
     assert!(result.is_err());
     match result.unwrap_err() {
         PlmError::HookConversion(msg) => assert!(msg.contains("object")),
@@ -935,7 +932,7 @@ fn test_full_conversion_scenario() {
         }
     }"#;
 
-    let result = convert(input).unwrap();
+    let result = convert(input, TargetKind::Copilot).unwrap();
 
     // version:1 added
     assert_eq!(result.json["version"], 1);
@@ -965,11 +962,11 @@ fn test_full_conversion_scenario() {
     assert!(pre_tool[1]["bash"].as_str().unwrap().ends_with(".sh"));
     // Wrapper scripts contain the original commands and matcher patterns
     assert!(result
-        .wrapper_scripts
+        .scripts
         .iter()
         .any(|s| s.content.contains("cargo check") && s.content.contains("Bash")));
     assert!(result
-        .wrapper_scripts
+        .scripts
         .iter()
         .any(|s| s.content.contains("tsc --noEmit") && s.content.contains("Write|Edit")));
 
@@ -978,21 +975,15 @@ fn test_full_conversion_scenario() {
     assert!(session[0]["bash"].as_str().unwrap().ends_with(".sh"));
     assert_eq!(session[0]["comment"], "Starting...");
     assert!(result
-        .wrapper_scripts
+        .scripts
         .iter()
         .any(|s| s.content.contains("echo start")));
 
     // http hook -> wrapper script
-    assert!(result
-        .wrapper_scripts
-        .iter()
-        .any(|s| s.content.contains("curl")));
+    assert!(result.scripts.iter().any(|s| s.content.contains("curl")));
 
     // prompt hook -> stub
-    assert!(result
-        .wrapper_scripts
-        .iter()
-        .any(|s| s.content.contains("STUB")));
+    assert!(result.scripts.iter().any(|s| s.content.contains("STUB")));
 
     // Warnings: disableAllHooks removed + PreCompact unsupported + prompt stub
     assert!(result.warnings.iter().any(
@@ -1016,11 +1007,11 @@ fn test_copilot_format_passthrough() {
             "preToolUse": [{ "bash": "cargo check", "steps": "*.rs" }]
         }
     }"#;
-    let result = convert(input).unwrap();
+    let result = convert(input, TargetKind::Copilot).unwrap();
     assert_eq!(result.json["version"], 1);
     assert_eq!(result.json["hooks"]["sessionStart"][0]["bash"], "echo hi");
     assert!(result.warnings.is_empty());
-    assert!(result.wrapper_scripts.is_empty());
+    assert!(result.scripts.is_empty());
 }
 
 // ============================================================================
@@ -1047,8 +1038,8 @@ fn test_session_start_has_source_mapping() {
             ]
         }
     }"#;
-    let result = convert(input).unwrap();
-    let script = &result.wrapper_scripts[0];
+    let result = convert(input, TargetKind::Copilot).unwrap();
+    let script = &result.scripts[0];
     // sessionStart should have source mapping jq (new -> startup)
     assert!(script.content.contains("startup"));
     assert!(script.content.contains("resume"));
@@ -1063,8 +1054,8 @@ fn test_session_start_has_del_initial_prompt() {
             ]
         }
     }"#;
-    let result = convert(input).unwrap();
-    let script = &result.wrapper_scripts[0];
+    let result = convert(input, TargetKind::Copilot).unwrap();
+    let script = &result.scripts[0];
     assert!(script.content.contains("del(.initialPrompt)"));
 }
 
@@ -1077,8 +1068,8 @@ fn test_pre_tool_use_has_tool_fields() {
             ]
         }
     }"#;
-    let result = convert(input).unwrap();
-    let script = &result.wrapper_scripts[0];
+    let result = convert(input, TargetKind::Copilot).unwrap();
+    let script = &result.scripts[0];
     // preToolUse should have tool_name mapping
     assert!(script.content.contains("tool_name"));
     assert!(script.content.contains("tool_input"));
@@ -1094,8 +1085,8 @@ fn test_user_prompt_submitted_no_tool_fields() {
             ]
         }
     }"#;
-    let result = convert(input).unwrap();
-    let script = &result.wrapper_scripts[0];
+    let result = convert(input, TargetKind::Copilot).unwrap();
+    let script = &result.scripts[0];
     // userPromptSubmitted should NOT have tool_name/tool_input/tool_response mapping
     assert!(!script.content.contains("tool_name"));
     assert!(!script.content.contains("tool_input"));
@@ -1115,8 +1106,8 @@ fn test_session_start_fail_open_warning() {
             ]
         }
     }"#;
-    let result = convert(input).unwrap();
-    let script = &result.wrapper_scripts[0];
+    let result = convert(input, TargetKind::Copilot).unwrap();
+    let script = &result.scripts[0];
     // sessionStart should have fail-open warning for secondary jq
     assert!(script
         .content
@@ -1144,8 +1135,8 @@ fn generate_wrapper_for_event_with_command(claude_event: &str, command: &str) ->
     }}"#,
         claude_event, command
     );
-    let result = convert(&input).unwrap();
-    result.wrapper_scripts[0].content.clone()
+    let result = convert(&input, TargetKind::Copilot).unwrap();
+    result.scripts[0].content.clone()
 }
 
 /// Helper: run just the env bridge portion of a generated wrapper script,

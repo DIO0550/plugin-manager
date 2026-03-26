@@ -283,6 +283,7 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
             if component.kind == ComponentKind::Hook && target.kind() == TargetKind::Copilot {
                 builder = builder
                     .hook_convert(true)
+                    .target_kind(target.kind())
                     .plugin_root(request.scanned.plugin_root());
             }
 
