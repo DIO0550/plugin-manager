@@ -55,15 +55,6 @@ const PROMPT_TOOL_MAP: &[(&str, &str)] = &[
 /// N:1 reverse lookups return the first table entry as the representative value
 /// (e.g., "codebase" -> "Read", "search/codebase" -> "Grep").
 pub(crate) fn map_tool(tool: &str, from: Format, to: Format) -> String {
-    debug_assert!(
-        matches!(
-            (from, to),
-            (Format::ClaudeCode, Format::Copilot) | (Format::Copilot, Format::ClaudeCode)
-        ),
-        "map_tool: unsupported conversion ({:?}, {:?})",
-        from,
-        to
-    );
     let trimmed = tool.trim();
     match (from, to) {
         (Format::ClaudeCode, Format::Copilot) => {
@@ -83,7 +74,7 @@ pub(crate) fn map_tool(tool: &str, from: Format, to: Format) -> String {
                 .map(|v| v.to_string())
                 .unwrap_or_else(|| trimmed.to_string())
         }
-        _ => trimmed.to_string(), // fallback passthrough
+        _ => unreachable!("map_tool: unsupported conversion ({:?}, {:?})", from, to),
     }
 }
 
