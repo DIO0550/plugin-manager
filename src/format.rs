@@ -25,6 +25,6 @@ pub(crate) fn lookup_forward<'a>(map: &'a [(&'a str, &'a str)], key: &str) -> Op
 }
 
 /// Reverse lookup: find key by value in a `(key, value)` pair table.
-pub(crate) fn lookup_reverse<'a>(map: &'a [(&'a str, &'a str)], key: &str) -> Option<&'a str> {
-    map.iter().find(|(_, v)| *v == key).map(|(k, _)| *k)
+pub(crate) fn lookup_reverse<'a>(map: &'a [(&'a str, &'a str)], value: &str) -> Option<&'a str> {
+    map.iter().find(|(_, v)| *v == value).map(|(k, _)| *k)
 }
