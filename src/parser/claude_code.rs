@@ -149,10 +149,13 @@ impl ClaudeCodeCommand {
     /// Converts to Copilot format (internal).
     fn to_copilot(&self) -> CopilotPrompt {
         // Tool conversion: comma-separated string -> array -> convert -> deduplicate
-        let tools = self
-            .allowed_tools
-            .as_ref()
-            .map(|t| convert::tools_claude_to_copilot(&convert::parse_allowed_tools(t)));
+        let tools = self.allowed_tools.as_ref().map(|t| {
+            convert::map_tools(
+                &convert::parse_allowed_tools(t),
+                convert::Format::ClaudeCode,
+                convert::Format::Copilot,
+            )
+        });
 
         // Hint conversion: [message] -> "Enter message"
         let hint = self.argument_hint.as_ref().map(|h| {
@@ -165,10 +168,9 @@ impl ClaudeCodeCommand {
             description: self.description.clone(),
             tools,
             hint,
-            model: self
-                .model
-                .as_ref()
-                .map(|m| convert::model_claude_to_copilot(m)),
+            model: self.model.as_ref().map(|m| {
+                convert::map_model(m, convert::Format::ClaudeCode, convert::Format::Copilot)
+            }),
             agent: None,
             body: convert::body_claude_to_copilot(&self.body),
         }

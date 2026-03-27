@@ -122,17 +122,22 @@ impl ClaudeCodeAgent {
         let tools = self
             .tools
             .as_ref()
-            .map(|t| convert::tools_claude_to_copilot(&convert::parse_allowed_tools(t)))
+            .map(|t| {
+                convert::map_tools(
+                    &convert::parse_allowed_tools(t),
+                    convert::Format::ClaudeCode,
+                    convert::Format::Copilot,
+                )
+            })
             .filter(|t| !t.is_empty());
 
         CopilotAgent {
             name: self.name.clone(),
             description: self.description.clone(),
             tools,
-            model: self
-                .model
-                .as_ref()
-                .map(|m| convert::model_claude_to_copilot(m)),
+            model: self.model.as_ref().map(|m| {
+                convert::map_model(m, convert::Format::ClaudeCode, convert::Format::Copilot)
+            }),
             target: Some("vscode".to_string()),
             handoffs: None,
             body: self.body.clone(), // Agent body is NOT converted (no variable replacement)
