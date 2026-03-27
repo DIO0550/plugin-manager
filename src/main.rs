@@ -8,6 +8,7 @@ mod component;
 mod config;
 mod env;
 mod error;
+mod format;
 mod fs;
 mod hooks;
 mod host;

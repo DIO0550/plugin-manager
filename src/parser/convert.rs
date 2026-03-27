@@ -19,17 +19,7 @@ pub enum TargetType {
     Codex,
 }
 
-/// Name mapping direction for map_tool / map_model / map_event.
-///
-/// This is distinct from:
-/// - `TargetType`: used by `ClaudeCodeCommand::to_format()` (target-only, no ClaudeCode variant)
-/// - `CommandFormat` / `AgentFormat` (in component/convert.rs): used for file-level format detection
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Format {
-    ClaudeCode,
-    Copilot,
-    Codex,
-}
+pub use crate::format::Format;
 
 fn lookup_forward(map: &[(&'static str, &'static str)], key: &str) -> Option<&'static str> {
     map.iter().find(|(k, _)| *k == key).map(|(_, v)| *v)

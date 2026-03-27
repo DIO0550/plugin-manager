@@ -7,7 +7,7 @@ use crate::hooks::converter::{
     generate_matcher_filter, shell_escape, ConversionWarning, ScriptInfo, SourceFormat, SCRIPTS_DIR,
 };
 use crate::hooks::event_map::map_event;
-use crate::parser::convert::Format;
+use crate::format::Format;
 
 use super::converter::{EventMap, KeyMap, ScriptGenerator, StructureConverter};
 

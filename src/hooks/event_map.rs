@@ -7,7 +7,7 @@
 //! Prompt/Agent file `tools` arrays (N:1 mapping like Read/Write/Edit -> codebase).
 //! The hooks context uses 1:1 mappings (view -> Read, create -> Write, edit -> Edit).
 
-use crate::parser::convert::Format;
+use crate::format::Format;
 
 fn lookup_forward(map: &[(&'static str, &'static str)], key: &str) -> Option<&'static str> {
     map.iter().find(|(k, _)| *k == key).map(|(_, v)| *v)

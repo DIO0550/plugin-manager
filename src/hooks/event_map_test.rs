@@ -1,7 +1,7 @@
 //! Tests for hooks event_map module.
 
 use super::event_map::*;
-use crate::parser::convert::Format;
+use crate::format::Format;
 
 // ============================================================================
 // Event name mapping: Claude Code -> Copilot CLI
