@@ -83,6 +83,6 @@ pub(crate) fn map_tool(tool: &str, from: Format, to: Format) -> String {
         (Format::Copilot, Format::ClaudeCode) => lookup_reverse(HOOK_TOOL_MAP, trimmed)
             .map(|v| v.to_string())
             .unwrap_or_else(|| trimmed.to_string()),
-        _ => unreachable!("map_tool: unsupported conversion ({:?}, {:?})", from, to),
+        _ => trimmed.to_string(),
     }
 }
