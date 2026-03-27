@@ -19,70 +19,98 @@ pub enum TargetType {
     Codex,
 }
 
-/// Claude Code -> Copilot tool name conversion.
-pub fn tool_claude_to_copilot(tool: &str) -> String {
-    match tool.trim() {
-        "Read" | "Write" | "Edit" => "codebase".to_string(),
-        "Grep" | "Glob" => "search/codebase".to_string(),
-        "Bash" => "terminal".to_string(),
-        t if t.starts_with("Bash(git") => "githubRepo".to_string(),
-        "WebFetch" => "fetch".to_string(),
-        "WebSearch" => "websearch".to_string(),
-        other => other.to_string(),
-    }
-}
+pub use crate::format::Format;
+use crate::format::{lookup_forward, lookup_reverse};
 
-/// Copilot -> Claude Code tool name conversion.
+const PROMPT_TOOL_MAP: &[(&str, &str)] = &[
+    ("Read", "codebase"), // representative for reverse lookup
+    ("Write", "codebase"),
+    ("Edit", "codebase"),
+    ("Grep", "search/codebase"), // representative for reverse lookup
+    ("Glob", "search/codebase"),
+    ("Bash", "terminal"),
+    ("WebFetch", "fetch"),
+    ("WebSearch", "websearch"),
+];
+
+/// Tool name conversion between Claude Code and Copilot (Prompt/Agent context).
 ///
-/// Note: 1:N mappings (codebase -> Read, Write, Edit) return a representative value.
-/// Complete restoration is not guaranteed in round-trips.
-pub fn tool_copilot_to_claude(tool: &str) -> String {
-    match tool.trim() {
-        "codebase" => "Read".to_string(),
-        "search/codebase" => "Grep".to_string(),
-        "terminal" => "Bash".to_string(),
-        "githubRepo" => "Bash".to_string(),
-        "fetch" => "WebFetch".to_string(),
-        "websearch" => "WebSearch".to_string(),
-        other => other.to_string(),
+/// N:1 reverse lookups return the first table entry as the representative value
+/// (e.g., "codebase" -> "Read", "search/codebase" -> "Grep").
+pub(crate) fn map_tool(tool: &str, from: Format, to: Format) -> String {
+    let trimmed = tool.trim();
+    match (from, to) {
+        (Format::ClaudeCode, Format::Copilot) => {
+            if let Some(v) = lookup_forward(PROMPT_TOOL_MAP, trimmed) {
+                return v.to_string();
+            }
+            if trimmed.starts_with("Bash(git") {
+                return "githubRepo".to_string();
+            }
+            trimmed.to_string()
+        }
+        (Format::Copilot, Format::ClaudeCode) => {
+            if trimmed == "githubRepo" {
+                return "Bash".to_string();
+            }
+            lookup_reverse(PROMPT_TOOL_MAP, trimmed)
+                .map(|v| v.to_string())
+                .unwrap_or_else(|| trimmed.to_string())
+        }
+        // For other format pairs (including Codex), leave the tool name unchanged.
+        _ => trimmed.to_string(),
     }
 }
 
 /// Convert tool array with deduplication.
-pub fn tools_claude_to_copilot(tools: &[String]) -> Vec<String> {
-    let mut result: Vec<String> = tools.iter().map(|t| tool_claude_to_copilot(t)).collect();
+pub(crate) fn map_tools(tools: &[String], from: Format, to: Format) -> Vec<String> {
+    let mut result: Vec<String> = tools.iter().map(|t| map_tool(t, from, to)).collect();
     result.sort();
     result.dedup();
     result
 }
 
-/// Claude Code -> Copilot model name conversion.
-pub fn model_claude_to_copilot(model: &str) -> String {
-    match model.to_lowercase().as_str() {
-        "haiku" => "GPT-4o-mini".to_string(),
-        "sonnet" => "GPT-4o".to_string(),
-        "opus" => "o1".to_string(),
-        other => other.to_string(),
-    }
-}
+/// Keys are lowercase-normalized
+const MODEL_CLAUDE_COPILOT_MAP: &[(&str, &str)] = &[
+    ("haiku", "GPT-4o-mini"),
+    ("sonnet", "GPT-4o"),
+    ("opus", "o1"),
+];
 
-/// Copilot -> Claude Code model name conversion.
-pub fn model_copilot_to_claude(model: &str) -> String {
-    match model.to_lowercase().as_str() {
-        "gpt-4o-mini" => "haiku".to_string(),
-        "gpt-4o" => "sonnet".to_string(),
-        "o1" => "opus".to_string(),
-        other => other.to_string(),
-    }
-}
+/// Keys are lowercase-normalized (reverse of MODEL_CLAUDE_COPILOT_MAP)
+const MODEL_COPILOT_CLAUDE_MAP: &[(&str, &str)] = &[
+    ("gpt-4o-mini", "haiku"),
+    ("gpt-4o", "sonnet"),
+    ("o1", "opus"),
+];
 
-/// Claude Code -> Codex model name conversion.
-pub fn model_claude_to_codex(model: &str) -> String {
-    match model.to_lowercase().as_str() {
-        "haiku" => "gpt-4.1-mini".to_string(),
-        "sonnet" => "gpt-4.1".to_string(),
-        "opus" => "o3".to_string(),
-        other => other.to_string(),
+/// Keys are lowercase-normalized
+const MODEL_CLAUDE_CODEX_MAP: &[(&str, &str)] = &[
+    ("haiku", "gpt-4.1-mini"),
+    ("sonnet", "gpt-4.1"),
+    ("opus", "o3"),
+];
+
+/// Model name conversion between formats.
+///
+/// Input is normalized to lowercase before lookup. If a mapping table exists
+/// for the given `(from, to)` pair, the normalized name is looked up there; if
+/// no table exists (unsupported format pair) or the key is missing, the
+/// normalized (lowercase) value is returned unchanged.
+pub(crate) fn map_model(model: &str, from: Format, to: Format) -> String {
+    let normalized = model.to_lowercase();
+    let table = match (from, to) {
+        (Format::ClaudeCode, Format::Copilot) => Some(MODEL_CLAUDE_COPILOT_MAP),
+        (Format::Copilot, Format::ClaudeCode) => Some(MODEL_COPILOT_CLAUDE_MAP),
+        (Format::ClaudeCode, Format::Codex) => Some(MODEL_CLAUDE_CODEX_MAP),
+        _ => None,
+    };
+
+    match table {
+        Some(table) => lookup_forward(table, &normalized)
+            .map(|v| v.to_string())
+            .unwrap_or(normalized),
+        None => normalized,
     }
 }
 

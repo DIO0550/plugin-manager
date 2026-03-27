@@ -3,10 +3,10 @@
 use serde_json::Value;
 
 use crate::error::PlmError;
+use crate::format::Format;
 use crate::hooks::converter::{
     generate_matcher_filter, shell_escape, ConversionWarning, ScriptInfo, SourceFormat, SCRIPTS_DIR,
 };
-use crate::hooks::event_map::event_claude_to_copilot;
 
 use super::converter::{EventMap, KeyMap, ScriptGenerator, StructureConverter};
 
@@ -63,7 +63,7 @@ pub(crate) struct CopilotEventMap;
 
 impl EventMap for CopilotEventMap {
     fn map_event(&self, event: &str) -> Option<&'static str> {
-        event_claude_to_copilot(event)
+        crate::hooks::event_map::map_event(event, Format::ClaudeCode, Format::Copilot)
     }
 }
 

@@ -8,67 +8,130 @@ use super::convert::*;
 // ============================================================================
 
 #[test]
-fn test_tool_claude_to_copilot_file_operations() {
-    assert_eq!(tool_claude_to_copilot("Read"), "codebase");
-    assert_eq!(tool_claude_to_copilot("Write"), "codebase");
-    assert_eq!(tool_claude_to_copilot("Edit"), "codebase");
+fn test_map_tool_claude_to_copilot_file_operations() {
+    assert_eq!(
+        map_tool("Read", Format::ClaudeCode, Format::Copilot),
+        "codebase"
+    );
+    assert_eq!(
+        map_tool("Write", Format::ClaudeCode, Format::Copilot),
+        "codebase"
+    );
+    assert_eq!(
+        map_tool("Edit", Format::ClaudeCode, Format::Copilot),
+        "codebase"
+    );
 }
 
 #[test]
-fn test_tool_claude_to_copilot_search_operations() {
-    assert_eq!(tool_claude_to_copilot("Grep"), "search/codebase");
-    assert_eq!(tool_claude_to_copilot("Glob"), "search/codebase");
+fn test_map_tool_claude_to_copilot_search_operations() {
+    assert_eq!(
+        map_tool("Grep", Format::ClaudeCode, Format::Copilot),
+        "search/codebase"
+    );
+    assert_eq!(
+        map_tool("Glob", Format::ClaudeCode, Format::Copilot),
+        "search/codebase"
+    );
 }
 
 #[test]
-fn test_tool_claude_to_copilot_bash() {
-    assert_eq!(tool_claude_to_copilot("Bash"), "terminal");
-    assert_eq!(tool_claude_to_copilot("Bash(git:*)"), "githubRepo");
-    assert_eq!(tool_claude_to_copilot("Bash(git commit*)"), "githubRepo");
+fn test_map_tool_claude_to_copilot_bash() {
+    assert_eq!(
+        map_tool("Bash", Format::ClaudeCode, Format::Copilot),
+        "terminal"
+    );
+    assert_eq!(
+        map_tool("Bash(git:*)", Format::ClaudeCode, Format::Copilot),
+        "githubRepo"
+    );
+    assert_eq!(
+        map_tool("Bash(git commit*)", Format::ClaudeCode, Format::Copilot),
+        "githubRepo"
+    );
 }
 
 #[test]
-fn test_tool_claude_to_copilot_web() {
-    assert_eq!(tool_claude_to_copilot("WebFetch"), "fetch");
-    assert_eq!(tool_claude_to_copilot("WebSearch"), "websearch");
+fn test_map_tool_claude_to_copilot_web() {
+    assert_eq!(
+        map_tool("WebFetch", Format::ClaudeCode, Format::Copilot),
+        "fetch"
+    );
+    assert_eq!(
+        map_tool("WebSearch", Format::ClaudeCode, Format::Copilot),
+        "websearch"
+    );
 }
 
 #[test]
-fn test_tool_claude_to_copilot_unknown() {
-    assert_eq!(tool_claude_to_copilot("UnknownTool"), "UnknownTool");
-    assert_eq!(tool_claude_to_copilot("CustomMCP"), "CustomMCP");
+fn test_map_tool_claude_to_copilot_unknown() {
+    assert_eq!(
+        map_tool("UnknownTool", Format::ClaudeCode, Format::Copilot),
+        "UnknownTool"
+    );
+    assert_eq!(
+        map_tool("CustomMCP", Format::ClaudeCode, Format::Copilot),
+        "CustomMCP"
+    );
 }
 
 #[test]
-fn test_tool_claude_to_copilot_with_whitespace() {
-    assert_eq!(tool_claude_to_copilot(" Read "), "codebase");
-    assert_eq!(tool_claude_to_copilot("  Bash  "), "terminal");
+fn test_map_tool_claude_to_copilot_with_whitespace() {
+    assert_eq!(
+        map_tool(" Read ", Format::ClaudeCode, Format::Copilot),
+        "codebase"
+    );
+    assert_eq!(
+        map_tool("  Bash  ", Format::ClaudeCode, Format::Copilot),
+        "terminal"
+    );
 }
 
 #[test]
-fn test_tool_copilot_to_claude() {
-    assert_eq!(tool_copilot_to_claude("codebase"), "Read");
-    assert_eq!(tool_copilot_to_claude("search/codebase"), "Grep");
-    assert_eq!(tool_copilot_to_claude("terminal"), "Bash");
-    assert_eq!(tool_copilot_to_claude("githubRepo"), "Bash");
-    assert_eq!(tool_copilot_to_claude("fetch"), "WebFetch");
-    assert_eq!(tool_copilot_to_claude("websearch"), "WebSearch");
+fn test_map_tool_copilot_to_claude() {
+    assert_eq!(
+        map_tool("codebase", Format::Copilot, Format::ClaudeCode),
+        "Read"
+    );
+    assert_eq!(
+        map_tool("search/codebase", Format::Copilot, Format::ClaudeCode),
+        "Grep"
+    );
+    assert_eq!(
+        map_tool("terminal", Format::Copilot, Format::ClaudeCode),
+        "Bash"
+    );
+    assert_eq!(
+        map_tool("githubRepo", Format::Copilot, Format::ClaudeCode),
+        "Bash"
+    );
+    assert_eq!(
+        map_tool("fetch", Format::Copilot, Format::ClaudeCode),
+        "WebFetch"
+    );
+    assert_eq!(
+        map_tool("websearch", Format::Copilot, Format::ClaudeCode),
+        "WebSearch"
+    );
 }
 
 #[test]
-fn test_tool_copilot_to_claude_unknown() {
-    assert_eq!(tool_copilot_to_claude("unknownTool"), "unknownTool");
+fn test_map_tool_copilot_to_claude_unknown() {
+    assert_eq!(
+        map_tool("unknownTool", Format::Copilot, Format::ClaudeCode),
+        "unknownTool"
+    );
 }
 
 #[test]
-fn test_tools_claude_to_copilot_deduplication() {
+fn test_map_tools_deduplication() {
     let tools = vec![
         "Read".to_string(),
         "Write".to_string(),
         "Edit".to_string(),
         "Bash".to_string(),
     ];
-    let result = tools_claude_to_copilot(&tools);
+    let result = map_tools(&tools, Format::ClaudeCode, Format::Copilot);
     // Read, Write, Edit all map to "codebase", so should be deduplicated
     assert_eq!(result.len(), 2);
     assert!(result.contains(&"codebase".to_string()));
@@ -76,11 +139,20 @@ fn test_tools_claude_to_copilot_deduplication() {
 }
 
 #[test]
-fn test_tools_claude_to_copilot_sorted() {
+fn test_map_tools_sorted() {
     let tools = vec!["WebSearch".to_string(), "Read".to_string()];
-    let result = tools_claude_to_copilot(&tools);
+    let result = map_tools(&tools, Format::ClaudeCode, Format::Copilot);
     // Should be sorted alphabetically
     assert_eq!(result, vec!["codebase", "websearch"]);
+}
+
+#[test]
+fn test_map_tool_copilot_to_claude_n_to_1_representative() {
+    // N:1 reverse lookup returns first table entry as representative
+    assert_eq!(
+        map_tool("codebase", Format::Copilot, Format::ClaudeCode),
+        "Read"
+    );
 }
 
 // ============================================================================
@@ -88,48 +160,93 @@ fn test_tools_claude_to_copilot_sorted() {
 // ============================================================================
 
 #[test]
-fn test_model_claude_to_copilot() {
-    assert_eq!(model_claude_to_copilot("haiku"), "GPT-4o-mini");
-    assert_eq!(model_claude_to_copilot("sonnet"), "GPT-4o");
-    assert_eq!(model_claude_to_copilot("opus"), "o1");
+fn test_map_model_claude_to_copilot() {
+    assert_eq!(
+        map_model("haiku", Format::ClaudeCode, Format::Copilot),
+        "GPT-4o-mini"
+    );
+    assert_eq!(
+        map_model("sonnet", Format::ClaudeCode, Format::Copilot),
+        "GPT-4o"
+    );
+    assert_eq!(map_model("opus", Format::ClaudeCode, Format::Copilot), "o1");
 }
 
 #[test]
-fn test_model_claude_to_copilot_case_insensitive() {
-    assert_eq!(model_claude_to_copilot("Haiku"), "GPT-4o-mini");
-    assert_eq!(model_claude_to_copilot("SONNET"), "GPT-4o");
-    assert_eq!(model_claude_to_copilot("OPUS"), "o1");
+fn test_map_model_claude_to_copilot_case_insensitive() {
+    assert_eq!(
+        map_model("Haiku", Format::ClaudeCode, Format::Copilot),
+        "GPT-4o-mini"
+    );
+    assert_eq!(
+        map_model("SONNET", Format::ClaudeCode, Format::Copilot),
+        "GPT-4o"
+    );
+    assert_eq!(map_model("OPUS", Format::ClaudeCode, Format::Copilot), "o1");
 }
 
 #[test]
-fn test_model_claude_to_copilot_unknown() {
-    assert_eq!(model_claude_to_copilot("custom-model"), "custom-model");
+fn test_map_model_claude_to_copilot_unknown() {
+    assert_eq!(
+        map_model("custom-model", Format::ClaudeCode, Format::Copilot),
+        "custom-model"
+    );
 }
 
 #[test]
-fn test_model_copilot_to_claude() {
-    assert_eq!(model_copilot_to_claude("GPT-4o-mini"), "haiku");
-    assert_eq!(model_copilot_to_claude("GPT-4o"), "sonnet");
-    assert_eq!(model_copilot_to_claude("o1"), "opus");
+fn test_map_model_copilot_to_claude() {
+    assert_eq!(
+        map_model("GPT-4o-mini", Format::Copilot, Format::ClaudeCode),
+        "haiku"
+    );
+    assert_eq!(
+        map_model("GPT-4o", Format::Copilot, Format::ClaudeCode),
+        "sonnet"
+    );
+    assert_eq!(map_model("o1", Format::Copilot, Format::ClaudeCode), "opus");
 }
 
 #[test]
-fn test_model_copilot_to_claude_case_insensitive() {
-    assert_eq!(model_copilot_to_claude("gpt-4o-mini"), "haiku");
-    assert_eq!(model_copilot_to_claude("gpt-4o"), "sonnet");
-    assert_eq!(model_copilot_to_claude("O1"), "opus");
+fn test_map_model_copilot_to_claude_case_insensitive() {
+    assert_eq!(
+        map_model("gpt-4o-mini", Format::Copilot, Format::ClaudeCode),
+        "haiku"
+    );
+    assert_eq!(
+        map_model("gpt-4o", Format::Copilot, Format::ClaudeCode),
+        "sonnet"
+    );
+    assert_eq!(map_model("O1", Format::Copilot, Format::ClaudeCode), "opus");
 }
 
 #[test]
-fn test_model_copilot_to_claude_unknown() {
-    assert_eq!(model_copilot_to_claude("custom-model"), "custom-model");
+fn test_map_model_copilot_to_claude_unknown() {
+    assert_eq!(
+        map_model("custom-model", Format::Copilot, Format::ClaudeCode),
+        "custom-model"
+    );
 }
 
 #[test]
-fn test_model_claude_to_codex() {
-    assert_eq!(model_claude_to_codex("haiku"), "gpt-4.1-mini");
-    assert_eq!(model_claude_to_codex("sonnet"), "gpt-4.1");
-    assert_eq!(model_claude_to_codex("opus"), "o3");
+fn test_map_model_claude_to_codex() {
+    assert_eq!(
+        map_model("haiku", Format::ClaudeCode, Format::Codex),
+        "gpt-4.1-mini"
+    );
+    assert_eq!(
+        map_model("sonnet", Format::ClaudeCode, Format::Codex),
+        "gpt-4.1"
+    );
+    assert_eq!(map_model("opus", Format::ClaudeCode, Format::Codex), "o3");
+}
+
+#[test]
+fn test_map_model_passthrough_normalization() {
+    // Passthrough returns lowercase-normalized value
+    assert_eq!(
+        map_model("UNKNOWN", Format::ClaudeCode, Format::Copilot),
+        "unknown"
+    );
 }
 
 // ============================================================================
