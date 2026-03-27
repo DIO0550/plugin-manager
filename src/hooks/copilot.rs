@@ -6,7 +6,8 @@ use crate::error::PlmError;
 use crate::hooks::converter::{
     generate_matcher_filter, shell_escape, ConversionWarning, ScriptInfo, SourceFormat, SCRIPTS_DIR,
 };
-use crate::hooks::event_map::event_claude_to_copilot;
+use crate::hooks::event_map::map_event;
+use crate::parser::convert::Format;
 
 use super::converter::{EventMap, KeyMap, ScriptGenerator, StructureConverter};
 
@@ -63,7 +64,7 @@ pub(crate) struct CopilotEventMap;
 
 impl EventMap for CopilotEventMap {
     fn map_event(&self, event: &str) -> Option<&'static str> {
-        event_claude_to_copilot(event)
+        map_event(event, Format::ClaudeCode, Format::Copilot)
     }
 }
 
