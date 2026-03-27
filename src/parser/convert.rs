@@ -69,7 +69,7 @@ pub(crate) fn map_tool(tool: &str, from: Format, to: Format) -> String {
 }
 
 /// Convert tool array with deduplication.
-pub fn map_tools(tools: &[String], from: Format, to: Format) -> Vec<String> {
+pub(crate) fn map_tools(tools: &[String], from: Format, to: Format) -> Vec<String> {
     let mut result: Vec<String> = tools.iter().map(|t| map_tool(t, from, to)).collect();
     result.sort();
     result.dedup();
