@@ -93,8 +93,10 @@ const MODEL_CLAUDE_CODEX_MAP: &[(&str, &str)] = &[
 
 /// Model name conversion between formats.
 ///
-/// Input is normalized to lowercase before lookup. Passthrough returns the
-/// normalized (lowercase) value.
+/// Input is normalized to lowercase before lookup. If a mapping table exists
+/// for the given `(from, to)` pair, the normalized name is looked up there; if
+/// no table exists (unsupported format pair) or the key is missing, the
+/// normalized (lowercase) value is returned unchanged.
 pub(crate) fn map_model(model: &str, from: Format, to: Format) -> String {
     let normalized = model.to_lowercase();
     let table = match (from, to) {
