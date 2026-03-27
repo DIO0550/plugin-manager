@@ -59,7 +59,7 @@ pub(crate) fn map_event(event: &str, from: Format, to: Format) -> Option<&'stati
     match (from, to) {
         (Format::ClaudeCode, Format::Copilot) => lookup_forward(HOOK_EVENT_MAP, trimmed),
         (Format::Copilot, Format::ClaudeCode) => lookup_reverse(HOOK_EVENT_MAP, trimmed),
-        _ => unreachable!("map_event: unsupported conversion ({:?}, {:?})", from, to),
+        _ => None,
     }
 }
 
