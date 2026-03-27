@@ -63,20 +63,11 @@ const HOOK_TOOL_MAP: &[(&str, &str)] = &[
 /// InstructionsLoaded, ConfigChange, WorktreeCreate, WorktreeRemove,
 /// Elicitation, ElicitationResult
 pub(crate) fn map_event(event: &str, from: Format, to: Format) -> Option<&'static str> {
-    debug_assert!(
-        matches!(
-            (from, to),
-            (Format::ClaudeCode, Format::Copilot) | (Format::Copilot, Format::ClaudeCode)
-        ),
-        "map_event: unsupported conversion ({:?}, {:?})",
-        from,
-        to
-    );
     let trimmed = event.trim();
     match (from, to) {
         (Format::ClaudeCode, Format::Copilot) => lookup_forward(HOOK_EVENT_MAP, trimmed),
         (Format::Copilot, Format::ClaudeCode) => lookup_reverse(HOOK_EVENT_MAP, trimmed),
-        _ => None,
+        _ => unreachable!("map_event: unsupported conversion ({:?}, {:?})", from, to),
     }
 }
 
@@ -92,15 +83,6 @@ pub(crate) fn map_event(event: &str, from: Format, to: Format) -> Option<&'stati
 /// This is distinct from `parser::convert::map_tool` which handles
 /// Prompt/Agent file tools (e.g., "Read" -> "codebase").
 pub(crate) fn map_tool(tool: &str, from: Format, to: Format) -> String {
-    debug_assert!(
-        matches!(
-            (from, to),
-            (Format::ClaudeCode, Format::Copilot) | (Format::Copilot, Format::ClaudeCode)
-        ),
-        "map_tool: unsupported conversion ({:?}, {:?})",
-        from,
-        to
-    );
     let trimmed = tool.trim();
     match (from, to) {
         (Format::ClaudeCode, Format::Copilot) => lookup_forward(HOOK_TOOL_MAP, trimmed)
@@ -109,6 +91,6 @@ pub(crate) fn map_tool(tool: &str, from: Format, to: Format) -> String {
         (Format::Copilot, Format::ClaudeCode) => lookup_reverse(HOOK_TOOL_MAP, trimmed)
             .map(|v| v.to_string())
             .unwrap_or_else(|| trimmed.to_string()),
-        _ => trimmed.to_string(),
+        _ => unreachable!("map_tool: unsupported conversion ({:?}, {:?})", from, to),
     }
 }
