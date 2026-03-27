@@ -7,15 +7,7 @@
 //! Prompt/Agent file `tools` arrays (N:1 mapping like Read/Write/Edit -> codebase).
 //! The hooks context uses 1:1 mappings (view -> Read, create -> Write, edit -> Edit).
 
-use crate::format::Format;
-
-fn lookup_forward<'a>(map: &'a [(&'a str, &'a str)], key: &str) -> Option<&'a str> {
-    map.iter().find(|(k, _)| *k == key).map(|(_, v)| *v)
-}
-
-fn lookup_reverse<'a>(map: &'a [(&'a str, &'a str)], key: &str) -> Option<&'a str> {
-    map.iter().find(|(_, v)| *v == key).map(|(k, _)| *k)
-}
+use crate::format::{lookup_forward, lookup_reverse, Format};
 
 const HOOK_EVENT_MAP: &[(&str, &str)] = &[
     ("SessionStart", "sessionStart"),

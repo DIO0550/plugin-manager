@@ -18,3 +18,13 @@ pub enum Format {
     Copilot,
     Codex,
 }
+
+/// Forward lookup: find value by key in a `(key, value)` pair table.
+pub(crate) fn lookup_forward<'a>(map: &'a [(&'a str, &'a str)], key: &str) -> Option<&'a str> {
+    map.iter().find(|(k, _)| *k == key).map(|(_, v)| *v)
+}
+
+/// Reverse lookup: find key by value in a `(key, value)` pair table.
+pub(crate) fn lookup_reverse<'a>(map: &'a [(&'a str, &'a str)], key: &str) -> Option<&'a str> {
+    map.iter().find(|(_, v)| *v == key).map(|(k, _)| *k)
+}
