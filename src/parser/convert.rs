@@ -112,30 +112,16 @@ const MODEL_CLAUDE_CODEX_MAP: &[(&str, &str)] = &[
 /// Input is normalized to lowercase before lookup. Passthrough returns the
 /// normalized (lowercase) value.
 pub(crate) fn map_model(model: &str, from: Format, to: Format) -> String {
-    debug_assert!(
-        matches!(
-            (from, to),
-            (Format::ClaudeCode, Format::Copilot)
-                | (Format::Copilot, Format::ClaudeCode)
-                | (Format::ClaudeCode, Format::Codex)
-        ),
-        "map_model: unsupported conversion ({:?}, {:?})",
-        from,
-        to
-    );
     let normalized = model.to_lowercase();
     let table = match (from, to) {
-        (Format::ClaudeCode, Format::Copilot) => Some(MODEL_CLAUDE_COPILOT_MAP),
-        (Format::Copilot, Format::ClaudeCode) => Some(MODEL_COPILOT_CLAUDE_MAP),
-        (Format::ClaudeCode, Format::Codex) => Some(MODEL_CLAUDE_CODEX_MAP),
-        _ => None,
+        (Format::ClaudeCode, Format::Copilot) => MODEL_CLAUDE_COPILOT_MAP,
+        (Format::Copilot, Format::ClaudeCode) => MODEL_COPILOT_CLAUDE_MAP,
+        (Format::ClaudeCode, Format::Codex) => MODEL_CLAUDE_CODEX_MAP,
+        _ => unreachable!("map_model: unsupported conversion ({:?}, {:?})", from, to),
     };
-    match table {
-        Some(map) => lookup_forward(map, &normalized)
-            .map(|v| v.to_string())
-            .unwrap_or(normalized),
-        None => normalized, // fallback passthrough
-    }
+    lookup_forward(table, &normalized)
+        .map(|v| v.to_string())
+        .unwrap_or(normalized)
 }
 
 /// Body variable conversion: Claude Code -> Copilot.
