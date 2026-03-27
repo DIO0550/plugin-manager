@@ -3,11 +3,11 @@
 use serde_json::Value;
 
 use crate::error::PlmError;
+use crate::format::Format;
 use crate::hooks::converter::{
     generate_matcher_filter, shell_escape, ConversionWarning, ScriptInfo, SourceFormat, SCRIPTS_DIR,
 };
 use crate::hooks::event_map::map_event;
-use crate::format::Format;
 
 use super::converter::{EventMap, KeyMap, ScriptGenerator, StructureConverter};
 
