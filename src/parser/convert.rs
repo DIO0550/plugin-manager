@@ -57,7 +57,8 @@ pub(crate) fn map_tool(tool: &str, from: Format, to: Format) -> String {
                 .map(|v| v.to_string())
                 .unwrap_or_else(|| trimmed.to_string())
         }
-        _ => unreachable!("map_tool: unsupported conversion ({:?}, {:?})", from, to),
+        // For other format pairs (including Codex), leave the tool name unchanged.
+        _ => trimmed.to_string(),
     }
 }
 
