@@ -9,11 +9,11 @@
 
 use crate::format::Format;
 
-fn lookup_forward(map: &[(&'static str, &'static str)], key: &str) -> Option<&'static str> {
+fn lookup_forward<'a>(map: &'a [(&'a str, &'a str)], key: &str) -> Option<&'a str> {
     map.iter().find(|(k, _)| *k == key).map(|(_, v)| *v)
 }
 
-fn lookup_reverse(map: &[(&'static str, &'static str)], key: &str) -> Option<&'static str> {
+fn lookup_reverse<'a>(map: &'a [(&'a str, &'a str)], key: &str) -> Option<&'a str> {
     map.iter().find(|(_, v)| *v == key).map(|(k, _)| *k)
 }
 
