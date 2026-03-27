@@ -98,14 +98,18 @@ const MODEL_CLAUDE_CODEX_MAP: &[(&str, &str)] = &[
 pub(crate) fn map_model(model: &str, from: Format, to: Format) -> String {
     let normalized = model.to_lowercase();
     let table = match (from, to) {
-        (Format::ClaudeCode, Format::Copilot) => MODEL_CLAUDE_COPILOT_MAP,
-        (Format::Copilot, Format::ClaudeCode) => MODEL_COPILOT_CLAUDE_MAP,
-        (Format::ClaudeCode, Format::Codex) => MODEL_CLAUDE_CODEX_MAP,
-        _ => unreachable!("map_model: unsupported conversion ({:?}, {:?})", from, to),
+        (Format::ClaudeCode, Format::Copilot) => Some(MODEL_CLAUDE_COPILOT_MAP),
+        (Format::Copilot, Format::ClaudeCode) => Some(MODEL_COPILOT_CLAUDE_MAP),
+        (Format::ClaudeCode, Format::Codex) => Some(MODEL_CLAUDE_CODEX_MAP),
+        _ => None,
     };
-    lookup_forward(table, &normalized)
-        .map(|v| v.to_string())
-        .unwrap_or(normalized)
+
+    match table {
+        Some(table) => lookup_forward(table, &normalized)
+            .map(|v| v.to_string())
+            .unwrap_or(normalized),
+        None => normalized,
+    }
 }
 
 /// Body variable conversion: Claude Code -> Copilot.
