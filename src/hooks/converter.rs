@@ -1,10 +1,11 @@
 //! Hook configuration converter with polymorphic layer architecture.
 //!
-//! Provides 4 trait-based conversion layers that can be implemented per-target:
-//! - `EventMap`: event name conversion
-//! - `KeyMap`: key name/field conversion
-//! - `StructureConverter`: top-level structure and format detection
-//! - `ScriptGenerator`: script file generation
+//! Provides 4 trait-based conversion layers (5 traits) per-target:
+//! - Layer 1a `EventMap`: event name conversion
+//! - Layer 1b `ToolMap`: tool name conversion (optional)
+//! - Layer 2 `KeyMap`: key name/field conversion
+//! - Layer 3 `StructureConverter`: top-level structure and format detection
+//! - Layer 4 `ScriptGenerator`: script file generation
 //!
 //! The `convert()` orchestrator combines these layers to perform the full conversion.
 
@@ -101,7 +102,7 @@ pub enum SourceFormat {
 }
 
 // ============================================================================
-// 4 Conversion Layer Traits
+// Conversion Layer Traits (4 layers, 5 traits)
 // ============================================================================
 
 /// Layer 1a: Event name mapping.
