@@ -120,20 +120,20 @@ fn test_copilot_tool_map_round_trip() {
 }
 
 // ============================================================================
-// jq template consistency: verify that the jq object literal in
-// copilot.rs build_env_bridge() matches CopilotToolMap's reverse mapping.
+// Tool mapping cross-check: verify that CopilotToolMap.reverse_map_tool()
+// agrees with the expected jq mapping from copilot.rs build_env_bridge().
 //
-// The jq mapping is: {copilot_name: "CCName", ...}
-// This test ensures every entry in the jq object produces the same result
-// as CopilotToolMap.reverse_map_tool().
+// NOTE: This test uses a manually maintained mirror of the jq object
+// literal, NOT a parsed extraction from the source. If build_env_bridge()
+// is updated, this mirror must be updated in tandem. The test guards
+// against Rust-side drift but cannot detect jq-side-only changes.
 // ============================================================================
 
 #[test]
-fn test_jq_template_tool_mapping_consistency() {
-    // Mirror of the jq object literal in copilot.rs build_env_bridge():
-    // {bash:"Bash",powershell:"Bash",view:"Read",create:"Write",edit:"Edit",
-    //  glob:"Glob",grep:"Grep",web_fetch:"WebFetch",task:"Agent"}
-    let jq_mapping: HashMap<&str, &str> = HashMap::from([
+fn test_reverse_map_tool_matches_expected_jq_mapping() {
+    // Manually maintained mirror of the jq object literal in
+    // copilot.rs build_env_bridge(). Keep in sync when editing either side.
+    let expected_jq_mapping: HashMap<&str, &str> = HashMap::from([
         ("bash", "Bash"),
         ("powershell", "Bash"),
         ("view", "Read"),
@@ -147,8 +147,8 @@ fn test_jq_template_tool_mapping_consistency() {
 
     let map = CopilotToolMap;
 
-    // Every jq entry must match reverse_map_tool
-    for (copilot_name, expected_cc_name) in &jq_mapping {
+    // Every expected jq entry must match reverse_map_tool
+    for (copilot_name, expected_cc_name) in &expected_jq_mapping {
         let actual = map.reverse_map_tool(copilot_name);
         assert_eq!(
             actual, *expected_cc_name,
@@ -157,12 +157,12 @@ fn test_jq_template_tool_mapping_consistency() {
         );
     }
 
-    // Every Rust forward entry must have a jq counterpart
+    // Every Rust forward entry must have a counterpart in the expected mapping
     use super::copilot::COPILOT_TOOL_ENTRIES;
     for entry in COPILOT_TOOL_ENTRIES {
         assert!(
-            jq_mapping.contains_key(entry.target_name),
-            "Rust table has target '{}' but jq mapping does not",
+            expected_jq_mapping.contains_key(entry.target_name),
+            "Rust table has target '{}' but expected jq mapping does not",
             entry.target_name
         );
     }
