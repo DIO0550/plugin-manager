@@ -1,9 +1,9 @@
 /// Claude Code side hook event enum.
 ///
-/// Only includes the 7 events that have Copilot CLI equivalents.
-/// Excluded events (PostToolUseFailure, PreCompact, etc.) are not represented;
-/// `from_str` returns `None` for them.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Known events have dedicated variants. Unknown or excluded events
+/// (PostToolUseFailure, PreCompact, etc.) use `Other(String)`,
+/// preserving the original name for diagnostics.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum HookEvent {
     SessionStart,
     SessionEnd,
@@ -12,21 +12,22 @@ pub(crate) enum HookEvent {
     UserPromptSubmit,
     Stop,
     SubagentStop,
+    Other(String),
 }
 
 impl HookEvent {
     /// Parse a Claude Code event name string into a `HookEvent`.
-    /// Returns `None` for excluded or unknown events.
-    pub fn from_str(s: &str) -> Option<Self> {
+    /// Unknown or excluded events become `Other(s)`.
+    pub fn from_str(s: &str) -> Self {
         match s {
-            "SessionStart" => Some(Self::SessionStart),
-            "SessionEnd" => Some(Self::SessionEnd),
-            "PreToolUse" => Some(Self::PreToolUse),
-            "PostToolUse" => Some(Self::PostToolUse),
-            "UserPromptSubmit" => Some(Self::UserPromptSubmit),
-            "Stop" => Some(Self::Stop),
-            "SubagentStop" => Some(Self::SubagentStop),
-            _ => None,
+            "SessionStart" => Self::SessionStart,
+            "SessionEnd" => Self::SessionEnd,
+            "PreToolUse" => Self::PreToolUse,
+            "PostToolUse" => Self::PostToolUse,
+            "UserPromptSubmit" => Self::UserPromptSubmit,
+            "Stop" => Self::Stop,
+            "SubagentStop" => Self::SubagentStop,
+            other => Self::Other(other.to_string()),
         }
     }
 }
@@ -38,8 +39,9 @@ pub(crate) struct HookEventEntry {
 }
 
 /// Forward lookup: HookEvent -> target event name.
-pub(crate) fn to_target_event(table: &[HookEventEntry], event: HookEvent) -> Option<&'static str> {
-    table.iter().find(|e| e.event == event).map(|e| e.target)
+/// Returns `None` for `Other` variants (not in table).
+pub(crate) fn to_target_event(table: &[HookEventEntry], event: &HookEvent) -> Option<&'static str> {
+    table.iter().find(|e| e.event == *event).map(|e| e.target)
 }
 
 /// Reverse lookup: target event name -> HookEvent.
@@ -47,5 +49,5 @@ pub(crate) fn to_source_event(table: &[HookEventEntry], target_name: &str) -> Op
     table
         .iter()
         .find(|e| e.target == target_name)
-        .map(|e| e.event)
+        .map(|e| e.event.clone())
 }

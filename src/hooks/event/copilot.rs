@@ -36,7 +36,7 @@ pub(crate) struct CopilotEventMap;
 
 impl EventMap for CopilotEventMap {
     fn map_event(&self, event: &str) -> Option<&'static str> {
-        let hook_event = HookEvent::from_str(event.trim())?;
-        to_target_event(COPILOT_EVENT_ENTRIES, hook_event)
+        let hook_event = HookEvent::from_str(event.trim());
+        to_target_event(COPILOT_EVENT_ENTRIES, &hook_event)
     }
 }
