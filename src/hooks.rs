@@ -6,7 +6,7 @@
 pub(crate) mod codex;
 pub mod converter;
 pub(crate) mod copilot;
-pub mod event_map;
+pub(crate) mod event;
 
 #[cfg(test)]
 mod codex_test;
@@ -14,5 +14,3 @@ mod codex_test;
 mod converter_test;
 #[cfg(test)]
 mod copilot_test;
-#[cfg(test)]
-mod event_map_test;

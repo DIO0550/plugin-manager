@@ -1,14 +1,17 @@
-//! Copilot CLI implementation of the 4 hook conversion layers.
+//! Copilot CLI implementation of the hook conversion layers.
+//!
+//! EventMap is in `event/copilot.rs`; ToolMap is in `tool/copilot.rs`.
+//! This file retains KeyMap, StructureConverter, and ScriptGenerator.
 
 use serde_json::Value;
 
 use crate::error::PlmError;
-use crate::format::Format;
 use crate::hooks::converter::{
     generate_matcher_filter, shell_escape, ConversionWarning, ScriptInfo, SourceFormat, SCRIPTS_DIR,
 };
 
-use super::converter::{EventMap, KeyMap, ScriptGenerator, StructureConverter};
+use super::converter::{KeyMap, ScriptGenerator, StructureConverter};
+pub(crate) use super::event::copilot::CopilotEventMap;
 
 // ============================================================================
 // Copilot-specific constants
@@ -54,18 +57,6 @@ exit 0"#;
 
 /// Allowed HTTP methods for curl scripts.
 const ALLOWED_HTTP_METHODS: &[&str] = &["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
-
-// ============================================================================
-// EventMap
-// ============================================================================
-
-pub(crate) struct CopilotEventMap;
-
-impl EventMap for CopilotEventMap {
-    fn map_event(&self, event: &str) -> Option<&'static str> {
-        crate::hooks::event_map::map_event(event, Format::ClaudeCode, Format::Copilot)
-    }
-}
 
 // ============================================================================
 // KeyMap
