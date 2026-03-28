@@ -32,20 +32,20 @@ impl HookEvent {
     }
 }
 
-/// A single event name mapping entry (always 1:1).
-pub(crate) struct HookEventEntry {
+/// A single event name mapping (always 1:1).
+pub(crate) struct EventBridge {
     pub event: HookEvent,
     pub target: &'static str,
 }
 
 /// Forward lookup: HookEvent -> target event name.
 /// Returns `None` for `Other` variants (not in table).
-pub(crate) fn to_target_event(table: &[HookEventEntry], event: &HookEvent) -> Option<&'static str> {
+pub(crate) fn to_target_event(table: &[EventBridge], event: &HookEvent) -> Option<&'static str> {
     table.iter().find(|e| e.event == *event).map(|e| e.target)
 }
 
 /// Reverse lookup: target event name -> HookEvent.
-pub(crate) fn to_source_event(table: &[HookEventEntry], target_name: &str) -> Option<HookEvent> {
+pub(crate) fn to_source_event(table: &[EventBridge], target_name: &str) -> Option<HookEvent> {
     table
         .iter()
         .find(|e| e.target == target_name)
