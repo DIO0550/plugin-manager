@@ -1,43 +1,43 @@
 use crate::hooks::converter::ToolMap;
-use crate::hooks::tool::entry::{to_source_tool, to_target_tool, HookTool, HookToolEntry};
+use crate::hooks::tool::claude_code::{to_source_tool, to_target_tool, HookTool, ToolBridge};
 
-pub(crate) const COPILOT_TOOL_ENTRIES: &[HookToolEntry] = &[
-    HookToolEntry {
+pub(crate) const COPILOT_TOOL_ENTRIES: &[ToolBridge] = &[
+    ToolBridge {
         claude_code_tools: &[HookTool::Bash],
         target_name: "bash",
         representative_index: 0,
     },
-    HookToolEntry {
+    ToolBridge {
         claude_code_tools: &[HookTool::Read],
         target_name: "view",
         representative_index: 0,
     },
-    HookToolEntry {
+    ToolBridge {
         claude_code_tools: &[HookTool::Write],
         target_name: "create",
         representative_index: 0,
     },
-    HookToolEntry {
+    ToolBridge {
         claude_code_tools: &[HookTool::Edit, HookTool::MultiEdit],
         target_name: "edit",
         representative_index: 0,
     },
-    HookToolEntry {
+    ToolBridge {
         claude_code_tools: &[HookTool::Glob],
         target_name: "glob",
         representative_index: 0,
     },
-    HookToolEntry {
+    ToolBridge {
         claude_code_tools: &[HookTool::Grep],
         target_name: "grep",
         representative_index: 0,
     },
-    HookToolEntry {
+    ToolBridge {
         claude_code_tools: &[HookTool::WebFetch],
         target_name: "web_fetch",
         representative_index: 0,
     },
-    HookToolEntry {
+    ToolBridge {
         claude_code_tools: &[HookTool::Agent],
         target_name: "task",
         representative_index: 0,
@@ -45,7 +45,7 @@ pub(crate) const COPILOT_TOOL_ENTRIES: &[HookToolEntry] = &[
 ];
 
 /// Reverse-only entries: target names that map to CC tools but have no forward mapping.
-const COPILOT_REVERSE_ONLY_TOOL_ENTRIES: &[HookToolEntry] = &[HookToolEntry {
+const COPILOT_REVERSE_ONLY_TOOL_ENTRIES: &[ToolBridge] = &[ToolBridge {
     claude_code_tools: &[HookTool::Bash],
     target_name: "powershell",
     representative_index: 0,

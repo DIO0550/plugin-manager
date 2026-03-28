@@ -1,32 +1,32 @@
 use crate::hooks::converter::EventMap;
-use crate::hooks::event::entry::{to_target_event, HookEvent, HookEventEntry};
+use crate::hooks::event::claude_code::{to_target_event, EventBridge, HookEvent};
 
-const COPILOT_EVENT_ENTRIES: &[HookEventEntry] = &[
-    HookEventEntry {
+const COPILOT_EVENT_ENTRIES: &[EventBridge] = &[
+    EventBridge {
         event: HookEvent::SessionStart,
         target: "sessionStart",
     },
-    HookEventEntry {
+    EventBridge {
         event: HookEvent::SessionEnd,
         target: "sessionEnd",
     },
-    HookEventEntry {
+    EventBridge {
         event: HookEvent::PreToolUse,
         target: "preToolUse",
     },
-    HookEventEntry {
+    EventBridge {
         event: HookEvent::PostToolUse,
         target: "postToolUse",
     },
-    HookEventEntry {
+    EventBridge {
         event: HookEvent::UserPromptSubmit,
         target: "userPromptSubmitted",
     },
-    HookEventEntry {
+    EventBridge {
         event: HookEvent::Stop,
         target: "agentStop",
     },
-    HookEventEntry {
+    EventBridge {
         event: HookEvent::SubagentStop,
         target: "subagentStop",
     },

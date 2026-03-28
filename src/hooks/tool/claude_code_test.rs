@@ -1,6 +1,6 @@
-//! Tests for HookTool enum, HookToolEntry, and helper functions.
+//! Tests for HookTool enum, ToolBridge, and helper functions.
 
-use super::entry::*;
+use super::claude_code::*;
 
 // ============================================================================
 // HookTool::from_str
@@ -34,7 +34,7 @@ fn test_from_str_unknown_tools_become_other() {
 
 #[test]
 fn test_to_target_tool_1_to_1() {
-    let table = &[HookToolEntry {
+    let table = &[ToolBridge {
         claude_code_tools: &[HookTool::Bash],
         target_name: "bash",
         representative_index: 0,
@@ -44,7 +44,7 @@ fn test_to_target_tool_1_to_1() {
 
 #[test]
 fn test_to_target_tool_n_to_1() {
-    let table = &[HookToolEntry {
+    let table = &[ToolBridge {
         claude_code_tools: &[HookTool::Edit, HookTool::MultiEdit],
         target_name: "edit",
         representative_index: 0,
@@ -55,7 +55,7 @@ fn test_to_target_tool_n_to_1() {
 
 #[test]
 fn test_to_target_tool_other_returns_none() {
-    let table = &[HookToolEntry {
+    let table = &[ToolBridge {
         claude_code_tools: &[HookTool::Bash],
         target_name: "bash",
         representative_index: 0,
@@ -68,7 +68,7 @@ fn test_to_target_tool_other_returns_none() {
 
 #[test]
 fn test_to_target_tool_empty_table() {
-    let table: &[HookToolEntry] = &[];
+    let table: &[ToolBridge] = &[];
     assert_eq!(to_target_tool(table, &HookTool::Bash), None);
 }
 
@@ -78,7 +78,7 @@ fn test_to_target_tool_empty_table() {
 
 #[test]
 fn test_to_source_tool_representative() {
-    let table = &[HookToolEntry {
+    let table = &[ToolBridge {
         claude_code_tools: &[HookTool::Edit, HookTool::MultiEdit],
         target_name: "edit",
         representative_index: 0,
@@ -88,7 +88,7 @@ fn test_to_source_tool_representative() {
 
 #[test]
 fn test_to_source_tool_representative_index_1() {
-    let table = &[HookToolEntry {
+    let table = &[ToolBridge {
         claude_code_tools: &[HookTool::Edit, HookTool::MultiEdit],
         target_name: "edit",
         representative_index: 1,
@@ -98,7 +98,7 @@ fn test_to_source_tool_representative_index_1() {
 
 #[test]
 fn test_to_source_tool_not_found() {
-    let table = &[HookToolEntry {
+    let table = &[ToolBridge {
         claude_code_tools: &[HookTool::Bash],
         target_name: "bash",
         representative_index: 0,
@@ -108,7 +108,7 @@ fn test_to_source_tool_not_found() {
 
 #[test]
 fn test_to_source_tool_empty_table() {
-    let table: &[HookToolEntry] = &[];
+    let table: &[ToolBridge] = &[];
     assert_eq!(to_source_tool(table, "bash"), None);
 }
 
@@ -117,7 +117,7 @@ fn test_to_source_tool_empty_table() {
 // ============================================================================
 
 /// Validate that every entry in a tool table has a valid representative_index.
-fn validate_tool_entries(table: &[HookToolEntry]) {
+fn validate_tool_entries(table: &[ToolBridge]) {
     for (i, entry) in table.iter().enumerate() {
         assert!(
             !entry.claude_code_tools.is_empty(),
@@ -145,7 +145,7 @@ fn test_validate_copilot_tool_entries() {
 #[test]
 #[should_panic(expected = "representative_index")]
 fn test_validate_catches_invalid_index() {
-    let bad_table = &[HookToolEntry {
+    let bad_table = &[ToolBridge {
         claude_code_tools: &[HookTool::Bash],
         target_name: "bash",
         representative_index: 5, // out of bounds
@@ -156,7 +156,7 @@ fn test_validate_catches_invalid_index() {
 #[test]
 #[should_panic(expected = "empty claude_code_tools")]
 fn test_validate_catches_empty_tools() {
-    let bad_table = &[HookToolEntry {
+    let bad_table = &[ToolBridge {
         claude_code_tools: &[],
         target_name: "empty",
         representative_index: 0,

@@ -51,8 +51,8 @@ impl HookTool {
     }
 }
 
-/// Tool name mapping entry supporting N:1 (multiple CC tools -> one target name).
-pub(crate) struct HookToolEntry {
+/// Tool name mapping supporting N:1 (multiple CC tools -> one target name).
+pub(crate) struct ToolBridge {
     pub claude_code_tools: &'static [HookTool],
     pub target_name: &'static str,
     pub representative_index: usize,
@@ -60,7 +60,7 @@ pub(crate) struct HookToolEntry {
 
 /// Forward lookup: HookTool -> target tool name.
 /// Returns `None` for `Other` variants (not in table).
-pub(crate) fn to_target_tool(table: &[HookToolEntry], tool: &HookTool) -> Option<&'static str> {
+pub(crate) fn to_target_tool(table: &[ToolBridge], tool: &HookTool) -> Option<&'static str> {
     table
         .iter()
         .find(|entry| entry.claude_code_tools.contains(tool))
@@ -69,7 +69,7 @@ pub(crate) fn to_target_tool(table: &[HookToolEntry], tool: &HookTool) -> Option
 
 /// Reverse lookup: target tool name -> representative HookTool.
 pub(crate) fn to_source_tool<'a>(
-    table: &'a [HookToolEntry],
+    table: &'a [ToolBridge],
     target_name: &str,
 ) -> Option<&'a HookTool> {
     table

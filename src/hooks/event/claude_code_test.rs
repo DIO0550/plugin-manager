@@ -1,6 +1,6 @@
-//! Tests for HookEvent enum, HookEventEntry, and helper functions.
+//! Tests for HookEvent enum, EventBridge, and helper functions.
 
-use super::entry::*;
+use super::claude_code::*;
 
 // ============================================================================
 // HookEvent::from_str
@@ -64,15 +64,15 @@ fn test_from_str_unknown_and_empty() {
 #[test]
 fn test_to_target_event_found() {
     let table = &[
-        HookEventEntry {
+        EventBridge {
             event: HookEvent::SessionStart,
             target: "sessionStart",
         },
-        HookEventEntry {
+        EventBridge {
             event: HookEvent::PreToolUse,
             target: "preToolUse",
         },
-        HookEventEntry {
+        EventBridge {
             event: HookEvent::Stop,
             target: "agentStop",
         },
@@ -90,7 +90,7 @@ fn test_to_target_event_found() {
 
 #[test]
 fn test_to_target_event_not_found() {
-    let table = &[HookEventEntry {
+    let table = &[EventBridge {
         event: HookEvent::SessionStart,
         target: "sessionStart",
     }];
@@ -99,13 +99,13 @@ fn test_to_target_event_not_found() {
 
 #[test]
 fn test_to_target_event_empty_table() {
-    let table: &[HookEventEntry] = &[];
+    let table: &[EventBridge] = &[];
     assert_eq!(to_target_event(table, &HookEvent::SessionStart), None);
 }
 
 #[test]
 fn test_to_target_event_other_returns_none() {
-    let table = &[HookEventEntry {
+    let table = &[EventBridge {
         event: HookEvent::SessionStart,
         target: "sessionStart",
     }];
@@ -122,11 +122,11 @@ fn test_to_target_event_other_returns_none() {
 #[test]
 fn test_to_source_event_found() {
     let table = &[
-        HookEventEntry {
+        EventBridge {
             event: HookEvent::SessionStart,
             target: "sessionStart",
         },
-        HookEventEntry {
+        EventBridge {
             event: HookEvent::PreToolUse,
             target: "preToolUse",
         },
@@ -143,7 +143,7 @@ fn test_to_source_event_found() {
 
 #[test]
 fn test_to_source_event_not_found() {
-    let table = &[HookEventEntry {
+    let table = &[EventBridge {
         event: HookEvent::SessionStart,
         target: "sessionStart",
     }];
@@ -152,6 +152,6 @@ fn test_to_source_event_not_found() {
 
 #[test]
 fn test_to_source_event_empty_table() {
-    let table: &[HookEventEntry] = &[];
+    let table: &[EventBridge] = &[];
     assert_eq!(to_source_event(table, "sessionStart"), None);
 }
