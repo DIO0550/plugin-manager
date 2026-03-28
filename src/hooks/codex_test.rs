@@ -2,8 +2,9 @@
 
 use serde_json::json;
 
-use super::codex::{CodexEventMap, CodexKeyMap, CodexScriptGenerator, CodexStructureConverter};
+use super::codex::{CodexKeyMap, CodexScriptGenerator, CodexStructureConverter};
 use super::converter::{EventMap, KeyMap, ScriptGenerator, SourceFormat, StructureConverter};
+use super::event::codex::CodexEventMap;
 
 #[test]
 fn test_codex_event_map_returns_none() {

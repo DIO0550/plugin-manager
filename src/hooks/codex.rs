@@ -1,29 +1,15 @@
-//! Codex skeleton implementation of the 4 hook conversion layers.
+//! Codex skeleton implementation of the hook conversion layers.
 //!
-//! These are placeholder implementations. `EventMap` returns `None` for all events,
-//! `KeyMap` passes through as-is, `StructureConverter` performs no transformation,
-//! and `ScriptGenerator` returns empty stubs (or errors for http).
-//! These skeletons are not wired into production via `create_layers()`;
-//! they exist as a structural foundation for future Codex hook conversion.
+//! EventMap is in `event/codex.rs`; ToolMap is in `tool/codex.rs`.
+//! KeyMap passes through as-is, StructureConverter performs no transformation,
+//! and ScriptGenerator returns empty stubs (or errors for http).
 
 use serde_json::Value;
 
 use crate::error::PlmError;
 use crate::hooks::converter::{ConversionWarning, ScriptInfo, SourceFormat};
 
-use super::converter::{EventMap, KeyMap, ScriptGenerator, StructureConverter};
-
-// ============================================================================
-// EventMap
-// ============================================================================
-
-pub(crate) struct CodexEventMap;
-
-impl EventMap for CodexEventMap {
-    fn map_event(&self, _event: &str) -> Option<&'static str> {
-        None
-    }
-}
+use super::converter::{KeyMap, ScriptGenerator, StructureConverter};
 
 // ============================================================================
 // KeyMap
