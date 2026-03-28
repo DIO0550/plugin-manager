@@ -7,6 +7,7 @@ pub(crate) mod codex;
 pub mod converter;
 pub(crate) mod copilot;
 pub(crate) mod event;
+pub(crate) mod tool;
 
 #[cfg(test)]
 mod codex_test;

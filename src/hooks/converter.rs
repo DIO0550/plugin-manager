@@ -104,11 +104,18 @@ pub enum SourceFormat {
 // 4 Conversion Layer Traits
 // ============================================================================
 
-/// Layer 1: Event name mapping.
+/// Layer 1a: Event name mapping.
 pub(crate) trait EventMap {
     /// Convert a Claude Code event name to the target event name.
     /// Returns `None` for unsupported/unknown events.
     fn map_event(&self, event: &str) -> Option<&'static str>;
+}
+
+/// Layer 1b: Tool name mapping (optional).
+pub(crate) trait ToolMap {
+    /// Convert a Claude Code tool name to the target tool name.
+    /// Unknown tools are passed through.
+    fn map_tool(&self, tool: &str) -> String;
 }
 
 /// Layer 2: Key name/field conversion within a hook definition.
@@ -171,9 +178,10 @@ pub(crate) trait ScriptGenerator {
 // Layers container + factory
 // ============================================================================
 
-/// Container for the 4 conversion layers resolved for a specific target.
+/// Container for the conversion layers resolved for a specific target.
 pub(crate) struct HookConversionLayers {
     pub event_map: Box<dyn EventMap>,
+    pub tool_map: Option<Box<dyn ToolMap>>,
     pub key_map: Box<dyn KeyMap>,
     pub structure: Box<dyn StructureConverter>,
     pub script_gen: Box<dyn ScriptGenerator>,
@@ -184,6 +192,7 @@ pub(crate) fn create_layers(target: TargetKind) -> Result<HookConversionLayers, 
     match target {
         TargetKind::Copilot => Ok(HookConversionLayers {
             event_map: Box::new(super::copilot::CopilotEventMap),
+            tool_map: Some(Box::new(super::tool::copilot::CopilotToolMap)),
             key_map: Box::new(super::copilot::CopilotKeyMap),
             structure: Box::new(super::copilot::CopilotStructureConverter),
             script_gen: Box::new(super::copilot::CopilotScriptGenerator),
