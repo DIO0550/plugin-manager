@@ -4,12 +4,11 @@ use super::convert::{self, AgentConversionResult, AgentFormat, CommandFormat, Co
 use crate::component::{Component, ComponentKind, Scope};
 use crate::error::{PlmError, Result};
 use crate::hooks::converter::{self, SourceFormat, SCRIPTS_DIR};
+use crate::hooks::name::HookName;
 use crate::path_ext::PathExt;
 use crate::target::TargetKind;
 use std::collections::{BTreeMap, HashSet};
-use std::fmt::Write as _;
 use std::fs;
-use std::hash::{DefaultHasher, Hash, Hasher};
 use std::path::{Path, PathBuf};
 
 /// コンポーネントのデプロイ情報
@@ -53,39 +52,6 @@ impl ComponentDeployment {
     /// ソースパスを取得
     pub fn source_path(&self) -> &Path {
         &self.source_path
-    }
-
-    /// Hook 名をパスセグメントとして安全な文字列にサニタイズ
-    ///
-    /// - `[A-Za-z0-9_-]` 以外をハイフンに置換（`.` も含めて `-` に置換）
-    /// - 先頭・末尾のハイフンを除去
-    /// - サニタイズ後の結果が空文字列の場合はフォールバック名として `_hook` をベースに使用
-    /// - サニタイズにより元名と異なる場合は短いハッシュサフィックスを付加して衝突を防止
-    pub(crate) fn sanitize_hook_name(name: &str) -> String {
-        let sanitized: String = name
-            .chars()
-            .map(|c| {
-                if c.is_ascii_alphanumeric() || c == '_' || c == '-' {
-                    c
-                } else {
-                    '-'
-                }
-            })
-            .collect();
-        let trimmed = sanitized.trim_matches('-');
-        let base = if trimmed.is_empty() { "_hook" } else { trimmed };
-
-        // サニタイズで変化した場合はハッシュサフィックスで衝突を防ぐ
-        if base == name {
-            base.to_string()
-        } else {
-            let mut hasher = DefaultHasher::new();
-            name.hash(&mut hasher);
-            let hash = hasher.finish();
-            let mut suffix = String::with_capacity(17);
-            let _ = write!(suffix, "-{:016x}", hash);
-            format!("{}{}", base, suffix)
-        }
     }
 
     /// JSON 内の hooks[].bash パスを名前空間付きに書き換える
@@ -141,7 +107,8 @@ impl ComponentDeployment {
         }
 
         // Hook 名をサニタイズ（パスセグメント・シェルコマンドで安全に使えるようにする）
-        let safe_name = Self::sanitize_hook_name(&self.name);
+        let hook_name = HookName::new(&self.name);
+        let safe_name = hook_name.as_safe();
 
         // 4. script パスを名前空間付きに書き換え（生成された script がある場合のみ）
         if !convert_result.scripts.is_empty() {
@@ -154,14 +121,11 @@ impl ComponentDeployment {
             Self::rewrite_script_paths_in_json(
                 &mut convert_result.json,
                 &original_paths,
-                &safe_name,
+                safe_name,
             );
 
-            let prefix_with_slash = format!("{}/", SCRIPTS_DIR);
             for script in &mut convert_result.scripts {
-                if let Some(filename) = script.path.strip_prefix(&prefix_with_slash) {
-                    script.path = format!("{}/{}/{}", SCRIPTS_DIR, safe_name, filename);
-                }
+                script.path = converter::namespace_script_path(&script.path, safe_name);
             }
         }
 
@@ -179,63 +143,67 @@ impl ComponentDeployment {
 
         // 8. スクリプトを配置
         let script_count = convert_result.scripts.len();
-        if script_count > 0 {
-            let plugin_root = self.plugin_root.as_ref().ok_or_else(|| {
+        if script_count == 0 {
+            return Ok(DeploymentResult::HookConverted(HookConvertResult {
+                warnings: convert_result.warnings,
+                script_count: 0,
+                summary: None,
+            }));
+        }
+
+        let plugin_root = self.plugin_root.as_ref().ok_or_else(|| {
+            PlmError::Validation("plugin_root is required when scripts are generated".to_string())
+        })?;
+        let plugin_root_str = plugin_root.display().to_string();
+
+        let script_dir = self
+            .target_path
+            .parent()
+            .ok_or_else(|| {
                 PlmError::Validation(
-                    "plugin_root is required when scripts are generated".to_string(),
+                    "target_path must have a parent directory for scripts".to_string(),
                 )
-            })?;
-            let plugin_root_str = plugin_root.display().to_string();
+            })?
+            .join(SCRIPTS_DIR)
+            .join(safe_name);
+        fs::create_dir_all(&script_dir)?;
 
-            let script_dir = self
-                .target_path
-                .parent()
-                .ok_or_else(|| {
-                    PlmError::Validation(
-                        "target_path must have a parent directory for scripts".to_string(),
-                    )
-                })?
-                .join(SCRIPTS_DIR)
-                .join(&safe_name);
-            fs::create_dir_all(&script_dir)?;
+        for script in &convert_result.scripts {
+            let filename = Path::new(&script.path)
+                .file_name()
+                .map(|f| f.to_string_lossy().to_string())
+                .unwrap_or_else(|| script.path.clone());
 
-            for script in &convert_result.scripts {
-                let filename = Path::new(&script.path)
-                    .file_name()
-                    .map(|f| f.to_string_lossy().to_string())
-                    .unwrap_or_else(|| script.path.clone());
+            let script_path = script_dir.join(&filename);
 
-                let script_path = script_dir.join(&filename);
-
-                // @@PLUGIN_ROOT@@ を実パスに置換
-                // bash ダブルクオート内で特別な意味を持つ文字のみをエスケープする
-                let escaped = {
-                    let mut out = String::with_capacity(plugin_root_str.len());
-                    for ch in plugin_root_str.chars() {
-                        match ch {
-                            '\\' | '"' | '$' | '`' => {
-                                out.push('\\');
-                                out.push(ch);
-                            }
-                            '\n' => {
-                                out.push('\\');
-                                out.push('n');
-                            }
-                            _ => out.push(ch),
+            // @@PLUGIN_ROOT@@ を実パスに置換
+            // bash ダブルクオート内で特別な意味を持つ文字のみをエスケープする
+            let escaped = {
+                let mut out = String::with_capacity(plugin_root_str.len());
+                for ch in plugin_root_str.chars() {
+                    match ch {
+                        '\\' | '"' | '$' | '`' => {
+                            out.push('\\');
+                            out.push(ch);
                         }
+                        '\n' => {
+                            out.push('\\');
+                            out.push('n');
+                        }
+                        _ => out.push(ch),
                     }
-                    out
-                };
-                let content = script.content.replace("@@PLUGIN_ROOT@@", &escaped);
-
-                fs::write(&script_path, &content)?;
-
-                // Unix: 実行権限を設定
-                #[cfg(unix)]
-                {
-                    use std::os::unix::fs::PermissionsExt;
-                    fs::set_permissions(&script_path, fs::Permissions::from_mode(0o755))?;
                 }
+                out
+            };
+            let content = script.content.replace("@@PLUGIN_ROOT@@", &escaped);
+
+            fs::write(&script_path, &content)?;
+
+            // Unix: 実行権限を設定
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                fs::set_permissions(&script_path, fs::Permissions::from_mode(0o755))?;
             }
         }
 

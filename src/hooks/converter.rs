@@ -23,6 +23,24 @@ use crate::target::TargetKind;
 /// スクリプトの配置ディレクトリ prefix（値は後方互換のため "wrappers" のまま）
 pub const SCRIPTS_DIR: &str = "wrappers";
 
+/// スクリプトパスに名前空間を挿入する
+///
+/// `SCRIPTS_DIR` prefix を検出し、間に namespace を挿入する。
+/// prefix がない場合はそのまま返す。
+///
+/// # Examples
+/// ```ignore
+/// namespace_script_path("wrappers/foo.sh", "my-hook") // => "wrappers/my-hook/foo.sh"
+/// namespace_script_path("other/foo.sh", "my-hook")    // => "other/foo.sh"
+/// ```
+pub fn namespace_script_path(path: &str, namespace: &str) -> String {
+    let prefix_with_slash = format!("{}/", SCRIPTS_DIR);
+    match path.strip_prefix(&prefix_with_slash) {
+        Some(rest) => format!("{}/{}/{}", SCRIPTS_DIR, namespace, rest),
+        None => path.to_string(),
+    }
+}
+
 // ============================================================================
 // Shared types
 // ============================================================================
