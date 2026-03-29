@@ -1420,3 +1420,26 @@ fn test_namespace_script_path_nested() {
         "wrappers/my-hook/sub/foo.sh"
     );
 }
+
+// ============================================================================
+// original_config補完
+// ============================================================================
+
+#[test]
+fn test_command_hook_original_config_is_set() {
+    let input = r#"{
+        "hooks": {
+            "SessionStart": [
+                { "hooks": [{ "type": "command", "command": "echo hi", "timeout": 5 }] }
+            ]
+        }
+    }"#;
+    let result = convert(input, TargetKind::Copilot).unwrap();
+    assert_eq!(result.scripts.len(), 1);
+    let script = &result.scripts[0];
+    // original_config should be the full hook object
+    assert!(script.original_config.is_object());
+    assert_eq!(script.original_config["command"], "echo hi");
+    assert_eq!(script.original_config["timeout"], 5);
+    assert_eq!(script.original_config["type"], "command");
+}
