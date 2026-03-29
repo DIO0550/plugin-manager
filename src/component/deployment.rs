@@ -524,6 +524,17 @@ impl ComponentDeploymentBuilder {
     }
 }
 
+/// スクリプトファイルを書き出し、Unix では実行権限 (0o755) を設定する。
+fn write_executable_script(path: &Path, content: &str) -> Result<()> {
+    fs::write(path, content)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(path, fs::Permissions::from_mode(0o755))?;
+    }
+    Ok(())
+}
+
 /// bash ダブルクォート内で特別な意味を持つ文字をエスケープする。
 ///
 /// 対象文字: `\`, `"`, `$`, `` ` ``, `\n`

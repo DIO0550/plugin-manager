@@ -1479,3 +1479,39 @@ fn test_escape_for_bash_double_quote_all_special_chars() {
         r#"a\\b\"c\$d\`e\nf"#
     );
 }
+
+// ========================================
+// write_executable_script tests
+// ========================================
+
+#[test]
+fn test_write_executable_script_creates_file_with_content() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("test.sh");
+    let content = "#!/bin/bash\necho hello";
+
+    write_executable_script(&path, content).unwrap();
+
+    assert_eq!(fs::read_to_string(&path).unwrap(), content);
+}
+
+#[cfg(unix)]
+#[test]
+fn test_write_executable_script_sets_executable_permission() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("test.sh");
+
+    write_executable_script(&path, "#!/bin/bash").unwrap();
+
+    let mode = fs::metadata(&path).unwrap().permissions().mode();
+    assert_eq!(mode & 0o777, 0o755);
+}
+
+#[test]
+fn test_write_executable_script_nonexistent_dir_returns_err() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("no_such_subdir").join("test.sh");
+    assert!(write_executable_script(&path, "content").is_err());
+}
