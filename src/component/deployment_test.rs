@@ -1206,7 +1206,7 @@ fn test_hook_convert_with_unsafe_name_uses_sanitized_dir() {
     let safe_name = hook_name.as_safe();
 
     // サニタイズされたディレクトリ名が使われること
-    assert!(target_dir.join("wrappers").join(&safe_name).exists());
+    assert!(target_dir.join("wrappers").join(safe_name).exists());
     // JSON 内のパスもサニタイズされた名前を参照
     let json_content = fs::read_to_string(&target).unwrap();
     assert!(json_content.contains(&format!("./wrappers/{}/", safe_name)));
