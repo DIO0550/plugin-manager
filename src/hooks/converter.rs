@@ -34,8 +34,10 @@ pub const SCRIPTS_DIR: &str = "wrappers";
 /// namespace_script_path("other/foo.sh", "my-hook")    // => "other/foo.sh"
 /// ```
 pub(crate) fn namespace_script_path(path: &str, namespace: &str) -> String {
-    let prefix_with_slash = format!("{}/", SCRIPTS_DIR);
-    match path.strip_prefix(&prefix_with_slash) {
+    match path
+        .strip_prefix(SCRIPTS_DIR)
+        .and_then(|rest| rest.strip_prefix('/'))
+    {
         Some(rest) => format!("{}/{}/{}", SCRIPTS_DIR, namespace, rest),
         None => path.to_string(),
     }
