@@ -764,6 +764,23 @@ fn test_http_header_value_backtick_rejected() {
 }
 
 #[test]
+fn test_http_header_name_backtick_rejected() {
+    let input = r#"{
+        "hooks": {
+            "SessionStart": [
+                { "hooks": [{ "type": "http", "url": "https://example.com", "headers": { "`id`": "value" } }] }
+            ]
+        }
+    }"#;
+    let result = convert(input, TargetKind::Copilot);
+    assert!(result.is_err());
+    match result.unwrap_err() {
+        PlmError::HookConversion(msg) => assert!(msg.contains("invalid characters")),
+        other => panic!("Expected HookConversion, got {:?}", other),
+    }
+}
+
+#[test]
 fn test_http_header_non_string_value_rejected() {
     let input = r#"{
         "hooks": {
