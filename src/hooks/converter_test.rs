@@ -1392,3 +1392,31 @@ fn test_integ_pre_tool_use_has_tool_mapping() {
         "tool_response should not be present for preToolUse"
     );
 }
+
+// ============================================================================
+// namespace_script_path
+// ============================================================================
+
+#[test]
+fn test_namespace_script_path_basic() {
+    assert_eq!(
+        namespace_script_path("wrappers/foo.sh", "my-hook"),
+        "wrappers/my-hook/foo.sh"
+    );
+}
+
+#[test]
+fn test_namespace_script_path_no_prefix() {
+    assert_eq!(
+        namespace_script_path("other/foo.sh", "my-hook"),
+        "other/foo.sh"
+    );
+}
+
+#[test]
+fn test_namespace_script_path_nested() {
+    assert_eq!(
+        namespace_script_path("wrappers/sub/foo.sh", "my-hook"),
+        "wrappers/my-hook/sub/foo.sh"
+    );
+}
