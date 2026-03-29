@@ -168,44 +168,19 @@ impl ComponentDeployment {
             .join(safe_name);
         fs::create_dir_all(&script_dir)?;
 
-        for script in &convert_result.scripts {
+        let escaped = escape_for_bash_double_quote(&plugin_root_str);
+
+        convert_result.scripts.iter().try_for_each(|script| {
             let filename = Path::new(&script.path)
                 .file_name()
                 .map(|f| f.to_string_lossy().to_string())
                 .unwrap_or_else(|| script.path.clone());
 
             let script_path = script_dir.join(&filename);
-
-            // @@PLUGIN_ROOT@@ を実パスに置換
-            // bash ダブルクオート内で特別な意味を持つ文字のみをエスケープする
-            let escaped = {
-                let mut out = String::with_capacity(plugin_root_str.len());
-                for ch in plugin_root_str.chars() {
-                    match ch {
-                        '\\' | '"' | '$' | '`' => {
-                            out.push('\\');
-                            out.push(ch);
-                        }
-                        '\n' => {
-                            out.push('\\');
-                            out.push('n');
-                        }
-                        _ => out.push(ch),
-                    }
-                }
-                out
-            };
             let content = script.content.replace("@@PLUGIN_ROOT@@", &escaped);
 
-            fs::write(&script_path, &content)?;
-
-            // Unix: 実行権限を設定
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                fs::set_permissions(&script_path, fs::Permissions::from_mode(0o755))?;
-            }
-        }
+            write_executable_script(&script_path, &content)
+        })?;
 
         Ok(DeploymentResult::HookConverted(HookConvertResult {
             warnings: convert_result.warnings,
