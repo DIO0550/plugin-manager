@@ -436,10 +436,7 @@ fn build_headers_lines(headers: &[(&str, &str)]) -> String {
     }
 
     for (k, v) in headers {
-        let escaped_value = v
-            .replace('\\', "\\\\")
-            .replace('"', "\\\"")
-            .replace('$', "\\$");
+        let escaped_value = v.replace('\\', "\\\\").replace('"', "\\\"");
         headers_lines.push_str(&format!("  -H \"{}: {}\" \\\n", k, escaped_value));
     }
 
