@@ -524,6 +524,28 @@ impl ComponentDeploymentBuilder {
     }
 }
 
+/// bash ダブルクォート内で特別な意味を持つ文字をエスケープする。
+///
+/// 対象文字: `\`, `"`, `$`, `` ` ``, `\n`
+/// 用途: `@@PLUGIN_ROOT@@` プレースホルダーの置換値として使用
+fn escape_for_bash_double_quote(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for ch in s.chars() {
+        match ch {
+            '\\' | '"' | '$' | '`' => {
+                out.push('\\');
+                out.push(ch);
+            }
+            '\n' => {
+                out.push('\\');
+                out.push('n');
+            }
+            _ => out.push(ch),
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 #[path = "deployment_test.rs"]
 mod tests;
