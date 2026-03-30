@@ -21,9 +21,15 @@ pub struct PluginDeployment {
 impl PluginDeployment {
     /// プラグイン内のコンポーネントを取得
     pub fn components(&self) -> Vec<Component> {
+        let marketplace = if self.origin.marketplace == "github" {
+            None
+        } else {
+            Some(self.origin.marketplace.clone())
+        };
+
         let package = MarketplacePackage {
             name: self.origin.plugin.clone(),
-            marketplace: Some(self.origin.marketplace.clone()),
+            marketplace,
             path: self.path.clone(),
             manifest: self.manifest.clone(),
         };
