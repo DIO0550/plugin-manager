@@ -69,12 +69,8 @@ impl DownloadedPlugin {
 /// ダウンロード済みプラグインからコンポーネントをスキャンした結果。
 #[derive(Debug)]
 pub struct ScannedPlugin {
-    /// マニフェスト由来のプラグイン名（表示・検索用）。
     pub name: String,
     pub marketplace: Option<String>,
-    /// キャッシュディレクトリ名（配置・識別用）。
-    /// GitHub 直接インストール時は `owner--repo` 形式。
-    cache_key: String,
     package: MarketplacePackage,
     pub components: Vec<ScannedComponent>,
 }
@@ -226,17 +222,9 @@ pub fn scan_plugin(
         })
         .collect();
 
-    let cache_key = downloaded
-        .cached_path()
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or_else(|| downloaded.name())
-        .to_string();
-
     Ok(ScannedPlugin {
         name: downloaded.name().to_string(),
         marketplace: downloaded.marketplace().map(|s| s.to_string()),
-        cache_key,
         package,
         components: scanned_components,
     })
@@ -249,7 +237,7 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
 
     let origin = PluginOrigin::from_cached_plugin(
         request.scanned.marketplace.as_deref(),
-        &request.scanned.cache_key,
+        &request.scanned.name,
     );
 
     for target in request.targets {
