@@ -69,6 +69,9 @@ impl DownloadedPlugin {
 /// ダウンロード済みプラグインからコンポーネントをスキャンした結果。
 #[derive(Debug)]
 pub struct ScannedPlugin {
+    /// マニフェスト由来のプラグイン名。
+    /// GitHub 直接インストール時のキャッシュキー（`owner--repo` 形式）とは異なる場合がある。
+    /// 配置パスの解決には `PluginOrigin` 経由で使用される。
     pub name: String,
     pub marketplace: Option<String>,
     package: MarketplacePackage,
