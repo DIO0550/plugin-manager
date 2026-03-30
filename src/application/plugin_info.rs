@@ -89,6 +89,8 @@ fn find_plugin_candidates(
         .filter(|pkg| pkg.manifest.name == name)
         .map(|pkg| PluginCandidate {
             marketplace: pkg.marketplace.unwrap_or_else(|| "github".to_string()),
+            // pkg.name はキャッシュディレクトリ名（cache key）。
+            // GitHub 直接インストール時は owner--repo 形式で、manifest.name とは異なる。
             dir_name: pkg.name,
             cache_path: pkg.path,
             manifest: pkg.manifest,
