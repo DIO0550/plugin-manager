@@ -230,7 +230,7 @@ fn install_single_plugin(
     plugin_name: &str,
 ) -> PluginInstallResult {
     // Download (async -> sync bridge)
-    let downloaded = match tokio::task::block_in_place(|| {
+    let package = match tokio::task::block_in_place(|| {
         ctx.handle
             .block_on(install::download_marketplace_plugin_with_cache(
                 plugin_name,
@@ -250,7 +250,7 @@ fn install_single_plugin(
     };
 
     // Scan
-    let scanned = match install::scan_plugin(&downloaded, None) {
+    let scanned = match install::scan_plugin(&package, None) {
         Ok(s) => s,
         Err(e) => {
             return PluginInstallResult {

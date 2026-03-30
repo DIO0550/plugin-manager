@@ -3,66 +3,9 @@ use std::path::{Path, PathBuf};
 use crate::component::{AgentFormat, CommandFormat, ComponentKind, Scope};
 use crate::component::{Component, ComponentDeployment, DeploymentResult};
 use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
-use crate::plugin::{MarketplacePackage, PluginCache, PluginCacheAccess, RemoteMarketplaceData};
+use crate::plugin::{MarketplacePackage, PluginCache, PluginCacheAccess};
 use crate::source::{parse_source, MarketplaceSource, PluginSource};
 use crate::target::{PluginOrigin, Target, TargetKind};
-
-/// ダウンロード済みプラグイン
-///
-/// `RemoteMarketplaceData` をラップし、read-only アクセサを通じてプラグイン情報を提供する。
-/// フィールドを private にすることで、`cached_plugin` と派生フィールドの不整合を防止する。
-#[derive(Debug)]
-pub struct DownloadedPlugin {
-    cached_plugin: RemoteMarketplaceData,
-    name: String,
-    version: String,
-    description: Option<String>,
-    cached_path: PathBuf,
-    marketplace: Option<String>,
-}
-
-impl DownloadedPlugin {
-    /// 元の RemoteMarketplaceData への参照を取得
-    pub fn cached_plugin(&self) -> &RemoteMarketplaceData {
-        &self.cached_plugin
-    }
-
-    /// プラグイン名を取得
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    /// プラグインのバージョンを取得
-    pub fn version(&self) -> &str {
-        &self.version
-    }
-
-    /// プラグインの説明を取得
-    pub fn description(&self) -> Option<&str> {
-        self.description.as_deref()
-    }
-
-    /// キャッシュされたプラグインのパスを取得
-    pub fn cached_path(&self) -> &Path {
-        &self.cached_path
-    }
-
-    /// マーケットプレイス名を取得
-    pub fn marketplace(&self) -> Option<&str> {
-        self.marketplace.as_deref()
-    }
-
-    fn from_cached(cached: RemoteMarketplaceData) -> Self {
-        Self {
-            name: cached.name.clone(),
-            version: cached.version().to_string(),
-            description: cached.description().map(|s| s.to_string()),
-            cached_path: cached.path.clone(),
-            marketplace: cached.marketplace.clone(),
-            cached_plugin: cached,
-        }
-    }
-}
 
 /// スキャン済みプラグイン
 ///
@@ -149,7 +92,7 @@ pub struct PlaceFailure {
 ///
 /// `source_str` をパースし、GitHub またはマーケットプレイスからプラグインをダウンロードする。
 /// デフォルトの `PluginCache` を使用する CLI/TUI 向け便利関数。
-pub async fn download_plugin(source_str: &str, force: bool) -> Result<DownloadedPlugin, String> {
+pub async fn download_plugin(source_str: &str, force: bool) -> Result<MarketplacePackage, String> {
     let cache = PluginCache::new().map_err(|e| format!("Failed to access cache: {e}"))?;
     download_plugin_with_cache(source_str, force, &cache).await
 }
@@ -161,13 +104,13 @@ pub async fn download_plugin_with_cache(
     source_str: &str,
     force: bool,
     cache: &dyn PluginCacheAccess,
-) -> Result<DownloadedPlugin, String> {
+) -> Result<MarketplacePackage, String> {
     let source = parse_source(source_str).map_err(|e| e.to_string())?;
     let cached = source
         .download(cache, force)
         .await
         .map_err(|e| e.to_string())?;
-    Ok(DownloadedPlugin::from_cached(cached))
+    Ok(MarketplacePackage::from(cached))
 }
 
 /// マーケットプレイス経由のプラグインダウンロード
@@ -177,7 +120,7 @@ pub async fn download_marketplace_plugin(
     plugin_name: &str,
     marketplace_name: &str,
     force: bool,
-) -> Result<DownloadedPlugin, String> {
+) -> Result<MarketplacePackage, String> {
     let cache = PluginCache::new().map_err(|e| format!("Failed to access cache: {e}"))?;
     download_marketplace_plugin_with_cache(plugin_name, marketplace_name, force, &cache).await
 }
@@ -190,23 +133,22 @@ pub async fn download_marketplace_plugin_with_cache(
     marketplace_name: &str,
     force: bool,
     cache: &dyn PluginCacheAccess,
-) -> Result<DownloadedPlugin, String> {
+) -> Result<MarketplacePackage, String> {
     let source = MarketplaceSource::new(plugin_name, marketplace_name);
     let cached = source
         .download(cache, force)
         .await
         .map_err(|e| e.to_string())?;
-    Ok(DownloadedPlugin::from_cached(cached))
+    Ok(MarketplacePackage::from(cached))
 }
 
 /// プラグインのコンポーネントをスキャン
 ///
 /// `type_filter` が指定された場合、該当する種別のコンポーネントのみを返す。
 pub fn scan_plugin(
-    downloaded: &DownloadedPlugin,
+    package: &MarketplacePackage,
     type_filter: Option<&[ComponentKind]>,
 ) -> Result<ScannedPlugin, String> {
-    let package = MarketplacePackage::from(downloaded.cached_plugin());
     let mut components = package.components();
 
     if let Some(filter) = type_filter {
@@ -223,9 +165,9 @@ pub fn scan_plugin(
         .collect();
 
     Ok(ScannedPlugin {
-        name: downloaded.name().to_string(),
-        marketplace: downloaded.marketplace().map(|s| s.to_string()),
-        package,
+        name: package.name.clone(),
+        marketplace: package.marketplace.clone(),
+        package: package.clone(),
         components: scanned_components,
     })
 }
