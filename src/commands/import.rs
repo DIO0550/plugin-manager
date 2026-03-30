@@ -405,6 +405,8 @@ pub async fn run(args: Args) -> Result<(), String> {
     }
 
     // 8. Build import context
+    // TODO: cached_plugin.name はマニフェスト名であり、GitHub 直接インストール時の
+    // キャッシュキー（owner--repo）と異なる場合がある。プラグイン識別子の統一は別PRで対応。
     let project_root = env::current_dir().map_err(|e| e.to_string())?;
     let origin =
         PluginOrigin::from_cached_plugin(cached_plugin.marketplace.as_deref(), &cached_plugin.name);
