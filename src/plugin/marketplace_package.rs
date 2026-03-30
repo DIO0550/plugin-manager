@@ -9,7 +9,7 @@ use crate::plugin::PluginManifest;
 use crate::scan::{scan_components, AGENT_SUFFIX, MARKDOWN_SUFFIX, PROMPT_SUFFIX};
 use std::path::{Path, PathBuf};
 
-use super::cached_plugin::RemoteMarketplaceData;
+use super::remote_marketplace_data::RemoteMarketplaceData;
 
 /// マーケットプレイスパッケージ（内部ドメイン型）
 ///

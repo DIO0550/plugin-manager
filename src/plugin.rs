@@ -1,9 +1,9 @@
 mod cache;
-mod cached_plugin;
 mod manifest;
 mod manifest_resolve;
 mod marketplace_package;
 pub mod meta;
+mod remote_marketplace_data;
 mod update;
 mod version;
 
