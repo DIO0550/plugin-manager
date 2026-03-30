@@ -382,7 +382,7 @@ pub async fn run(args: Args) -> Result<(), String> {
     }
 
     // 6. Scan components
-    let package: crate::plugin::MarketplacePackage = cached_plugin.clone().into();
+    let package = crate::plugin::MarketplacePackage::from(&cached_plugin);
     let components = package.components();
 
     // 7. Filter components
