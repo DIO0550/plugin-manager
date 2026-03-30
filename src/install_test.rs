@@ -5,7 +5,7 @@ use tempfile::TempDir;
 
 use super::*;
 use crate::component::ComponentKind;
-use crate::plugin::{PluginManifest, RemoteMarketplaceData};
+use crate::plugin::{MarketplacePackage, PluginManifest, RemoteMarketplaceData};
 use crate::target::{CodexTarget, CopilotTarget};
 
 /// テスト用 RemoteMarketplaceData を構築するヘルパー
@@ -74,11 +74,6 @@ fn create_test_remote_data(
     }
 }
 
-/// テスト用 DownloadedPlugin を構築するヘルパー
-fn create_test_downloaded(remote: RemoteMarketplaceData) -> DownloadedPlugin {
-    DownloadedPlugin::from_cached(remote)
-}
-
 // =============================================================================
 // scan_plugin テスト
 // =============================================================================
@@ -86,15 +81,15 @@ fn create_test_downloaded(remote: RemoteMarketplaceData) -> DownloadedPlugin {
 #[test]
 fn test_scan_plugin_returns_all_components_when_no_filter() {
     let temp = TempDir::new().unwrap();
-    let cached = create_test_remote_data(
+    let remote = create_test_remote_data(
         temp.path(),
         &["skill-a", "skill-b"],
         &["agent-a"],
         &["cmd-a"],
     );
-    let downloaded = create_test_downloaded(cached);
+    let package = MarketplacePackage::from(remote);
 
-    let result = scan_plugin(&downloaded, None).unwrap();
+    let result = scan_plugin(&package, None).unwrap();
 
     assert_eq!(result.components.len(), 4);
     assert_eq!(result.name, "test-plugin");
@@ -104,16 +99,16 @@ fn test_scan_plugin_returns_all_components_when_no_filter() {
 #[test]
 fn test_scan_plugin_filters_by_skill_only() {
     let temp = TempDir::new().unwrap();
-    let cached = create_test_remote_data(
+    let remote = create_test_remote_data(
         temp.path(),
         &["skill-a", "skill-b"],
         &["agent-a"],
         &["cmd-a"],
     );
-    let downloaded = create_test_downloaded(cached);
+    let package = MarketplacePackage::from(remote);
 
     let filter = [ComponentKind::Skill];
-    let result = scan_plugin(&downloaded, Some(&filter)).unwrap();
+    let result = scan_plugin(&package, Some(&filter)).unwrap();
 
     assert_eq!(result.components.len(), 2);
     assert!(result
@@ -125,10 +120,10 @@ fn test_scan_plugin_filters_by_skill_only() {
 #[test]
 fn test_scan_plugin_empty_components() {
     let temp = TempDir::new().unwrap();
-    let cached = create_test_remote_data(temp.path(), &[], &[], &[]);
-    let downloaded = create_test_downloaded(cached);
+    let remote = create_test_remote_data(temp.path(), &[], &[], &[]);
+    let package = MarketplacePackage::from(remote);
 
-    let result = scan_plugin(&downloaded, None).unwrap();
+    let result = scan_plugin(&package, None).unwrap();
 
     assert!(result.components.is_empty());
 }
@@ -136,11 +131,11 @@ fn test_scan_plugin_empty_components() {
 #[test]
 fn test_scan_plugin_filter_with_no_match() {
     let temp = TempDir::new().unwrap();
-    let cached = create_test_remote_data(temp.path(), &["skill-a"], &[], &[]);
-    let downloaded = create_test_downloaded(cached);
+    let remote = create_test_remote_data(temp.path(), &["skill-a"], &[], &[]);
+    let package = MarketplacePackage::from(remote);
 
     let filter = [ComponentKind::Agent];
-    let result = scan_plugin(&downloaded, Some(&filter)).unwrap();
+    let result = scan_plugin(&package, Some(&filter)).unwrap();
 
     assert!(result.components.is_empty());
 }
@@ -153,9 +148,9 @@ fn test_scan_plugin_filter_with_no_match() {
 fn test_place_plugin_skill_to_codex() {
     let temp = TempDir::new().unwrap();
     let project_dir = TempDir::new().unwrap();
-    let cached = create_test_remote_data(temp.path(), &["my-skill"], &[], &[]);
-    let downloaded = create_test_downloaded(cached);
-    let scanned = scan_plugin(&downloaded, None).unwrap();
+    let remote = create_test_remote_data(temp.path(), &["my-skill"], &[], &[]);
+    let package = MarketplacePackage::from(remote);
+    let scanned = scan_plugin(&package, None).unwrap();
 
     let targets: Vec<Box<dyn crate::target::Target>> = vec![Box::new(CodexTarget::new())];
 
@@ -179,9 +174,9 @@ fn test_place_plugin_unsupported_component_skipped() {
     let temp = TempDir::new().unwrap();
     let project_dir = TempDir::new().unwrap();
     // Antigravity only supports Skills
-    let cached = create_test_remote_data(temp.path(), &[], &["my-agent"], &[]);
-    let downloaded = create_test_downloaded(cached);
-    let scanned = scan_plugin(&downloaded, None).unwrap();
+    let remote = create_test_remote_data(temp.path(), &[], &["my-agent"], &[]);
+    let package = MarketplacePackage::from(remote);
+    let scanned = scan_plugin(&package, None).unwrap();
 
     let targets: Vec<Box<dyn crate::target::Target>> =
         vec![Box::new(crate::target::AntigravityTarget::new())];
@@ -202,9 +197,9 @@ fn test_place_plugin_unsupported_component_skipped() {
 fn test_place_plugin_empty_components() {
     let temp = TempDir::new().unwrap();
     let project_dir = TempDir::new().unwrap();
-    let cached = create_test_remote_data(temp.path(), &[], &[], &[]);
-    let downloaded = create_test_downloaded(cached);
-    let scanned = scan_plugin(&downloaded, None).unwrap();
+    let remote = create_test_remote_data(temp.path(), &[], &[], &[]);
+    let package = MarketplacePackage::from(remote);
+    let scanned = scan_plugin(&package, None).unwrap();
 
     let targets: Vec<Box<dyn crate::target::Target>> = vec![Box::new(CodexTarget::new())];
 
@@ -223,9 +218,9 @@ fn test_place_plugin_empty_components() {
 fn test_place_plugin_multiple_targets() {
     let temp = TempDir::new().unwrap();
     let project_dir = TempDir::new().unwrap();
-    let cached = create_test_remote_data(temp.path(), &["my-skill"], &[], &[]);
-    let downloaded = create_test_downloaded(cached);
-    let scanned = scan_plugin(&downloaded, None).unwrap();
+    let remote = create_test_remote_data(temp.path(), &["my-skill"], &[], &[]);
+    let package = MarketplacePackage::from(remote);
+    let scanned = scan_plugin(&package, None).unwrap();
 
     let targets: Vec<Box<dyn crate::target::Target>> =
         vec![Box::new(CodexTarget::new()), Box::new(CopilotTarget::new())];
@@ -241,23 +236,6 @@ fn test_place_plugin_multiple_targets() {
     let target_names: Vec<&str> = result.successes.iter().map(|s| s.target.as_str()).collect();
     assert!(target_names.contains(&"codex"));
     assert!(target_names.contains(&"copilot"));
-}
-
-// =============================================================================
-// DownloadedPlugin テスト
-// =============================================================================
-
-#[test]
-fn test_downloaded_plugin_from_cached() {
-    let temp = TempDir::new().unwrap();
-    let cached = create_test_remote_data(temp.path(), &[], &[], &[]);
-    let downloaded = create_test_downloaded(cached);
-
-    assert_eq!(downloaded.name(), "test-plugin");
-    assert_eq!(downloaded.version(), "1.0.0");
-    assert_eq!(downloaded.description(), Some("A test plugin"));
-    assert_eq!(downloaded.marketplace(), Some("test-marketplace"));
-    assert_eq!(downloaded.cached_path(), temp.path());
 }
 
 // =============================================================================
