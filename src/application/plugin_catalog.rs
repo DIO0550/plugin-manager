@@ -4,12 +4,50 @@
 
 use crate::component::{ComponentKind, ComponentName, ComponentTypeCount, Scope};
 use crate::error::Result;
-use crate::plugin::{has_manifest, meta, PluginCacheAccess, PluginManifest};
+use crate::plugin::{has_manifest, meta, MarketplacePackage, PluginCacheAccess, PluginManifest};
 use crate::scan::{list_placed_plugins, scan_components, ComponentScan};
 use crate::target::all_targets;
 use serde::Serialize;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+
+/// cache.list() の生タプルからのマッピング型（変更吸収層）
+struct PluginCacheKey {
+    marketplace: Option<String>,
+    name: String,
+}
+
+impl From<(Option<String>, String)> for PluginCacheKey {
+    fn from((marketplace, name): (Option<String>, String)) -> Self {
+        Self { marketplace, name }
+    }
+}
+
+/// キャッシュ内のマーケットプレイスパッケージを列挙
+pub(crate) fn list_installed(cache: &dyn PluginCacheAccess) -> Result<Vec<MarketplacePackage>> {
+    let packages = cache
+        .list()?
+        .into_iter()
+        .map(PluginCacheKey::from)
+        .filter(|key| !key.name.starts_with('.'))
+        .filter_map(|key| {
+            let plugin_path = cache.plugin_path(key.marketplace.as_deref(), &key.name);
+            if !has_manifest(&plugin_path) {
+                return None;
+            }
+            let manifest = cache
+                .load_manifest(key.marketplace.as_deref(), &key.name)
+                .ok()?;
+            Some(MarketplacePackage {
+                name: key.name,
+                marketplace: key.marketplace,
+                path: plugin_path,
+                manifest,
+            })
+        })
+        .collect();
+    Ok(packages)
+}
 
 /// プラグイン情報のサマリ（DTO）
 #[derive(Debug, Clone, Serialize)]
@@ -108,40 +146,22 @@ impl PluginSummary {
 ///
 /// キャッシュディレクトリをスキャンし、有効なプラグインの一覧を返す。
 pub fn list_installed_plugins(cache: &dyn PluginCacheAccess) -> Result<Vec<PluginSummary>> {
-    let plugin_list = cache.list()?;
-
     // デプロイ済みプラグイン集合を事前取得（パフォーマンス改善）
     let project_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let deployed = list_all_placed(&project_root);
 
-    let mut plugins = Vec::new();
-
-    for (marketplace, name) in plugin_list {
-        // 隠しディレクトリやメタデータディレクトリは除外
-        if name.starts_with('.') {
-            continue;
-        }
-
-        let plugin_path = cache.plugin_path(marketplace.as_deref(), &name);
-
-        // plugin.json が存在するもののみをプラグインとして扱う
-        if !has_manifest(&plugin_path) {
-            continue;
-        }
-
-        let manifest = match cache.load_manifest(marketplace.as_deref(), &name) {
-            Ok(m) => m,
-            Err(_) => continue,
-        };
-
-        plugins.push(build_summary(
-            name,
-            marketplace,
-            &plugin_path,
-            &manifest,
-            &deployed,
-        ));
-    }
+    let plugins = list_installed(cache)?
+        .into_iter()
+        .map(|pkg| {
+            build_summary(
+                pkg.name,
+                pkg.marketplace,
+                &pkg.path,
+                &pkg.manifest,
+                &deployed,
+            )
+        })
+        .collect();
 
     Ok(plugins)
 }
