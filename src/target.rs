@@ -80,7 +80,7 @@ impl PluginOrigin {
     /// キャッシュされたプラグイン情報から PluginOrigin を生成する
     ///
     /// `marketplace` が `None` の場合は `"github"` を既定値として使用し、
-    /// `plugin_name` はそのままプラグイン名として保存する。
+    /// `plugin_name` はキャッシュキー（ディレクトリ名）としてそのまま保持する。
     pub fn from_cached_plugin(marketplace: Option<&str>, plugin_name: &str) -> Self {
         Self {
             marketplace: marketplace.unwrap_or("github").to_string(),
