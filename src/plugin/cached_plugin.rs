@@ -1,6 +1,6 @@
-//! キャッシュされたプラグイン情報
+//! リモートマーケットプレイスデータ
 //!
-//! プラグインキャッシュから読み込んだプラグインの情報と、
+//! リモートから取得したマーケットプレイスデータと、
 //! コンポーネントスキャン機能を提供する。
 
 use crate::component::{AgentFormat, CommandFormat, Component, ComponentKind};
@@ -9,9 +9,11 @@ use crate::plugin::PluginManifest;
 use crate::scan::{scan_components, AGENT_SUFFIX, MARKDOWN_SUFFIX, PROMPT_SUFFIX};
 use std::path::{Path, PathBuf};
 
-/// キャッシュされたプラグイン情報
+/// リモートから取得したマーケットプレイスデータ（外部データ型）
+///
+/// GitHub からダウンロード・パースした結果を保持する。
 #[derive(Debug, Clone)]
-pub struct CachedPlugin {
+pub struct RemoteMarketplaceData {
     pub name: String,
     /// マーケットプレイス名（marketplace経由の場合）
     /// None の場合は直接GitHubからインストール
@@ -22,7 +24,7 @@ pub struct CachedPlugin {
     pub commit_sha: String,
 }
 
-impl CachedPlugin {
+impl RemoteMarketplaceData {
     /// プラグインのバージョンを取得
     pub fn version(&self) -> &str {
         &self.manifest.version

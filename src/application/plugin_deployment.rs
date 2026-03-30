@@ -5,7 +5,7 @@
 
 use crate::component::Component;
 use crate::fs::{FileSystem, RealFs};
-use crate::plugin::{CachedPlugin, PluginCacheAccess, PluginManifest};
+use crate::plugin::{PluginCacheAccess, PluginManifest, RemoteMarketplaceData};
 use crate::target::PluginOrigin;
 use std::path::{Path, PathBuf};
 
@@ -21,10 +21,10 @@ pub struct PluginDeployment {
 impl PluginDeployment {
     /// プラグイン内のコンポーネントを取得
     ///
-    /// CachedPlugin の components() メソッドを再利用する。
+    /// RemoteMarketplaceData の components() メソッドを再利用する。
     pub fn components(&self) -> Vec<Component> {
-        // CachedPlugin を構築してコンポーネントスキャンを委譲
-        let cached = CachedPlugin {
+        // RemoteMarketplaceData を構築してコンポーネントスキャンを委譲
+        let cached = RemoteMarketplaceData {
             name: self.origin.plugin.clone(),
             marketplace: Some(self.origin.marketplace.clone()),
             path: self.path.clone(),

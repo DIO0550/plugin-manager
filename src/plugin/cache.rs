@@ -11,7 +11,7 @@ use std::path::{Component as PathComponent, Path, PathBuf};
 use zip::ZipArchive;
 
 // Re-export
-pub use super::cached_plugin::CachedPlugin;
+pub use super::cached_plugin::RemoteMarketplaceData;
 pub use super::manifest_resolve::has_manifest;
 
 /// プラグインキャッシュアクセスの抽象化トレイト

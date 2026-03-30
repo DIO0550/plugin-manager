@@ -17,7 +17,7 @@ pub use marketplace_source::MarketplaceSource;
 pub use search_source::SearchSource;
 
 use crate::error::Result;
-use crate::plugin::{CachedPlugin, PluginCacheAccess};
+use crate::plugin::{PluginCacheAccess, RemoteMarketplaceData};
 use crate::repo;
 use std::future::Future;
 use std::pin::Pin;
@@ -32,7 +32,7 @@ pub trait PluginSource: Send + Sync {
         &'a self,
         cache: &'a dyn PluginCacheAccess,
         force: bool,
-    ) -> Pin<Box<dyn Future<Output = Result<CachedPlugin>> + Send + 'a>>;
+    ) -> Pin<Box<dyn Future<Output = Result<RemoteMarketplaceData>> + Send + 'a>>;
 }
 
 /// 入力文字列をパースして適切な PluginSource を返す

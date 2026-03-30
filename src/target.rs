@@ -77,7 +77,7 @@ impl PluginOrigin {
         }
     }
 
-    /// CachedPlugin から PluginOrigin を生成
+    /// RemoteMarketplaceData から PluginOrigin を生成
     pub fn from_cached_plugin(marketplace: Option<&str>, plugin_name: &str) -> Self {
         Self {
             marketplace: marketplace.unwrap_or("github").to_string(),

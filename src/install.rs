@@ -3,17 +3,17 @@ use std::path::{Path, PathBuf};
 use crate::component::{AgentFormat, CommandFormat, ComponentKind, Scope};
 use crate::component::{Component, ComponentDeployment, DeploymentResult};
 use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
-use crate::plugin::{CachedPlugin, PluginCache, PluginCacheAccess};
+use crate::plugin::{PluginCache, PluginCacheAccess, RemoteMarketplaceData};
 use crate::source::{parse_source, MarketplaceSource, PluginSource};
 use crate::target::{PluginOrigin, Target, TargetKind};
 
 /// ダウンロード済みプラグイン
 ///
-/// `CachedPlugin` をラップし、read-only アクセサを通じてプラグイン情報を提供する。
+/// `RemoteMarketplaceData` をラップし、read-only アクセサを通じてプラグイン情報を提供する。
 /// フィールドを private にすることで、`cached_plugin` と派生フィールドの不整合を防止する。
 #[derive(Debug)]
 pub struct DownloadedPlugin {
-    cached_plugin: CachedPlugin,
+    cached_plugin: RemoteMarketplaceData,
     name: String,
     version: String,
     description: Option<String>,
@@ -22,8 +22,8 @@ pub struct DownloadedPlugin {
 }
 
 impl DownloadedPlugin {
-    /// 元の CachedPlugin への参照を取得
-    pub fn cached_plugin(&self) -> &CachedPlugin {
+    /// 元の RemoteMarketplaceData への参照を取得
+    pub fn cached_plugin(&self) -> &RemoteMarketplaceData {
         &self.cached_plugin
     }
 
@@ -52,7 +52,7 @@ impl DownloadedPlugin {
         self.marketplace.as_deref()
     }
 
-    fn from_cached(cached: CachedPlugin) -> Self {
+    fn from_cached(cached: RemoteMarketplaceData) -> Self {
         Self {
             name: cached.name.clone(),
             version: cached.version().to_string(),
@@ -71,7 +71,7 @@ impl DownloadedPlugin {
 pub struct ScannedPlugin {
     pub name: String,
     pub marketplace: Option<String>,
-    cached_plugin: CachedPlugin,
+    cached_plugin: RemoteMarketplaceData,
     pub components: Vec<ScannedComponent>,
 }
 
