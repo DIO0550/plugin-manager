@@ -71,34 +71,40 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
 
     // 3. ダウンロード
     println!("\nDownloading plugin...");
-    let downloaded = install::download_plugin(&args.source, args.force).await?;
+    let package = install::download_plugin(&args.source, args.force).await?;
 
     println!("\nPlugin downloaded successfully!");
-    println!("  Name: {}", downloaded.name());
-    println!("  Version: {}", downloaded.version());
-    println!("  Path: {}", downloaded.cached_path().display());
-    println!("  Ref: {}", downloaded.cached_plugin().git_ref);
-    println!("  SHA: {}", downloaded.cached_plugin().commit_sha);
+    println!("  Name: {}", package.name);
+    println!("  Version: {}", package.manifest.version);
+    println!("  Path: {}", package.path.display());
+    if let Some(meta) = crate::plugin::meta::load_meta(&package.path) {
+        if let Some(ref git_ref) = meta.git_ref {
+            println!("  Ref: {}", git_ref);
+        }
+        if let Some(ref commit_sha) = meta.commit_sha {
+            println!("  SHA: {}", commit_sha);
+        }
+    }
 
-    if let Some(desc) = downloaded.description() {
+    if let Some(ref desc) = package.manifest.description {
         println!("  Description: {}", desc);
     }
 
     // コンポーネント情報
     println!("\nComponents:");
-    if let Some(skills) = downloaded.cached_plugin().skills() {
+    if let Some(ref skills) = package.manifest.skills {
         println!("  - Skills: {}", skills);
     }
-    if let Some(agents) = downloaded.cached_plugin().agents() {
+    if let Some(ref agents) = package.manifest.agents {
         println!("  - Agents: {}", agents);
     }
-    if let Some(commands) = downloaded.cached_plugin().commands() {
+    if let Some(ref commands) = package.manifest.commands {
         println!("  - Commands: {}", commands);
     }
 
     // 4. コンポーネントをスキャン
     let type_filter = args.component_type.as_deref();
-    let scanned = install::scan_plugin(&downloaded, type_filter)?;
+    let scanned = install::scan_plugin(&package, type_filter)?;
 
     // 5. ターゲットを解決
     let targets: Vec<Box<dyn crate::target::Target>> = target_names
