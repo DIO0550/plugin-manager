@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use crate::component::{AgentFormat, CommandFormat, ComponentKind, Scope};
 use crate::component::{Component, ComponentDeployment, DeploymentResult};
 use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
-use crate::plugin::{PluginCache, PluginCacheAccess, RemoteMarketplaceData};
+use crate::plugin::{MarketplacePackage, PluginCache, PluginCacheAccess, RemoteMarketplaceData};
 use crate::source::{parse_source, MarketplaceSource, PluginSource};
 use crate::target::{PluginOrigin, Target, TargetKind};
 
@@ -71,24 +71,24 @@ impl DownloadedPlugin {
 pub struct ScannedPlugin {
     pub name: String,
     pub marketplace: Option<String>,
-    cached_plugin: RemoteMarketplaceData,
+    package: MarketplacePackage,
     pub components: Vec<ScannedComponent>,
 }
 
 impl ScannedPlugin {
     /// Command コンポーネントのソースフォーマットを取得
     pub fn command_format(&self) -> CommandFormat {
-        self.cached_plugin.command_format()
+        self.package.command_format()
     }
 
     /// Agent コンポーネントのソースフォーマットを取得
     pub fn agent_format(&self) -> AgentFormat {
-        self.cached_plugin.agent_format()
+        self.package.agent_format()
     }
 
     /// プラグインキャッシュのルートパスを取得
     pub fn plugin_root(&self) -> &Path {
-        &self.cached_plugin.path
+        &self.package.path
     }
 }
 
@@ -206,7 +206,8 @@ pub fn scan_plugin(
     downloaded: &DownloadedPlugin,
     type_filter: Option<&[ComponentKind]>,
 ) -> Result<ScannedPlugin, String> {
-    let mut components = downloaded.cached_plugin().components();
+    let package: MarketplacePackage = downloaded.cached_plugin().clone().into();
+    let mut components = package.components();
 
     if let Some(filter) = type_filter {
         components.retain(|c| filter.contains(&c.kind));
@@ -224,7 +225,7 @@ pub fn scan_plugin(
     Ok(ScannedPlugin {
         name: downloaded.name().to_string(),
         marketplace: downloaded.marketplace().map(|s| s.to_string()),
-        cached_plugin: downloaded.cached_plugin().clone(),
+        package,
         components: scanned_components,
     })
 }
