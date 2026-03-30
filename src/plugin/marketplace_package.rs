@@ -216,3 +216,14 @@ impl From<RemoteMarketplaceData> for MarketplacePackage {
         }
     }
 }
+
+impl From<&RemoteMarketplaceData> for MarketplacePackage {
+    fn from(remote: &RemoteMarketplaceData) -> Self {
+        Self {
+            name: remote.name.clone(),
+            marketplace: remote.marketplace.clone(),
+            path: remote.path.clone(),
+            manifest: remote.manifest.clone(),
+        }
+    }
+}

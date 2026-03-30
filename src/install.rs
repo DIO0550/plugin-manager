@@ -206,7 +206,7 @@ pub fn scan_plugin(
     downloaded: &DownloadedPlugin,
     type_filter: Option<&[ComponentKind]>,
 ) -> Result<ScannedPlugin, String> {
-    let package: MarketplacePackage = downloaded.cached_plugin().clone().into();
+    let package = MarketplacePackage::from(downloaded.cached_plugin());
     let mut components = package.components();
 
     if let Some(filter) = type_filter {
