@@ -6,6 +6,7 @@ use super::converter::{ConversionWarning, EventMap, KeyMap, ScriptGenerator, Str
 use super::copilot::{
     CopilotEventMap, CopilotKeyMap, CopilotScriptGenerator, CopilotStructureConverter,
 };
+use super::hook_definition::{CommandHook, HttpHook, StubHook};
 
 // ============================================================================
 // EventMap
@@ -183,7 +184,10 @@ fn test_convert_top_level_adds_version_removes_disable() {
 #[test]
 fn test_generate_command_script() {
     let gen = CopilotScriptGenerator;
-    let info = gen.generate_command_script("echo hello", "sessionStart", None, 0);
+    let hook_value = json!({"type": "command", "command": "echo hello"});
+    let hook_obj = hook_value.as_object().unwrap();
+    let cmd = CommandHook::new(hook_obj, &hook_value).unwrap();
+    let info = gen.generate_command_script(&cmd, "sessionStart", None, 0);
     assert_eq!(info.path, "wrappers/cmd-sessionStart-0.sh");
     assert!(info.content.contains("#!/bin/bash"));
     assert!(info.content.contains("echo hello"));
@@ -195,7 +199,10 @@ fn test_generate_command_script() {
 #[test]
 fn test_generate_command_script_with_matcher() {
     let gen = CopilotScriptGenerator;
-    let info = gen.generate_command_script("cargo check", "preToolUse", Some("Bash"), 0);
+    let hook_value = json!({"type": "command", "command": "cargo check"});
+    let hook_obj = hook_value.as_object().unwrap();
+    let cmd = CommandHook::new(hook_obj, &hook_value).unwrap();
+    let info = gen.generate_command_script(&cmd, "preToolUse", Some("Bash"), 0);
     assert!(info.content.contains("matcher filter"));
     assert!(info.content.contains("Bash"));
     assert_eq!(info.matcher, Some("Bash".to_string()));
@@ -204,13 +211,15 @@ fn test_generate_command_script_with_matcher() {
 #[test]
 fn test_generate_http_script() {
     let gen = CopilotScriptGenerator;
-    let hook = json!({
+    let hook_value = json!({
         "type": "http",
         "url": "https://example.com/webhook",
         "method": "POST"
     });
+    let hook_obj = hook_value.as_object().unwrap();
+    let http = HttpHook::new(hook_obj, &hook_value).unwrap();
     let info = gen
-        .generate_http_script(&hook, "postToolUse", None, 0)
+        .generate_http_script(&http, "postToolUse", None, 0)
         .unwrap();
     assert_eq!(info.path, "wrappers/http-postToolUse-0.sh");
     assert!(info.content.contains("curl"));
@@ -219,24 +228,25 @@ fn test_generate_http_script() {
 
 #[test]
 fn test_generate_http_script_invalid_method() {
-    let gen = CopilotScriptGenerator;
-    let hook = json!({
+    let hook_value = json!({
         "type": "http",
         "url": "https://example.com",
         "method": "EXEC"
     });
-    let result = gen.generate_http_script(&hook, "sessionStart", None, 0);
+    let hook_obj = hook_value.as_object().unwrap();
+    let result = HttpHook::new(hook_obj, &hook_value);
     assert!(result.is_err());
 }
 
 #[test]
 fn test_generate_stub_script() {
     let gen = CopilotScriptGenerator;
-    let hook = json!({
+    let hook_value = json!({
         "type": "prompt",
         "prompt": "Review code"
     });
-    let info = gen.generate_stub_script(&hook, "prompt", "preToolUse", None, 0);
+    let stub = StubHook::new("prompt", &hook_value);
+    let info = gen.generate_stub_script(&stub, "preToolUse", None, 0);
     assert_eq!(info.path, "wrappers/prompt-preToolUse-0.sh");
     assert!(info.content.contains("STUB"));
     assert!(info.content.contains("COPILOT_INPUT=$(cat)"));

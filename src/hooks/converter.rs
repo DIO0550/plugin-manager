@@ -14,6 +14,7 @@ use std::fmt;
 use serde_json::Value;
 
 use crate::error::PlmError;
+use crate::hooks::hook_definition::{CommandHook, HttpHook, StubHook};
 use crate::target::TargetKind;
 
 // ============================================================================
@@ -168,7 +169,7 @@ pub(crate) trait ScriptGenerator {
     /// Generate a script for a command-type hook.
     fn generate_command_script(
         &self,
-        command: &str,
+        hook: &CommandHook<'_>,
         event: &str,
         matcher: Option<&str>,
         index: usize,
@@ -177,18 +178,16 @@ pub(crate) trait ScriptGenerator {
     /// Generate a script for an http-type hook.
     fn generate_http_script(
         &self,
-        hook: &Value,
+        hook: &HttpHook<'_>,
         event: &str,
         matcher: Option<&str>,
         index: usize,
     ) -> Result<ScriptInfo, PlmError>;
 
     /// Generate a stub script for prompt/agent-type hooks.
-    #[allow(clippy::too_many_arguments)]
     fn generate_stub_script(
         &self,
-        hook: &Value,
-        hook_type: &str,
+        hook: &StubHook<'_>,
         event: &str,
         matcher: Option<&str>,
         index: usize,
@@ -295,10 +294,14 @@ pub fn convert(input: &str, target: TargetKind) -> Result<ConvertResult, PlmErro
         SourceFormat::ClaudeCode => {
             let (mut result, mut warnings) = layers.structure.convert_top_level(&value);
             let mut scripts = Vec::new();
+            let mut out = ConvertOutput {
+                warnings: &mut warnings,
+                scripts: &mut scripts,
+            };
 
             // Re-access hooks from the original value (validation done above)
             let hooks_value = value.get("hooks").unwrap();
-            let new_hooks = convert_event_hooks(hooks_value, &layers, &mut warnings, &mut scripts)?;
+            let new_hooks = convert_event_hooks(hooks_value, &layers, &mut out)?;
             result
                 .as_object_mut()
                 .unwrap()
@@ -318,12 +321,17 @@ pub fn convert(input: &str, target: TargetKind) -> Result<ConvertResult, PlmErro
 // Shared orchestration logic
 // ============================================================================
 
+/// Accumulator for warnings and scripts during conversion.
+struct ConvertOutput<'a> {
+    warnings: &'a mut Vec<ConversionWarning>,
+    scripts: &'a mut Vec<ScriptInfo>,
+}
+
 /// Convert event hooks using the 4 layers.
 fn convert_event_hooks(
     hooks: &Value,
     layers: &HookConversionLayers,
-    warnings: &mut Vec<ConversionWarning>,
-    scripts: &mut Vec<ScriptInfo>,
+    out: &mut ConvertOutput<'_>,
 ) -> Result<Value, PlmError> {
     let hooks_obj = hooks.as_object().unwrap();
     let mut output = serde_json::Map::new();
@@ -331,14 +339,13 @@ fn convert_event_hooks(
     for (event_name, event_value) in hooks_obj {
         match layers.event_map.map_event(event_name) {
             Some(target_event) => {
-                let converted_hooks =
-                    flatten_matchers(event_value, target_event, layers, warnings, scripts)?;
+                let converted_hooks = flatten_matchers(event_value, target_event, layers, out)?;
                 if !converted_hooks.is_empty() {
                     output.insert(target_event.to_string(), Value::Array(converted_hooks));
                 }
             }
             None => {
-                warnings.push(ConversionWarning::UnsupportedEvent {
+                out.warnings.push(ConversionWarning::UnsupportedEvent {
                     event: event_name.clone(),
                 });
             }
@@ -353,15 +360,14 @@ fn flatten_matchers(
     groups: &Value,
     event: &str,
     layers: &HookConversionLayers,
-    warnings: &mut Vec<ConversionWarning>,
-    scripts: &mut Vec<ScriptInfo>,
+    out: &mut ConvertOutput<'_>,
 ) -> Result<Vec<Value>, PlmError> {
     let mut result = Vec::new();
 
     let groups_arr = match groups.as_array() {
         Some(arr) => arr,
         None => {
-            warnings.push(ConversionWarning::RemovedField {
+            out.warnings.push(ConversionWarning::RemovedField {
                 field: event.to_string(),
                 reason: format!(
                     "Event '{}' value is not an array; expected matcher group structure",
@@ -381,7 +387,7 @@ fn flatten_matchers(
         let hooks = match group.get("hooks").and_then(|h| h.as_array()) {
             Some(arr) => arr,
             None => {
-                warnings.push(ConversionWarning::RemovedField {
+                out.warnings.push(ConversionWarning::RemovedField {
                     field: "hooks".to_string(),
                     reason: format!(
                         "Matcher group in event '{}' is missing 'hooks' array; skipped",
@@ -393,16 +399,14 @@ fn flatten_matchers(
         };
 
         if let Some(m) = matcher {
-            warnings.push(ConversionWarning::RemovedField {
+            out.warnings.push(ConversionWarning::RemovedField {
                 field: "matcher".to_string(),
                 reason: format!("Matcher '{}' moved to script for event '{}'", m, event),
             });
         }
 
         for hook in hooks {
-            if let Some(converted) =
-                convert_hook_definition(hook, matcher, event, layers, warnings, scripts)?
-            {
+            if let Some(converted) = convert_hook_definition(hook, matcher, event, layers, out)? {
                 result.push(converted);
             }
         }
@@ -422,110 +426,73 @@ fn insert_script_fields(mapped: &mut Value, script_path: String) -> Result<(), P
 }
 
 /// Convert an individual hook definition using layers.
-#[allow(clippy::too_many_arguments)]
 fn convert_hook_definition(
     hook: &Value,
     matcher: Option<&str>,
     event: &str,
     layers: &HookConversionLayers,
-    warnings: &mut Vec<ConversionWarning>,
-    scripts: &mut Vec<ScriptInfo>,
+    out: &mut ConvertOutput<'_>,
 ) -> Result<Option<Value>, PlmError> {
-    let hook_type = hook
+    use crate::hooks::hook_definition::HookDefinition;
+
+    let hook_obj = hook
+        .as_object()
+        .ok_or_else(|| PlmError::HookConversion("Hook definition must be an object".to_string()))?;
+    let hook_type = hook_obj
         .get("type")
         .and_then(|t| t.as_str())
         .unwrap_or("command");
 
-    match hook_type {
-        "command" => {
-            let hook_obj = hook.as_object().ok_or_else(|| {
-                PlmError::HookConversion("Hook definition must be an object".to_string())
-            })?;
-
-            let command = hook_obj
-                .get("command")
-                .and_then(|c| c.as_str())
-                .ok_or_else(|| {
-                    PlmError::HookConversion(
-                        "command hook missing required 'command' field".to_string(),
-                    )
-                })?;
-
-            if command.contains('\n') || command.contains('\r') {
-                return Err(PlmError::HookConversion(
-                    "command must not contain newline or carriage return characters".to_string(),
-                ));
-            }
-
-            let (mut mapped, key_warnings) = layers.key_map.map_keys(hook, hook_type);
-            warnings.extend(key_warnings);
-
-            let mut script_info =
-                layers
-                    .script_gen
-                    .generate_command_script(command, event, matcher, scripts.len());
-            if script_info.original_config.is_null() {
-                script_info.original_config = hook.clone();
-            }
-            let script_path = format!("./{}", script_info.path);
-            scripts.push(script_info);
-
-            insert_script_fields(&mut mapped, script_path)?;
-
-            Ok(Some(mapped))
-        }
-        "http" => {
-            hook.as_object().ok_or_else(|| {
-                PlmError::HookConversion("Hook definition must be an object".to_string())
-            })?;
-
-            let (mut mapped, key_warnings) = layers.key_map.map_keys(hook, hook_type);
-            warnings.extend(key_warnings);
-
-            let script_info =
-                layers
-                    .script_gen
-                    .generate_http_script(hook, event, matcher, scripts.len())?;
-            let script_path = format!("./{}", script_info.path);
-            scripts.push(script_info);
-
-            insert_script_fields(&mut mapped, script_path)?;
-
-            Ok(Some(mapped))
-        }
-        "prompt" | "agent" => {
-            hook.as_object().ok_or_else(|| {
-                PlmError::HookConversion("Hook definition must be an object".to_string())
-            })?;
-
-            let (mut mapped, key_warnings) = layers.key_map.map_keys(hook, hook_type);
-            warnings.extend(key_warnings);
-
-            let script_info = layers.script_gen.generate_stub_script(
-                hook,
-                hook_type,
-                event,
-                matcher,
-                scripts.len(),
-            );
-            let script_path = format!("./{}", script_info.path);
-            scripts.push(script_info);
-
-            warnings.push(ConversionWarning::PromptAgentHookStub {
-                event: event.to_string(),
+    let action = match HookDefinition::parse(hook_type, hook_obj, hook)? {
+        Some(a) => a,
+        None => {
+            out.warnings.push(ConversionWarning::UnsupportedHookType {
                 hook_type: hook_type.to_string(),
-            });
-
-            insert_script_fields(&mut mapped, script_path)?;
-
-            Ok(Some(mapped))
-        }
-        unknown => {
-            warnings.push(ConversionWarning::UnsupportedHookType {
-                hook_type: unknown.to_string(),
                 event: event.to_string(),
             });
-            Ok(None)
+            return Ok(None);
         }
+    };
+
+    let (mut mapped, key_warnings) = layers.key_map.map_keys(hook, action.hook_type_str());
+    out.warnings.extend(key_warnings);
+
+    let index = out.scripts.len();
+    let (mut script_info, extra_warnings) = match &action {
+        HookDefinition::Command(h) => {
+            let si = layers
+                .script_gen
+                .generate_command_script(h, event, matcher, index);
+            (si, vec![])
+        }
+        HookDefinition::Http(h) => {
+            let si = layers
+                .script_gen
+                .generate_http_script(h, event, matcher, index)?;
+            (si, vec![])
+        }
+        HookDefinition::Stub(h) => {
+            let si = layers
+                .script_gen
+                .generate_stub_script(h, event, matcher, index);
+            (
+                si,
+                vec![ConversionWarning::PromptAgentHookStub {
+                    event: event.to_string(),
+                    hook_type: h.hook_type.to_string(),
+                }],
+            )
+        }
+    };
+
+    if matches!(action, HookDefinition::Command(_)) && script_info.original_config.is_null() {
+        script_info.original_config = hook.clone();
     }
+
+    let script_path = format!("./{}", script_info.path);
+    out.scripts.push(script_info);
+    out.warnings.extend(extra_warnings);
+    insert_script_fields(&mut mapped, script_path)?;
+
+    Ok(Some(mapped))
 }

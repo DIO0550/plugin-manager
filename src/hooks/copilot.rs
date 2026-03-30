@@ -9,6 +9,7 @@ use crate::error::PlmError;
 use crate::hooks::converter::{
     generate_matcher_filter, shell_escape, ConversionWarning, ScriptInfo, SourceFormat, SCRIPTS_DIR,
 };
+use crate::hooks::hook_definition::{CommandHook, HttpHook, StubHook};
 
 use super::converter::{KeyMap, ScriptGenerator, StructureConverter};
 pub(crate) use super::event::copilot::CopilotEventMap;
@@ -54,9 +55,6 @@ elif [ "$EXIT_CODE" -eq 2 ] && [ "$HOOK_EVENT" = "preToolUse" ]; then
   fi
 fi
 exit 0"#;
-
-/// Allowed HTTP methods for curl scripts.
-const ALLOWED_HTTP_METHODS: &[&str] = &["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
 
 // ============================================================================
 // KeyMap
@@ -206,7 +204,7 @@ pub(crate) struct CopilotScriptGenerator;
 impl ScriptGenerator for CopilotScriptGenerator {
     fn generate_command_script(
         &self,
-        command: &str,
+        hook: &CommandHook<'_>,
         event: &str,
         matcher: Option<&str>,
         index: usize,
@@ -219,7 +217,7 @@ impl ScriptGenerator for CopilotScriptGenerator {
             shell_escape(event),
             &build_env_bridge(event),
             matcher_filter,
-            shell_escape(command),
+            shell_escape(hook.command),
             EXIT_CODE_HANDLER
         );
 
@@ -233,45 +231,13 @@ impl ScriptGenerator for CopilotScriptGenerator {
 
     fn generate_http_script(
         &self,
-        hook: &Value,
+        hook: &HttpHook<'_>,
         event: &str,
         matcher: Option<&str>,
         index: usize,
     ) -> Result<ScriptInfo, PlmError> {
-        let hook_obj = hook.as_object().ok_or_else(|| {
-            PlmError::HookConversion("Hook definition must be an object".to_string())
-        })?;
-
-        let url = hook_obj
-            .get("url")
-            .and_then(|u| u.as_str())
-            .ok_or_else(|| {
-                PlmError::HookConversion("http hook missing required 'url' field".to_string())
-            })?;
-
-        if url.contains('\n') || url.contains('\r') {
-            return Err(PlmError::HookConversion(
-                "http hook 'url' value contains newline characters".to_string(),
-            ));
-        }
-
-        let method = hook_obj
-            .get("method")
-            .and_then(|m| m.as_str())
-            .unwrap_or("POST");
-
-        let method_upper = method.to_uppercase();
-
-        if !ALLOWED_HTTP_METHODS.contains(&method_upper.as_str()) {
-            return Err(PlmError::HookConversion(format!(
-                "http hook has unsupported method '{}'; allowed: {}",
-                method,
-                ALLOWED_HTTP_METHODS.join(", ")
-            )));
-        }
-
         let script_name = format!("http-{}-{}.sh", event, index);
-        let headers_lines = build_headers_lines(hook_obj)?;
+        let headers_lines = build_headers_lines(&hook.headers);
         let matcher_filter = generate_matcher_filter(matcher);
 
         let script_content = format!(
@@ -308,19 +274,19 @@ exit 0
             shell_escape(event),
             &build_env_bridge(event),
             matcher_filter,
-            method_upper,
-            url.replace('\n', "\\n").replace('\r', "\\r"),
+            hook.method,
+            hook.url.replace('\n', "\\n").replace('\r', "\\r"),
             {
-                let escaped_url = shell_escape(url);
-                if matches!(method_upper.as_str(), "GET" | "HEAD" | "OPTIONS") {
+                let escaped_url = shell_escape(hook.url);
+                if matches!(hook.method.as_str(), "GET" | "HEAD" | "OPTIONS") {
                     format!(
                         "HTTP_RESPONSE=$(curl -s -w '\\n%{{http_code}}' -X {} \\\n{}  '{}' 2>/dev/null || printf '\\n000')",
-                        method_upper, headers_lines, escaped_url
+                        hook.method, headers_lines, escaped_url
                     )
                 } else {
                     format!(
                         "HTTP_RESPONSE=$(printf '%s' \"$CLAUDE_INPUT\" | curl -s -w '\\n%{{http_code}}' -X {} \\\n{}  -d @- \\\n  '{}' 2>/dev/null || printf '\\n000')",
-                        method_upper, headers_lines, escaped_url
+                        hook.method, headers_lines, escaped_url
                     )
                 }
             }
@@ -329,37 +295,36 @@ exit 0
         Ok(ScriptInfo {
             path: format!("{}/{}", SCRIPTS_DIR, script_name),
             content: script_content,
-            original_config: hook.clone(),
+            original_config: hook.raw.clone(),
             matcher: matcher.map(|s| s.to_string()),
         })
     }
 
     fn generate_stub_script(
         &self,
-        hook: &Value,
-        hook_type: &str,
+        hook: &StubHook<'_>,
         event: &str,
         matcher: Option<&str>,
         index: usize,
     ) -> ScriptInfo {
-        let script_name = format!("{}-{}-{}.sh", hook_type, event, index);
-        let original_json = serde_json::to_string_pretty(hook).unwrap_or_default();
+        let script_name = format!("{}-{}-{}.sh", hook.hook_type, event, index);
+        let original_json = serde_json::to_string_pretty(hook.raw).unwrap_or_default();
         let matcher_filter = generate_matcher_filter(matcher);
 
         let script_content = format!(
             "#!/bin/bash\nset -euo pipefail\n\n{}\n{}\n# TODO: This is a stub for a Claude Code '{}' hook.\n# prompt/agent hooks are Claude Code-specific features.\n# Please manually rewrite as scripts.\n#\n# Original configuration:\n# {}\n\necho \"STUB: {} hook for event '{}' - please implement manually\" >&2\nexit 0\n",
             &build_env_bridge(event),
             matcher_filter,
-            hook_type,
+            hook.hook_type,
             original_json.replace('\n', "\n# "),
-            hook_type,
+            hook.hook_type,
             event
         );
 
         ScriptInfo {
             path: format!("{}/{}", SCRIPTS_DIR, script_name),
             content: script_content,
-            original_config: hook.clone(),
+            original_config: hook.raw.clone(),
             matcher: matcher.map(|s| s.to_string()),
         }
     }
@@ -462,72 +427,28 @@ export CLAUDE_PLUGIN_ROOT="@@PLUGIN_ROOT@@""#,
     )
 }
 
-/// Build HTTP headers lines for curl command.
-fn build_headers_lines(hook_obj: &serde_json::Map<String, Value>) -> Result<String, PlmError> {
+/// Build HTTP headers lines for curl command from validated headers.
+fn build_headers_lines(headers: &[(&str, &str)]) -> String {
     let mut headers_lines = String::new();
 
-    if let Some(headers) = hook_obj.get("headers").and_then(|h| h.as_object()) {
-        for (k, v) in headers {
-            if let Some(v_str) = v.as_str() {
-                if !k.bytes().all(|b| {
-                    b.is_ascii_alphanumeric()
-                        || matches!(
-                            b,
-                            b'!' | b'#'
-                                | b'$'
-                                | b'%'
-                                | b'&'
-                                | b'\''
-                                | b'*'
-                                | b'+'
-                                | b'-'
-                                | b'.'
-                                | b'^'
-                                | b'_'
-                                | b'`'
-                                | b'|'
-                                | b'~'
-                        )
-                }) {
-                    return Err(PlmError::HookConversion(format!(
-                        "http hook header name '{}' contains invalid characters",
-                        k
-                    )));
-                }
-                if v_str.contains('\n') || v_str.contains('\r') {
-                    return Err(PlmError::HookConversion(format!(
-                        "http hook header '{}' value contains newline characters",
-                        k
-                    )));
-                }
-                if v_str.contains("$(") || v_str.contains('`') {
-                    return Err(PlmError::HookConversion(format!(
-                        "http hook header '{}' contains unsupported command substitution syntax",
-                        k
-                    )));
-                }
-                let escaped_value = v_str.replace('\\', "\\\\").replace('"', "\\\"");
-                headers_lines.push_str(&format!("  -H \"{}: {}\" \\\n", k, escaped_value));
-            } else {
-                return Err(PlmError::HookConversion(format!(
-                    "http hook header '{}' has non-string value; only string values are supported",
-                    k
-                )));
-            }
-        }
-
-        let has_content_type = headers
-            .keys()
-            .any(|k| k.eq_ignore_ascii_case("content-type"));
-        if !has_content_type {
-            headers_lines = format!(
-                "  -H \"Content-Type: application/json\" \\\n{}",
-                headers_lines
-            );
-        }
-    } else {
-        headers_lines = "  -H \"Content-Type: application/json\" \\\n".to_string();
+    if headers.is_empty() {
+        return "  -H \"Content-Type: application/json\" \\\n".to_string();
     }
 
-    Ok(headers_lines)
+    for (k, v) in headers {
+        let escaped_value = v.replace('\\', "\\\\").replace('"', "\\\"");
+        headers_lines.push_str(&format!("  -H \"{}: {}\" \\\n", k, escaped_value));
+    }
+
+    let has_content_type = headers
+        .iter()
+        .any(|(k, _)| k.eq_ignore_ascii_case("content-type"));
+    if !has_content_type {
+        headers_lines = format!(
+            "  -H \"Content-Type: application/json\" \\\n{}",
+            headers_lines
+        );
+    }
+
+    headers_lines
 }

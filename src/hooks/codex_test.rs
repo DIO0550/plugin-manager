@@ -5,6 +5,7 @@ use serde_json::json;
 use super::codex::{CodexKeyMap, CodexScriptGenerator, CodexStructureConverter};
 use super::converter::{EventMap, KeyMap, ScriptGenerator, SourceFormat, StructureConverter};
 use super::event::codex::CodexEventMap;
+use super::hook_definition::HttpHook;
 
 #[test]
 fn test_codex_event_map_returns_none() {
@@ -44,7 +45,9 @@ fn test_codex_structure_converter_top_level_passthrough() {
 #[test]
 fn test_codex_script_generator_http_returns_error() {
     let gen = CodexScriptGenerator;
-    let hook = json!({"type": "http", "url": "https://example.com"});
-    let result = gen.generate_http_script(&hook, "sessionStart", None, 0);
+    let hook_value = json!({"type": "http", "url": "https://example.com"});
+    let hook_obj = hook_value.as_object().unwrap();
+    let http = HttpHook::new(hook_obj, &hook_value).unwrap();
+    let result = gen.generate_http_script(&http, "sessionStart", None, 0);
     assert!(result.is_err());
 }

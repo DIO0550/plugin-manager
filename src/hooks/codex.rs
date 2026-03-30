@@ -8,6 +8,7 @@ use serde_json::Value;
 
 use crate::error::PlmError;
 use crate::hooks::converter::{ConversionWarning, ScriptInfo, SourceFormat};
+use crate::hooks::hook_definition::{CommandHook, HttpHook, StubHook};
 
 use super::converter::{KeyMap, ScriptGenerator, StructureConverter};
 
@@ -55,7 +56,7 @@ pub(crate) struct CodexScriptGenerator;
 impl ScriptGenerator for CodexScriptGenerator {
     fn generate_command_script(
         &self,
-        _command: &str,
+        _hook: &CommandHook<'_>,
         _event: &str,
         _matcher: Option<&str>,
         _index: usize,
@@ -70,7 +71,7 @@ impl ScriptGenerator for CodexScriptGenerator {
 
     fn generate_http_script(
         &self,
-        _hook: &Value,
+        _hook: &HttpHook<'_>,
         _event: &str,
         _matcher: Option<&str>,
         _index: usize,
@@ -82,8 +83,7 @@ impl ScriptGenerator for CodexScriptGenerator {
 
     fn generate_stub_script(
         &self,
-        _hook: &Value,
-        _hook_type: &str,
+        _hook: &StubHook<'_>,
         _event: &str,
         _matcher: Option<&str>,
         _index: usize,
