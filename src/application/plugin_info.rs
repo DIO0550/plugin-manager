@@ -2,10 +2,10 @@
 //!
 //! 特定のプラグインの詳細情報を取得するユースケースを提供する。
 
-use super::plugin_catalog::list_all_placed;
+use super::plugin_catalog::{list_all_placed, list_installed};
 pub(super) use super::plugin_info_types::{AuthorInfo, ComponentInfo, PluginDetail, PluginSource};
 use crate::error::{PlmError, Result};
-use crate::plugin::{has_manifest, meta, PluginCacheAccess, PluginManifest};
+use crate::plugin::{meta, PluginCacheAccess, PluginManifest};
 use crate::scan::scan_components;
 use std::path::{Path, PathBuf};
 
@@ -84,39 +84,16 @@ fn find_plugin_candidates(
     cache: &dyn PluginCacheAccess,
     name: &str,
 ) -> Result<Vec<PluginCandidate>> {
-    let plugin_list = cache.list()?;
-
-    let mut candidates = Vec::new();
-
-    for (marketplace, dir_name) in plugin_list {
-        // 隠しディレクトリは除外
-        if dir_name.starts_with('.') {
-            continue;
-        }
-
-        let marketplace_name = marketplace.clone().unwrap_or_else(|| "github".to_string());
-        let plugin_path = cache.plugin_path(marketplace.as_deref(), &dir_name);
-
-        // plugin.json が存在するもののみ
-        if !has_manifest(&plugin_path) {
-            continue;
-        }
-
-        let manifest = match cache.load_manifest(marketplace.as_deref(), &dir_name) {
-            Ok(m) => m,
-            Err(_) => continue,
-        };
-
-        // manifest.name が一致するもののみ
-        if manifest.name == name {
-            candidates.push(PluginCandidate {
-                marketplace: marketplace_name,
-                dir_name,
-                cache_path: plugin_path,
-                manifest,
-            });
-        }
-    }
+    let candidates = list_installed(cache)?
+        .into_iter()
+        .filter(|pkg| pkg.manifest.name == name)
+        .map(|pkg| PluginCandidate {
+            marketplace: pkg.marketplace.unwrap_or_else(|| "github".to_string()),
+            dir_name: pkg.name,
+            cache_path: pkg.path,
+            manifest: pkg.manifest,
+        })
+        .collect();
 
     Ok(candidates)
 }
