@@ -76,19 +76,7 @@ impl PluginSource for GitHubSource {
             // キャッシュチェック
             if !force && cache.is_cached(marketplace, &cache_name) {
                 println!("Using cached plugin: {}", plugin_name);
-                let manifest = cache.load_manifest(marketplace, &cache_name)?;
-                return Ok(CachedPackage {
-                    name: plugin_name.to_string(),
-                    marketplace: self.marketplace.clone(),
-                    path: cache.plugin_path(marketplace, &cache_name),
-                    manifest,
-                    git_ref: self
-                        .repo
-                        .git_ref()
-                        .map(|s| s.to_string())
-                        .unwrap_or_else(|| "main".to_string()),
-                    commit_sha: "cached".to_string(),
-                });
+                return cache.load_package(marketplace, &cache_name);
             }
 
             // ダウンロード
