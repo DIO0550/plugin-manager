@@ -59,7 +59,7 @@ parse_source()
     ├──→ MarketplaceSource ─────┤
     └──→ SearchSource ──────────┤
                                 ▼
-                    RemoteMarketplaceData
+                    CachedPackage
                     (name, marketplace, path,
                      manifest, git_ref, sha)
                                 │
@@ -120,7 +120,7 @@ parse_source()
 │  plugin/                                                      │
 │                                                               │
 │  ┌─────────────────────┐    From     ┌──────────────────────┐│
-│  │RemoteMarketplaceData│ ──────────→ │ MarketplacePackage   ││
+│  │CachedPackage│ ──────────→ │ MarketplacePackage   ││
 │  │                     │             │                      ││
 │  │ name                │             │ name                 ││
 │  │ marketplace         │             │ marketplace          ││

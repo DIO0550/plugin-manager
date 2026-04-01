@@ -9,7 +9,7 @@ use crate::plugin::PluginManifest;
 use crate::scan::{scan_components, AGENT_SUFFIX, MARKDOWN_SUFFIX, PROMPT_SUFFIX};
 use std::path::{Path, PathBuf};
 
-use super::remote_marketplace_data::RemoteMarketplaceData;
+use super::cached_package::CachedPackage;
 
 /// マーケットプレイスパッケージ（内部ドメイン型）
 ///
@@ -206,24 +206,24 @@ impl MarketplacePackage {
     }
 }
 
-impl From<RemoteMarketplaceData> for MarketplacePackage {
-    fn from(remote: RemoteMarketplaceData) -> Self {
+impl From<CachedPackage> for MarketplacePackage {
+    fn from(cached: CachedPackage) -> Self {
         Self {
-            name: remote.name,
-            marketplace: remote.marketplace,
-            path: remote.path,
-            manifest: remote.manifest,
+            name: cached.name,
+            marketplace: cached.marketplace,
+            path: cached.path,
+            manifest: cached.manifest,
         }
     }
 }
 
-impl From<&RemoteMarketplaceData> for MarketplacePackage {
-    fn from(remote: &RemoteMarketplaceData) -> Self {
+impl From<&CachedPackage> for MarketplacePackage {
+    fn from(cached: &CachedPackage) -> Self {
         Self {
-            name: remote.name.clone(),
-            marketplace: remote.marketplace.clone(),
-            path: remote.path.clone(),
-            manifest: remote.manifest.clone(),
+            name: cached.name.clone(),
+            marketplace: cached.marketplace.clone(),
+            path: cached.path.clone(),
+            manifest: cached.manifest.clone(),
         }
     }
 }

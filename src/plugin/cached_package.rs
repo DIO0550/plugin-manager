@@ -1,17 +1,21 @@
-//! リモートマーケットプレイスデータ（外部データ型）
+//! キャッシュ済みパッケージデータ（外部データ型）
 //!
-//! リモートから取得したマーケットプレイスデータを保持する。
+//! ダウンロード結果またはキャッシュ読み出し結果を保持する。
 //! ドメインロジック（コンポーネントスキャン・パス解決）は `MarketplacePackage` に委譲。
 
 use crate::plugin::PluginManifest;
 use std::path::PathBuf;
 
-/// リモートから取得したマーケットプレイスデータ（外部データ型）
+/// キャッシュ上のプラグインデータ（外部データ型）
 ///
-/// GitHub からダウンロード・パースした結果を保持する。
+/// ダウンロード結果またはキャッシュ読み出し結果を保持する。
 /// ドメインロジックは `MarketplacePackage` に委譲。
+///
+/// **`name` フィールドの意味**: 経路により異なる値が入る（新規ダウンロード時は `manifest.name`、
+/// キャッシュヒット時やキャッシュ読み出し時はキャッシュキー名）。
+/// この不整合の解消（`cache_key` フィールド導入）は次ステップで対応。
 #[derive(Debug, Clone)]
-pub struct RemoteMarketplaceData {
+pub struct CachedPackage {
     pub name: String,
     /// マーケットプレイス名（marketplace経由の場合）
     /// None の場合は直接GitHubからインストール
@@ -22,7 +26,7 @@ pub struct RemoteMarketplaceData {
     pub commit_sha: String,
 }
 
-impl RemoteMarketplaceData {
+impl CachedPackage {
     /// プラグインのバージョンを取得
     pub fn version(&self) -> &str {
         &self.manifest.version
