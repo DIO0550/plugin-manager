@@ -32,8 +32,8 @@ impl PluginDeployment {
             marketplace,
             path: self.path.clone(),
             manifest: self.manifest.clone(),
-            git_ref: String::new(),
-            commit_sha: String::new(),
+            git_ref: "unknown".to_owned(),
+            commit_sha: "unknown".to_owned(),
         };
         MarketplacePackage::from(cached).components()
     }
