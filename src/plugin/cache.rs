@@ -3,7 +3,7 @@
 //! GitHubからダウンロードしたプラグインのキャッシュ管理を行う。
 
 use super::manifest_resolve::resolve_manifest_path;
-use super::PluginManifest;
+use super::{meta, PluginManifest};
 use crate::error::{PlmError, Result};
 use crate::fs::{FileSystem, RealFs};
 use std::io::{Cursor, Read};
@@ -68,6 +68,33 @@ pub trait PluginCacheAccess: Send + Sync {
 
     /// バックアップを削除
     fn remove_backup(&self, marketplace: Option<&str>, name: &str) -> Result<()>;
+
+    /// キャッシュからCachedPackageを生成
+    ///
+    /// plugin_path + load_manifest + load_meta を組み合わせて
+    /// CachedPackage を構築する。
+    fn load_package(&self, marketplace: Option<&str>, name: &str) -> Result<CachedPackage> {
+        let path = self.plugin_path(marketplace, name);
+        let manifest = self.load_manifest(marketplace, name)?;
+        let loaded_meta = meta::load_meta(&path);
+        let git_ref = loaded_meta
+            .as_ref()
+            .and_then(|m| m.git_ref.clone())
+            .unwrap_or_else(|| "unknown".to_string());
+        let commit_sha = loaded_meta
+            .as_ref()
+            .and_then(|m| m.commit_sha.clone())
+            .unwrap_or_else(|| "unknown".to_string());
+
+        Ok(CachedPackage {
+            name: name.to_string(),
+            marketplace: marketplace.map(String::from),
+            path,
+            manifest,
+            git_ref,
+            commit_sha,
+        })
+    }
 
     /// アトミック更新（temp展開 → 検証 → リネーム）
     ///

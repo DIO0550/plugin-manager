@@ -598,3 +598,76 @@ fn test_atomic_update_cleans_up_temp_on_failure() {
         "Temp directory should be cleaned up after failure"
     );
 }
+
+// =============================================================================
+// load_package() tests
+// =============================================================================
+
+#[test]
+fn test_load_package_reads_meta() {
+    let temp_dir = TempDir::new().unwrap();
+    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+    // プラグインディレクトリを作成
+    let plugin_dir = temp_dir.path().join("github").join("test-plugin");
+    fs::create_dir_all(&plugin_dir).unwrap();
+
+    // plugin.json を配置
+    fs::write(
+        plugin_dir.join("plugin.json"),
+        r#"{"name":"test-plugin","version":"1.0.0"}"#,
+    )
+    .unwrap();
+
+    // .plm-meta.json を配置（gitRef, commitSha 付き）
+    fs::write(
+        plugin_dir.join(".plm-meta.json"),
+        r#"{"gitRef":"v1.0","commitSha":"abc123"}"#,
+    )
+    .unwrap();
+
+    let cached = cache.load_package(None, "test-plugin").unwrap();
+
+    assert_eq!(cached.name, "test-plugin");
+    assert_eq!(cached.git_ref, "v1.0");
+    assert_eq!(cached.commit_sha, "abc123");
+    assert_eq!(cached.manifest.name, "test-plugin");
+    assert_eq!(cached.manifest.version, "1.0.0");
+    assert!(cached.path.ends_with("github/test-plugin"));
+}
+
+#[test]
+fn test_load_package_missing_meta_uses_defaults() {
+    let temp_dir = TempDir::new().unwrap();
+    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+    // プラグインディレクトリを作成
+    let plugin_dir = temp_dir.path().join("github").join("test-plugin");
+    fs::create_dir_all(&plugin_dir).unwrap();
+
+    // plugin.json のみ配置（.plm-meta.json なし）
+    fs::write(
+        plugin_dir.join("plugin.json"),
+        r#"{"name":"test-plugin","version":"1.0.0"}"#,
+    )
+    .unwrap();
+
+    let cached = cache.load_package(None, "test-plugin").unwrap();
+
+    assert_eq!(cached.git_ref, "unknown");
+    assert_eq!(cached.commit_sha, "unknown");
+}
+
+#[test]
+fn test_load_package_missing_manifest_returns_error() {
+    let temp_dir = TempDir::new().unwrap();
+    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+    // 空のプラグインディレクトリのみ作成（plugin.json なし）
+    let plugin_dir = temp_dir.path().join("github").join("test-plugin");
+    fs::create_dir_all(&plugin_dir).unwrap();
+
+    let result = cache.load_package(None, "test-plugin");
+    assert!(result.is_err());
+}
+
