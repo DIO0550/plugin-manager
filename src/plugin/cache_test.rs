@@ -670,4 +670,3 @@ fn test_load_package_missing_manifest_returns_error() {
     let result = cache.load_package(None, "test-plugin");
     assert!(result.is_err());
 }
-
