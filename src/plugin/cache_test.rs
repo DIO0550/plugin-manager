@@ -633,7 +633,7 @@ fn test_load_package_reads_meta() {
     assert_eq!(cached.commit_sha, "abc123");
     assert_eq!(cached.manifest.name, "test-plugin");
     assert_eq!(cached.manifest.version, "1.0.0");
-    assert!(cached.path.ends_with("github/test-plugin"));
+    assert_eq!(cached.path, cache.plugin_path(None, "test-plugin"));
 }
 
 #[test]
