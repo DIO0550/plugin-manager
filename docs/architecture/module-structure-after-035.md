@@ -39,8 +39,8 @@
 │   source/         │  │   plugin/          │  │   target/            │
 │                  │  │                   │  │                      │
 │  PluginSource    │  │ MarketplacePackage│  │  Target trait        │
-│  ├ GitHubSource  │  │ RemoteMarketplace │  │  ├ Codex             │
-│  ├ MarketplaceSrc│  │   Data            │  │  ├ Copilot           │
+│  ├ GitHubSource  │  │ CachedPackage     │  │  ├ Codex             │
+│  ├ MarketplaceSrc│  │                   │  │  ├ Copilot           │
 │  └ SearchSource  │  │ PluginCache       │  │  ├ Antigravity       │
 │                  │  │ PluginManifest    │  │  └ GeminiCli         │
 │  parse_source()  │  │ PluginCacheKey    │  │                      │
