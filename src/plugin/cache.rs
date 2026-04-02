@@ -74,17 +74,19 @@ pub trait PluginCacheAccess: Send + Sync {
     /// plugin_path + load_manifest + load_meta を組み合わせて
     /// CachedPackage を構築する。
     fn load_package(&self, marketplace: Option<&str>, name: &str) -> Result<CachedPackage> {
+        use super::cached_package::UNKNOWN_GIT_VALUE;
+
         let path = self.plugin_path(marketplace, name);
         let manifest = self.load_manifest(marketplace, name)?;
         let loaded_meta = meta::load_meta(&path);
         let git_ref = loaded_meta
             .as_ref()
             .and_then(|m| m.git_ref.clone())
-            .unwrap_or_else(|| "unknown".to_string());
+            .unwrap_or_else(|| UNKNOWN_GIT_VALUE.to_string());
         let commit_sha = loaded_meta
             .as_ref()
             .and_then(|m| m.commit_sha.clone())
-            .unwrap_or_else(|| "unknown".to_string());
+            .unwrap_or_else(|| UNKNOWN_GIT_VALUE.to_string());
 
         Ok(CachedPackage {
             name: name.to_string(),

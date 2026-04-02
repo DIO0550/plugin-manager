@@ -6,6 +6,9 @@
 use crate::plugin::PluginManifest;
 use std::path::PathBuf;
 
+/// git_ref / commit_sha が不明な場合のデフォルト値
+pub const UNKNOWN_GIT_VALUE: &str = "unknown";
+
 /// キャッシュ上のプラグインデータ（外部データ型）
 ///
 /// ダウンロード結果またはキャッシュ読み出し結果を保持する。
