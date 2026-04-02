@@ -75,7 +75,10 @@ impl PluginSource for GitHubSource {
 
             // キャッシュチェック
             if !force && cache.is_cached(marketplace, &cache_name) {
-                println!("Using cached plugin: {}", plugin_name);
+                println!(
+                    "Using cached plugin: {} (cache key: {})",
+                    plugin_name, cache_name
+                );
                 return cache.load_package(marketplace, &cache_name);
             }
 
