@@ -18,6 +18,8 @@ use super::cached_package::CachedPackage;
 #[derive(Debug, Clone)]
 pub struct MarketplacePackage {
     pub name: String,
+    /// キャッシュディレクトリ名（ファイル操作用、CachedPackage から伝搬）
+    pub cache_key: Option<String>,
     pub marketplace: Option<String>,
     pub path: PathBuf,
     pub manifest: PluginManifest,
@@ -210,6 +212,7 @@ impl From<CachedPackage> for MarketplacePackage {
     fn from(cached: CachedPackage) -> Self {
         Self {
             name: cached.name,
+            cache_key: cached.cache_key,
             marketplace: cached.marketplace,
             path: cached.path,
             manifest: cached.manifest,
@@ -221,6 +224,7 @@ impl From<&CachedPackage> for MarketplacePackage {
     fn from(cached: &CachedPackage) -> Self {
         Self {
             name: cached.name.clone(),
+            cache_key: cached.cache_key.clone(),
             marketplace: cached.marketplace.clone(),
             path: cached.path.clone(),
             manifest: cached.manifest.clone(),
