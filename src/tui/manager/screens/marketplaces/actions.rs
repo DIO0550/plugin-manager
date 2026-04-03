@@ -196,7 +196,7 @@ fn build_browse_plugins(
             description: p.description.clone(),
             version: p.version.clone(),
             source: p.source.clone(),
-            installed: installed_plugins.iter().any(|ip| ip.name == p.name),
+            installed: installed_plugins.iter().any(|ip| ip.cache_key() == p.name),
         })
         .collect()
 }

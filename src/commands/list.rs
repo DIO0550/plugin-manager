@@ -99,9 +99,9 @@ async fn run_outdated_check(
     let mut plugin_metas: Vec<(String, PluginMeta)> = Vec::new();
 
     for plugin in plugins {
-        let plugin_path = cache.plugin_path(plugin.marketplace.as_deref(), &plugin.name);
+        let plugin_path = cache.plugin_path(plugin.marketplace.as_deref(), plugin.cache_key());
         let plugin_meta = meta::load_meta(&plugin_path).unwrap_or_default();
-        plugin_metas.push((plugin.name.clone(), plugin_meta));
+        plugin_metas.push((plugin.cache_key().to_string(), plugin_meta));
     }
 
     // GitHub クライアントを作成してリモートバージョンを取得

@@ -109,17 +109,17 @@ fn toggle_all_marks(model: &mut Model, data: &DataStore, filter_text: &str) {
         let all_marked = !filtered.is_empty()
             && filtered
                 .iter()
-                .all(|plugin| marked_ids.contains(&plugin.name));
+                .all(|plugin| marked_ids.contains(plugin.cache_key()));
 
         if all_marked {
             // フィルタ済み分のみ解除
             for plugin in &filtered {
-                marked_ids.remove(&plugin.name);
+                marked_ids.remove(plugin.cache_key());
             }
         } else {
             // フィルタ済みプラグインを全マーク
             for plugin in &filtered {
-                marked_ids.insert(plugin.name.clone());
+                marked_ids.insert(plugin.cache_key().to_string());
             }
         }
     }
@@ -162,7 +162,10 @@ fn update_all(model: &mut Model, data: &DataStore) -> UpdateEffect {
         // 前回の古いステータスをクリアしてから全プラグインに Updating をセット
         update_statuses.clear();
         for plugin in &data.plugins {
-            update_statuses.insert(plugin.name.clone(), UpdateStatusDisplay::Updating);
+            update_statuses.insert(
+                plugin.cache_key().to_string(),
+                UpdateStatusDisplay::Updating,
+            );
         }
 
         return UpdateEffect::execute_batch();
@@ -202,7 +205,7 @@ fn execute_batch_with(
     {
         // update_statuses から Updating のプラグイン名を収集
         // O(n) の HashSet で存在チェックし、find_plugin の線形探索 O(n^2) を回避
-        let existing_names: HashSet<&str> = data.plugins.iter().map(|p| p.name.as_str()).collect();
+        let existing_names: HashSet<&str> = data.plugins.iter().map(|p| p.cache_key()).collect();
         let plugin_names: Vec<String> = update_statuses
             .iter()
             .filter(|(_, status)| matches!(status, UpdateStatusDisplay::Updating))
@@ -261,11 +264,11 @@ fn execute_batch_with(
         let filtered = filter_plugins(&data.plugins, filter_text);
         let current_selected = selected_id.as_ref();
         let new_idx = current_selected
-            .and_then(|id| filtered.iter().position(|p| &p.name == id))
+            .and_then(|id| filtered.iter().position(|p| p.cache_key() == id.as_str()))
             .or(if filtered.is_empty() { None } else { Some(0) });
 
         state.select(new_idx);
-        *selected_id = new_idx.and_then(|idx| filtered.get(idx).map(|p| p.name.clone()));
+        *selected_id = new_idx.and_then(|idx| filtered.get(idx).map(|p| p.cache_key().to_string()));
     }
 }
 
@@ -398,7 +401,7 @@ fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) -> UpdateEf
                             let mut new_state = ListState::default();
                             let selected_id = if !filtered.is_empty() {
                                 new_state.select(Some(0));
-                                Some(filtered[0].name.clone())
+                                Some(filtered[0].cache_key().to_string())
                             } else {
                                 None
                             };
@@ -435,13 +438,13 @@ fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) -> UpdateEf
                     let restored_statuses = std::mem::take(saved_update_statuses);
                     let filtered = filter_plugins(&data.plugins, filter_text);
                     let mut new_state = ListState::default();
-                    let idx = filtered.iter().position(|p| p.name == id);
+                    let idx = filtered.iter().position(|p| p.cache_key() == id);
                     let selected_id = if let Some(idx) = idx {
                         new_state.select(Some(idx));
                         Some(id)
                     } else if !filtered.is_empty() {
                         new_state.select(Some(0));
-                        Some(filtered[0].name.clone())
+                        Some(filtered[0].cache_key().to_string())
                     } else {
                         None
                     };
@@ -463,13 +466,13 @@ fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) -> UpdateEf
                     // PluginList に遷移（フィルタ済みリストで選択位置を同期）
                     let filtered = filter_plugins(&data.plugins, filter_text);
                     let mut new_state = ListState::default();
-                    let idx = filtered.iter().position(|p| p.name == target_id);
+                    let idx = filtered.iter().position(|p| p.cache_key() == target_id);
                     let selected_id = if let Some(idx) = idx {
                         new_state.select(Some(idx));
                         Some(target_id)
                     } else if !filtered.is_empty() {
                         new_state.select(Some(0));
-                        Some(filtered[0].name.clone())
+                        Some(filtered[0].cache_key().to_string())
                     } else {
                         None
                     };
@@ -543,13 +546,13 @@ fn back(model: &mut Model, filter_text: &str, data: &DataStore) {
             let restored_statuses = std::mem::take(saved_update_statuses);
             let filtered = filter_plugins(&data.plugins, filter_text);
             let mut new_state = ListState::default();
-            let idx = filtered.iter().position(|p| p.name == id);
+            let idx = filtered.iter().position(|p| p.cache_key() == id);
             let selected_id = if let Some(idx) = idx {
                 new_state.select(Some(idx));
                 Some(id)
             } else if !filtered.is_empty() {
                 new_state.select(Some(0));
-                Some(filtered[0].name.clone())
+                Some(filtered[0].cache_key().to_string())
             } else {
                 None
             };
@@ -637,7 +640,7 @@ fn update_selected_id(model: &mut Model, data: &DataStore, filter_text: &str) {
     {
         if let Some(idx) = state.selected() {
             let filtered = filter_plugins(&data.plugins, filter_text);
-            *selected_id = filtered.get(idx).map(|p| p.name.clone());
+            *selected_id = filtered.get(idx).map(|p| p.cache_key().to_string());
         }
     }
 }

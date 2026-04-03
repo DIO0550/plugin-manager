@@ -158,7 +158,7 @@ pub enum Model {
 impl Model {
     /// 新しいモデルを作成
     pub fn new(data: &DataStore) -> Self {
-        let selected_id = data.plugins.first().map(|p| p.name.clone());
+        let selected_id = data.plugins.first().map(|p| p.cache_key().to_string());
         let mut state = ListState::default();
         if selected_id.is_some() {
             state.select(Some(0));
@@ -177,7 +177,7 @@ impl Model {
             .selected_plugin_id
             .clone()
             .filter(|id| data.find_plugin(id).is_some())
-            .or_else(|| data.plugins.first().map(|p| p.name.clone()));
+            .or_else(|| data.plugins.first().map(|p| p.cache_key().to_string()));
 
         let index = selected_id
             .as_ref()

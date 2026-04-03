@@ -75,19 +75,21 @@ impl DataStore {
 
     /// プラグインIDでプラグインを検索
     pub fn find_plugin(&self, id: &PluginId) -> Option<&PluginSummary> {
-        self.plugins.iter().find(|p| p.name == *id)
+        self.plugins.iter().find(|p| p.cache_key() == id.as_str())
     }
 
-    /// `plugin_id` は `PluginSummary.name`（= プラグインID）と完全一致で比較される。
+    /// `plugin_id` は `PluginSummary.cache_key()`（= 操作用キー）と完全一致で比較される。
     /// marketplace の区別はしない（既存の `find_plugin` と同じ設計）。
     /// `enabled` の状態に関わらず、`plugins` に存在すれば `true` を返す。
     pub fn is_plugin_installed(&self, plugin_id: &str) -> bool {
-        self.plugins.iter().any(|p| p.name == plugin_id)
+        self.plugins.iter().any(|p| p.cache_key() == plugin_id)
     }
 
     /// プラグインIDでインデックスを検索
     pub fn plugin_index(&self, id: &PluginId) -> Option<usize> {
-        self.plugins.iter().position(|p| p.name == *id)
+        self.plugins
+            .iter()
+            .position(|p| p.cache_key() == id.as_str())
     }
 
     /// プラグインの空でないコンポーネント種別を取得
@@ -106,12 +108,16 @@ impl DataStore {
 
     /// プラグインを一覧から削除
     pub fn remove_plugin(&mut self, plugin_id: &PluginId) {
-        self.plugins.retain(|p| p.name != *plugin_id);
+        self.plugins.retain(|p| p.cache_key() != plugin_id.as_str());
     }
 
     /// プラグインの有効状態を更新
     pub fn set_plugin_enabled(&mut self, plugin_id: &PluginId, enabled: bool) {
-        if let Some(plugin) = self.plugins.iter_mut().find(|p| &p.name == plugin_id) {
+        if let Some(plugin) = self
+            .plugins
+            .iter_mut()
+            .find(|p| p.cache_key() == plugin_id.as_str())
+        {
             plugin.enabled = enabled;
         }
     }
