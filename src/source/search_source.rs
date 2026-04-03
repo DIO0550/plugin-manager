@@ -2,7 +2,7 @@
 
 use crate::error::{PlmError, Result};
 use crate::marketplace::{MarketplaceConfig, MarketplaceRegistry};
-use crate::plugin::{PluginCacheAccess, RemoteMarketplaceData};
+use crate::plugin::{CachedPackage, PluginCacheAccess};
 use std::future::Future;
 use std::pin::Pin;
 
@@ -26,7 +26,7 @@ impl PluginSource for SearchSource {
         &'a self,
         cache: &'a dyn PluginCacheAccess,
         force: bool,
-    ) -> Pin<Box<dyn Future<Output = Result<RemoteMarketplaceData>> + Send + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = Result<CachedPackage>> + Send + 'a>> {
         Box::pin(async move {
             let registry = MarketplaceRegistry::new()?;
 

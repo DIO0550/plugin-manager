@@ -4,7 +4,7 @@
 
 use crate::component::{ComponentKind, ComponentName, ComponentTypeCount, Scope};
 use crate::error::Result;
-use crate::plugin::{has_manifest, meta, MarketplacePackage, PluginCacheAccess, PluginManifest};
+use crate::plugin::{meta, MarketplacePackage, PluginCacheAccess, PluginManifest};
 use crate::scan::{list_placed_plugins, scan_components, ComponentScan};
 use crate::target::all_targets;
 use serde::Serialize;
@@ -31,19 +31,10 @@ pub(crate) fn list_installed(cache: &dyn PluginCacheAccess) -> Result<Vec<Market
         .map(PluginCacheKey::from)
         .filter(|key| !key.name.starts_with('.'))
         .filter_map(|key| {
-            let plugin_path = cache.plugin_path(key.marketplace.as_deref(), &key.name);
-            if !has_manifest(&plugin_path) {
-                return None;
-            }
-            let manifest = cache
-                .load_manifest(key.marketplace.as_deref(), &key.name)
-                .ok()?;
-            Some(MarketplacePackage {
-                name: key.name,
-                marketplace: key.marketplace,
-                path: plugin_path,
-                manifest,
-            })
+            cache
+                .load_package(key.marketplace.as_deref(), &key.name)
+                .ok()
+                .map(MarketplacePackage::from)
         })
         .collect();
     Ok(packages)

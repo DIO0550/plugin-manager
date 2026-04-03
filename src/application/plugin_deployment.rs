@@ -5,7 +5,9 @@
 
 use crate::component::Component;
 use crate::fs::{FileSystem, RealFs};
-use crate::plugin::{MarketplacePackage, PluginCacheAccess, PluginManifest};
+use crate::plugin::{
+    CachedPackage, MarketplacePackage, PluginCacheAccess, PluginManifest, UNKNOWN_GIT_VALUE,
+};
 use crate::target::PluginOrigin;
 use std::path::{Path, PathBuf};
 
@@ -27,13 +29,15 @@ impl PluginDeployment {
             Some(self.origin.marketplace.clone())
         };
 
-        let package = MarketplacePackage {
+        let cached = CachedPackage {
             name: self.origin.plugin.clone(),
             marketplace,
             path: self.path.clone(),
             manifest: self.manifest.clone(),
+            git_ref: UNKNOWN_GIT_VALUE.to_owned(),
+            commit_sha: UNKNOWN_GIT_VALUE.to_owned(),
         };
-        package.components()
+        MarketplacePackage::from(cached).components()
     }
 }
 

@@ -1,13 +1,14 @@
 mod cache;
+mod cached_package;
 mod manifest;
 mod manifest_resolve;
 mod marketplace_package;
 pub mod meta;
-mod remote_marketplace_data;
 mod update;
 mod version;
 
-pub use cache::{has_manifest, PluginCache, PluginCacheAccess, RemoteMarketplaceData};
+pub use cache::{CachedPackage, PluginCache, PluginCacheAccess};
+pub use cached_package::UNKNOWN_GIT_VALUE;
 pub use manifest::PluginManifest;
 pub use marketplace_package::MarketplacePackage;
 pub use meta::PluginMeta;
