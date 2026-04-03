@@ -82,6 +82,7 @@ fn test_list_installed_plugins_no_manifest_excluded() {
 fn create_empty_summary() -> PluginSummary {
     PluginSummary {
         name: "test-plugin".to_string(),
+        cache_key: None,
         marketplace: None,
         version: "1.0.0".to_string(),
         skills: vec![],
@@ -96,6 +97,7 @@ fn create_empty_summary() -> PluginSummary {
 fn create_full_summary() -> PluginSummary {
     PluginSummary {
         name: "full-plugin".to_string(),
+        cache_key: None,
         marketplace: Some("awesome-marketplace".to_string()),
         version: "2.0.0".to_string(),
         skills: vec!["skill1".to_string(), "skill2".to_string()],
@@ -105,6 +107,23 @@ fn create_full_summary() -> PluginSummary {
         hooks: vec!["hook1".to_string(), "hook2".to_string()],
         enabled: true,
     }
+}
+
+// ========================================
+// cache_key tests
+// ========================================
+
+#[test]
+fn test_plugin_summary_cache_key_returns_some_value() {
+    let mut summary = create_empty_summary();
+    summary.cache_key = Some("owner--repo".to_string());
+    assert_eq!(summary.cache_key(), "owner--repo");
+}
+
+#[test]
+fn test_plugin_summary_cache_key_falls_back_to_name() {
+    let summary = create_empty_summary();
+    assert_eq!(summary.cache_key(), "test-plugin");
 }
 
 // ========================================
@@ -128,6 +147,7 @@ fn test_component_count_full() {
 fn test_component_count_partial() {
     let summary = PluginSummary {
         name: "partial".to_string(),
+        cache_key: None,
         marketplace: None,
         version: "1.0.0".to_string(),
         skills: vec!["s1".to_string()],
@@ -218,6 +238,7 @@ fn test_component_type_counts_full() {
 fn test_component_type_counts_partial() {
     let summary = PluginSummary {
         name: "partial".to_string(),
+        cache_key: None,
         marketplace: None,
         version: "1.0.0".to_string(),
         skills: vec![],

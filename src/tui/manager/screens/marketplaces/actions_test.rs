@@ -25,6 +25,7 @@ fn make_failure_result(name: &str, error: &str) -> PluginInstallResult {
 fn make_plugin(name: &str) -> PluginSummary {
     PluginSummary {
         name: name.to_string(),
+        cache_key: None,
         marketplace: None,
         version: "1.0.0".to_string(),
         skills: vec![],

@@ -19,6 +19,7 @@ fn stub_reload(_data: &mut DataStore) -> std::io::Result<()> {
 fn make_plugin(name: &str) -> PluginSummary {
     PluginSummary {
         name: name.to_string(),
+        cache_key: None,
         marketplace: Some("github".to_string()),
         version: "1.0.0".to_string(),
         skills: vec![],
