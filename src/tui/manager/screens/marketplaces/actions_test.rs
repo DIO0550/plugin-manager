@@ -193,6 +193,22 @@ fn disabled_plugin_still_counts_as_installed() {
 }
 
 #[test]
+fn installed_detected_by_cache_key_when_name_differs() {
+    let cache = make_cache("test-mp", vec![make_marketplace_plugin("owner--repo")]);
+    let plugin = PluginSummary {
+        name: "Display Name".to_string(),
+        cache_key: Some("owner--repo".to_string()),
+        ..make_plugin("Display Name")
+    };
+    let installed = vec![plugin];
+
+    let result = super::build_browse_plugins(&cache, &installed);
+
+    assert_eq!(result.len(), 1);
+    assert!(result[0].installed);
+}
+
+#[test]
 fn same_name_different_marketplace_counts_as_installed() {
     let cache = make_cache("test-mp", vec![make_marketplace_plugin("plugin-a")]);
     let mut plugin = make_plugin("plugin-a");
