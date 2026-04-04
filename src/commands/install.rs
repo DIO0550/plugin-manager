@@ -74,10 +74,10 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
     let package = install::download_plugin(&args.source, args.force).await?;
 
     println!("\nPlugin downloaded successfully!");
-    println!("  Name: {}", package.name);
-    println!("  Version: {}", package.manifest.version);
-    println!("  Path: {}", package.path.display());
-    if let Some(meta) = crate::plugin::meta::load_meta(&package.path) {
+    println!("  Name: {}", package.name());
+    println!("  Version: {}", package.manifest().version);
+    println!("  Path: {}", package.path().display());
+    if let Some(meta) = crate::plugin::meta::load_meta(package.path()) {
         if let Some(ref git_ref) = meta.git_ref {
             println!("  Ref: {}", git_ref);
         }
@@ -86,19 +86,19 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
         }
     }
 
-    if let Some(ref desc) = package.manifest.description {
+    if let Some(ref desc) = package.manifest().description {
         println!("  Description: {}", desc);
     }
 
     // コンポーネント情報
     println!("\nComponents:");
-    if let Some(ref skills) = package.manifest.skills {
+    if let Some(ref skills) = package.manifest().skills {
         println!("  - Skills: {}", skills);
     }
-    if let Some(ref agents) = package.manifest.agents {
+    if let Some(ref agents) = package.manifest().agents {
         println!("  - Agents: {}", agents);
     }
-    if let Some(ref commands) = package.manifest.commands {
+    if let Some(ref commands) = package.manifest().commands {
         println!("  - Commands: {}", commands);
     }
 

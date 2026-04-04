@@ -37,7 +37,7 @@ impl ScannedPlugin {
 
     /// プラグインキャッシュのルートパスを取得
     pub fn plugin_root(&self) -> &Path {
-        &self.package.path
+        self.package.path()
     }
 }
 
@@ -171,9 +171,9 @@ pub fn scan_plugin(
         .collect();
 
     Ok(ScannedPlugin {
-        name: package.name.clone(),
-        cache_key: package.cache_key.clone(),
-        marketplace: package.marketplace.clone(),
+        name: package.name().to_string(),
+        cache_key: package.cache_key().map(str::to_string),
+        marketplace: package.marketplace().map(str::to_string),
         package: package.clone(),
         components: scanned_components,
     })

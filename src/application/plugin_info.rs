@@ -86,14 +86,20 @@ fn find_plugin_candidates(
 ) -> Result<Vec<PluginCandidate>> {
     let candidates = list_installed(cache)?
         .into_iter()
-        .filter(|pkg| pkg.manifest.name == name)
+        .filter(|pkg| pkg.manifest().name == name)
         .map(|pkg| {
-            let dir_name = pkg.cache_key.unwrap_or(pkg.name);
+            let dir_name = pkg
+                .cache_key()
+                .map(str::to_string)
+                .unwrap_or_else(|| pkg.name().to_string());
             PluginCandidate {
-                marketplace: pkg.marketplace.unwrap_or_else(|| "github".to_string()),
+                marketplace: pkg
+                    .marketplace()
+                    .map(str::to_string)
+                    .unwrap_or_else(|| "github".to_string()),
                 dir_name,
-                cache_path: pkg.path,
-                manifest: pkg.manifest,
+                cache_path: pkg.path().to_path_buf(),
+                manifest: pkg.manifest().clone(),
             }
         })
         .collect();
