@@ -13,12 +13,18 @@ use crate::target::{PluginOrigin, Target, TargetKind};
 #[derive(Debug)]
 pub struct ScannedPlugin {
     pub name: String,
+    pub cache_key: Option<String>,
     pub marketplace: Option<String>,
     package: MarketplacePackage,
     pub components: Vec<ScannedComponent>,
 }
 
 impl ScannedPlugin {
+    /// キャッシュディレクトリ名を返す（`cache_key` が `None` の場合は `name` にフォールバック）
+    pub fn cache_key(&self) -> &str {
+        self.cache_key.as_deref().unwrap_or(&self.name)
+    }
+
     /// Command コンポーネントのソースフォーマットを取得
     pub fn command_format(&self) -> CommandFormat {
         self.package.command_format()
@@ -166,6 +172,7 @@ pub fn scan_plugin(
 
     Ok(ScannedPlugin {
         name: package.name.clone(),
+        cache_key: package.cache_key.clone(),
         marketplace: package.marketplace.clone(),
         package: package.clone(),
         components: scanned_components,
@@ -179,7 +186,7 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
 
     let origin = PluginOrigin::from_cached_plugin(
         request.scanned.marketplace.as_deref(),
-        &request.scanned.name,
+        request.scanned.cache_key(),
     );
 
     for target in request.targets {

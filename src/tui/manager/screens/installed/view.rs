@@ -178,7 +178,7 @@ fn view_plugin_list(
         let items: Vec<ListItem> = filtered
             .iter()
             .map(|p| {
-                let is_marked = marked_ids.contains(&p.name);
+                let is_marked = marked_ids.contains(p.cache_key());
                 let mark_indicator = if is_marked { "[x] " } else { "[ ] " };
 
                 let marketplace_str = p
@@ -210,7 +210,7 @@ fn view_plugin_list(
                 spans.push(Span::styled(name_text, base_style));
 
                 // 更新ステータス
-                if let Some(update_status) = update_statuses.get(&p.name) {
+                if let Some(update_status) = update_statuses.get(p.cache_key()) {
                     spans.push(update_status_span(update_status));
                 }
 

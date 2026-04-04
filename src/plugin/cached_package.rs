@@ -3,6 +3,10 @@
 //! ダウンロード結果またはキャッシュ読み出し結果を保持する。
 //! ドメインロジック（コンポーネントスキャン・パス解決）は `MarketplacePackage` に委譲。
 
+#[cfg(test)]
+#[path = "cached_package_test.rs"]
+mod tests;
+
 use crate::plugin::PluginManifest;
 use std::path::PathBuf;
 
@@ -14,12 +18,15 @@ pub const UNKNOWN_GIT_VALUE: &str = "unknown";
 /// ダウンロード結果またはキャッシュ読み出し結果を保持する。
 /// ドメインロジックは `MarketplacePackage` に委譲。
 ///
-/// **`name` フィールドの意味**: 経路により異なる値が入る（新規ダウンロード時は `manifest.name`、
-/// キャッシュヒット時やキャッシュ読み出し時はキャッシュキー名）。
-/// この不整合の解消（`cache_key` フィールド導入）は次ステップで対応。
+/// **`name` フィールド**: 表示用のプラグイン名（`manifest.name`）。
+/// **`cache_key` フィールド**: ファイル操作用のキャッシュディレクトリ名。
+/// `cache_key` が `None` の場合は `name` にフォールバックする。
 #[derive(Debug, Clone)]
 pub struct CachedPackage {
     pub name: String,
+    /// キャッシュディレクトリ名（ファイル操作用）
+    /// `None` の場合は `name` にフォールバック
+    pub cache_key: Option<String>,
     /// マーケットプレイス名（marketplace経由の場合）
     /// None の場合は直接GitHubからインストール
     pub marketplace: Option<String>,
@@ -30,6 +37,11 @@ pub struct CachedPackage {
 }
 
 impl CachedPackage {
+    /// キャッシュディレクトリ名を返す（`cache_key` が `None` の場合は `name` にフォールバック）
+    pub fn cache_key(&self) -> &str {
+        self.cache_key.as_deref().unwrap_or(&self.name)
+    }
+
     /// プラグインのバージョンを取得
     pub fn version(&self) -> &str {
         &self.manifest.version

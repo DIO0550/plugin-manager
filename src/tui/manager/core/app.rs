@@ -336,18 +336,18 @@ fn clamp_selection(model: &mut Model) {
         {
             if let Some(id) = selected_id.as_ref() {
                 // 現在の選択が絞り込み結果に含まれるか
-                if let Some(idx) = filtered.iter().position(|p| &p.name == id) {
+                if let Some(idx) = filtered.iter().position(|p| p.cache_key() == id.as_str()) {
                     state.select(Some(idx));
                 } else if !filtered.is_empty() {
                     state.select(Some(0));
-                    *selected_id = Some(filtered[0].name.clone());
+                    *selected_id = Some(filtered[0].cache_key().to_string());
                 } else {
                     state.select(None);
                     *selected_id = None;
                 }
             } else if !filtered.is_empty() {
                 state.select(Some(0));
-                *selected_id = Some(filtered[0].name.clone());
+                *selected_id = Some(filtered[0].cache_key().to_string());
             } else {
                 state.select(None);
             }

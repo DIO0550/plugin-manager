@@ -89,7 +89,8 @@ pub trait PluginCacheAccess: Send + Sync {
             .unwrap_or_else(|| UNKNOWN_GIT_VALUE.to_string());
 
         Ok(CachedPackage {
-            name: name.to_string(),
+            name: manifest.name.clone(),
+            cache_key: Some(name.to_string()),
             marketplace: marketplace.map(String::from),
             path,
             manifest,

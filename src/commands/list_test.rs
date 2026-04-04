@@ -3,6 +3,7 @@ use super::*;
 fn create_empty_plugin(name: &str) -> PluginSummary {
     PluginSummary {
         name: name.to_string(),
+        cache_key: None,
         marketplace: None,
         version: "1.0.0".to_string(),
         skills: vec![],
@@ -17,6 +18,7 @@ fn create_empty_plugin(name: &str) -> PluginSummary {
 fn create_plugin_with_skills(name: &str, skill_count: usize, enabled: bool) -> PluginSummary {
     PluginSummary {
         name: name.to_string(),
+        cache_key: None,
         marketplace: Some("github".to_string()),
         version: "1.0.0".to_string(),
         skills: (0..skill_count).map(|i| format!("skill{}", i)).collect(),
@@ -31,6 +33,7 @@ fn create_plugin_with_skills(name: &str, skill_count: usize, enabled: bool) -> P
 fn create_full_plugin(name: &str, enabled: bool) -> PluginSummary {
     PluginSummary {
         name: name.to_string(),
+        cache_key: None,
         marketplace: Some("github".to_string()),
         version: "2.0.0".to_string(),
         skills: vec!["skill1".to_string(), "skill2".to_string()],

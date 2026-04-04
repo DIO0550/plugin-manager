@@ -4,6 +4,7 @@ use crate::tui::manager::core::filter::filter_plugins;
 fn make_plugin(name: &str, marketplace: Option<&str>) -> PluginSummary {
     PluginSummary {
         name: name.to_string(),
+        cache_key: None,
         marketplace: marketplace.map(|m| m.to_string()),
         version: "1.0.0".to_string(),
         skills: vec![],

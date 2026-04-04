@@ -4,7 +4,7 @@
 
 use crate::component::{ComponentKind, ComponentName, ComponentTypeCount, Scope};
 use crate::error::Result;
-use crate::plugin::{meta, MarketplacePackage, PluginCacheAccess, PluginManifest};
+use crate::plugin::{meta, MarketplacePackage, PluginCacheAccess};
 use crate::scan::{list_placed_plugins, scan_components, ComponentScan};
 use crate::target::all_targets;
 use serde::Serialize;
@@ -43,8 +43,11 @@ pub(crate) fn list_installed(cache: &dyn PluginCacheAccess) -> Result<Vec<Market
 /// プラグイン情報のサマリ（DTO）
 #[derive(Debug, Clone, Serialize)]
 pub struct PluginSummary {
-    /// プラグイン名
+    /// プラグイン名（表示用）
     pub name: String,
+    /// キャッシュディレクトリ名（ファイル操作用）
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cache_key: Option<String>,
     /// マーケットプレイス名（マーケットプレイス経由の場合）
     pub marketplace: Option<String>,
     /// バージョン
@@ -64,6 +67,11 @@ pub struct PluginSummary {
 }
 
 impl PluginSummary {
+    /// キャッシュディレクトリ名を返す（`cache_key` が `None` の場合は `name` にフォールバック）
+    pub fn cache_key(&self) -> &str {
+        self.cache_key.as_deref().unwrap_or(&self.name)
+    }
+
     /// コンポーネントの総数を取得
     pub fn component_count(&self) -> usize {
         self.skills.len()
@@ -144,13 +152,24 @@ pub fn list_installed_plugins(cache: &dyn PluginCacheAccess) -> Result<Vec<Plugi
     let plugins = list_installed(cache)?
         .into_iter()
         .map(|pkg| {
-            build_summary(
-                pkg.name,
-                pkg.marketplace,
-                &pkg.path,
-                &pkg.manifest,
-                &deployed,
-            )
+            let name = pkg.manifest.name.clone();
+            let scan: ComponentScan = scan_components(&pkg.path, &pkg.manifest);
+            let marketplace_str = pkg.marketplace.as_deref().unwrap_or("github");
+            let ops_key = pkg.cache_key.as_deref().unwrap_or(&name);
+            let enabled = meta::is_enabled(&pkg.path, marketplace_str, ops_key, &deployed);
+
+            PluginSummary {
+                name,
+                cache_key: pkg.cache_key,
+                marketplace: pkg.marketplace,
+                version: pkg.manifest.version.clone(),
+                skills: scan.skills,
+                agents: scan.agents,
+                commands: scan.commands,
+                instructions: scan.instructions,
+                hooks: scan.hooks,
+                enabled,
+            }
         })
         .collect();
 
@@ -180,34 +199,6 @@ pub(crate) fn list_all_placed(project_root: &Path) -> HashSet<(String, String)> 
     }
 
     list_placed_plugins(&all_items)
-}
-
-/// PluginSummary を構築
-fn build_summary(
-    name: String,
-    marketplace: Option<String>,
-    plugin_path: &Path,
-    manifest: &PluginManifest,
-    deployed: &HashSet<(String, String)>,
-) -> PluginSummary {
-    // 統一スキャンAPIを使用
-    let scan: ComponentScan = scan_components(plugin_path, manifest);
-
-    // デプロイ状態をチェック（meta::is_enabled に委譲）
-    let marketplace_str = marketplace.as_deref().unwrap_or("github");
-    let enabled = meta::is_enabled(plugin_path, marketplace_str, &name, deployed);
-
-    PluginSummary {
-        name,
-        marketplace,
-        version: manifest.version.clone(),
-        skills: scan.skills,
-        agents: scan.agents,
-        commands: scan.commands,
-        instructions: scan.instructions,
-        hooks: scan.hooks,
-        enabled,
-    }
 }
 
 #[cfg(test)]

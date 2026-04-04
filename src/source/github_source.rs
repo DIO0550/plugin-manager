@@ -115,6 +115,7 @@ impl PluginSource for GitHubSource {
 
             Ok(CachedPackage {
                 name: manifest.name.clone(),
+                cache_key: Some(cache_name.clone()),
                 marketplace: self.marketplace.clone(),
                 path: plugin_path,
                 manifest,

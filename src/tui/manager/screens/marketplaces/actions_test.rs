@@ -25,6 +25,7 @@ fn make_failure_result(name: &str, error: &str) -> PluginInstallResult {
 fn make_plugin(name: &str) -> PluginSummary {
     PluginSummary {
         name: name.to_string(),
+        cache_key: None,
         marketplace: None,
         version: "1.0.0".to_string(),
         skills: vec![],
@@ -183,6 +184,22 @@ fn disabled_plugin_still_counts_as_installed() {
     let cache = make_cache("test-mp", vec![make_marketplace_plugin("plugin-a")]);
     let mut plugin = make_plugin("plugin-a");
     plugin.enabled = false;
+    let installed = vec![plugin];
+
+    let result = super::build_browse_plugins(&cache, &installed);
+
+    assert_eq!(result.len(), 1);
+    assert!(result[0].installed);
+}
+
+#[test]
+fn installed_detected_by_cache_key_when_name_differs() {
+    let cache = make_cache("test-mp", vec![make_marketplace_plugin("owner--repo")]);
+    let plugin = PluginSummary {
+        name: "Display Name".to_string(),
+        cache_key: Some("owner--repo".to_string()),
+        ..make_plugin("Display Name")
+    };
     let installed = vec![plugin];
 
     let result = super::build_browse_plugins(&cache, &installed);

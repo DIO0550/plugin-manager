@@ -30,7 +30,8 @@ impl PluginDeployment {
         };
 
         let cached = CachedPackage {
-            name: self.origin.plugin.clone(),
+            name: self.manifest.name.clone(),
+            cache_key: Some(self.origin.plugin.clone()),
             marketplace,
             path: self.path.clone(),
             manifest: self.manifest.clone(),
