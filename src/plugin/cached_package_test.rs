@@ -1,9 +1,9 @@
 use super::*;
 use std::path::PathBuf;
 
-fn make_manifest() -> PluginManifest {
+fn make_manifest(name: &str) -> PluginManifest {
     PluginManifest {
-        name: "test-plugin".to_string(),
+        name: name.to_string(),
         version: "1.0.0".to_string(),
         description: None,
         author: None,
@@ -29,7 +29,7 @@ fn cache_key_returns_some_value_when_set() {
         cache_key: Some("owner--repo".to_string()),
         marketplace: None,
         path: PathBuf::from("/tmp/test"),
-        manifest: make_manifest(),
+        manifest: make_manifest("my-plugin"),
         git_ref: "main".to_string(),
         commit_sha: "abc123".to_string(),
     };
@@ -43,7 +43,7 @@ fn cache_key_falls_back_to_name_when_none() {
         cache_key: None,
         marketplace: None,
         path: PathBuf::from("/tmp/test"),
-        manifest: make_manifest(),
+        manifest: make_manifest("my-plugin"),
         git_ref: "main".to_string(),
         commit_sha: "abc123".to_string(),
     };
