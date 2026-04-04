@@ -152,17 +152,17 @@ pub fn list_installed_plugins(cache: &dyn PluginCacheAccess) -> Result<Vec<Plugi
     let plugins = list_installed(cache)?
         .into_iter()
         .map(|pkg| {
-            let name = pkg.manifest.name.clone();
-            let scan: ComponentScan = scan_components(&pkg.path, &pkg.manifest);
-            let marketplace_str = pkg.marketplace.as_deref().unwrap_or("github");
-            let ops_key = pkg.cache_key.as_deref().unwrap_or(&name);
-            let enabled = meta::is_enabled(&pkg.path, marketplace_str, ops_key, &deployed);
+            let name = pkg.manifest().name.clone();
+            let scan: ComponentScan = scan_components(pkg.path(), pkg.manifest());
+            let marketplace_str = pkg.marketplace().unwrap_or("github");
+            let ops_key = pkg.cache_key().unwrap_or(&name);
+            let enabled = meta::is_enabled(pkg.path(), marketplace_str, ops_key, &deployed);
 
             PluginSummary {
                 name,
-                cache_key: pkg.cache_key,
-                marketplace: pkg.marketplace,
-                version: pkg.manifest.version.clone(),
+                cache_key: pkg.cache_key().map(str::to_string),
+                marketplace: pkg.marketplace().map(str::to_string),
+                version: pkg.manifest().version.clone(),
                 skills: scan.skills,
                 agents: scan.agents,
                 commands: scan.commands,
