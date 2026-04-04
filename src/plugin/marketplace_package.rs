@@ -17,15 +17,40 @@ use super::cached_package::CachedPackage;
 /// マーケットプレイスのパッケージ。コンポーネントスキャン・パス解決を担う。
 #[derive(Debug, Clone)]
 pub struct MarketplacePackage {
-    pub name: String,
+    pub(crate) name: String,
     /// キャッシュディレクトリ名（ファイル操作用、CachedPackage から伝搬）
-    pub cache_key: Option<String>,
-    pub marketplace: Option<String>,
-    pub path: PathBuf,
-    pub manifest: PluginManifest,
+    pub(crate) cache_key: Option<String>,
+    pub(crate) marketplace: Option<String>,
+    pub(crate) path: PathBuf,
+    pub(crate) manifest: PluginManifest,
 }
 
 impl MarketplacePackage {
+    /// プラグイン名を取得
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// キャッシュキーを取得
+    pub fn cache_key(&self) -> Option<&str> {
+        self.cache_key.as_deref()
+    }
+
+    /// マーケットプレイス名を取得
+    pub fn marketplace(&self) -> Option<&str> {
+        self.marketplace.as_deref()
+    }
+
+    /// パスを取得
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    /// マニフェストを取得
+    pub fn manifest(&self) -> &PluginManifest {
+        &self.manifest
+    }
+
     /// Command コンポーネントのソース形式を取得
     pub fn command_format(&self) -> CommandFormat {
         match self.marketplace.as_deref() {
@@ -219,6 +244,10 @@ impl From<CachedPackage> for MarketplacePackage {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "marketplace_package_test.rs"]
+mod tests;
 
 impl From<&CachedPackage> for MarketplacePackage {
     fn from(cached: &CachedPackage) -> Self {
