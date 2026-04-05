@@ -5,7 +5,7 @@
 use super::plugin_catalog::{list_all_placed, list_installed};
 pub(super) use super::plugin_info_types::{AuthorInfo, ComponentInfo, PluginDetail, PluginSource};
 use crate::error::{PlmError, Result};
-use crate::plugin::{meta, PluginCacheAccess, PluginManifest};
+use crate::plugin::{meta, PackageCacheAccess, PluginManifest};
 use crate::scan::scan_components;
 use std::path::{Path, PathBuf};
 
@@ -22,7 +22,7 @@ struct PluginCandidate {
 ///
 /// # Arguments
 /// * `name` - プラグイン名（"plugin" または "marketplace/plugin" 形式）
-pub fn get_plugin_info(cache: &dyn PluginCacheAccess, name: &str) -> Result<PluginDetail> {
+pub fn get_plugin_info(cache: &dyn PackageCacheAccess, name: &str) -> Result<PluginDetail> {
     let (marketplace_filter, plugin_name) = parse_plugin_name(name)?;
     let candidates = find_plugin_candidates(cache, &plugin_name)?;
     let resolved = resolve_single_plugin(candidates, marketplace_filter.as_deref(), &plugin_name)?;
@@ -81,7 +81,7 @@ fn parse_plugin_name(name: &str) -> Result<(Option<String>, String)> {
 
 /// キャッシュ全体をスキャンし、manifest.name が一致するプラグインを列挙
 fn find_plugin_candidates(
-    cache: &dyn PluginCacheAccess,
+    cache: &dyn PackageCacheAccess,
     name: &str,
 ) -> Result<Vec<PluginCandidate>> {
     let candidates = list_installed(cache)?

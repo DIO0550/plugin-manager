@@ -2,7 +2,7 @@
 
 use crate::error::Result;
 use crate::host::HostClientFactory;
-use crate::plugin::{meta, CachedPackage, PluginCacheAccess};
+use crate::plugin::{meta, CachedPackage, PackageCacheAccess};
 use crate::repo::Repo;
 use std::future::Future;
 use std::pin::Pin;
@@ -57,7 +57,7 @@ impl GitHubSource {
 impl PluginSource for GitHubSource {
     fn download<'a>(
         &'a self,
-        cache: &'a dyn PluginCacheAccess,
+        cache: &'a dyn PackageCacheAccess,
         force: bool,
     ) -> Pin<Box<dyn Future<Output = Result<CachedPackage>> + Send + 'a>> {
         Box::pin(async move {

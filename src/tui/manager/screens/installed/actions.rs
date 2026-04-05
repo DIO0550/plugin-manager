@@ -5,7 +5,7 @@
 
 use super::model::UpdateStatusDisplay;
 use crate::application;
-use crate::plugin::{update_plugin, PluginCache, UpdateStatus};
+use crate::plugin::{update_plugin, PackageCache, UpdateStatus};
 use crate::tui::output_suppress::OutputSuppressGuard;
 use std::env;
 use std::path::Path;
@@ -30,8 +30,8 @@ impl From<application::OperationResult> for ActionResult {
 }
 
 /// キャッシュ初期化ヘルパー
-fn new_cache() -> Result<PluginCache, String> {
-    PluginCache::new().map_err(|e| format!("Failed to access cache: {}", e))
+fn new_cache() -> Result<PackageCache, String> {
+    PackageCache::new().map_err(|e| format!("Failed to access cache: {}", e))
 }
 
 /// プラグインを Disable（デプロイ先から削除、キャッシュは残す）

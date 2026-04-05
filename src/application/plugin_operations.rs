@@ -13,7 +13,7 @@ use super::plugin_action::PluginAction;
 use super::plugin_deployment::{cleanup_plugin_directories, load_plugin_deployment};
 use super::plugin_intent::PluginIntent;
 use crate::component::Component;
-use crate::plugin::PluginCacheAccess;
+use crate::plugin::PackageCacheAccess;
 use crate::target::{all_targets, OperationResult};
 use std::path::Path;
 
@@ -25,7 +25,7 @@ use std::path::Path;
 /// * `project_root` - プロジェクトルートパス
 /// * `target_filter` - ターゲットフィルタ（None で全ターゲット）
 pub fn disable_plugin(
-    cache: &dyn PluginCacheAccess,
+    cache: &dyn PackageCacheAccess,
     plugin_name: &str,
     marketplace: Option<&str>,
     project_root: &Path,
@@ -82,7 +82,7 @@ pub fn disable_plugin(
 /// * `project_root` - プロジェクトルートパス
 /// * `target_filter` - ターゲットフィルタ（None で全ターゲット）
 pub fn enable_plugin(
-    cache: &dyn PluginCacheAccess,
+    cache: &dyn PackageCacheAccess,
     plugin_name: &str,
     marketplace: Option<&str>,
     project_root: &Path,
@@ -127,7 +127,7 @@ pub fn enable_plugin(
 /// * `Ok(UninstallInfo)` - プラグイン情報
 /// * `Err(String)` - プラグインが見つからない場合のエラー
 pub fn get_uninstall_info(
-    cache: &dyn PluginCacheAccess,
+    cache: &dyn PackageCacheAccess,
     plugin_name: &str,
     marketplace: Option<&str>,
 ) -> Result<UninstallInfo, String> {
@@ -180,7 +180,7 @@ pub struct UninstallInfo {
 /// * `marketplace` - マーケットプレイス名（任意）
 /// * `project_root` - プロジェクトルートパス
 pub fn uninstall_plugin(
-    cache: &dyn PluginCacheAccess,
+    cache: &dyn PackageCacheAccess,
     plugin_name: &str,
     marketplace: Option<&str>,
     project_root: &Path,

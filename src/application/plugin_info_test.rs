@@ -1,12 +1,12 @@
 use super::*;
-use crate::plugin::PluginCache;
+use crate::plugin::PackageCache;
 use std::fs;
 use std::path::Path;
 use tempfile::TempDir;
 
-fn create_test_cache() -> (TempDir, PluginCache) {
+fn create_test_cache() -> (TempDir, PackageCache) {
     let temp_dir = TempDir::new().unwrap();
-    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
     (temp_dir, cache)
 }
 

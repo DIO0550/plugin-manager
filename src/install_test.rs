@@ -308,7 +308,7 @@ fn test_place_plugin_uses_cache_key_for_origin() {
 async fn test_download_plugin_with_cache_invalid_source_returns_error() {
     let temp_cache = TempDir::new().unwrap();
     let cache =
-        crate::plugin::PluginCache::with_cache_dir(temp_cache.path().to_path_buf()).unwrap();
+        crate::plugin::PackageCache::with_cache_dir(temp_cache.path().to_path_buf()).unwrap();
 
     // "/" のような不正なソース文字列は parse_source で確実に失敗し、早期にエラーとなる
     let result = download_plugin_with_cache("/", false, &cache).await;

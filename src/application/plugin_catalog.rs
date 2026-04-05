@@ -4,7 +4,7 @@
 
 use crate::component::{ComponentKind, ComponentName, ComponentTypeCount, Scope};
 use crate::error::Result;
-use crate::plugin::{meta, MarketplacePackage, PluginCacheAccess};
+use crate::plugin::{meta, MarketplacePackage, PackageCacheAccess};
 use crate::scan::{list_placed_plugins, scan_components, ComponentScan};
 use crate::target::all_targets;
 use serde::Serialize;
@@ -24,7 +24,7 @@ impl From<(Option<String>, String)> for PluginCacheKey {
 }
 
 /// キャッシュ内のマーケットプレイスパッケージを列挙
-pub(crate) fn list_installed(cache: &dyn PluginCacheAccess) -> Result<Vec<MarketplacePackage>> {
+pub(crate) fn list_installed(cache: &dyn PackageCacheAccess) -> Result<Vec<MarketplacePackage>> {
     let packages = cache
         .list()?
         .into_iter()
@@ -144,7 +144,7 @@ impl PluginSummary {
 /// インストール済みプラグインの一覧を取得
 ///
 /// キャッシュディレクトリをスキャンし、有効なプラグインの一覧を返す。
-pub fn list_installed_plugins(cache: &dyn PluginCacheAccess) -> Result<Vec<PluginSummary>> {
+pub fn list_installed_plugins(cache: &dyn PackageCacheAccess) -> Result<Vec<PluginSummary>> {
     // デプロイ済みプラグイン集合を事前取得（パフォーマンス改善）
     let project_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let deployed = list_all_placed(&project_root);

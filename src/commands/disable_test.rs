@@ -8,7 +8,7 @@ fn plm() -> Command {
 }
 
 // Note: HOME 環境変数の設定は統合テストで必要。
-// CLI バイナリ内部で PluginCache::new() が HOME に基づいてキャッシュパスを解決するため、
+// CLI バイナリ内部で PackageCache::new() が HOME に基づいてキャッシュパスを解決するため、
 // ユニットテストの DI とは無関係にこの操作が必要。
 
 #[test]

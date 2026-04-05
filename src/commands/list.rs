@@ -6,7 +6,7 @@ use crate::application::{list_installed_plugins, PluginSummary};
 use crate::component::ComponentKind;
 use crate::host::{HostClientFactory, HostKind};
 use crate::plugin::{
-    fetch_remote_versions, meta, needs_update, PluginCache, PluginCacheAccess, PluginMeta,
+    fetch_remote_versions, meta, needs_update, PackageCache, PackageCacheAccess, PluginMeta,
     VersionQueryResult,
 };
 use crate::target::TargetKind;
@@ -53,7 +53,7 @@ struct PluginWithUpdateInfo {
 
 pub async fn run(args: Args) -> Result<(), String> {
     // 1. プラグイン一覧を取得
-    let cache = PluginCache::new().map_err(|e| format!("Failed to access cache: {e}"))?;
+    let cache = PackageCache::new().map_err(|e| format!("Failed to access cache: {e}"))?;
     let mut plugins = list_installed_plugins(&cache)
         .map_err(|e| format!("Failed to list installed plugins: {e}"))?;
 
@@ -81,7 +81,7 @@ pub async fn run(args: Args) -> Result<(), String> {
 
 /// --outdated 用の更新チェック処理
 async fn run_outdated_check(
-    cache: &dyn PluginCacheAccess,
+    cache: &dyn PackageCacheAccess,
     plugins: &[PluginSummary],
     args: &Args,
     total_count: usize,

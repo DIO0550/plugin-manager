@@ -1,6 +1,6 @@
-//! プラグインキャッシュマネージャ
+//! パッケージキャッシュマネージャ
 //!
-//! GitHubからダウンロードしたプラグインのキャッシュ管理を行う。
+//! GitHubやマーケットプレイスからダウンロードしたパッケージのキャッシュ管理を行う。
 
 use super::manifest_resolve::resolve_manifest_path;
 use super::{meta, PluginManifest};
@@ -14,12 +14,12 @@ use zip::ZipArchive;
 pub use super::cached_package::CachedPackage;
 pub use super::manifest_resolve::has_manifest;
 
-/// プラグインキャッシュアクセスの抽象化トレイト
+/// パッケージキャッシュアクセスの抽象化トレイト
 ///
 /// 消費者はこの trait 経由でキャッシュ操作を行う。
-/// テスト時は `PluginCache::with_cache_dir(tempdir)` で tempdir ベースの
+/// テスト時は `PackageCache::with_cache_dir(tempdir)` で tempdir ベースの
 /// 本番実装を注入する。
-pub trait PluginCacheAccess: Send + Sync {
+pub trait PackageCacheAccess: Send + Sync {
     /// プラグインのキャッシュパスを取得（階層型: marketplace/plugin）
     ///
     /// # Arguments
@@ -116,13 +116,13 @@ pub trait PluginCacheAccess: Send + Sync {
     ) -> Result<PathBuf>;
 }
 
-/// プラグインキャッシュマネージャ
-pub struct PluginCache {
+/// パッケージキャッシュマネージャ
+pub struct PackageCache {
     /// キャッシュルート: ~/.plm/cache/plugins/
     cache_dir: PathBuf,
 }
 
-impl PluginCache {
+impl PackageCache {
     /// キャッシュマネージャを初期化（ディレクトリ作成含む）
     pub fn new() -> Result<Self> {
         let fs = RealFs;
@@ -175,7 +175,7 @@ impl PluginCache {
     }
 }
 
-impl PluginCacheAccess for PluginCache {
+impl PackageCacheAccess for PackageCache {
     fn plugin_path(&self, marketplace: Option<&str>, name: &str) -> PathBuf {
         let marketplace_dir = marketplace.unwrap_or("github");
         self.cache_dir.join(marketplace_dir).join(name)
@@ -553,9 +553,9 @@ fn write_zip_entry(file: &mut zip::read::ZipFile, target_path: &Path) -> Result<
     Ok(())
 }
 
-impl Default for PluginCache {
+impl Default for PackageCache {
     fn default() -> Self {
-        Self::new().expect("Failed to initialize plugin cache")
+        Self::new().expect("Failed to initialize package cache")
     }
 }
 

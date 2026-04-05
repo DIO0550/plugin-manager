@@ -2,7 +2,7 @@
 
 use crate::error::{PlmError, Result};
 use crate::marketplace::{MarketplaceConfig, MarketplaceRegistry};
-use crate::plugin::{CachedPackage, PluginCacheAccess};
+use crate::plugin::{CachedPackage, PackageCacheAccess};
 use std::future::Future;
 use std::pin::Pin;
 
@@ -24,7 +24,7 @@ impl SearchSource {
 impl PluginSource for SearchSource {
     fn download<'a>(
         &'a self,
-        cache: &'a dyn PluginCacheAccess,
+        cache: &'a dyn PackageCacheAccess,
         force: bool,
     ) -> Pin<Box<dyn Future<Output = Result<CachedPackage>> + Send + 'a>> {
         Box::pin(async move {
