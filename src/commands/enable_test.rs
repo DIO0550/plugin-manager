@@ -8,13 +8,14 @@ fn plm() -> Command {
 }
 
 // Note: HOME 環境変数の設定は統合テストで必要。
-// CLI バイナリ内部で PackageCache::new() が HOME に基づいてキャッシュパスを解決するため、
-// ユニットテストの DI とは無関係にこの操作が必要。
+// CLI バイナリ内部で PackageCache::new() が PLM_HOME → HOME の順でキャッシュパスを
+// 解決するため、PLM_HOME をクリアし HOME を一時ディレクトリに設定する。
 
 #[test]
 fn test_enable_cache_not_found_shows_error_once() {
     let home = TempDir::new().unwrap();
     plm()
+        .env_remove("PLM_HOME")
         .env("HOME", home.path())
         .args(["enable", "nonexistent-plugin"])
         .assert()
@@ -30,6 +31,7 @@ fn test_enable_operation_failure_shows_error_once() {
     fs::create_dir_all(&cache_dir).unwrap();
 
     plm()
+        .env_remove("PLM_HOME")
         .env("HOME", home.path())
         .args(["enable", "broken-plugin"])
         .assert()
