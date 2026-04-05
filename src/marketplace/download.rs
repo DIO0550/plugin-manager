@@ -3,22 +3,10 @@ use crate::error::PlmError;
 use crate::error::Result;
 #[cfg(test)]
 use crate::marketplace::{MarketplaceRegistry, PluginSourcePath};
-use crate::plugin::{MarketplacePackage, PackageCache, PackageCacheAccess};
+use crate::plugin::{MarketplacePackage, PackageCacheAccess};
 #[cfg(test)]
 use crate::source::GitHubSource;
 use crate::source::{MarketplaceSource, PluginSource};
-
-/// マーケットプレイス経由のプラグインダウンロード
-///
-/// デフォルトの `PackageCache` を使用する CLI/TUI 向け便利関数。
-pub(crate) async fn download_marketplace_plugin(
-    plugin_name: &str,
-    marketplace_name: &str,
-    force: bool,
-) -> Result<MarketplacePackage> {
-    let cache = PackageCache::new()?;
-    download_marketplace_plugin_with_cache(plugin_name, marketplace_name, force, &cache).await
-}
 
 /// キャッシュを注入可能なマーケットプレイス経由のプラグインダウンロード
 ///
