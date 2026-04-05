@@ -1,4 +1,5 @@
 mod config;
+mod download;
 mod fetcher;
 mod plugin_source_path;
 mod registry;
@@ -14,6 +15,7 @@ pub use config::validate_name;
 pub use fetcher::MarketplaceFetcher;
 pub use plugin_source_path::PluginSourcePath;
 // Re-exported for tests
+pub use download::download_marketplace_plugin_with_cache;
 #[cfg(test)]
 pub use registry::MarketplacePlugin;
 pub use registry::{MarketplaceCache, MarketplaceManifest, MarketplaceRegistry, PluginSource};
