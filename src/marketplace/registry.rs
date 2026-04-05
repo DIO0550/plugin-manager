@@ -4,11 +4,6 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
-/// 環境変数を取得し、空文字列の場合は None を返す
-fn non_empty_env(key: &str) -> Option<String> {
-    std::env::var(key).ok().filter(|v| !v.is_empty())
-}
-
 /// マーケットプレイスオーナー情報
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MarketplaceOwner {
@@ -76,8 +71,8 @@ impl MarketplaceRegistry {
     ///
     /// `PLM_HOME` が設定されている場合はそちらを優先し、なければ `HOME` にフォールバックする。
     pub fn new() -> Result<Self> {
-        let home = non_empty_env("PLM_HOME")
-            .or_else(|| non_empty_env("HOME"))
+        let home = crate::env::EnvVar::get("PLM_HOME")
+            .or_else(|| crate::env::EnvVar::get("HOME"))
             .ok_or_else(|| {
                 PlmError::Cache("PLM_HOME and HOME environment variables not set".to_string())
             })?;
