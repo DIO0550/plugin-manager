@@ -1,3 +1,12 @@
+// These tests use PLM_HOME env var (not HOME) to isolate the marketplace
+// registry path. PLM_HOME is PLM-specific and does not affect system-level
+// HOME resolution in other tests. All tests that mutate PLM_HOME are marked
+// #[serial] to prevent concurrent env var conflicts within this group.
+//
+// Ideally MarketplaceSource would accept an injected registry/cache dir,
+// but that refactor is out of scope for this PR. PLM_HOME + #[serial] is
+// the pragmatic middle ground.
+
 use std::path::Path;
 
 use chrono::Utc;
@@ -14,6 +23,7 @@ use super::download_marketplace_plugin_with_cache;
 ///
 /// テスト用に PLM_HOME を一時ディレクトリに差し替え、
 /// Drop 時に元の値（または未設定状態）に復元する。
+/// `#[serial]` と併用して環境変数の競合を防ぐ。
 struct PlmHomeGuard(Option<String>);
 
 impl PlmHomeGuard {
