@@ -131,7 +131,7 @@ impl PackageCache {
         let home = crate::env::EnvVar::get("PLM_HOME")
             .or_else(|| crate::env::EnvVar::get("HOME"))
             .ok_or_else(|| {
-                PlmError::Cache("PLM_HOME and HOME environment variables not set".to_string())
+                PlmError::Cache("PLM_HOME and HOME environment variables not set or empty".to_string())
             })?;
         let cache_dir = PathBuf::from(home)
             .join(".plm")
