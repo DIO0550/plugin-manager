@@ -68,8 +68,11 @@ pub struct MarketplaceRegistry {
 
 impl MarketplaceRegistry {
     /// レジストリを初期化
+    ///
+    /// `PLM_HOME` が設定されている場合はそちらを優先し、なければ `HOME` にフォールバックする。
     pub fn new() -> Result<Self> {
-        let home = std::env::var("HOME")
+        let home = std::env::var("PLM_HOME")
+            .or_else(|_| std::env::var("HOME"))
             .map_err(|_| PlmError::Cache("HOME environment variable not set".to_string()))?;
         let cache_dir = PathBuf::from(home)
             .join(".plm")

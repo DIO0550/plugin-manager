@@ -10,22 +10,25 @@ use crate::plugin::PackageCache;
 
 use super::download_marketplace_plugin_with_cache;
 
-/// HOME 環境変数の保存・復元ガード
-struct HomeGuard(Option<String>);
+/// PLM_HOME 環境変数の保存・復元ガード
+///
+/// テスト用に PLM_HOME を一時ディレクトリに差し替え、
+/// Drop 時に元の値（または未設定状態）に復元する。
+struct PlmHomeGuard(Option<String>);
 
-impl HomeGuard {
+impl PlmHomeGuard {
     fn new(new_home: &Path) -> Self {
-        let old = std::env::var("HOME").ok();
-        std::env::set_var("HOME", new_home);
+        let old = std::env::var("PLM_HOME").ok();
+        std::env::set_var("PLM_HOME", new_home);
         Self(old)
     }
 }
 
-impl Drop for HomeGuard {
+impl Drop for PlmHomeGuard {
     fn drop(&mut self) {
         match &self.0 {
-            Some(old) => std::env::set_var("HOME", old),
-            None => std::env::remove_var("HOME"),
+            Some(old) => std::env::set_var("PLM_HOME", old),
+            None => std::env::remove_var("PLM_HOME"),
         }
     }
 }
@@ -34,7 +37,7 @@ impl Drop for HomeGuard {
 #[serial]
 async fn test_download_marketplace_plugin_with_cache_invalid_marketplace() {
     let temp_dir = TempDir::new().unwrap();
-    let _guard = HomeGuard::new(temp_dir.path());
+    let _guard = PlmHomeGuard::new(temp_dir.path());
 
     let cache = PackageCache::with_cache_dir(temp_dir.path().join("plugins")).unwrap();
 
@@ -57,7 +60,7 @@ async fn test_download_marketplace_plugin_with_cache_invalid_marketplace() {
 #[serial]
 async fn test_download_marketplace_plugin_with_cache_plugin_not_found() {
     let temp_dir = TempDir::new().unwrap();
-    let _guard = HomeGuard::new(temp_dir.path());
+    let _guard = PlmHomeGuard::new(temp_dir.path());
 
     let registry = MarketplaceRegistry::new().unwrap();
     registry
