@@ -10,6 +10,11 @@ use std::io::{Cursor, Read};
 use std::path::{Component as PathComponent, Path, PathBuf};
 use zip::ZipArchive;
 
+/// 環境変数を取得し、空文字列の場合は None を返す
+fn non_empty_env(key: &str) -> Option<String> {
+    std::env::var(key).ok().filter(|v| !v.is_empty())
+}
+
 // Re-export
 pub use super::cached_package::CachedPackage;
 pub use super::manifest_resolve::has_manifest;
@@ -128,9 +133,9 @@ impl PackageCache {
     /// `PLM_HOME` が設定されている場合はそちらを優先し、なければ `HOME` にフォールバックする。
     pub fn new() -> Result<Self> {
         let fs = RealFs;
-        let home = std::env::var("PLM_HOME")
-            .or_else(|_| std::env::var("HOME"))
-            .map_err(|_| {
+        let home = non_empty_env("PLM_HOME")
+            .or_else(|| non_empty_env("HOME"))
+            .ok_or_else(|| {
                 PlmError::Cache("PLM_HOME and HOME environment variables not set".to_string())
             })?;
         let cache_dir = PathBuf::from(home)
