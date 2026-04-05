@@ -4,7 +4,7 @@ use crate::source::{MarketplaceSource, PluginSource};
 /// マーケットプレイス経由のプラグインダウンロード
 ///
 /// デフォルトの `PackageCache` を使用する CLI/TUI 向け便利関数。
-pub async fn download_marketplace_plugin(
+pub(crate) async fn download_marketplace_plugin(
     plugin_name: &str,
     marketplace_name: &str,
     force: bool,
