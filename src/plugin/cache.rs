@@ -118,7 +118,7 @@ pub trait PackageCacheAccess: Send + Sync {
 
 /// パッケージキャッシュマネージャ
 pub struct PackageCache {
-    /// キャッシュルート: ~/.plm/cache/plugins/
+    /// キャッシュルート: `$PLM_HOME/.plm/cache/plugins/` または `~/.plm/cache/plugins/`
     cache_dir: PathBuf,
 }
 
