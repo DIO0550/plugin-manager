@@ -1,3 +1,4 @@
+use crate::error::Result;
 use crate::plugin::{MarketplacePackage, PackageCache, PackageCacheAccess};
 use crate::source::{MarketplaceSource, PluginSource};
 
@@ -8,8 +9,8 @@ pub(crate) async fn download_marketplace_plugin(
     plugin_name: &str,
     marketplace_name: &str,
     force: bool,
-) -> Result<MarketplacePackage, String> {
-    let cache = PackageCache::new().map_err(|e| format!("Failed to access cache: {e}"))?;
+) -> Result<MarketplacePackage> {
+    let cache = PackageCache::new()?;
     download_marketplace_plugin_with_cache(plugin_name, marketplace_name, force, &cache).await
 }
 
@@ -21,12 +22,9 @@ pub async fn download_marketplace_plugin_with_cache(
     marketplace_name: &str,
     force: bool,
     cache: &dyn PackageCacheAccess,
-) -> Result<MarketplacePackage, String> {
+) -> Result<MarketplacePackage> {
     let source = MarketplaceSource::new(plugin_name, marketplace_name);
-    let cached = source
-        .download(cache, force)
-        .await
-        .map_err(|e| e.to_string())?;
+    let cached = source.download(cache, force).await?;
     Ok(MarketplacePackage::from(cached))
 }
 

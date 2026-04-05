@@ -246,7 +246,7 @@ fn install_single_plugin(
             return PluginInstallResult {
                 plugin_name: plugin_name.to_string(),
                 success: false,
-                error: Some(e),
+                error: Some(e.to_string()),
             }
         }
     };

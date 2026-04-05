@@ -4,6 +4,7 @@ use chrono::Utc;
 use serial_test::serial;
 use tempfile::TempDir;
 
+use crate::error::PlmError;
 use crate::marketplace::{MarketplaceCache, MarketplaceRegistry};
 use crate::plugin::PackageCache;
 
@@ -45,12 +46,10 @@ async fn test_download_marketplace_plugin_with_cache_invalid_marketplace() {
     )
     .await;
 
-    assert!(result.is_err());
-    let err = result.unwrap_err();
     assert!(
-        err.contains("Marketplace not found"),
-        "Expected 'Marketplace not found' but got: {}",
-        err
+        matches!(result, Err(PlmError::MarketplaceNotFound(_))),
+        "Expected MarketplaceNotFound but got: {:?}",
+        result
     );
 }
 
@@ -81,11 +80,9 @@ async fn test_download_marketplace_plugin_with_cache_plugin_not_found() {
     )
     .await;
 
-    assert!(result.is_err());
-    let err = result.unwrap_err();
     assert!(
-        err.contains("Plugin not found"),
-        "Expected 'Plugin not found' but got: {}",
-        err
+        matches!(result, Err(PlmError::PluginNotFound(_))),
+        "Expected PluginNotFound but got: {:?}",
+        result
     );
 }
