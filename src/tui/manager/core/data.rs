@@ -1,12 +1,12 @@
 //! 共有データストア
 //!
 //! 全タブで共有されるデータを一元管理する。
-//! Application層のDTOとプラグインキャッシュを保持する。
+//! Application層のDTOとパッケージキャッシュを保持する。
 
 use crate::application::{list_installed_plugins, PluginSummary};
 use crate::component::{ComponentKind, ComponentName, ComponentTypeCount};
 use crate::marketplace::{to_display_source, MarketplaceConfig, MarketplaceRegistry};
-use crate::plugin::PluginCache;
+use crate::plugin::PackageCache;
 use std::io;
 
 // ============================================================================
@@ -36,8 +36,8 @@ pub struct MarketplaceItem {
 
 /// 共有データストア
 pub struct DataStore {
-    /// プラグインキャッシュ（再利用のため保持）
-    cache: PluginCache,
+    /// パッケージキャッシュ（再利用のため保持）
+    cache: PackageCache,
     /// インストール済みプラグイン一覧
     pub plugins: Vec<PluginSummary>,
     /// マーケットプレイス一覧
@@ -49,7 +49,7 @@ pub struct DataStore {
 impl DataStore {
     /// 新しいデータストアを作成
     pub fn new() -> io::Result<Self> {
-        let cache = PluginCache::new().map_err(|e| io::Error::other(e.to_string()))?;
+        let cache = PackageCache::new().map_err(|e| io::Error::other(e.to_string()))?;
         let plugins =
             list_installed_plugins(&cache).map_err(|e| io::Error::other(e.to_string()))?;
         let LoadMarketplacesResult { items, error } = load_marketplaces();
@@ -233,7 +233,7 @@ impl DataStore {
         let temp_dir = tempfile::TempDir::new().expect("Failed to create temp directory for test");
         let cache_dir = temp_dir.path().to_path_buf();
         let cache =
-            PluginCache::with_cache_dir(cache_dir).expect("Failed to create test PluginCache");
+            PackageCache::with_cache_dir(cache_dir).expect("Failed to create test PackageCache");
         (
             temp_dir,
             Self {

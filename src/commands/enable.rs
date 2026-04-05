@@ -4,7 +4,7 @@
 //! `.plm-meta.json` の `statusByTarget` を更新する。
 
 use crate::application::{enable_plugin, OperationResult};
-use crate::plugin::{meta, PluginCache, PluginCacheAccess};
+use crate::plugin::{meta, PackageCache, PackageCacheAccess};
 use clap::{Parser, ValueEnum};
 use std::env;
 
@@ -38,7 +38,7 @@ pub struct Args {
 }
 
 pub async fn run(args: Args) -> Result<(), String> {
-    let cache = PluginCache::new().map_err(|e| format!("Failed to access cache: {}", e))?;
+    let cache = PackageCache::new().map_err(|e| format!("Failed to access cache: {}", e))?;
 
     // プラグインがキャッシュに存在するか確認
     if !cache.is_cached(Some(&args.marketplace), &args.name) {

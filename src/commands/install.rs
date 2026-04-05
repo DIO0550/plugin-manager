@@ -71,7 +71,9 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
 
     // 3. ダウンロード
     println!("\nDownloading plugin...");
-    let package = install::download_plugin(&args.source, args.force).await?;
+    let package = install::download_plugin(&args.source, args.force)
+        .await
+        .map_err(|e| e.to_string())?;
 
     println!("\nPlugin downloaded successfully!");
     println!("  Name: {}", package.name());

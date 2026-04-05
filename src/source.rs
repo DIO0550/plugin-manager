@@ -4,7 +4,7 @@
 //!
 //! ```ignore
 //! let source = parse_source("owner/repo")?;
-//! let cache = PluginCache::new()?;
+//! let cache = PackageCache::new()?;
 //! let plugin = source.download(&cache, false).await?;
 //! ```
 
@@ -17,7 +17,7 @@ pub use marketplace_source::MarketplaceSource;
 pub use search_source::SearchSource;
 
 use crate::error::Result;
-use crate::plugin::{CachedPackage, PluginCacheAccess};
+use crate::plugin::{CachedPackage, PackageCacheAccess};
 use crate::repo;
 use std::future::Future;
 use std::pin::Pin;
@@ -30,7 +30,7 @@ pub trait PluginSource: Send + Sync {
     /// プラグインをダウンロードする
     fn download<'a>(
         &'a self,
-        cache: &'a dyn PluginCacheAccess,
+        cache: &'a dyn PackageCacheAccess,
         force: bool,
     ) -> Pin<Box<dyn Future<Output = Result<CachedPackage>> + Send + 'a>>;
 }

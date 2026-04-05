@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 use crate::component::{AgentFormat, CommandFormat, ComponentKind, Scope};
 use crate::component::{Component, ComponentDeployment, DeploymentResult};
 use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
-use crate::plugin::{MarketplacePackage, PluginCache, PluginCacheAccess};
-use crate::source::{parse_source, MarketplaceSource, PluginSource};
+use crate::plugin::{MarketplacePackage, PackageCache, PackageCacheAccess};
+use crate::source::parse_source;
 use crate::target::{PluginOrigin, Target, TargetKind};
 
 /// スキャン済みプラグイン
@@ -35,7 +35,7 @@ impl ScannedPlugin {
         self.package.agent_format()
     }
 
-    /// プラグインキャッシュのルートパスを取得
+    /// パッケージキャッシュのルートパスを取得
     pub fn plugin_root(&self) -> &Path {
         self.package.path()
     }
@@ -97,9 +97,12 @@ pub struct PlaceFailure {
 /// 汎用プラグインダウンロード
 ///
 /// `source_str` をパースし、GitHub またはマーケットプレイスからプラグインをダウンロードする。
-/// デフォルトの `PluginCache` を使用する CLI/TUI 向け便利関数。
-pub async fn download_plugin(source_str: &str, force: bool) -> Result<MarketplacePackage, String> {
-    let cache = PluginCache::new().map_err(|e| format!("Failed to access cache: {e}"))?;
+/// デフォルトの `PackageCache` を使用する CLI/TUI 向け便利関数。
+pub async fn download_plugin(
+    source_str: &str,
+    force: bool,
+) -> crate::error::Result<MarketplacePackage> {
+    let cache = PackageCache::new()?;
     download_plugin_with_cache(source_str, force, &cache).await
 }
 
@@ -109,42 +112,10 @@ pub async fn download_plugin(source_str: &str, force: bool) -> Result<Marketplac
 pub async fn download_plugin_with_cache(
     source_str: &str,
     force: bool,
-    cache: &dyn PluginCacheAccess,
-) -> Result<MarketplacePackage, String> {
-    let source = parse_source(source_str).map_err(|e| e.to_string())?;
-    let cached = source
-        .download(cache, force)
-        .await
-        .map_err(|e| e.to_string())?;
-    Ok(MarketplacePackage::from(cached))
-}
-
-/// マーケットプレイス経由のプラグインダウンロード
-///
-/// デフォルトの `PluginCache` を使用する CLI/TUI 向け便利関数。
-pub async fn download_marketplace_plugin(
-    plugin_name: &str,
-    marketplace_name: &str,
-    force: bool,
-) -> Result<MarketplacePackage, String> {
-    let cache = PluginCache::new().map_err(|e| format!("Failed to access cache: {e}"))?;
-    download_marketplace_plugin_with_cache(plugin_name, marketplace_name, force, &cache).await
-}
-
-/// キャッシュを注入可能なマーケットプレイス経由のプラグインダウンロード
-///
-/// テストや DI が必要な場面で使用する。
-pub async fn download_marketplace_plugin_with_cache(
-    plugin_name: &str,
-    marketplace_name: &str,
-    force: bool,
-    cache: &dyn PluginCacheAccess,
-) -> Result<MarketplacePackage, String> {
-    let source = MarketplaceSource::new(plugin_name, marketplace_name);
-    let cached = source
-        .download(cache, force)
-        .await
-        .map_err(|e| e.to_string())?;
+    cache: &dyn PackageCacheAccess,
+) -> crate::error::Result<MarketplacePackage> {
+    let source = parse_source(source_str)?;
+    let cached = source.download(cache, force).await?;
     Ok(MarketplacePackage::from(cached))
 }
 

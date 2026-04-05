@@ -7,7 +7,7 @@ use crate::application::enable_plugin;
 use crate::host::{HostClientFactory, HostKind};
 use crate::http::with_retry;
 use crate::plugin::version::{fetch_remote_versions, needs_update, VersionQueryResult};
-use crate::plugin::{meta, PluginCacheAccess, PluginMeta};
+use crate::plugin::{meta, PackageCacheAccess, PluginMeta};
 use crate::repo::Repo;
 use std::path::Path;
 
@@ -134,7 +134,7 @@ fn restore_repo(
 
 /// 単一プラグインの更新
 pub async fn update_plugin(
-    cache: &dyn PluginCacheAccess,
+    cache: &dyn PackageCacheAccess,
     plugin_name: &str,
     project_root: &Path,
     target_filter: Option<&str>,
@@ -201,7 +201,7 @@ pub async fn update_plugin(
 
 /// 更新処理のコンテキスト
 struct UpdateCtx<'a> {
-    cache: &'a dyn PluginCacheAccess,
+    cache: &'a dyn PackageCacheAccess,
     client: &'a dyn crate::host::HostClient,
     repo: &'a Repo,
     plugin_meta: &'a PluginMeta,
@@ -280,7 +280,7 @@ async fn do_update(plugin_name: &str, latest_sha: &str, ctx: &UpdateCtx<'_>) -> 
 
 /// ターゲットへの再デプロイ
 fn redeploy_to_targets(
-    cache: &dyn PluginCacheAccess,
+    cache: &dyn PackageCacheAccess,
     plugin_name: &str,
     targets: &[&str],
     project_root: &Path,
@@ -313,7 +313,7 @@ fn redeploy_to_targets(
 /// GitHub以外のプラグインはSkippedとして扱う。
 /// 一部失敗しても後続の処理を継続する。
 pub async fn update_all_plugins(
-    cache: &dyn PluginCacheAccess,
+    cache: &dyn PackageCacheAccess,
     project_root: &Path,
     target_filter: Option<&str>,
 ) -> Vec<UpdateResult> {

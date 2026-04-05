@@ -3,16 +3,16 @@ use std::fs;
 use tempfile::TempDir;
 
 // =============================================================================
-// Trait-based tests: &dyn PluginCacheAccess
+// Trait-based tests: &dyn PackageCacheAccess
 // =============================================================================
 
 #[test]
 fn test_trait_object_can_be_used_as_dyn() {
     let temp_dir = TempDir::new().unwrap();
-    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
 
-    // &dyn PluginCacheAccess として使用できることを検証
-    let cache_ref: &dyn PluginCacheAccess = &cache;
+    // &dyn PackageCacheAccess として使用できることを検証
+    let cache_ref: &dyn PackageCacheAccess = &cache;
     let path = cache_ref.plugin_path(None, "test-plugin");
     assert!(path.ends_with("github/test-plugin"));
     assert!(!cache_ref.is_cached(None, "test-plugin"));
@@ -21,8 +21,8 @@ fn test_trait_object_can_be_used_as_dyn() {
 #[test]
 fn test_trait_list_via_dyn() {
     let temp_dir = TempDir::new().unwrap();
-    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
-    let cache_ref: &dyn PluginCacheAccess = &cache;
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+    let cache_ref: &dyn PackageCacheAccess = &cache;
 
     let plugins = cache_ref.list().unwrap();
     assert!(plugins.is_empty());
@@ -31,8 +31,8 @@ fn test_trait_list_via_dyn() {
 #[test]
 fn test_trait_is_cached_via_dyn() {
     let temp_dir = TempDir::new().unwrap();
-    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
-    let cache_ref: &dyn PluginCacheAccess = &cache;
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+    let cache_ref: &dyn PackageCacheAccess = &cache;
 
     // 空のキャッシュでは未キャッシュ
     assert!(!cache_ref.is_cached(Some("github"), "test-plugin"));
@@ -46,8 +46,8 @@ fn test_trait_is_cached_via_dyn() {
 #[test]
 fn test_trait_load_manifest_via_dyn() {
     let temp_dir = TempDir::new().unwrap();
-    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
-    let cache_ref: &dyn PluginCacheAccess = &cache;
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+    let cache_ref: &dyn PackageCacheAccess = &cache;
 
     // plugin.json を配置
     let plugin_dir = temp_dir.path().join("github").join("test-plugin");
@@ -68,8 +68,8 @@ fn test_trait_load_manifest_via_dyn() {
 #[test]
 fn test_trait_plugin_path_via_dyn() {
     let temp_dir = TempDir::new().unwrap();
-    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
-    let cache_ref: &dyn PluginCacheAccess = &cache;
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+    let cache_ref: &dyn PackageCacheAccess = &cache;
 
     // marketplace 指定
     let path = cache_ref.plugin_path(Some("my-market"), "my-plugin");
@@ -101,7 +101,7 @@ fn create_test_archive(entries: &[(&str, &str)]) -> Vec<u8> {
 fn test_store_from_archive_with_source_path_extracts_to_root() {
     // テストケース14: source_path 指定時、そのパス配下の内容がキャッシュ直下に展開される
     let temp_dir = TempDir::new().unwrap();
-    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
 
     // GitHub 形式のアーカイブ（prefix + source_path）
     let archive = create_test_archive(&[
@@ -134,7 +134,7 @@ fn test_store_from_archive_with_source_path_extracts_to_root() {
 fn test_store_from_archive_source_path_boundary_match() {
     // テストケース15: source_path = "plugins/foo" で plugins/foo-bar が誤抽出されない
     let temp_dir = TempDir::new().unwrap();
-    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
 
     let archive = create_test_archive(&[
         ("repo-main/plugins/foo/file.txt", "correct"),
@@ -170,7 +170,7 @@ fn test_store_from_archive_source_path_boundary_match() {
 fn test_store_from_archive_source_path_not_found() {
     // テストケース16: source_path がアーカイブ内に存在しない場合 → InvalidSource エラー
     let temp_dir = TempDir::new().unwrap();
-    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
 
     let archive = create_test_archive(&[("repo-main/other/file.txt", "content")]);
 
@@ -194,7 +194,7 @@ fn test_store_from_archive_source_path_not_found() {
 fn test_store_from_archive_source_path_validation_dotdot() {
     // テストケース21: source_path に .. が含まれる場合 → エラー
     let temp_dir = TempDir::new().unwrap();
-    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
 
     let archive = create_test_archive(&[("repo-main/plugins/foo/file.txt", "content")]);
 
@@ -218,7 +218,7 @@ fn test_store_from_archive_source_path_validation_dotdot() {
 fn test_store_from_archive_source_path_validation_backslash() {
     // テストケース21: source_path に \ が含まれる場合 → エラー
     let temp_dir = TempDir::new().unwrap();
-    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
 
     let archive = create_test_archive(&[("repo-main/plugins/foo/file.txt", "content")]);
 
@@ -242,7 +242,7 @@ fn test_store_from_archive_source_path_validation_backslash() {
 fn test_store_from_archive_source_path_validation_dot_slash() {
     // テストケース21: source_path に ./ が含まれる場合 → エラー
     let temp_dir = TempDir::new().unwrap();
-    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
 
     let archive = create_test_archive(&[("repo-main/plugins/foo/file.txt", "content")]);
 
@@ -266,7 +266,7 @@ fn test_store_from_archive_source_path_validation_dot_slash() {
 fn test_store_from_archive_without_source_path_extracts_all() {
     // source_path = None の場合は従来通り全ファイルを展開
     let temp_dir = TempDir::new().unwrap();
-    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
 
     let archive = create_test_archive(&[
         (
@@ -292,7 +292,7 @@ fn test_store_from_archive_without_source_path_extracts_all() {
 fn test_store_from_archive_handles_backslash_entries() {
     // テストケース20: zip内の \ 区切りエントリを / に正規化後一致
     let temp_dir = TempDir::new().unwrap();
-    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
 
     // バックスラッシュを含むエントリ名（Windows由来のzip）
     // プレフィックスはスラッシュで書く（プレフィックス抽出は / でsplitするため）
@@ -315,7 +315,7 @@ fn test_store_from_archive_handles_backslash_entries() {
 fn test_store_from_archive_writes_installed_at_to_meta() {
     // store_from_archive 後に .plm-meta.json に installedAt が書き込まれることを確認
     let temp_dir = TempDir::new().unwrap();
-    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
 
     let archive = create_test_archive(&[(
         "repo-main/plugin.json",
@@ -344,7 +344,7 @@ fn test_store_from_archive_writes_installed_at_to_meta() {
 fn test_store_from_archive_does_not_modify_plugin_json() {
     // plugin.json が改変されないことを確認（上流成果物の保持）
     let temp_dir = TempDir::new().unwrap();
-    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
 
     let original_content = r#"{"name":"test","version":"1.0.0","customField":"preserved"}"#;
     let archive = create_test_archive(&[("repo-main/plugin.json", original_content)]);
@@ -381,7 +381,7 @@ fn test_store_from_archive_does_not_modify_plugin_json() {
 #[test]
 fn test_backup_creates_copy() {
     let temp_dir = TempDir::new().unwrap();
-    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
 
     // まずプラグインをインストール
     let archive = create_test_archive(&[
@@ -411,7 +411,7 @@ fn test_backup_creates_copy() {
 #[test]
 fn test_restore_recovers_from_backup() {
     let temp_dir = TempDir::new().unwrap();
-    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
 
     // プラグインをインストール
     let archive = create_test_archive(&[
@@ -447,7 +447,7 @@ fn test_restore_recovers_from_backup() {
 #[test]
 fn test_remove_backup_deletes_backup() {
     let temp_dir = TempDir::new().unwrap();
-    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
 
     // プラグインをインストール
     let archive = create_test_archive(&[(
@@ -472,7 +472,7 @@ fn test_remove_backup_deletes_backup() {
 #[test]
 fn test_restore_without_backup_returns_error() {
     let temp_dir = TempDir::new().unwrap();
-    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
 
     // プラグインをインストール（バックアップなし）
     let archive = create_test_archive(&[(
@@ -491,7 +491,7 @@ fn test_restore_without_backup_returns_error() {
 #[test]
 fn test_backup_nonexistent_plugin_returns_error() {
     let temp_dir = TempDir::new().unwrap();
-    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
 
     // 存在しないプラグインのバックアップ → エラー
     let result = cache.backup(Some("github"), "nonexistent-plugin");
@@ -505,7 +505,7 @@ fn test_backup_nonexistent_plugin_returns_error() {
 #[test]
 fn test_atomic_update_success() {
     let temp_dir = TempDir::new().unwrap();
-    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
 
     // 初期プラグインをインストール
     let archive_v1 = create_test_archive(&[
@@ -545,7 +545,7 @@ fn test_atomic_update_success() {
 #[test]
 fn test_atomic_update_without_plugin_json_returns_error() {
     let temp_dir = TempDir::new().unwrap();
-    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
 
     // 初期プラグインをインストール
     let archive_v1 = create_test_archive(&[(
@@ -571,7 +571,7 @@ fn test_atomic_update_without_plugin_json_returns_error() {
 #[test]
 fn test_atomic_update_cleans_up_temp_on_failure() {
     let temp_dir = TempDir::new().unwrap();
-    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
 
     // 初期プラグインをインストール
     let archive_v1 = create_test_archive(&[(
@@ -606,7 +606,7 @@ fn test_atomic_update_cleans_up_temp_on_failure() {
 #[test]
 fn test_load_package_reads_meta() {
     let temp_dir = TempDir::new().unwrap();
-    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
 
     // プラグインディレクトリを作成
     let plugin_dir = temp_dir.path().join("github").join("test-plugin");
@@ -639,7 +639,7 @@ fn test_load_package_reads_meta() {
 #[test]
 fn test_load_package_missing_meta_uses_defaults() {
     let temp_dir = TempDir::new().unwrap();
-    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
 
     // プラグインディレクトリを作成
     let plugin_dir = temp_dir.path().join("github").join("test-plugin");
@@ -661,7 +661,7 @@ fn test_load_package_missing_meta_uses_defaults() {
 #[test]
 fn test_load_package_missing_manifest_returns_error() {
     let temp_dir = TempDir::new().unwrap();
-    let cache = PluginCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
 
     // 空のプラグインディレクトリのみ作成（plugin.json なし）
     let plugin_dir = temp_dir.path().join("github").join("test-plugin");

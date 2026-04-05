@@ -7,7 +7,7 @@ pub mod meta;
 mod update;
 mod version;
 
-pub use cache::{CachedPackage, PluginCache, PluginCacheAccess};
+pub use cache::{CachedPackage, PackageCache, PackageCacheAccess};
 pub use cached_package::UNKNOWN_GIT_VALUE;
 pub use manifest::PluginManifest;
 pub use marketplace_package::MarketplacePackage;

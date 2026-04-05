@@ -21,7 +21,7 @@ const MANIFEST_PATHS: &[&str] = &[".claude-plugin/plugin.json", "plugin.json"];
 ///
 /// # Visibility
 /// Infrastructure内部関数。外部（TUI/CLI）からは直接呼ばず、
-/// `PluginCache::load_manifest()` や `has_manifest()` を経由して使用する。
+/// `PackageCache::load_manifest()` や `has_manifest()` を経由して使用する。
 pub(crate) fn resolve_manifest_path(plugin_dir: &Path) -> Option<PathBuf> {
     for candidate in MANIFEST_PATHS {
         let path = plugin_dir.join(candidate);

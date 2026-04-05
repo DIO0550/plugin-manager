@@ -1,4 +1,5 @@
 mod config;
+mod download;
 mod fetcher;
 mod plugin_source_path;
 mod registry;
@@ -11,6 +12,7 @@ pub use config::{
 // Re-exported for tests
 #[cfg(test)]
 pub use config::validate_name;
+pub use download::download_marketplace_plugin_with_cache;
 pub use fetcher::MarketplaceFetcher;
 pub use plugin_source_path::PluginSourcePath;
 // Re-exported for tests

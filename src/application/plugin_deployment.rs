@@ -6,7 +6,7 @@
 use crate::component::Component;
 use crate::fs::{FileSystem, RealFs};
 use crate::plugin::{
-    CachedPackage, MarketplacePackage, PluginCacheAccess, PluginManifest, UNKNOWN_GIT_VALUE,
+    CachedPackage, MarketplacePackage, PackageCacheAccess, PluginManifest, UNKNOWN_GIT_VALUE,
 };
 use crate::target::PluginOrigin;
 use std::path::{Path, PathBuf};
@@ -46,7 +46,7 @@ impl PluginDeployment {
 ///
 /// マニフェストとパス情報を含む PluginDeployment を構築する。
 pub(super) fn load_plugin_deployment(
-    cache: &dyn PluginCacheAccess,
+    cache: &dyn PackageCacheAccess,
     marketplace: Option<&str>,
     plugin_name: &str,
 ) -> Result<PluginDeployment, String> {

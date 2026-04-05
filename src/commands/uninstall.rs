@@ -1,5 +1,5 @@
 use crate::application::{self, UninstallInfo};
-use crate::plugin::PluginCache;
+use crate::plugin::PackageCache;
 use clap::Parser;
 use owo_colors::OwoColorize;
 use std::env;
@@ -20,7 +20,7 @@ pub struct Args {
 }
 
 pub async fn run(args: Args) -> Result<(), String> {
-    let cache = PluginCache::new().map_err(|e| format!("Failed to access cache: {}", e))?;
+    let cache = PackageCache::new().map_err(|e| format!("Failed to access cache: {}", e))?;
     let project_root =
         env::current_dir().map_err(|e| format!("Failed to get current dir: {}", e))?;
 

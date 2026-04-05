@@ -7,10 +7,11 @@ use crate::application::PluginSummary;
 use crate::component::Scope;
 use crate::install::{self, PlaceRequest};
 use crate::marketplace::{
-    to_display_source, to_internal_source, MarketplaceCache, MarketplaceConfig, MarketplaceFetcher,
-    MarketplaceRegistration, MarketplaceRegistry,
+    download_marketplace_plugin_with_cache, to_display_source, to_internal_source,
+    MarketplaceCache, MarketplaceConfig, MarketplaceFetcher, MarketplaceRegistration,
+    MarketplaceRegistry,
 };
-use crate::plugin::{PluginCache, PluginCacheAccess};
+use crate::plugin::{PackageCache, PackageCacheAccess};
 use crate::repo;
 use crate::target::parse_target;
 use crate::tui::manager::core::MarketplaceItem;
@@ -222,7 +223,7 @@ struct InstallCtx<'a> {
     targets: &'a [Box<dyn crate::target::Target>],
     scope: Scope,
     project_root: &'a Path,
-    cache: &'a dyn PluginCacheAccess,
+    cache: &'a dyn PackageCacheAccess,
 }
 
 /// 個別プラグインの download -> scan -> place パイプライン
@@ -233,20 +234,19 @@ fn install_single_plugin(
 ) -> PluginInstallResult {
     // Download (async -> sync bridge)
     let package = match tokio::task::block_in_place(|| {
-        ctx.handle
-            .block_on(install::download_marketplace_plugin_with_cache(
-                plugin_name,
-                marketplace_name,
-                false,
-                ctx.cache,
-            ))
+        ctx.handle.block_on(download_marketplace_plugin_with_cache(
+            plugin_name,
+            marketplace_name,
+            false,
+            ctx.cache,
+        ))
     }) {
         Ok(d) => d,
         Err(e) => {
             return PluginInstallResult {
                 plugin_name: plugin_name.to_string(),
                 success: false,
-                error: Some(e),
+                error: Some(e.to_string()),
             }
         }
     };
@@ -340,8 +340,8 @@ pub fn install_plugins(
         Err(_) => return make_all_failed_summary(plugin_names, "No Tokio runtime available"),
     };
 
-    // PluginCache を1回作成（各プラグインで共有）
-    let cache = match PluginCache::new() {
+    // PackageCache を1回作成（各プラグインで共有）
+    let cache = match PackageCache::new() {
         Ok(c) => c,
         Err(e) => {
             return make_all_failed_summary(plugin_names, &format!("Failed to access cache: {e}"))
