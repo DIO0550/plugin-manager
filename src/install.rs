@@ -98,8 +98,11 @@ pub struct PlaceFailure {
 ///
 /// `source_str` をパースし、GitHub またはマーケットプレイスからプラグインをダウンロードする。
 /// デフォルトの `PackageCache` を使用する CLI/TUI 向け便利関数。
-pub async fn download_plugin(source_str: &str, force: bool) -> Result<MarketplacePackage, String> {
-    let cache = PackageCache::new().map_err(|e| format!("Failed to access cache: {e}"))?;
+pub async fn download_plugin(
+    source_str: &str,
+    force: bool,
+) -> crate::error::Result<MarketplacePackage> {
+    let cache = PackageCache::new()?;
     download_plugin_with_cache(source_str, force, &cache).await
 }
 
@@ -110,12 +113,9 @@ pub async fn download_plugin_with_cache(
     source_str: &str,
     force: bool,
     cache: &dyn PackageCacheAccess,
-) -> Result<MarketplacePackage, String> {
-    let source = parse_source(source_str).map_err(|e| e.to_string())?;
-    let cached = source
-        .download(cache, force)
-        .await
-        .map_err(|e| e.to_string())?;
+) -> crate::error::Result<MarketplacePackage> {
+    let source = parse_source(source_str)?;
+    let cached = source.download(cache, force).await?;
     Ok(MarketplacePackage::from(cached))
 }
 
