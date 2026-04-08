@@ -7,7 +7,7 @@ use crate::repo::Repo;
 use std::future::Future;
 use std::pin::Pin;
 
-use super::PluginSource;
+use super::PackageSource;
 
 /// Git リポジトリからプラグインをダウンロードするソース
 ///
@@ -54,7 +54,7 @@ impl GitHubSource {
     }
 }
 
-impl PluginSource for GitHubSource {
+impl PackageSource for GitHubSource {
     fn download<'a>(
         &'a self,
         cache: &'a dyn PackageCacheAccess,
@@ -121,6 +121,7 @@ impl PluginSource for GitHubSource {
                 manifest,
                 git_ref,
                 commit_sha,
+                marketplace_manifest: None,
             })
         })
     }

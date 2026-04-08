@@ -6,7 +6,7 @@ use crate::plugin::{CachedPackage, PackageCacheAccess};
 use std::future::Future;
 use std::pin::Pin;
 
-use super::{MarketplaceSource, PluginSource};
+use super::{MarketplaceSource, PackageSource};
 
 /// 全 Marketplace を検索してプラグインをダウンロードするソース
 pub struct SearchSource {
@@ -21,7 +21,7 @@ impl SearchSource {
     }
 }
 
-impl PluginSource for SearchSource {
+impl PackageSource for SearchSource {
     fn download<'a>(
         &'a self,
         cache: &'a dyn PackageCacheAccess,

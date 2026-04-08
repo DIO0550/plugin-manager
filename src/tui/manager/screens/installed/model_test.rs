@@ -2,6 +2,7 @@ use crossterm::event::KeyCode;
 
 use super::{key_to_msg, CacheState, Model, Msg};
 use crate::application::PluginSummary;
+use crate::scan::ComponentScan;
 use crate::tui::manager::core::DataStore;
 use std::collections::HashSet;
 
@@ -11,11 +12,7 @@ fn make_plugin(name: &str) -> PluginSummary {
         cache_key: None,
         marketplace: Some("github".to_string()),
         version: "1.0.0".to_string(),
-        skills: vec![],
-        agents: vec![],
-        commands: vec![],
-        instructions: vec![],
-        hooks: vec![],
+        components: ComponentScan::default(),
         enabled: true,
     }
 }

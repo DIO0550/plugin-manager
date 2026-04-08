@@ -90,7 +90,7 @@ pub enum InstructionPath {
 ///
 /// プラグインディレクトリから検出されたコンポーネントの名前一覧。
 /// パスは含まず、名前のみを保持する（パス解決は呼び出し側の責務）。
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize)]
 pub struct ComponentScan {
     /// スキル名一覧
     pub skills: Vec<String>,

@@ -32,6 +32,7 @@ fn cache_key_returns_some_value_when_set() {
         manifest: make_manifest("my-plugin"),
         git_ref: "main".to_string(),
         commit_sha: "abc123".to_string(),
+        marketplace_manifest: None,
     };
     assert_eq!(pkg.cache_key(), "owner--repo");
 }
@@ -46,6 +47,7 @@ fn cache_key_falls_back_to_name_when_none() {
         manifest: make_manifest("my-plugin"),
         git_ref: "main".to_string(),
         commit_sha: "abc123".to_string(),
+        marketplace_manifest: None,
     };
     assert_eq!(pkg.cache_key(), "my-plugin");
 }

@@ -1,7 +1,8 @@
 //! プラグイン詳細情報の型定義
 //!
-//! PluginDetail, AuthorInfo, PluginSource, ComponentInfo のDTO群。
+//! PluginDetail, AuthorInfo, PluginSource のDTO群。
 
+use crate::scan::ComponentScan;
 use serde::Serialize;
 
 /// プラグイン詳細情報（DTO）
@@ -25,7 +26,7 @@ pub struct PluginDetail {
     pub source: PluginSource,
 
     /// コンポーネント一覧
-    pub components: ComponentInfo,
+    pub components: ComponentScan,
 
     /// 有効状態
     pub enabled: bool,
@@ -55,14 +56,4 @@ pub enum PluginSource {
     GitHub { repository: String },
     /// マーケットプレイスからインストール
     Marketplace { name: String },
-}
-
-/// コンポーネント一覧
-#[derive(Debug, Clone, Serialize)]
-pub struct ComponentInfo {
-    pub skills: Vec<String>,
-    pub agents: Vec<String>,
-    pub commands: Vec<String>,
-    pub instructions: Vec<String>,
-    pub hooks: Vec<String>,
 }

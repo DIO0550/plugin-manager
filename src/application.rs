@@ -17,7 +17,7 @@ pub use plugin_info::get_plugin_info;
 pub use plugin_info_types::{PluginDetail, PluginSource};
 // Re-exported for tests
 #[cfg(test)]
-pub use plugin_info_types::{AuthorInfo, ComponentInfo};
+pub use plugin_info_types::AuthorInfo;
 pub use plugin_operations::{
     disable_plugin, enable_plugin, get_uninstall_info, uninstall_plugin, UninstallInfo,
 };

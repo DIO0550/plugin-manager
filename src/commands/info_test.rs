@@ -1,5 +1,6 @@
 use super::*;
-use crate::application::{AuthorInfo, ComponentInfo, PluginSource};
+use crate::application::{AuthorInfo, PluginSource};
+use crate::scan::ComponentScan;
 
 fn create_test_detail() -> PluginDetail {
     PluginDetail {
@@ -15,7 +16,7 @@ fn create_test_detail() -> PluginDetail {
         source: PluginSource::GitHub {
             repository: "owner/repo".to_string(),
         },
-        components: ComponentInfo {
+        components: ComponentScan {
             skills: vec!["skill1".to_string(), "skill2".to_string()],
             agents: vec![],
             commands: vec!["cmd1".to_string()],

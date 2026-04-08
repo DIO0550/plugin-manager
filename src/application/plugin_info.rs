@@ -3,7 +3,7 @@
 //! 特定のプラグインの詳細情報を取得するユースケースを提供する。
 
 use super::plugin_catalog::{list_all_placed, list_installed};
-pub(super) use super::plugin_info_types::{AuthorInfo, ComponentInfo, PluginDetail, PluginSource};
+pub(super) use super::plugin_info_types::{AuthorInfo, PluginDetail, PluginSource};
 use crate::error::{PlmError, Result};
 use crate::plugin::{meta, PackageCacheAccess, PluginManifest};
 use crate::scan::scan_components;
@@ -195,14 +195,7 @@ fn build_plugin_detail(candidate: PluginCandidate) -> Result<PluginDetail> {
     );
 
     // コンポーネント走査
-    let scan = scan_components(&candidate.cache_path, manifest);
-    let components = ComponentInfo {
-        skills: scan.skills,
-        agents: scan.agents,
-        commands: scan.commands,
-        instructions: scan.instructions,
-        hooks: scan.hooks,
-    };
+    let components = scan_components(&candidate.cache_path, manifest);
 
     // デプロイ状態判定（キャッシュディレクトリ名で判定）
     let enabled = check_deployed_status(

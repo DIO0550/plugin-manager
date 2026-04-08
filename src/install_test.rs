@@ -5,7 +5,7 @@ use tempfile::TempDir;
 
 use super::*;
 use crate::component::ComponentKind;
-use crate::plugin::{CachedPackage, MarketplacePackage, PluginManifest};
+use crate::plugin::{CachedPackage, MarketplaceContent, PluginManifest};
 use crate::target::{CodexTarget, CopilotTarget};
 
 /// テスト用 CachedPackage を構築するヘルパー
@@ -69,6 +69,7 @@ fn create_test_cached_package(
         manifest,
         git_ref: "main".to_string(),
         commit_sha: "abc123".to_string(),
+        marketplace_manifest: None,
     }
 }
 
@@ -85,13 +86,13 @@ fn test_scan_plugin_returns_all_components_when_no_filter() {
         &["agent-a"],
         &["cmd-a"],
     );
-    let package = MarketplacePackage::from(cached);
+    let package = MarketplaceContent::from(cached);
 
     let result = scan_plugin(&package, None).unwrap();
 
     assert_eq!(result.components.len(), 4);
-    assert_eq!(result.name, "test-plugin");
-    assert_eq!(result.marketplace, Some("test-marketplace".to_string()));
+    assert_eq!(result.name(), "test-plugin");
+    assert_eq!(result.marketplace(), Some("test-marketplace"));
 }
 
 #[test]
@@ -103,7 +104,7 @@ fn test_scan_plugin_filters_by_skill_only() {
         &["agent-a"],
         &["cmd-a"],
     );
-    let package = MarketplacePackage::from(cached);
+    let package = MarketplaceContent::from(cached);
 
     let filter = [ComponentKind::Skill];
     let result = scan_plugin(&package, Some(&filter)).unwrap();
@@ -119,7 +120,7 @@ fn test_scan_plugin_filters_by_skill_only() {
 fn test_scan_plugin_empty_components() {
     let temp = TempDir::new().unwrap();
     let cached = create_test_cached_package(temp.path(), &[], &[], &[]);
-    let package = MarketplacePackage::from(cached);
+    let package = MarketplaceContent::from(cached);
 
     let result = scan_plugin(&package, None).unwrap();
 
@@ -130,7 +131,7 @@ fn test_scan_plugin_empty_components() {
 fn test_scan_plugin_filter_with_no_match() {
     let temp = TempDir::new().unwrap();
     let cached = create_test_cached_package(temp.path(), &["skill-a"], &[], &[]);
-    let package = MarketplacePackage::from(cached);
+    let package = MarketplaceContent::from(cached);
 
     let filter = [ComponentKind::Agent];
     let result = scan_plugin(&package, Some(&filter)).unwrap();
@@ -147,7 +148,7 @@ fn test_place_plugin_skill_to_codex() {
     let temp = TempDir::new().unwrap();
     let project_dir = TempDir::new().unwrap();
     let cached = create_test_cached_package(temp.path(), &["my-skill"], &[], &[]);
-    let package = MarketplacePackage::from(cached);
+    let package = MarketplaceContent::from(cached);
     let scanned = scan_plugin(&package, None).unwrap();
 
     let targets: Vec<Box<dyn crate::target::Target>> = vec![Box::new(CodexTarget::new())];
@@ -173,7 +174,7 @@ fn test_place_plugin_unsupported_component_skipped() {
     let project_dir = TempDir::new().unwrap();
     // Antigravity only supports Skills
     let cached = create_test_cached_package(temp.path(), &[], &["my-agent"], &[]);
-    let package = MarketplacePackage::from(cached);
+    let package = MarketplaceContent::from(cached);
     let scanned = scan_plugin(&package, None).unwrap();
 
     let targets: Vec<Box<dyn crate::target::Target>> =
@@ -196,7 +197,7 @@ fn test_place_plugin_empty_components() {
     let temp = TempDir::new().unwrap();
     let project_dir = TempDir::new().unwrap();
     let cached = create_test_cached_package(temp.path(), &[], &[], &[]);
-    let package = MarketplacePackage::from(cached);
+    let package = MarketplaceContent::from(cached);
     let scanned = scan_plugin(&package, None).unwrap();
 
     let targets: Vec<Box<dyn crate::target::Target>> = vec![Box::new(CodexTarget::new())];
@@ -217,7 +218,7 @@ fn test_place_plugin_multiple_targets() {
     let temp = TempDir::new().unwrap();
     let project_dir = TempDir::new().unwrap();
     let cached = create_test_cached_package(temp.path(), &["my-skill"], &[], &[]);
-    let package = MarketplacePackage::from(cached);
+    let package = MarketplaceContent::from(cached);
     let scanned = scan_plugin(&package, None).unwrap();
 
     let targets: Vec<Box<dyn crate::target::Target>> =
@@ -245,7 +246,7 @@ fn test_scan_plugin_propagates_cache_key() {
     let temp = TempDir::new().unwrap();
     let mut cached = create_test_cached_package(temp.path(), &["skill-a"], &[], &[]);
     cached.cache_key = Some("owner--repo".to_string());
-    let package = MarketplacePackage::from(cached);
+    let package = MarketplaceContent::from(cached);
 
     let result = scan_plugin(&package, None).unwrap();
 
@@ -256,7 +257,7 @@ fn test_scan_plugin_propagates_cache_key() {
 fn test_scan_plugin_cache_key_none_falls_back_to_name() {
     let temp = TempDir::new().unwrap();
     let cached = create_test_cached_package(temp.path(), &["skill-a"], &[], &[]);
-    let package = MarketplacePackage::from(cached);
+    let package = MarketplaceContent::from(cached);
 
     let result = scan_plugin(&package, None).unwrap();
 
@@ -272,12 +273,12 @@ fn test_place_plugin_uses_cache_key_for_origin() {
     // name はマニフェスト名、cache_key はキャッシュディレクトリ名
     cached.name = "My Plugin".to_string();
     cached.cache_key = Some("owner--repo".to_string());
-    let package = MarketplacePackage::from(cached);
+    let package = MarketplaceContent::from(cached);
     let scanned = scan_plugin(&package, None).unwrap();
 
     // cache_key が "owner--repo" であることを確認
     assert_eq!(scanned.cache_key(), "owner--repo");
-    assert_eq!(scanned.name, "My Plugin");
+    assert_eq!(scanned.name(), "My Plugin");
 
     let targets: Vec<Box<dyn crate::target::Target>> = vec![Box::new(CodexTarget::new())];
 
