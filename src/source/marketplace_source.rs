@@ -1,7 +1,9 @@
 //! Marketplace 経由のダウンロード
 
 use crate::error::{PlmError, Result};
-use crate::marketplace::{MarketplaceRegistry, PluginSource as MpPluginSource, PluginSourcePath};
+use crate::marketplace::{
+    MarketplaceManifest, MarketplaceRegistry, PluginSource as MpPluginSource, PluginSourcePath,
+};
 use crate::plugin::{CachedPackage, PackageCacheAccess};
 use crate::repo;
 use std::future::Future;
@@ -44,7 +46,16 @@ impl PackageSource for MarketplaceSource {
                 .find(|p| p.name == self.plugin)
                 .ok_or_else(|| PlmError::PluginNotFound(self.plugin.clone()))?;
 
-            let marketplace_manifest = mp_cache.original_manifest.clone();
+            let marketplace_manifest = Some(
+                mp_cache
+                    .original_manifest
+                    .clone()
+                    .unwrap_or_else(|| MarketplaceManifest {
+                        name: mp_cache.name.clone(),
+                        owner: mp_cache.owner.clone(),
+                        plugins: mp_cache.plugins.clone(),
+                    }),
+            );
 
             // プラグインソースをRepoに変換してダウンロード
             let mut cached = match &plugin_entry.source {
