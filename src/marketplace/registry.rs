@@ -58,8 +58,8 @@ pub struct MarketplaceCache {
     #[serde(default)]
     pub owner: Option<MarketplaceOwner>,
     pub plugins: Vec<MarketplacePlugin>,
-    /// 元の marketplace.json マニフェスト（旧キャッシュ互換のため default）
-    #[serde(default)]
+    /// 元の marketplace.json マニフェスト（旧キャッシュ互換のため読込のみ許可）
+    #[serde(default, skip_serializing)]
     pub original_manifest: Option<MarketplaceManifest>,
 }
 
