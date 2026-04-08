@@ -46,16 +46,13 @@ impl PackageSource for MarketplaceSource {
                 .find(|p| p.name == self.plugin)
                 .ok_or_else(|| PlmError::PluginNotFound(self.plugin.clone()))?;
 
-            let marketplace_manifest = Some(
-                mp_cache
-                    .original_manifest
-                    .clone()
-                    .unwrap_or_else(|| MarketplaceManifest {
-                        name: mp_cache.name.clone(),
-                        owner: mp_cache.owner.clone(),
-                        plugins: mp_cache.plugins.clone(),
-                    }),
-            );
+            let marketplace_manifest = Some(mp_cache.original_manifest.clone().unwrap_or_else(
+                || MarketplaceManifest {
+                    name: mp_cache.name.clone(),
+                    owner: mp_cache.owner.clone(),
+                    plugins: mp_cache.plugins.clone(),
+                },
+            ));
 
             // プラグインソースをRepoに変換してダウンロード
             let mut cached = match &plugin_entry.source {
