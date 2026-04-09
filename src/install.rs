@@ -24,9 +24,7 @@ impl ScannedPlugin {
 
     /// キャッシュディレクトリ名を返す（`cache_key` が `None` の場合は `name` にフォールバック）
     pub fn cache_key(&self) -> &str {
-        self.package
-            .cache_key()
-            .unwrap_or_else(|| self.package.name())
+        crate::plugin::resolve_cache_key(self.package.cache_key(), self.package.name())
     }
 
     /// マーケットプレイス名を取得
