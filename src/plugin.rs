@@ -17,6 +17,6 @@ pub(crate) fn resolve_cache_key<'a>(cache_key: Option<&'a str>, name: &'a str) -
 }
 pub use marketplace_content::MarketplaceContent;
 pub use meta::PluginMeta;
-pub use plugin_content::Plugin;
+pub(crate) use plugin_content::Plugin;
 pub use update::{update_all_plugins, update_plugin, UpdateResult, UpdateStatus};
 pub use version::{fetch_remote_versions, needs_update, VersionQueryResult};
