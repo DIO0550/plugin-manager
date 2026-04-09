@@ -85,11 +85,7 @@ fn create_empty_summary() -> PluginSummary {
         cache_key: None,
         marketplace: None,
         version: "1.0.0".to_string(),
-        skills: vec![],
-        agents: vec![],
-        commands: vec![],
-        instructions: vec![],
-        hooks: vec![],
+        components: ComponentScan::default(),
         enabled: true,
     }
 }
@@ -100,11 +96,13 @@ fn create_full_summary() -> PluginSummary {
         cache_key: None,
         marketplace: Some("awesome-marketplace".to_string()),
         version: "2.0.0".to_string(),
-        skills: vec!["skill1".to_string(), "skill2".to_string()],
-        agents: vec!["agent1".to_string()],
-        commands: vec!["cmd1".to_string(), "cmd2".to_string(), "cmd3".to_string()],
-        instructions: vec!["inst1".to_string()],
-        hooks: vec!["hook1".to_string(), "hook2".to_string()],
+        components: ComponentScan {
+            skills: vec!["skill1".to_string(), "skill2".to_string()],
+            agents: vec!["agent1".to_string()],
+            commands: vec!["cmd1".to_string(), "cmd2".to_string(), "cmd3".to_string()],
+            instructions: vec!["inst1".to_string()],
+            hooks: vec!["hook1".to_string(), "hook2".to_string()],
+        },
         enabled: true,
     }
 }
@@ -150,11 +148,13 @@ fn test_component_count_partial() {
         cache_key: None,
         marketplace: None,
         version: "1.0.0".to_string(),
-        skills: vec!["s1".to_string()],
-        agents: vec![],
-        commands: vec!["c1".to_string(), "c2".to_string()],
-        instructions: vec![],
-        hooks: vec![],
+        components: ComponentScan {
+            skills: vec!["s1".to_string()],
+            agents: vec![],
+            commands: vec!["c1".to_string(), "c2".to_string()],
+            instructions: vec![],
+            hooks: vec![],
+        },
         enabled: true,
     };
     assert_eq!(summary.component_count(), 3);
@@ -173,14 +173,14 @@ fn test_has_components_empty() {
 #[test]
 fn test_has_components_with_skills() {
     let mut summary = create_empty_summary();
-    summary.skills = vec!["skill".to_string()];
+    summary.components.skills = vec!["skill".to_string()];
     assert!(summary.has_components());
 }
 
 #[test]
 fn test_has_components_with_hooks_only() {
     let mut summary = create_empty_summary();
-    summary.hooks = vec!["hook".to_string()];
+    summary.components.hooks = vec!["hook".to_string()];
     assert!(summary.has_components());
 }
 
@@ -241,11 +241,13 @@ fn test_component_type_counts_partial() {
         cache_key: None,
         marketplace: None,
         version: "1.0.0".to_string(),
-        skills: vec![],
-        agents: vec!["a1".to_string(), "a2".to_string()],
-        commands: vec![],
-        instructions: vec![],
-        hooks: vec!["h1".to_string()],
+        components: ComponentScan {
+            skills: vec![],
+            agents: vec!["a1".to_string(), "a2".to_string()],
+            commands: vec![],
+            instructions: vec![],
+            hooks: vec!["h1".to_string()],
+        },
         enabled: true,
     };
 

@@ -225,11 +225,11 @@ fn filter_plugins(plugins: Vec<PluginSummary>, args: &Args) -> Vec<PluginSummary
 fn filter_by_type(plugin: &PluginSummary, component_type: Option<&ComponentKind>) -> bool {
     match component_type {
         None => true,
-        Some(ComponentKind::Skill) => !plugin.skills.is_empty(),
-        Some(ComponentKind::Agent) => !plugin.agents.is_empty(),
-        Some(ComponentKind::Command) => !plugin.commands.is_empty(),
-        Some(ComponentKind::Instruction) => !plugin.instructions.is_empty(),
-        Some(ComponentKind::Hook) => !plugin.hooks.is_empty(),
+        Some(ComponentKind::Skill) => !plugin.components.skills.is_empty(),
+        Some(ComponentKind::Agent) => !plugin.components.agents.is_empty(),
+        Some(ComponentKind::Command) => !plugin.components.commands.is_empty(),
+        Some(ComponentKind::Instruction) => !plugin.components.instructions.is_empty(),
+        Some(ComponentKind::Hook) => !plugin.components.hooks.is_empty(),
     }
 }
 

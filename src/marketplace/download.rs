@@ -3,10 +3,10 @@ use crate::error::PlmError;
 use crate::error::Result;
 #[cfg(test)]
 use crate::marketplace::{MarketplaceRegistry, PluginSourcePath};
-use crate::plugin::{MarketplacePackage, PackageCacheAccess};
+use crate::plugin::{MarketplaceContent, PackageCacheAccess};
 #[cfg(test)]
 use crate::source::GitHubSource;
-use crate::source::{MarketplaceSource, PluginSource};
+use crate::source::{MarketplaceSource, PackageSource};
 
 /// キャッシュを注入可能なマーケットプレイス経由のプラグインダウンロード
 ///
@@ -16,10 +16,10 @@ pub async fn download_marketplace_plugin_with_cache(
     marketplace_name: &str,
     force: bool,
     cache: &dyn PackageCacheAccess,
-) -> Result<MarketplacePackage> {
+) -> Result<MarketplaceContent> {
     let source = MarketplaceSource::new(plugin_name, marketplace_name);
     let cached = source.download(cache, force).await?;
-    Ok(MarketplacePackage::from(cached))
+    Ok(MarketplaceContent::from(cached))
 }
 
 /// レジストリを注入可能なマーケットプレイス経由のプラグインダウンロード（テスト用）
@@ -32,7 +32,7 @@ async fn download_marketplace_plugin_with_registry(
     force: bool,
     cache: &dyn PackageCacheAccess,
     registry: &MarketplaceRegistry,
-) -> Result<MarketplacePackage> {
+) -> Result<MarketplaceContent> {
     use crate::marketplace::PluginSource as MpPluginSource;
 
     let mp_cache = registry
@@ -79,7 +79,7 @@ async fn download_marketplace_plugin_with_registry(
         }
     };
 
-    Ok(MarketplacePackage::from(cached))
+    Ok(MarketplaceContent::from(cached))
 }
 
 #[cfg(test)]

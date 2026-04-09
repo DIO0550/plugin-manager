@@ -2,12 +2,7 @@ use super::*;
 
 #[test]
 fn test_parse_github_repo() {
-    let source = parse_source("owner/repo").unwrap();
-    // Box<dyn PluginSource> なので型は確認できないが、パースは成功する
-    assert!(std::ptr::eq(
-        source.as_ref() as *const dyn PluginSource as *const (),
-        source.as_ref() as *const dyn PluginSource as *const ()
-    ));
+    assert!(parse_source("owner/repo").is_ok());
 }
 
 #[test]

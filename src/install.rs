@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use crate::component::{AgentFormat, CommandFormat, ComponentKind, Scope};
 use crate::component::{Component, ComponentDeployment, DeploymentResult};
 use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
-use crate::plugin::{MarketplacePackage, PackageCache, PackageCacheAccess};
+use crate::plugin::{MarketplaceContent, PackageCache, PackageCacheAccess};
 use crate::source::parse_source;
 use crate::target::{PluginOrigin, Target, TargetKind};
 
@@ -12,17 +12,24 @@ use crate::target::{PluginOrigin, Target, TargetKind};
 /// ダウンロード済みプラグインからコンポーネントをスキャンした結果。
 #[derive(Debug)]
 pub struct ScannedPlugin {
-    pub name: String,
-    pub cache_key: Option<String>,
-    pub marketplace: Option<String>,
-    package: MarketplacePackage,
-    pub components: Vec<ScannedComponent>,
+    package: MarketplaceContent,
+    pub components: Vec<Component>,
 }
 
 impl ScannedPlugin {
+    /// プラグイン名を取得
+    pub fn name(&self) -> &str {
+        self.package.name()
+    }
+
     /// キャッシュディレクトリ名を返す（`cache_key` が `None` の場合は `name` にフォールバック）
     pub fn cache_key(&self) -> &str {
-        self.cache_key.as_deref().unwrap_or(&self.name)
+        crate::plugin::resolve_cache_key(self.package.cache_key(), self.package.name())
+    }
+
+    /// マーケットプレイス名を取得
+    pub fn marketplace(&self) -> Option<&str> {
+        self.package.marketplace()
     }
 
     /// Command コンポーネントのソースフォーマットを取得
@@ -39,14 +46,6 @@ impl ScannedPlugin {
     pub fn plugin_root(&self) -> &Path {
         self.package.path()
     }
-}
-
-/// スキャン済みコンポーネント
-#[derive(Debug, Clone)]
-pub struct ScannedComponent {
-    pub kind: ComponentKind,
-    pub name: String,
-    pub source_path: PathBuf,
 }
 
 /// 配置リクエスト
@@ -101,7 +100,7 @@ pub struct PlaceFailure {
 pub async fn download_plugin(
     source_str: &str,
     force: bool,
-) -> crate::error::Result<MarketplacePackage> {
+) -> crate::error::Result<MarketplaceContent> {
     let cache = PackageCache::new()?;
     download_plugin_with_cache(source_str, force, &cache).await
 }
@@ -113,17 +112,17 @@ pub async fn download_plugin_with_cache(
     source_str: &str,
     force: bool,
     cache: &dyn PackageCacheAccess,
-) -> crate::error::Result<MarketplacePackage> {
+) -> crate::error::Result<MarketplaceContent> {
     let source = parse_source(source_str)?;
     let cached = source.download(cache, force).await?;
-    Ok(MarketplacePackage::from(cached))
+    Ok(MarketplaceContent::from(cached))
 }
 
 /// プラグインのコンポーネントをスキャン
 ///
 /// `type_filter` が指定された場合、該当する種別のコンポーネントのみを返す。
 pub fn scan_plugin(
-    package: &MarketplacePackage,
+    package: &MarketplaceContent,
     type_filter: Option<&[ComponentKind]>,
 ) -> Result<ScannedPlugin, String> {
     let mut components = package.components();
@@ -132,21 +131,9 @@ pub fn scan_plugin(
         components.retain(|c| filter.contains(&c.kind));
     }
 
-    let scanned_components = components
-        .into_iter()
-        .map(|c| ScannedComponent {
-            kind: c.kind,
-            name: c.name,
-            source_path: c.path,
-        })
-        .collect();
-
     Ok(ScannedPlugin {
-        name: package.name().to_string(),
-        cache_key: package.cache_key().map(str::to_string),
-        marketplace: package.marketplace().map(str::to_string),
         package: package.clone(),
-        components: scanned_components,
+        components,
     })
 }
 
@@ -156,7 +143,7 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
     let mut failures = Vec::new();
 
     let origin = PluginOrigin::from_cached_plugin(
-        request.scanned.marketplace.as_deref(),
+        request.scanned.marketplace(),
         request.scanned.cache_key(),
     );
 
@@ -165,12 +152,6 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
             if !target.supports(component.kind) {
                 continue;
             }
-
-            let comp = Component {
-                kind: component.kind,
-                name: component.name.clone(),
-                path: component.source_path.clone(),
-            };
 
             let ctx = PlacementContext {
                 component: ComponentRef::new(component.kind, &component.name),
@@ -185,7 +166,7 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
             };
 
             let mut builder = ComponentDeployment::builder()
-                .component(&comp)
+                .component(component)
                 .scope(request.scope)
                 .target_path(&target_path);
 
@@ -267,7 +248,7 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
     }
 
     PlaceResult {
-        plugin_name: request.scanned.name.clone(),
+        plugin_name: request.scanned.name().to_string(),
         successes,
         failures,
     }

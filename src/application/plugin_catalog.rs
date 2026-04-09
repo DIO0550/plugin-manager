@@ -4,7 +4,7 @@
 
 use crate::component::{ComponentKind, ComponentName, ComponentTypeCount, Scope};
 use crate::error::Result;
-use crate::plugin::{meta, MarketplacePackage, PackageCacheAccess};
+use crate::plugin::{meta, MarketplaceContent, PackageCacheAccess};
 use crate::scan::{list_placed_plugins, scan_components, ComponentScan};
 use crate::target::all_targets;
 use serde::Serialize;
@@ -24,7 +24,7 @@ impl From<(Option<String>, String)> for PluginCacheKey {
 }
 
 /// キャッシュ内のマーケットプレイスパッケージを列挙
-pub(crate) fn list_installed(cache: &dyn PackageCacheAccess) -> Result<Vec<MarketplacePackage>> {
+pub(crate) fn list_installed(cache: &dyn PackageCacheAccess) -> Result<Vec<MarketplaceContent>> {
     let packages = cache
         .list()?
         .into_iter()
@@ -34,7 +34,7 @@ pub(crate) fn list_installed(cache: &dyn PackageCacheAccess) -> Result<Vec<Marke
             cache
                 .load_package(key.marketplace.as_deref(), &key.name)
                 .ok()
-                .map(MarketplacePackage::from)
+                .map(MarketplaceContent::from)
         })
         .collect();
     Ok(packages)
@@ -52,16 +52,9 @@ pub struct PluginSummary {
     pub marketplace: Option<String>,
     /// バージョン
     pub version: String,
-    /// スキル名一覧
-    pub skills: Vec<String>,
-    /// エージェント名一覧
-    pub agents: Vec<String>,
-    /// コマンド名一覧
-    pub commands: Vec<String>,
-    /// インストラクション名一覧
-    pub instructions: Vec<String>,
-    /// フック名一覧
-    pub hooks: Vec<String>,
+    /// コンポーネント一覧
+    #[serde(flatten)]
+    pub components: ComponentScan,
     /// 有効状態（デプロイ先に配置されているか）
     pub enabled: bool,
 }
@@ -69,16 +62,16 @@ pub struct PluginSummary {
 impl PluginSummary {
     /// キャッシュディレクトリ名を返す（`cache_key` が `None` の場合は `name` にフォールバック）
     pub fn cache_key(&self) -> &str {
-        self.cache_key.as_deref().unwrap_or(&self.name)
+        crate::plugin::resolve_cache_key(self.cache_key.as_deref(), &self.name)
     }
 
     /// コンポーネントの総数を取得
     pub fn component_count(&self) -> usize {
-        self.skills.len()
-            + self.agents.len()
-            + self.commands.len()
-            + self.instructions.len()
-            + self.hooks.len()
+        self.components.skills.len()
+            + self.components.agents.len()
+            + self.components.commands.len()
+            + self.components.instructions.len()
+            + self.components.hooks.len()
     }
 
     /// コンポーネントが存在するか
@@ -90,34 +83,34 @@ impl PluginSummary {
     pub fn component_type_counts(&self) -> Vec<ComponentTypeCount> {
         let mut counts = Vec::new();
 
-        if !self.skills.is_empty() {
+        if !self.components.skills.is_empty() {
             counts.push(ComponentTypeCount {
                 kind: ComponentKind::Skill,
-                count: self.skills.len(),
+                count: self.components.skills.len(),
             });
         }
-        if !self.agents.is_empty() {
+        if !self.components.agents.is_empty() {
             counts.push(ComponentTypeCount {
                 kind: ComponentKind::Agent,
-                count: self.agents.len(),
+                count: self.components.agents.len(),
             });
         }
-        if !self.commands.is_empty() {
+        if !self.components.commands.is_empty() {
             counts.push(ComponentTypeCount {
                 kind: ComponentKind::Command,
-                count: self.commands.len(),
+                count: self.components.commands.len(),
             });
         }
-        if !self.instructions.is_empty() {
+        if !self.components.instructions.is_empty() {
             counts.push(ComponentTypeCount {
                 kind: ComponentKind::Instruction,
-                count: self.instructions.len(),
+                count: self.components.instructions.len(),
             });
         }
-        if !self.hooks.is_empty() {
+        if !self.components.hooks.is_empty() {
             counts.push(ComponentTypeCount {
                 kind: ComponentKind::Hook,
-                count: self.hooks.len(),
+                count: self.components.hooks.len(),
             });
         }
 
@@ -127,11 +120,11 @@ impl PluginSummary {
     /// 特定種別のコンポーネント名一覧を取得
     pub fn component_names(&self, kind: ComponentKind) -> Vec<ComponentName> {
         let names = match kind {
-            ComponentKind::Skill => &self.skills,
-            ComponentKind::Agent => &self.agents,
-            ComponentKind::Command => &self.commands,
-            ComponentKind::Instruction => &self.instructions,
-            ComponentKind::Hook => &self.hooks,
+            ComponentKind::Skill => &self.components.skills,
+            ComponentKind::Agent => &self.components.agents,
+            ComponentKind::Command => &self.components.commands,
+            ComponentKind::Instruction => &self.components.instructions,
+            ComponentKind::Hook => &self.components.hooks,
         };
 
         names
@@ -163,11 +156,7 @@ pub fn list_installed_plugins(cache: &dyn PackageCacheAccess) -> Result<Vec<Plug
                 cache_key: pkg.cache_key().map(str::to_string),
                 marketplace: pkg.marketplace().map(str::to_string),
                 version: pkg.manifest().version.clone(),
-                skills: scan.skills,
-                agents: scan.agents,
-                commands: scan.commands,
-                instructions: scan.instructions,
-                hooks: scan.hooks,
+                components: scan,
                 enabled,
             }
         })

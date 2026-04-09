@@ -51,6 +51,7 @@ impl MarketplaceFetcher {
             source: format!("github:{}/{}", repo.owner(), repo.name()),
             owner: manifest.owner,
             plugins: manifest.plugins,
+            original_manifest: None,
         })
     }
 }

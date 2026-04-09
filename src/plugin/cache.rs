@@ -96,6 +96,7 @@ pub trait PackageCacheAccess: Send + Sync {
             manifest,
             git_ref,
             commit_sha,
+            marketplace_manifest: None,
         })
     }
 

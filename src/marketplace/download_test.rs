@@ -40,6 +40,7 @@ async fn test_download_with_registry_plugin_not_found() {
             source: "github:test/repo".to_string(),
             owner: None,
             plugins: vec![],
+            original_manifest: None,
         })
         .unwrap();
 

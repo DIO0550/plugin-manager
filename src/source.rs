@@ -26,7 +26,7 @@ use std::pin::Pin;
 ///
 /// 各ソースタイプ（GitHub, Marketplace, Search）がこの trait を実装する。
 /// 使う側は具体的なソースタイプを意識せず `download()` を呼ぶだけ。
-pub trait PluginSource: Send + Sync {
+pub trait PackageSource: Send + Sync {
     /// プラグインをダウンロードする
     fn download<'a>(
         &'a self,
@@ -35,8 +35,8 @@ pub trait PluginSource: Send + Sync {
     ) -> Pin<Box<dyn Future<Output = Result<CachedPackage>> + Send + 'a>>;
 }
 
-/// 入力文字列をパースして適切な PluginSource を返す
-pub fn parse_source(input: &str) -> Result<Box<dyn PluginSource>> {
+/// 入力文字列をパースして適切な PackageSource を返す
+pub fn parse_source(input: &str) -> Result<Box<dyn PackageSource>> {
     // "@" を含む場合
     if let Some((left, right)) = input.split_once('@') {
         // "owner/repo@ref" の場合（Gitリポジトリ）

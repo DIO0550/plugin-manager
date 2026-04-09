@@ -1,78 +1,26 @@
-//! マーケットプレイスパッケージ（内部ドメイン型）
+//! プラグイン内部モデル
 //!
-//! コンポーネント群（skills, agents, commands, instructions, hooks）を含む
-//! マーケットプレイスのパッケージ。コンポーネントスキャン・パス解決を担う。
+//! パッケージ内の個別プラグインを表現する。コンポーネントスキャン・パス解決の責務を持つ。
 
-use crate::component::{AgentFormat, CommandFormat, Component, ComponentKind};
+use crate::component::{Component, ComponentKind};
 use crate::path_ext::PathExt;
 use crate::plugin::PluginManifest;
 use crate::scan::{scan_components, AGENT_SUFFIX, MARKDOWN_SUFFIX, PROMPT_SUFFIX};
 use std::path::{Path, PathBuf};
 
-use super::cached_package::CachedPackage;
-
-/// マーケットプレイスパッケージ（内部ドメイン型）
+/// パッケージ内の個別プラグイン
 ///
-/// コンポーネント群（skills, agents, commands, instructions, hooks）を含む
-/// マーケットプレイスのパッケージ。コンポーネントスキャン・パス解決を担う。
+/// `name`, `manifest`, `path` を保持し、コンポーネントスキャンとパス解決を担う。
 #[derive(Debug, Clone)]
-pub struct MarketplacePackage {
-    pub(crate) name: String,
-    /// キャッシュディレクトリ名（ファイル操作用、CachedPackage から伝搬）
-    pub(crate) cache_key: Option<String>,
-    pub(crate) marketplace: Option<String>,
-    pub(crate) path: PathBuf,
-    pub(crate) manifest: PluginManifest,
+pub struct Plugin {
+    pub name: String,
+    pub manifest: PluginManifest,
+    pub path: PathBuf,
 }
 
-impl MarketplacePackage {
-    /// プラグイン名を取得
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    /// キャッシュキーを取得
-    pub fn cache_key(&self) -> Option<&str> {
-        self.cache_key.as_deref()
-    }
-
-    /// マーケットプレイス名を取得
-    pub fn marketplace(&self) -> Option<&str> {
-        self.marketplace.as_deref()
-    }
-
-    /// パスを取得
-    pub fn path(&self) -> &Path {
-        &self.path
-    }
-
-    /// マニフェストを取得
-    pub fn manifest(&self) -> &PluginManifest {
-        &self.manifest
-    }
-
-    /// Command コンポーネントのソース形式を取得
-    pub fn command_format(&self) -> CommandFormat {
-        match self.marketplace.as_deref() {
-            Some("claude") => CommandFormat::ClaudeCode,
-            Some("copilot") => CommandFormat::Copilot,
-            Some("codex") => CommandFormat::Codex,
-            _ => CommandFormat::ClaudeCode,
-        }
-    }
-
-    /// Agent コンポーネントのソース形式を取得
-    pub fn agent_format(&self) -> AgentFormat {
-        match self.marketplace.as_deref() {
-            Some("claude") => AgentFormat::ClaudeCode,
-            Some("copilot") => AgentFormat::Copilot,
-            Some("codex") => AgentFormat::Codex,
-            _ => AgentFormat::ClaudeCode,
-        }
-    }
-
+impl Plugin {
     // =========================================================================
-    // パス解決メソッド
+    // ディレクトリ解決メソッド
     // =========================================================================
 
     /// スキルディレクトリのパスを解決
@@ -105,14 +53,11 @@ impl MarketplacePackage {
     // =========================================================================
 
     /// プラグイン内のコンポーネントをスキャン
-    ///
-    /// 統一スキャンAPI (`scan_components`) を使用し、名前からパスを解決して
-    /// `Component` に変換する。パス解決の責務は本メソッドが担う。
     pub fn components(&self) -> Vec<Component> {
         let scan = scan_components(&self.path, &self.manifest);
         let mut components = Vec::new();
 
-        // Skills: skills_dir/name/
+        // Skills
         let skills_dir = self.skills_dir();
         for name in scan.skills {
             components.push(Component {
@@ -122,7 +67,7 @@ impl MarketplacePackage {
             });
         }
 
-        // Agents: agents_dir/name.agent.md or agents_dir/name.md or single file
+        // Agents
         let agents_dir = self.agents_dir();
         for name in scan.agents {
             let path = self.resolve_agent_path(&agents_dir, &name);
@@ -133,7 +78,7 @@ impl MarketplacePackage {
             });
         }
 
-        // Commands: commands_dir/name.prompt.md or commands_dir/name.md
+        // Commands
         let commands_dir = self.commands_dir();
         for name in scan.commands {
             let path = self.resolve_command_path(&commands_dir, &name);
@@ -144,7 +89,7 @@ impl MarketplacePackage {
             });
         }
 
-        // Instructions: instructions_path or instructions_dir/name.md
+        // Instructions
         for name in scan.instructions {
             let path = self.resolve_instruction_path(&name);
             components.push(Component {
@@ -154,7 +99,7 @@ impl MarketplacePackage {
             });
         }
 
-        // Hooks: hooks_dir/name.*
+        // Hooks
         let hooks_dir = self.hooks_dir();
         for name in scan.hooks {
             if let Some(path) = self.resolve_hook_path(&hooks_dir, &name) {
@@ -173,7 +118,6 @@ impl MarketplacePackage {
     // パス解決ヘルパー（名前 → パス）
     // =========================================================================
 
-    /// Agent のパスを解決
     fn resolve_agent_path(&self, agents_dir: &Path, name: &str) -> PathBuf {
         if agents_dir.is_file() {
             return agents_dir.to_path_buf();
@@ -187,7 +131,6 @@ impl MarketplacePackage {
         }
     }
 
-    /// Command のパスを解決
     fn resolve_command_path(&self, commands_dir: &Path, name: &str) -> PathBuf {
         let prompt_path = commands_dir.join(format!("{}{}", name, PROMPT_SUFFIX));
         if prompt_path.exists() {
@@ -197,7 +140,6 @@ impl MarketplacePackage {
         }
     }
 
-    /// Instruction のパスを解決
     fn resolve_instruction_path(&self, name: &str) -> PathBuf {
         if name == "AGENTS" {
             return self.path.join("AGENTS.md");
@@ -218,7 +160,6 @@ impl MarketplacePackage {
             .join(format!("{}.md", name))
     }
 
-    /// Hook のパスを解決
     fn resolve_hook_path(&self, hooks_dir: &Path, name: &str) -> Option<PathBuf> {
         hooks_dir
             .read_dir_entries()
@@ -230,33 +171,5 @@ impl MarketplacePackage {
                     .map(|f| f.rsplit_once('.').map(|(n, _)| n).unwrap_or(f) == name)
                     .unwrap_or(false)
             })
-    }
-}
-
-impl From<CachedPackage> for MarketplacePackage {
-    fn from(cached: CachedPackage) -> Self {
-        Self {
-            name: cached.name,
-            cache_key: cached.cache_key,
-            marketplace: cached.marketplace,
-            path: cached.path,
-            manifest: cached.manifest,
-        }
-    }
-}
-
-#[cfg(test)]
-#[path = "marketplace_package_test.rs"]
-mod tests;
-
-impl From<&CachedPackage> for MarketplacePackage {
-    fn from(cached: &CachedPackage) -> Self {
-        Self {
-            name: cached.name.clone(),
-            cache_key: cached.cache_key.clone(),
-            marketplace: cached.marketplace.clone(),
-            path: cached.path.clone(),
-            manifest: cached.manifest.clone(),
-        }
     }
 }

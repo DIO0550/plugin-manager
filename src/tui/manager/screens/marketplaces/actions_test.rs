@@ -1,5 +1,6 @@
 use crate::application::PluginSummary;
 use crate::marketplace::{MarketplaceCache, MarketplacePlugin, MarketplaceRegistry, PluginSource};
+use crate::scan::ComponentScan;
 use crate::tui::manager::screens::marketplaces::model::PluginInstallResult;
 
 // ============================================================================
@@ -28,11 +29,7 @@ fn make_plugin(name: &str) -> PluginSummary {
         cache_key: None,
         marketplace: None,
         version: "1.0.0".to_string(),
-        skills: vec![],
-        agents: vec![],
-        commands: vec![],
-        instructions: vec![],
-        hooks: vec![],
+        components: ComponentScan::default(),
         enabled: true,
     }
 }
@@ -53,6 +50,7 @@ fn make_cache(name: &str, plugins: Vec<MarketplacePlugin>) -> MarketplaceCache {
         source: "owner/repo".to_string(),
         owner: None,
         plugins,
+        original_manifest: None,
     }
 }
 

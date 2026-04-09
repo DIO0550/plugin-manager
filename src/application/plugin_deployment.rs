@@ -5,9 +5,7 @@
 
 use crate::component::Component;
 use crate::fs::{FileSystem, RealFs};
-use crate::plugin::{
-    CachedPackage, MarketplacePackage, PackageCacheAccess, PluginManifest, UNKNOWN_GIT_VALUE,
-};
+use crate::plugin::{PackageCacheAccess, Plugin, PluginManifest};
 use crate::target::PluginOrigin;
 use std::path::{Path, PathBuf};
 
@@ -23,22 +21,12 @@ pub struct PluginDeployment {
 impl PluginDeployment {
     /// プラグイン内のコンポーネントを取得
     pub fn components(&self) -> Vec<Component> {
-        let marketplace = if self.origin.marketplace == "github" {
-            None
-        } else {
-            Some(self.origin.marketplace.clone())
-        };
-
-        let cached = CachedPackage {
+        let plugin = Plugin {
             name: self.manifest.name.clone(),
-            cache_key: Some(self.origin.plugin.clone()),
-            marketplace,
-            path: self.path.clone(),
             manifest: self.manifest.clone(),
-            git_ref: UNKNOWN_GIT_VALUE.to_owned(),
-            commit_sha: UNKNOWN_GIT_VALUE.to_owned(),
+            path: self.path.clone(),
         };
-        MarketplacePackage::from(cached).components()
+        plugin.components()
     }
 }
 

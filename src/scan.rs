@@ -1,7 +1,8 @@
 //! コンポーネントスキャン共通関数
 //!
 //! ドメイン非依存のスキャンロジックを提供する。
-//! Path と String のみに依存し、ドメイン型への変換はユースケース層で行う。
+//! Path と String に依存し、ドメイン型への変換はユースケース層で行う。
+//! `ComponentScan` は `serde::Serialize` を derive しており、DTO としても利用可能。
 //!
 //! ## 主要API
 //!
@@ -90,7 +91,7 @@ pub enum InstructionPath {
 ///
 /// プラグインディレクトリから検出されたコンポーネントの名前一覧。
 /// パスは含まず、名前のみを保持する（パス解決は呼び出し側の責務）。
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize)]
 pub struct ComponentScan {
     /// スキル名一覧
     pub skills: Vec<String>,

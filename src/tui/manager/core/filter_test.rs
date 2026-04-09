@@ -1,4 +1,5 @@
 use crate::application::PluginSummary;
+use crate::scan::ComponentScan;
 use crate::tui::manager::core::filter::filter_plugins;
 
 fn make_plugin(name: &str, marketplace: Option<&str>) -> PluginSummary {
@@ -7,11 +8,7 @@ fn make_plugin(name: &str, marketplace: Option<&str>) -> PluginSummary {
         cache_key: None,
         marketplace: marketplace.map(|m| m.to_string()),
         version: "1.0.0".to_string(),
-        skills: vec![],
-        agents: vec![],
-        commands: vec![],
-        instructions: vec![],
-        hooks: vec![],
+        components: ComponentScan::default(),
         enabled: true,
     }
 }

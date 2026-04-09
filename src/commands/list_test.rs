@@ -1,4 +1,5 @@
 use super::*;
+use crate::scan::ComponentScan;
 
 fn create_empty_plugin(name: &str) -> PluginSummary {
     PluginSummary {
@@ -6,11 +7,7 @@ fn create_empty_plugin(name: &str) -> PluginSummary {
         cache_key: None,
         marketplace: None,
         version: "1.0.0".to_string(),
-        skills: vec![],
-        agents: vec![],
-        commands: vec![],
-        instructions: vec![],
-        hooks: vec![],
+        components: ComponentScan::default(),
         enabled: false,
     }
 }
@@ -21,11 +18,10 @@ fn create_plugin_with_skills(name: &str, skill_count: usize, enabled: bool) -> P
         cache_key: None,
         marketplace: Some("github".to_string()),
         version: "1.0.0".to_string(),
-        skills: (0..skill_count).map(|i| format!("skill{}", i)).collect(),
-        agents: vec![],
-        commands: vec![],
-        instructions: vec![],
-        hooks: vec![],
+        components: ComponentScan {
+            skills: (0..skill_count).map(|i| format!("skill{}", i)).collect(),
+            ..Default::default()
+        },
         enabled,
     }
 }
@@ -36,11 +32,13 @@ fn create_full_plugin(name: &str, enabled: bool) -> PluginSummary {
         cache_key: None,
         marketplace: Some("github".to_string()),
         version: "2.0.0".to_string(),
-        skills: vec!["skill1".to_string(), "skill2".to_string()],
-        agents: vec!["agent1".to_string()],
-        commands: vec!["cmd1".to_string()],
-        instructions: vec!["inst1".to_string()],
-        hooks: vec!["hook1".to_string()],
+        components: ComponentScan {
+            skills: vec!["skill1".to_string(), "skill2".to_string()],
+            agents: vec!["agent1".to_string()],
+            commands: vec!["cmd1".to_string()],
+            instructions: vec!["inst1".to_string()],
+            hooks: vec!["hook1".to_string()],
+        },
         enabled,
     }
 }

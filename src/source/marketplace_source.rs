@@ -1,13 +1,15 @@
 //! Marketplace 経由のダウンロード
 
 use crate::error::{PlmError, Result};
-use crate::marketplace::{MarketplaceRegistry, PluginSource as MpPluginSource, PluginSourcePath};
+use crate::marketplace::{
+    MarketplaceManifest, MarketplaceRegistry, PluginSource as MpPluginSource, PluginSourcePath,
+};
 use crate::plugin::{CachedPackage, PackageCacheAccess};
 use crate::repo;
 use std::future::Future;
 use std::pin::Pin;
 
-use super::{GitHubSource, PluginSource};
+use super::{GitHubSource, PackageSource};
 
 /// 指定した Marketplace からプラグインをダウンロードするソース
 pub struct MarketplaceSource {
@@ -24,7 +26,7 @@ impl MarketplaceSource {
     }
 }
 
-impl PluginSource for MarketplaceSource {
+impl PackageSource for MarketplaceSource {
     fn download<'a>(
         &'a self,
         cache: &'a dyn PackageCacheAccess,
@@ -44,8 +46,16 @@ impl PluginSource for MarketplaceSource {
                 .find(|p| p.name == self.plugin)
                 .ok_or_else(|| PlmError::PluginNotFound(self.plugin.clone()))?;
 
+            let marketplace_manifest = Some(mp_cache.original_manifest.clone().unwrap_or_else(
+                || MarketplaceManifest {
+                    name: mp_cache.name.clone(),
+                    owner: mp_cache.owner.clone(),
+                    plugins: mp_cache.plugins.clone(),
+                },
+            ));
+
             // プラグインソースをRepoに変換してダウンロード
-            match &plugin_entry.source {
+            let mut cached = match &plugin_entry.source {
                 MpPluginSource::Local(path) => {
                     let parts: Vec<&str> = mp_cache
                         .source
@@ -72,16 +82,19 @@ impl PluginSource for MarketplaceSource {
                         source_path.into(),
                     )
                     .download(cache, force)
-                    .await
+                    .await?
                 }
                 MpPluginSource::External { repo: repo_url, .. } => {
                     let repo = repo::from_url(repo_url)?;
                     // Git ソースに委譲（marketplace 情報を渡す）
                     GitHubSource::with_marketplace(repo, self.marketplace.clone())
                         .download(cache, force)
-                        .await
+                        .await?
                 }
-            }
+            };
+
+            cached.marketplace_manifest = marketplace_manifest;
+            Ok(cached)
         })
     }
 }

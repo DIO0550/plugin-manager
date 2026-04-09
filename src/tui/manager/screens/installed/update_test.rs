@@ -1,5 +1,6 @@
 use super::{execute_batch_with, update};
 use crate::application::PluginSummary;
+use crate::scan::ComponentScan;
 use crate::tui::manager::core::DataStore;
 use crate::tui::manager::screens::installed::model::{Model, Msg, UpdateStatusDisplay};
 
@@ -22,11 +23,7 @@ fn make_plugin(name: &str) -> PluginSummary {
         cache_key: None,
         marketplace: Some("github".to_string()),
         version: "1.0.0".to_string(),
-        skills: vec![],
-        agents: vec![],
-        commands: vec![],
-        instructions: vec![],
-        hooks: vec![],
+        components: ComponentScan::default(),
         enabled: true,
     }
 }
