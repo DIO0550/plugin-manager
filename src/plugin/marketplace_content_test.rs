@@ -1,4 +1,5 @@
 use super::*;
+use crate::marketplace::MarketplaceManifest;
 use crate::plugin::cached_package::CachedPackage;
 use std::path::PathBuf;
 
@@ -113,4 +114,33 @@ fn test_manifest_returns_plugin_manifest() {
     let manifest: &PluginManifest = pkg.manifest();
     assert_eq!(manifest.name, "test-plugin");
     assert_eq!(manifest.version, "1.0.0");
+}
+
+#[test]
+fn test_marketplace_manifest_returns_some_when_present() {
+    let mp_manifest = MarketplaceManifest {
+        name: "test-mp".to_string(),
+        owner: None,
+        plugins: vec![],
+    };
+    let cached = CachedPackage {
+        name: "test-plugin".to_string(),
+        cache_key: None,
+        marketplace: Some("test-marketplace".to_string()),
+        path: PathBuf::from("/tmp/test-plugin"),
+        manifest: make_manifest("test-plugin"),
+        git_ref: "main".to_string(),
+        commit_sha: "abc123".to_string(),
+        marketplace_manifest: Some(mp_manifest),
+    };
+    let pkg = MarketplaceContent::from(cached);
+    let result = pkg.marketplace_manifest();
+    assert!(result.is_some());
+    assert_eq!(result.unwrap().name, "test-mp");
+}
+
+#[test]
+fn test_marketplace_manifest_returns_none_when_absent() {
+    let pkg = create_test_marketplace_content();
+    assert!(pkg.marketplace_manifest().is_none());
 }
