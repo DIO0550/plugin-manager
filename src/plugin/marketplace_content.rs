@@ -21,13 +21,16 @@ pub struct MarketplaceContent {
     pub(crate) cache_key: Option<String>,
     pub(crate) marketplace: Option<String>,
     pub(crate) marketplace_manifest: Option<MarketplaceManifest>,
-    pub(crate) plugins: Vec<Plugin>,
+    /// 代表プラグイン（型レベルで非空を保証）
+    primary: Plugin,
+    /// 追加プラグイン（将来の複数プラグイン対応用）
+    extra_plugins: Vec<Plugin>,
 }
 
 impl MarketplaceContent {
     /// プラグイン名を取得
     pub fn name(&self) -> &str {
-        &self.plugins[0].name
+        &self.primary.name
     }
 
     /// キャッシュキーを取得
@@ -42,17 +45,12 @@ impl MarketplaceContent {
 
     /// パスを取得
     pub fn path(&self) -> &Path {
-        &self.plugins[0].path
+        &self.primary.path
     }
 
     /// マニフェストを取得
     pub fn manifest(&self) -> &PluginManifest {
-        &self.plugins[0].manifest
-    }
-
-    /// プラグイン一覧を取得
-    pub fn plugins(&self) -> &[Plugin] {
-        &self.plugins
+        &self.primary.manifest
     }
 
     /// マーケットプレイスマニフェストを取得
@@ -86,27 +84,27 @@ impl MarketplaceContent {
 
     /// スキルディレクトリのパスを解決
     pub fn skills_dir(&self) -> PathBuf {
-        self.plugins[0].skills_dir()
+        self.primary.skills_dir()
     }
 
     /// エージェントディレクトリのパスを解決
     pub fn agents_dir(&self) -> PathBuf {
-        self.plugins[0].agents_dir()
+        self.primary.agents_dir()
     }
 
     /// コマンドディレクトリのパスを解決
     pub fn commands_dir(&self) -> PathBuf {
-        self.plugins[0].commands_dir()
+        self.primary.commands_dir()
     }
 
     /// インストラクションパスを解決
     pub fn instructions_path(&self) -> PathBuf {
-        self.plugins[0].instructions_path()
+        self.primary.instructions_path()
     }
 
     /// フックディレクトリのパスを解決
     pub fn hooks_dir(&self) -> PathBuf {
-        self.plugins[0].hooks_dir()
+        self.primary.hooks_dir()
     }
 
     // =========================================================================
@@ -115,13 +113,16 @@ impl MarketplaceContent {
 
     /// プラグイン内のコンポーネントをスキャン
     pub fn components(&self) -> Vec<Component> {
-        self.plugins.iter().flat_map(|p| p.components()).collect()
+        std::iter::once(&self.primary)
+            .chain(self.extra_plugins.iter())
+            .flat_map(|p| p.components())
+            .collect()
     }
 }
 
 impl From<CachedPackage> for MarketplaceContent {
     fn from(cached: CachedPackage) -> Self {
-        let plugin = Plugin {
+        let primary = Plugin {
             name: cached.name,
             manifest: cached.manifest,
             path: cached.path,
@@ -130,14 +131,15 @@ impl From<CachedPackage> for MarketplaceContent {
             cache_key: cached.cache_key,
             marketplace: cached.marketplace,
             marketplace_manifest: cached.marketplace_manifest,
-            plugins: vec![plugin],
+            primary,
+            extra_plugins: Vec::new(),
         }
     }
 }
 
 impl From<&CachedPackage> for MarketplaceContent {
     fn from(cached: &CachedPackage) -> Self {
-        let plugin = Plugin {
+        let primary = Plugin {
             name: cached.name.clone(),
             manifest: cached.manifest.clone(),
             path: cached.path.clone(),
@@ -146,7 +148,8 @@ impl From<&CachedPackage> for MarketplaceContent {
             cache_key: cached.cache_key.clone(),
             marketplace: cached.marketplace.clone(),
             marketplace_manifest: cached.marketplace_manifest.clone(),
-            plugins: vec![plugin],
+            primary,
+            extra_plugins: Vec::new(),
         }
     }
 }
