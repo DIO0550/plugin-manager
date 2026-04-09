@@ -45,15 +45,13 @@ impl MarketplaceFetcher {
     ) -> Result<MarketplaceCache> {
         let manifest = self.fetch(repo, source_path).await?;
 
-        let original_manifest = Some(manifest.clone());
-
         Ok(MarketplaceCache {
             name: name.to_string(),
             fetched_at: Utc::now(),
             source: format!("github:{}/{}", repo.owner(), repo.name()),
             owner: manifest.owner,
             plugins: manifest.plugins,
-            original_manifest,
+            original_manifest: None,
         })
     }
 }
