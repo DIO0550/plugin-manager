@@ -21,12 +21,8 @@ pub struct PluginDeployment {
 impl PluginDeployment {
     /// プラグイン内のコンポーネントを取得
     pub fn components(&self) -> Vec<Component> {
-        let plugin = Plugin {
-            name: self.manifest.name.clone(),
-            manifest: self.manifest.clone(),
-            path: self.path.clone(),
-        };
-        plugin.components()
+        let plugin = Plugin::new(self.manifest.clone(), self.path.clone());
+        plugin.components().to_vec()
     }
 }
 

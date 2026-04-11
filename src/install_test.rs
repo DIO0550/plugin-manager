@@ -272,6 +272,7 @@ fn test_place_plugin_uses_cache_key_for_origin() {
     let mut cached = create_test_cached_package(temp.path(), &["my-skill"], &[], &[]);
     // name はマニフェスト名、cache_key はキャッシュディレクトリ名
     cached.name = "My Plugin".to_string();
+    cached.manifest.name = "My Plugin".to_string();
     cached.cache_key = Some("owner--repo".to_string());
     let package = MarketplaceContent::from(cached);
     let scanned = scan_plugin(&package, None).unwrap();

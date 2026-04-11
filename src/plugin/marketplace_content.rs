@@ -30,7 +30,7 @@ pub struct MarketplaceContent {
 impl MarketplaceContent {
     /// プラグイン名を取得
     pub fn name(&self) -> &str {
-        &self.primary.name
+        self.primary.name()
     }
 
     /// キャッシュキーを取得
@@ -45,12 +45,12 @@ impl MarketplaceContent {
 
     /// パスを取得
     pub fn path(&self) -> &Path {
-        &self.primary.path
+        self.primary.path()
     }
 
     /// マニフェストを取得
     pub fn manifest(&self) -> &PluginManifest {
-        &self.primary.manifest
+        self.primary.manifest()
     }
 
     /// マーケットプレイスマニフェストを取得
@@ -111,22 +111,19 @@ impl MarketplaceContent {
     // スキャンメソッド
     // =========================================================================
 
-    /// プラグイン内のコンポーネントをスキャン
+    /// プラグイン内のコンポーネントを取得
     pub fn components(&self) -> Vec<Component> {
         std::iter::once(&self.primary)
             .chain(self.extra_plugins.iter())
             .flat_map(|p| p.components())
+            .cloned()
             .collect()
     }
 }
 
 impl From<CachedPackage> for MarketplaceContent {
     fn from(cached: CachedPackage) -> Self {
-        let primary = Plugin {
-            name: cached.name,
-            manifest: cached.manifest,
-            path: cached.path,
-        };
+        let primary = Plugin::new(cached.manifest, cached.path);
         Self {
             cache_key: cached.cache_key,
             marketplace: cached.marketplace,
@@ -139,11 +136,7 @@ impl From<CachedPackage> for MarketplaceContent {
 
 impl From<&CachedPackage> for MarketplaceContent {
     fn from(cached: &CachedPackage) -> Self {
-        let primary = Plugin {
-            name: cached.name.clone(),
-            manifest: cached.manifest.clone(),
-            path: cached.path.clone(),
-        };
+        let primary = Plugin::new(cached.manifest.clone(), cached.path.clone());
         Self {
             cache_key: cached.cache_key.clone(),
             marketplace: cached.marketplace.clone(),
