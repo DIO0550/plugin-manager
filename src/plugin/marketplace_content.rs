@@ -123,7 +123,7 @@ impl MarketplaceContent {
 
 impl From<CachedPackage> for MarketplaceContent {
     fn from(cached: CachedPackage) -> Self {
-        let primary = Plugin::new(cached.name, cached.manifest, cached.path);
+        let primary = Plugin::new(cached.manifest, cached.path);
         Self {
             cache_key: cached.cache_key,
             marketplace: cached.marketplace,
@@ -136,11 +136,7 @@ impl From<CachedPackage> for MarketplaceContent {
 
 impl From<&CachedPackage> for MarketplaceContent {
     fn from(cached: &CachedPackage) -> Self {
-        let primary = Plugin::new(
-            cached.name.clone(),
-            cached.manifest.clone(),
-            cached.path.clone(),
-        );
+        let primary = Plugin::new(cached.manifest.clone(), cached.path.clone());
         Self {
             cache_key: cached.cache_key.clone(),
             marketplace: cached.marketplace.clone(),

@@ -10,13 +10,14 @@ use std::path::{Path, PathBuf};
 
 /// パッケージ内の個別プラグイン
 ///
-/// `name`, `manifest`, `path` を保持し、構築時にコンポーネントを一度だけスキャンしてキャッシュする。
+/// `manifest`, `path` を保持し、構築時にコンポーネントを一度だけスキャンしてキャッシュする。
 /// `Plugin` は構築時点の FS スナップショットを保持し、構築後の FS 変更は反映しない。
 /// 全フィールドは private とし、`Plugin::new()` 経由でのみ構築可能にすることで
 /// スナップショット不変条件（`components` と他フィールドの整合性）を保護する。
+///
+/// プラグイン名は `manifest.name` に一本化しており、`name()` アクセサで取得する。
 #[derive(Debug, Clone)]
 pub struct Plugin {
-    name: String,
     manifest: PluginManifest,
     path: PathBuf,
     components: Vec<Component>,
@@ -24,19 +25,18 @@ pub struct Plugin {
 
 impl Plugin {
     /// Plugin を構築し、コンポーネントをスキャンしてキャッシュする
-    pub fn new(name: String, manifest: PluginManifest, path: PathBuf) -> Self {
+    pub fn new(manifest: PluginManifest, path: PathBuf) -> Self {
         let components = Self::build_components(&path, &manifest);
         Self {
-            name,
             manifest,
             path,
             components,
         }
     }
 
-    /// プラグイン名を取得
+    /// プラグイン名を取得（`manifest.name` を参照する）
     pub fn name(&self) -> &str {
-        &self.name
+        &self.manifest.name
     }
 
     /// マニフェストを取得

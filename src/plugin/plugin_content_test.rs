@@ -41,7 +41,7 @@ fn test_plugin_new_with_skills() {
     let path = temp.path().to_path_buf();
     write_file(&path.join("skills/my-skill/SKILL.md"), "# Skill");
 
-    let plugin = Plugin::new("test".to_string(), make_manifest("test"), path.clone());
+    let plugin = Plugin::new(make_manifest("test"), path.clone());
 
     let components = plugin.components();
     assert_eq!(components.len(), 1);
@@ -55,7 +55,7 @@ fn test_plugin_new_empty_dir() {
     let temp = TempDir::new().unwrap();
     let path = temp.path().to_path_buf();
 
-    let plugin = Plugin::new("test".to_string(), make_manifest("test"), path);
+    let plugin = Plugin::new(make_manifest("test"), path);
 
     assert!(plugin.components().is_empty());
 }
@@ -66,7 +66,7 @@ fn test_plugin_components_returns_slice() {
     let path = temp.path().to_path_buf();
     write_file(&path.join("skills/my-skill/SKILL.md"), "# Skill");
 
-    let plugin = Plugin::new("test".to_string(), make_manifest("test"), path);
+    let plugin = Plugin::new(make_manifest("test"), path);
 
     let components: &[Component] = plugin.components();
     assert_eq!(components.len(), 1);
@@ -78,7 +78,7 @@ fn test_plugin_new_with_agents() {
     let path = temp.path().to_path_buf();
     write_file(&path.join("agents/my-agent.agent.md"), "# Agent");
 
-    let plugin = Plugin::new("test".to_string(), make_manifest("test"), path.clone());
+    let plugin = Plugin::new(make_manifest("test"), path.clone());
 
     let components = plugin.components();
     assert_eq!(components.len(), 1);
@@ -99,7 +99,7 @@ fn test_plugin_new_with_agent_single_file() {
     let mut manifest = make_manifest("test");
     manifest.agents = Some("custom-agent.md".to_string());
 
-    let plugin = Plugin::new("test".to_string(), manifest, path.clone());
+    let plugin = Plugin::new(manifest, path.clone());
 
     let components = plugin.components();
     assert_eq!(components.len(), 1);
@@ -114,7 +114,7 @@ fn test_plugin_new_with_commands() {
     let path = temp.path().to_path_buf();
     write_file(&path.join("commands/my-command.prompt.md"), "# Command");
 
-    let plugin = Plugin::new("test".to_string(), make_manifest("test"), path.clone());
+    let plugin = Plugin::new(make_manifest("test"), path.clone());
 
     let components = plugin.components();
     assert_eq!(components.len(), 1);
@@ -132,7 +132,7 @@ fn test_plugin_new_with_command_md_fallback() {
     let path = temp.path().to_path_buf();
     write_file(&path.join("commands/legacy-cmd.md"), "# Command");
 
-    let plugin = Plugin::new("test".to_string(), make_manifest("test"), path.clone());
+    let plugin = Plugin::new(make_manifest("test"), path.clone());
 
     let components = plugin.components();
     assert_eq!(components.len(), 1);
@@ -153,7 +153,7 @@ fn test_plugin_new_with_instructions() {
     let mut manifest = make_manifest("test");
     manifest.instructions = Some("docs".to_string());
 
-    let plugin = Plugin::new("test".to_string(), manifest, path.clone());
+    let plugin = Plugin::new(manifest, path.clone());
 
     let components = plugin.components();
     assert_eq!(components.len(), 1);
@@ -168,7 +168,7 @@ fn test_plugin_new_with_default_agents_md_instruction() {
     let path = temp.path().to_path_buf();
     write_file(&path.join("AGENTS.md"), "# Agents");
 
-    let plugin = Plugin::new("test".to_string(), make_manifest("test"), path.clone());
+    let plugin = Plugin::new(make_manifest("test"), path.clone());
 
     let components = plugin.components();
     assert_eq!(components.len(), 1);
@@ -183,7 +183,7 @@ fn test_plugin_new_with_hooks() {
     let path = temp.path().to_path_buf();
     write_file(&path.join("hooks/on-apply-patch.sh"), "#!/bin/sh\n");
 
-    let plugin = Plugin::new("test".to_string(), make_manifest("test"), path.clone());
+    let plugin = Plugin::new(make_manifest("test"), path.clone());
 
     let components = plugin.components();
     assert_eq!(components.len(), 1);
@@ -201,7 +201,7 @@ fn test_plugin_clone_preserves_components() {
     let path = temp.path().to_path_buf();
     write_file(&path.join("skills/my-skill/SKILL.md"), "# Skill");
 
-    let plugin = Plugin::new("test".to_string(), make_manifest("test"), path);
+    let plugin = Plugin::new(make_manifest("test"), path);
     let cloned = plugin.clone();
 
     assert_eq!(cloned.components().len(), 1);
