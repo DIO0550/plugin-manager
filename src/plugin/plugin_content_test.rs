@@ -1,6 +1,6 @@
 //! Plugin のユニットテスト
 
-use super::*;
+use super::Plugin;
 use crate::component::{Component, ComponentKind};
 use crate::plugin::PluginManifest;
 use std::fs;
