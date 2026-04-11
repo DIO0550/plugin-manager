@@ -180,10 +180,9 @@ impl Plugin {
         manifest: &PluginManifest,
         name: &str,
     ) -> PathBuf {
-        if name == "AGENTS" {
-            return plugin_path.join("AGENTS.md");
-        }
-
+        // manifest.instructions が指定されている場合は、その設定に従って解決する。
+        // "AGENTS" という名前もディレクトリ配下のファイル（例: docs/AGENTS.md）として
+        // 扱い、ルート AGENTS.md へ誤ってフォールバックしないようにする。
         if let Some(path_str) = &manifest.instructions {
             let path = plugin_path.join(path_str);
             if path.is_file() {
@@ -192,6 +191,12 @@ impl Plugin {
             if path.is_dir() {
                 return path.join(format!("{}.md", name));
             }
+        }
+
+        // デフォルト設定時のみ、ルートの AGENTS.md を特別扱いする。
+        // scan_instructions_internal がデフォルト分岐で "AGENTS" を追加するのと整合する。
+        if name == "AGENTS" {
+            return plugin_path.join("AGENTS.md");
         }
 
         manifest

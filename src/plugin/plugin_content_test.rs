@@ -163,6 +163,26 @@ fn test_plugin_new_with_instructions() {
 }
 
 #[test]
+fn test_plugin_new_with_instructions_dir_containing_agents_md() {
+    // manifest.instructions が "docs" ディレクトリを指し、その中に AGENTS.md がある場合、
+    // resolve_instruction_path はルートの AGENTS.md ではなく docs/AGENTS.md を返すべき。
+    let temp = TempDir::new().unwrap();
+    let path = temp.path().to_path_buf();
+    write_file(&path.join("docs/AGENTS.md"), "# Agents in docs");
+
+    let mut manifest = make_manifest("test");
+    manifest.instructions = Some("docs".to_string());
+
+    let plugin = Plugin::new(manifest, path.clone());
+
+    let components = plugin.components();
+    assert_eq!(components.len(), 1);
+    assert_eq!(components[0].kind, ComponentKind::Instruction);
+    assert_eq!(components[0].name, "AGENTS");
+    assert_eq!(components[0].path, path.join("docs").join("AGENTS.md"));
+}
+
+#[test]
 fn test_plugin_new_with_default_agents_md_instruction() {
     let temp = TempDir::new().unwrap();
     let path = temp.path().to_path_buf();
