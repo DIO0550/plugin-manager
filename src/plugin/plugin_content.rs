@@ -3,9 +3,11 @@
 //! パッケージ内の個別プラグインを表現する。コンポーネントスキャン・パス解決の責務を持つ。
 
 use crate::component::{Component, ComponentKind};
-use crate::path_ext::PathExt;
 use crate::plugin::PluginManifest;
-use crate::scan::{scan_components, AGENT_SUFFIX, MARKDOWN_SUFFIX, PROMPT_SUFFIX};
+use crate::scan::{
+    file_stem_name, list_agent_names, list_command_names, list_hook_names, list_markdown_names,
+    list_skill_names,
+};
 use std::path::{Path, PathBuf};
 
 /// パッケージ内の個別プラグイン
@@ -51,64 +53,90 @@ impl Plugin {
 
     /// プラグインのコンポーネントをスキャンして Vec<Component> に変換する
     fn build_components(path: &Path, manifest: &PluginManifest) -> Vec<Component> {
-        let scan = scan_components(path, manifest);
         let mut components = Vec::new();
 
-        // Skills
-        let skills_dir = manifest.skills_dir(path);
-        for name in scan.skills {
+        for (name, p) in list_skill_names(&manifest.skills_dir(path)) {
             components.push(Component {
                 kind: ComponentKind::Skill,
-                path: skills_dir.join(&name),
+                path: p,
                 name,
             });
         }
 
-        // Agents
-        let agents_dir = manifest.agents_dir(path);
-        for name in scan.agents {
-            let component_path = Self::resolve_agent_path(&agents_dir, &name);
+        for (name, p) in list_agent_names(&manifest.agents_dir(path)) {
             components.push(Component {
                 kind: ComponentKind::Agent,
-                path: component_path,
+                path: p,
                 name,
             });
         }
 
-        // Commands
-        let commands_dir = manifest.commands_dir(path);
-        for name in scan.commands {
-            let component_path = Self::resolve_command_path(&commands_dir, &name);
+        for (name, p) in list_command_names(&manifest.commands_dir(path)) {
             components.push(Component {
                 kind: ComponentKind::Command,
-                path: component_path,
+                path: p,
                 name,
             });
         }
 
-        // Instructions
-        for name in scan.instructions {
-            let component_path = Self::resolve_instruction_path(path, manifest, &name);
+        Self::build_instructions(path, manifest, &mut components);
+
+        for (name, p) in list_hook_names(&manifest.hooks_dir(path)) {
             components.push(Component {
-                kind: ComponentKind::Instruction,
-                path: component_path,
+                kind: ComponentKind::Hook,
+                path: p,
                 name,
             });
-        }
-
-        // Hooks
-        let hooks_dir = manifest.hooks_dir(path);
-        for name in scan.hooks {
-            if let Some(component_path) = Self::resolve_hook_path(&hooks_dir, &name) {
-                components.push(Component {
-                    kind: ComponentKind::Hook,
-                    path: component_path,
-                    name,
-                });
-            }
         }
 
         components
+    }
+
+    fn build_instructions(path: &Path, manifest: &PluginManifest, components: &mut Vec<Component>) {
+        if let Some(path_str) = &manifest.instructions {
+            let instr_path = path.join(path_str);
+
+            if instr_path.is_file() {
+                if let Some(name) = file_stem_name(&instr_path) {
+                    components.push(Component {
+                        kind: ComponentKind::Instruction,
+                        path: instr_path,
+                        name,
+                    });
+                }
+                return;
+            }
+
+            if instr_path.is_dir() {
+                for (name, p) in list_markdown_names(&instr_path) {
+                    components.push(Component {
+                        kind: ComponentKind::Instruction,
+                        path: p,
+                        name,
+                    });
+                }
+                return;
+            }
+
+            return;
+        }
+
+        for (name, p) in list_markdown_names(&manifest.instructions_dir(path)) {
+            components.push(Component {
+                kind: ComponentKind::Instruction,
+                path: p,
+                name,
+            });
+        }
+
+        let agents_md = path.join("AGENTS.md");
+        if agents_md.exists() {
+            components.push(Component {
+                kind: ComponentKind::Instruction,
+                path: agents_md,
+                name: "AGENTS".to_string(),
+            });
+        }
     }
 
     // =========================================================================
@@ -147,74 +175,6 @@ impl Plugin {
     /// プラグイン内のコンポーネントを取得（構築時のスナップショット）
     pub fn components(&self) -> &[Component] {
         &self.components
-    }
-
-    // =========================================================================
-    // パス解決ヘルパー（名前 → パス）
-    // =========================================================================
-
-    fn resolve_agent_path(agents_dir: &Path, name: &str) -> PathBuf {
-        if agents_dir.is_file() {
-            return agents_dir.to_path_buf();
-        }
-
-        let agent_path = agents_dir.join(format!("{}{}", name, AGENT_SUFFIX));
-        if agent_path.exists() {
-            agent_path
-        } else {
-            agents_dir.join(format!("{}{}", name, MARKDOWN_SUFFIX))
-        }
-    }
-
-    fn resolve_command_path(commands_dir: &Path, name: &str) -> PathBuf {
-        let prompt_path = commands_dir.join(format!("{}{}", name, PROMPT_SUFFIX));
-        if prompt_path.exists() {
-            prompt_path
-        } else {
-            commands_dir.join(format!("{}{}", name, MARKDOWN_SUFFIX))
-        }
-    }
-
-    fn resolve_instruction_path(
-        plugin_path: &Path,
-        manifest: &PluginManifest,
-        name: &str,
-    ) -> PathBuf {
-        // manifest.instructions が指定されている場合は、その設定に従って解決する。
-        // "AGENTS" という名前もディレクトリ配下のファイル（例: docs/AGENTS.md）として
-        // 扱い、ルート AGENTS.md へ誤ってフォールバックしないようにする。
-        if let Some(path_str) = &manifest.instructions {
-            let path = plugin_path.join(path_str);
-            if path.is_file() {
-                return path;
-            }
-            if path.is_dir() {
-                return path.join(format!("{}.md", name));
-            }
-        }
-
-        // デフォルト設定時のみ、ルートの AGENTS.md を特別扱いする。
-        // scan_instructions_internal がデフォルト分岐で "AGENTS" を追加するのと整合する。
-        if name == "AGENTS" {
-            return plugin_path.join("AGENTS.md");
-        }
-
-        manifest
-            .instructions_dir(plugin_path)
-            .join(format!("{}.md", name))
-    }
-
-    fn resolve_hook_path(hooks_dir: &Path, name: &str) -> Option<PathBuf> {
-        hooks_dir
-            .read_dir_entries()
-            .into_iter()
-            .filter(|p| p.is_file())
-            .find(|path| {
-                path.file_name()
-                    .and_then(|f| f.to_str())
-                    .map(|f| f.rsplit_once('.').map(|(n, _)| n).unwrap_or(f) == name)
-                    .unwrap_or(false)
-            })
     }
 }
 
