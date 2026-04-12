@@ -265,9 +265,8 @@ fn test_plugin_new_with_hooks_same_stem_different_ext() {
         .iter()
         .filter(|c| c.kind == ComponentKind::Hook)
         .collect();
-    // list_hook_names returns two "pre-commit" entries (one per file);
-    // resolve_hook_path(find) returns the same first match for both,
-    // so two Components share one path. Step 3-4 will fix this.
+    // Hooks with the same stem but different extensions should be kept as
+    // separate components, each preserving its own file path.
     assert_eq!(hooks.len(), 2);
     assert!(hooks.iter().all(|h| h.name == "pre-commit"));
     assert!(hooks.iter().all(|h| {
