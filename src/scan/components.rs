@@ -64,8 +64,9 @@ fn has_exact_skill_manifest(dir: &Path) -> bool {
 /// * `agents_path` - エージェントファイルまたはディレクトリのパス
 ///
 /// # Returns
-/// エージェント名の一覧。単一ファイルの場合は None を返す可能性がある
-/// （呼び出し側でフォールバック処理が必要）。
+/// エージェント名の一覧。
+/// 単一ファイルで名前を導出できない場合や、`agents_path` がファイル/ディレクトリの
+/// いずれでもない場合は空配列を返す。
 pub fn list_agent_names(agents_path: &Path) -> Vec<(String, PathBuf)> {
     if agents_path.is_file() {
         return file_stem_name(agents_path)
