@@ -85,3 +85,19 @@ fn test_yaml_serialization() {
     assert!(yaml.contains("version: 1.0.0"));
     assert!(yaml.contains("type: github"));
 }
+
+#[test]
+fn test_json_components_nested_shape() {
+    let detail = create_test_detail();
+    let json: serde_json::Value = serde_json::to_value(&detail).unwrap();
+
+    let components = &json["components"];
+    assert_eq!(
+        components["skills"],
+        serde_json::json!(["skill1", "skill2"])
+    );
+    assert_eq!(components["commands"], serde_json::json!(["cmd1"]));
+    assert_eq!(components["agents"], serde_json::json!([]));
+    assert_eq!(components["instructions"], serde_json::json!([]));
+    assert_eq!(components["hooks"], serde_json::json!([]));
+}

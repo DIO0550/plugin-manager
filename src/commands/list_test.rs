@@ -184,3 +184,17 @@ fn test_filter_plugins_combined() {
     assert_eq!(filtered[0].name, "enabled-with-skills");
     assert_eq!(filtered[1].name, "enabled-full");
 }
+
+#[test]
+fn test_json_components_flatten_shape() {
+    let plugin = create_full_plugin("test", true);
+    let json: serde_json::Value = serde_json::to_value(&plugin).unwrap();
+
+    // flatten: skills/agents/... are top-level, not nested under "components"
+    assert!(json.get("components").is_none());
+    assert_eq!(json["skills"], serde_json::json!(["skill1", "skill2"]));
+    assert_eq!(json["agents"], serde_json::json!(["agent1"]));
+    assert_eq!(json["commands"], serde_json::json!(["cmd1"]));
+    assert_eq!(json["instructions"], serde_json::json!(["inst1"]));
+    assert_eq!(json["hooks"], serde_json::json!(["hook1"]));
+}
