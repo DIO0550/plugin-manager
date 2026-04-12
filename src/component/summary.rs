@@ -31,10 +31,7 @@ impl ComponentTypeCount {
 /// `{"skills": ["name1", ...], "agents": [...], ...}` の形を出力する。
 /// `PluginSummary` では `#[serde(flatten)]` と併用して top-level に展開、
 /// `PluginDetail` では nested `components` キーとして出力する。
-pub fn serialize_components<S>(
-    components: &[Component],
-    serializer: S,
-) -> Result<S::Ok, S::Error>
+pub fn serialize_components<S>(components: &[Component], serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
