@@ -109,7 +109,7 @@ fn test_serialize_components_empty() {
     }
 }
 
-struct SerHelper<'a>(&'a Vec<Component>);
+struct SerHelper<'a>(&'a [Component]);
 impl serde::Serialize for SerHelper<'_> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serialize_components(self.0, serializer)

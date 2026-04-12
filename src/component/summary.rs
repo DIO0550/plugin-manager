@@ -31,9 +31,8 @@ impl ComponentTypeCount {
 /// `{"skills": ["name1", ...], "agents": [...], ...}` の形を出力する。
 /// `PluginSummary` では `#[serde(flatten)]` と併用して top-level に展開、
 /// `PluginDetail` では nested `components` キーとして出力する。
-#[allow(clippy::ptr_arg)]
 pub fn serialize_components<S>(
-    components: &Vec<Component>,
+    components: &[Component],
     serializer: S,
 ) -> Result<S::Ok, S::Error>
 where
