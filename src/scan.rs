@@ -98,18 +98,27 @@ pub fn scan_components(plugin_path: &Path, manifest: &PluginManifest) -> Compone
 fn scan_skills_internal(plugin_path: &Path, manifest: &PluginManifest) -> Vec<String> {
     let skills_dir = manifest.skills_dir(plugin_path);
     list_skill_names(&skills_dir)
+        .into_iter()
+        .map(|(name, _)| name)
+        .collect()
 }
 
 /// Agents をスキャン（内部用）
 fn scan_agents_internal(plugin_path: &Path, manifest: &PluginManifest) -> Vec<String> {
     let agents_path = manifest.agents_dir(plugin_path);
     list_agent_names(&agents_path)
+        .into_iter()
+        .map(|(name, _)| name)
+        .collect()
 }
 
 /// Commands をスキャン（内部用）
 fn scan_commands_internal(plugin_path: &Path, manifest: &PluginManifest) -> Vec<String> {
     let commands_dir = manifest.commands_dir(plugin_path);
     list_command_names(&commands_dir)
+        .into_iter()
+        .map(|(name, _)| name)
+        .collect()
 }
 
 /// Instructions をスキャン（内部用）
@@ -118,7 +127,6 @@ fn scan_commands_internal(plugin_path: &Path, manifest: &PluginManifest) -> Vec<
 /// 未指定時: instructions/ を走査 + ルートの AGENTS.md を追加。
 fn scan_instructions_internal(plugin_path: &Path, manifest: &PluginManifest) -> Vec<String> {
     if let Some(path_str) = &manifest.instructions {
-        // マニフェストで指定された場合
         let path = plugin_path.join(path_str);
 
         if path.is_file() {
@@ -128,17 +136,21 @@ fn scan_instructions_internal(plugin_path: &Path, manifest: &PluginManifest) -> 
         }
 
         if path.is_dir() {
-            return list_markdown_names(&path);
+            return list_markdown_names(&path)
+                .into_iter()
+                .map(|(name, _)| name)
+                .collect();
         }
 
         return Vec::new();
     }
 
-    // デフォルト: instructions/ ディレクトリ + AGENTS.md
     let instructions_dir = manifest.instructions_dir(plugin_path);
-    let mut instructions = list_markdown_names(&instructions_dir);
+    let mut instructions: Vec<String> = list_markdown_names(&instructions_dir)
+        .into_iter()
+        .map(|(name, _)| name)
+        .collect();
 
-    // ルートの AGENTS.md もチェック
     if plugin_path.join("AGENTS.md").exists() {
         instructions.push("AGENTS".to_string());
     }
@@ -150,4 +162,7 @@ fn scan_instructions_internal(plugin_path: &Path, manifest: &PluginManifest) -> 
 fn scan_hooks_internal(plugin_path: &Path, manifest: &PluginManifest) -> Vec<String> {
     let hooks_dir = manifest.hooks_dir(plugin_path);
     list_hook_names(&hooks_dir)
+        .into_iter()
+        .map(|(name, _)| name)
+        .collect()
 }
