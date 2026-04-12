@@ -1,6 +1,15 @@
 use super::*;
 use crate::application::{AuthorInfo, PluginSource};
-use crate::scan::ComponentScan;
+use crate::component::{Component, ComponentKind};
+use std::path::PathBuf;
+
+fn comp(kind: ComponentKind, name: &str) -> Component {
+    Component {
+        kind,
+        name: name.to_string(),
+        path: PathBuf::from(format!("dummy/{}", name)),
+    }
+}
 
 fn create_test_detail() -> PluginDetail {
     PluginDetail {
@@ -16,13 +25,11 @@ fn create_test_detail() -> PluginDetail {
         source: PluginSource::GitHub {
             repository: "owner/repo".to_string(),
         },
-        components: ComponentScan {
-            skills: vec!["skill1".to_string(), "skill2".to_string()],
-            agents: vec![],
-            commands: vec!["cmd1".to_string()],
-            instructions: vec![],
-            hooks: vec![],
-        },
+        components: vec![
+            comp(ComponentKind::Skill, "skill1"),
+            comp(ComponentKind::Skill, "skill2"),
+            comp(ComponentKind::Command, "cmd1"),
+        ],
         enabled: true,
         cache_path: "/home/user/.plm/cache/plugins/github/owner--repo".to_string(),
     }
@@ -35,15 +42,12 @@ fn test_format_list_empty() {
 
 #[test]
 fn test_format_list_single() {
-    assert_eq!(format_list(&["item".to_string()]), "item");
+    assert_eq!(format_list(&["item"]), "item");
 }
 
 #[test]
 fn test_format_list_multiple() {
-    assert_eq!(
-        format_list(&["a".to_string(), "b".to_string(), "c".to_string()]),
-        "a, b, c"
-    );
+    assert_eq!(format_list(&["a", "b", "c"]), "a, b, c");
 }
 
 #[test]
@@ -51,16 +55,13 @@ fn test_json_serialization() {
     let detail = create_test_detail();
     let json = serde_json::to_string_pretty(&detail).unwrap();
 
-    // 基本フィールドが含まれていることを確認
     assert!(json.contains("\"name\": \"test-plugin\""));
     assert!(json.contains("\"version\": \"1.0.0\""));
     assert!(json.contains("\"installedAt\": \"2025-01-15T10:30:00Z\""));
 
-    // author フィールドが含まれていることを確認
     assert!(json.contains("\"author\""));
     assert!(json.contains("\"Test Author\""));
 
-    // source のタグ付きシリアライズを確認
     assert!(json.contains("\"type\": \"github\""));
     assert!(json.contains("\"repository\": \"owner/repo\""));
 }
@@ -72,7 +73,6 @@ fn test_json_serialization_no_author() {
 
     let json = serde_json::to_string_pretty(&detail).unwrap();
 
-    // author フィールドが省略されていることを確認（skip_serializing_if）
     assert!(!json.contains("\"author\""));
 }
 

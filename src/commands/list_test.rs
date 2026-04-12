@@ -1,5 +1,14 @@
 use super::*;
-use crate::scan::ComponentScan;
+use crate::component::{Component, ComponentKind};
+use std::path::PathBuf;
+
+fn comp(kind: ComponentKind, name: &str) -> Component {
+    Component {
+        kind,
+        name: name.to_string(),
+        path: PathBuf::from(format!("dummy/{}", name)),
+    }
+}
 
 fn create_empty_plugin(name: &str) -> PluginSummary {
     PluginSummary {
@@ -7,7 +16,7 @@ fn create_empty_plugin(name: &str) -> PluginSummary {
         cache_key: None,
         marketplace: None,
         version: "1.0.0".to_string(),
-        components: ComponentScan::default(),
+        components: Vec::new(),
         enabled: false,
     }
 }
@@ -18,10 +27,9 @@ fn create_plugin_with_skills(name: &str, skill_count: usize, enabled: bool) -> P
         cache_key: None,
         marketplace: Some("github".to_string()),
         version: "1.0.0".to_string(),
-        components: ComponentScan {
-            skills: (0..skill_count).map(|i| format!("skill{}", i)).collect(),
-            ..Default::default()
-        },
+        components: (0..skill_count)
+            .map(|i| comp(ComponentKind::Skill, &format!("skill{}", i)))
+            .collect(),
         enabled,
     }
 }
@@ -32,13 +40,14 @@ fn create_full_plugin(name: &str, enabled: bool) -> PluginSummary {
         cache_key: None,
         marketplace: Some("github".to_string()),
         version: "2.0.0".to_string(),
-        components: ComponentScan {
-            skills: vec!["skill1".to_string(), "skill2".to_string()],
-            agents: vec!["agent1".to_string()],
-            commands: vec!["cmd1".to_string()],
-            instructions: vec!["inst1".to_string()],
-            hooks: vec!["hook1".to_string()],
-        },
+        components: vec![
+            comp(ComponentKind::Skill, "skill1"),
+            comp(ComponentKind::Skill, "skill2"),
+            comp(ComponentKind::Agent, "agent1"),
+            comp(ComponentKind::Command, "cmd1"),
+            comp(ComponentKind::Instruction, "inst1"),
+            comp(ComponentKind::Hook, "hook1"),
+        ],
         enabled,
     }
 }
@@ -142,7 +151,6 @@ fn test_format_components_single() {
 #[test]
 fn test_format_components_multiple() {
     let plugin = create_full_plugin("test", true);
-    // 固定順序: Skill → Agent → Command → Instruction → Hook
     assert_eq!(
         format_components(&plugin),
         "2 skills, 1 agents, 1 commands, 1 instructions, 1 hooks"
@@ -162,7 +170,6 @@ fn test_filter_plugins_combined() {
         create_full_plugin("enabled-full", true),
     ];
 
-    // --type skill --target codex
     let args = Args {
         component_type: Some(ComponentKind::Skill),
         target: Some(TargetKind::Codex),
@@ -173,7 +180,6 @@ fn test_filter_plugins_combined() {
 
     let filtered = filter_plugins(plugins, &args);
 
-    // enabled かつ skills を持つもののみ
     assert_eq!(filtered.len(), 2);
     assert_eq!(filtered[0].name, "enabled-with-skills");
     assert_eq!(filtered[1].name, "enabled-full");

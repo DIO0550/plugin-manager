@@ -1,7 +1,8 @@
 use super::*;
+use crate::component::{Component, ComponentKind};
 use crate::plugin::PackageCache;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tempfile::TempDir;
 
 fn create_test_cache() -> (TempDir, PackageCache) {
@@ -17,6 +18,14 @@ fn setup_plugin_fixture(cache_dir: &Path, marketplace: &str, name: &str, version
 
     let manifest = format!(r#"{{"name":"{}","version":"{}"}}"#, name, version);
     fs::write(plugin_dir.join("plugin.json"), manifest).unwrap();
+}
+
+fn comp(kind: ComponentKind, name: &str) -> Component {
+    Component {
+        kind,
+        name: name.to_string(),
+        path: PathBuf::from(format!("dummy/{}", name)),
+    }
 }
 
 // ========================================
@@ -39,7 +48,6 @@ fn test_list_installed_plugins_one_plugin() {
     assert_eq!(result.len(), 1);
     assert_eq!(result[0].name, "my-plugin");
     assert_eq!(result[0].version, "1.0.0");
-    // github marketplace は None
     assert!(result[0].marketplace.is_none());
 }
 
@@ -58,7 +66,6 @@ fn test_list_installed_plugins_multiple() {
 fn test_list_installed_plugins_hidden_dir_excluded() {
     let (temp_dir, cache) = create_test_cache();
     setup_plugin_fixture(temp_dir.path(), "github", "good-plugin", "1.0.0");
-    // 隠しディレクトリ（.temp-backup など）は除外される
     setup_plugin_fixture(temp_dir.path(), "github", ".hidden-plugin", "1.0.0");
 
     let result = list_installed_plugins(&cache).unwrap();
@@ -70,7 +77,6 @@ fn test_list_installed_plugins_hidden_dir_excluded() {
 fn test_list_installed_plugins_no_manifest_excluded() {
     let (temp_dir, cache) = create_test_cache();
     setup_plugin_fixture(temp_dir.path(), "github", "valid-plugin", "1.0.0");
-    // plugin.json がないディレクトリは除外される
     let no_manifest_dir = temp_dir.path().join("github").join("no-manifest");
     fs::create_dir_all(&no_manifest_dir).unwrap();
 
@@ -85,7 +91,7 @@ fn create_empty_summary() -> PluginSummary {
         cache_key: None,
         marketplace: None,
         version: "1.0.0".to_string(),
-        components: ComponentScan::default(),
+        components: Vec::new(),
         enabled: true,
     }
 }
@@ -96,13 +102,17 @@ fn create_full_summary() -> PluginSummary {
         cache_key: None,
         marketplace: Some("awesome-marketplace".to_string()),
         version: "2.0.0".to_string(),
-        components: ComponentScan {
-            skills: vec!["skill1".to_string(), "skill2".to_string()],
-            agents: vec!["agent1".to_string()],
-            commands: vec!["cmd1".to_string(), "cmd2".to_string(), "cmd3".to_string()],
-            instructions: vec!["inst1".to_string()],
-            hooks: vec!["hook1".to_string(), "hook2".to_string()],
-        },
+        components: vec![
+            comp(ComponentKind::Skill, "skill1"),
+            comp(ComponentKind::Skill, "skill2"),
+            comp(ComponentKind::Agent, "agent1"),
+            comp(ComponentKind::Command, "cmd1"),
+            comp(ComponentKind::Command, "cmd2"),
+            comp(ComponentKind::Command, "cmd3"),
+            comp(ComponentKind::Instruction, "inst1"),
+            comp(ComponentKind::Hook, "hook1"),
+            comp(ComponentKind::Hook, "hook2"),
+        ],
         enabled: true,
     }
 }
@@ -137,7 +147,6 @@ fn test_component_count_empty() {
 #[test]
 fn test_component_count_full() {
     let summary = create_full_summary();
-    // 2 skills + 1 agent + 3 commands + 1 instruction + 2 hooks = 9
     assert_eq!(summary.component_count(), 9);
 }
 
@@ -148,13 +157,11 @@ fn test_component_count_partial() {
         cache_key: None,
         marketplace: None,
         version: "1.0.0".to_string(),
-        components: ComponentScan {
-            skills: vec!["s1".to_string()],
-            agents: vec![],
-            commands: vec!["c1".to_string(), "c2".to_string()],
-            instructions: vec![],
-            hooks: vec![],
-        },
+        components: vec![
+            comp(ComponentKind::Skill, "s1"),
+            comp(ComponentKind::Command, "c1"),
+            comp(ComponentKind::Command, "c2"),
+        ],
         enabled: true,
     };
     assert_eq!(summary.component_count(), 3);
@@ -173,14 +180,14 @@ fn test_has_components_empty() {
 #[test]
 fn test_has_components_with_skills() {
     let mut summary = create_empty_summary();
-    summary.components.skills = vec!["skill".to_string()];
+    summary.components.push(comp(ComponentKind::Skill, "skill"));
     assert!(summary.has_components());
 }
 
 #[test]
 fn test_has_components_with_hooks_only() {
     let mut summary = create_empty_summary();
-    summary.components.hooks = vec!["hook".to_string()];
+    summary.components.push(comp(ComponentKind::Hook, "hook"));
     assert!(summary.has_components());
 }
 
@@ -202,7 +209,6 @@ fn test_component_type_counts_full() {
 
     assert_eq!(counts.len(), 5);
 
-    // Check each type
     let skill_count = counts
         .iter()
         .find(|c| c.kind == ComponentKind::Skill)
@@ -241,13 +247,11 @@ fn test_component_type_counts_partial() {
         cache_key: None,
         marketplace: None,
         version: "1.0.0".to_string(),
-        components: ComponentScan {
-            skills: vec![],
-            agents: vec!["a1".to_string(), "a2".to_string()],
-            commands: vec![],
-            instructions: vec![],
-            hooks: vec!["h1".to_string()],
-        },
+        components: vec![
+            comp(ComponentKind::Agent, "a1"),
+            comp(ComponentKind::Agent, "a2"),
+            comp(ComponentKind::Hook, "h1"),
+        ],
         enabled: true,
     };
 
@@ -267,7 +271,6 @@ fn test_component_type_counts_order() {
     let summary = create_full_summary();
     let counts = summary.component_type_counts();
 
-    // Should be in order: Skill, Agent, Command, Instruction, Hook
     assert_eq!(counts[0].kind, ComponentKind::Skill);
     assert_eq!(counts[1].kind, ComponentKind::Agent);
     assert_eq!(counts[2].kind, ComponentKind::Command);

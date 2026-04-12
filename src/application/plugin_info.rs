@@ -5,8 +5,7 @@
 use super::plugin_catalog::{list_all_placed, list_installed};
 pub(super) use super::plugin_info_types::{AuthorInfo, PluginDetail, PluginSource};
 use crate::error::{PlmError, Result};
-use crate::plugin::{meta, PackageCacheAccess, PluginManifest};
-use crate::scan::scan_components;
+use crate::plugin::{meta, PackageCacheAccess, Plugin, PluginManifest};
 use std::path::{Path, PathBuf};
 
 /// 内部用: プラグイン候補
@@ -194,8 +193,9 @@ fn build_plugin_detail(candidate: PluginCandidate) -> Result<PluginDetail> {
         &candidate.dir_name,
     );
 
-    // コンポーネント走査
-    let components = scan_components(&candidate.cache_path, manifest);
+    let components = Plugin::new(manifest.clone(), candidate.cache_path.clone())
+        .components()
+        .to_vec();
 
     // デプロイ状態判定（キャッシュディレクトリ名で判定）
     let enabled = check_deployed_status(

@@ -2,7 +2,7 @@
 //!
 //! PluginDetail, AuthorInfo, PluginSource のDTO群。
 
-use crate::scan::ComponentScan;
+use crate::component::{serialize_components, Component};
 use serde::Serialize;
 
 /// プラグイン詳細情報（DTO）
@@ -26,7 +26,8 @@ pub struct PluginDetail {
     pub source: PluginSource,
 
     /// コンポーネント一覧
-    pub components: ComponentScan,
+    #[serde(serialize_with = "serialize_components")]
+    pub components: Vec<Component>,
 
     /// 有効状態
     pub enabled: bool,
