@@ -5,6 +5,10 @@ use proptest::prelude::*;
 use std::fs;
 use tempfile::TempDir;
 
+fn names(items: Vec<(String, PathBuf)>) -> Vec<String> {
+    items.into_iter().map(|(name, _)| name).collect()
+}
+
 /// 有効なファイル名に使える文字列（英数字、ハイフン、アンダースコア）
 fn valid_name_strategy() -> impl Strategy<Value = String> {
     "[a-zA-Z][a-zA-Z0-9_-]{0,15}".prop_map(|s| s)
@@ -22,13 +26,12 @@ proptest! {
         let filename = format!("{}.agent.md", name);
         fs::write(agents_dir.join(&filename), "# Agent").unwrap();
 
-        let names = list_agent_names(agents_dir);
+        let result = names(list_agent_names(agents_dir));
 
-        prop_assert_eq!(names.len(), 1);
-        prop_assert_eq!(&names[0], &name);
-        // サフィックスが残っていないことを確認
-        prop_assert!(!names[0].ends_with(".agent.md"));
-        prop_assert!(!names[0].ends_with(".md"));
+        prop_assert_eq!(result.len(), 1);
+        prop_assert_eq!(&result[0], &name);
+        prop_assert!(!result[0].ends_with(".agent.md"));
+        prop_assert!(!result[0].ends_with(".md"));
     }
 
     /// list_agent_names は .md サフィックスを除去する
@@ -42,11 +45,11 @@ proptest! {
         let filename = format!("{}.md", name);
         fs::write(agents_dir.join(&filename), "# Agent").unwrap();
 
-        let names = list_agent_names(agents_dir);
+        let result = names(list_agent_names(agents_dir));
 
-        prop_assert_eq!(names.len(), 1);
-        prop_assert_eq!(&names[0], &name);
-        prop_assert!(!names[0].ends_with(".md"));
+        prop_assert_eq!(result.len(), 1);
+        prop_assert_eq!(&result[0], &name);
+        prop_assert!(!result[0].ends_with(".md"));
     }
 
     /// list_command_names は .prompt.md サフィックスを除去する
@@ -60,12 +63,12 @@ proptest! {
         let filename = format!("{}.prompt.md", name);
         fs::write(commands_dir.join(&filename), "# Command").unwrap();
 
-        let names = list_command_names(commands_dir);
+        let result = names(list_command_names(commands_dir));
 
-        prop_assert_eq!(names.len(), 1);
-        prop_assert_eq!(&names[0], &name);
-        prop_assert!(!names[0].ends_with(".prompt.md"));
-        prop_assert!(!names[0].ends_with(".md"));
+        prop_assert_eq!(result.len(), 1);
+        prop_assert_eq!(&result[0], &name);
+        prop_assert!(!result[0].ends_with(".prompt.md"));
+        prop_assert!(!result[0].ends_with(".md"));
     }
 
     /// list_hook_names は最後の拡張子のみを除去する
@@ -80,13 +83,12 @@ proptest! {
         let filename = format!("{}.{}", name, ext);
         fs::write(hooks_dir.join(&filename), "#!/bin/bash").unwrap();
 
-        let names = list_hook_names(hooks_dir);
+        let result = names(list_hook_names(hooks_dir));
 
-        prop_assert_eq!(names.len(), 1);
-        prop_assert_eq!(&names[0], &name);
-        // 拡張子が除去されていることを確認
+        prop_assert_eq!(result.len(), 1);
+        prop_assert_eq!(&result[0], &name);
         let ext_suffix = format!(".{}", ext);
-        prop_assert!(!names[0].ends_with(&ext_suffix));
+        prop_assert!(!result[0].ends_with(&ext_suffix));
     }
 
     /// list_hook_names は複数ドットがあっても最後の拡張子のみ除去
@@ -99,16 +101,14 @@ proptest! {
         let temp_dir = TempDir::new().unwrap();
         let hooks_dir = temp_dir.path();
 
-        // name.middle.ext 形式
         let filename = format!("{}.{}.{}", base, middle, ext);
         fs::write(hooks_dir.join(&filename), "#!/bin/bash").unwrap();
 
-        let names = list_hook_names(hooks_dir);
+        let result = names(list_hook_names(hooks_dir));
 
-        prop_assert_eq!(names.len(), 1);
-        // base.middle が残る
+        prop_assert_eq!(result.len(), 1);
         let expected = format!("{}.{}", base, middle);
-        prop_assert_eq!(&names[0], &expected);
+        prop_assert_eq!(&result[0], &expected);
     }
 
     /// list_markdown_names は .md サフィックスを除去する
@@ -122,11 +122,11 @@ proptest! {
         let filename = format!("{}.md", name);
         fs::write(dir.join(&filename), "# Markdown").unwrap();
 
-        let names = list_markdown_names(dir);
+        let result = names(list_markdown_names(dir));
 
-        prop_assert_eq!(names.len(), 1);
-        prop_assert_eq!(&names[0], &name);
-        prop_assert!(!names[0].ends_with(".md"));
+        prop_assert_eq!(result.len(), 1);
+        prop_assert_eq!(&result[0], &name);
+        prop_assert!(!result[0].ends_with(".md"));
     }
 
     /// list_skill_names は SKILL.md を持つディレクトリ名を返す
@@ -141,9 +141,9 @@ proptest! {
         fs::create_dir(&skill_dir).unwrap();
         fs::write(skill_dir.join("SKILL.md"), "# Skill").unwrap();
 
-        let names = list_skill_names(skills_dir);
+        let result = names(list_skill_names(skills_dir));
 
-        prop_assert_eq!(names.len(), 1);
-        prop_assert_eq!(&names[0], &name);
+        prop_assert_eq!(result.len(), 1);
+        prop_assert_eq!(&result[0], &name);
     }
 }

@@ -2,10 +2,12 @@
 //!
 //! インストール済みプラグインの一覧取得ユースケースを提供する。
 
-use crate::component::{ComponentKind, ComponentName, ComponentTypeCount, Scope};
+use crate::component::{
+    serialize_components, Component, ComponentKind, ComponentName, ComponentTypeCount, Scope,
+};
 use crate::error::Result;
-use crate::plugin::{meta, MarketplaceContent, PackageCacheAccess};
-use crate::scan::{list_placed_plugins, scan_components, ComponentScan};
+use crate::plugin::{meta, MarketplaceContent, PackageCacheAccess, Plugin};
+use crate::scan::list_placed_plugins;
 use crate::target::all_targets;
 use serde::Serialize;
 use std::collections::HashSet;
@@ -53,8 +55,8 @@ pub struct PluginSummary {
     /// バージョン
     pub version: String,
     /// コンポーネント一覧
-    #[serde(flatten)]
-    pub components: ComponentScan,
+    #[serde(flatten, serialize_with = "serialize_components")]
+    pub components: Vec<Component>,
     /// 有効状態（デプロイ先に配置されているか）
     pub enabled: bool,
 }
@@ -67,69 +69,37 @@ impl PluginSummary {
 
     /// コンポーネントの総数を取得
     pub fn component_count(&self) -> usize {
-        self.components.skills.len()
-            + self.components.agents.len()
-            + self.components.commands.len()
-            + self.components.instructions.len()
-            + self.components.hooks.len()
+        self.components.len()
     }
 
     /// コンポーネントが存在するか
     pub fn has_components(&self) -> bool {
-        self.component_count() > 0
+        !self.components.is_empty()
     }
 
     /// コンポーネント種別ごとの件数を取得（空でないもののみ）
     pub fn component_type_counts(&self) -> Vec<ComponentTypeCount> {
-        let mut counts = Vec::new();
-
-        if !self.components.skills.is_empty() {
-            counts.push(ComponentTypeCount {
-                kind: ComponentKind::Skill,
-                count: self.components.skills.len(),
-            });
-        }
-        if !self.components.agents.is_empty() {
-            counts.push(ComponentTypeCount {
-                kind: ComponentKind::Agent,
-                count: self.components.agents.len(),
-            });
-        }
-        if !self.components.commands.is_empty() {
-            counts.push(ComponentTypeCount {
-                kind: ComponentKind::Command,
-                count: self.components.commands.len(),
-            });
-        }
-        if !self.components.instructions.is_empty() {
-            counts.push(ComponentTypeCount {
-                kind: ComponentKind::Instruction,
-                count: self.components.instructions.len(),
-            });
-        }
-        if !self.components.hooks.is_empty() {
-            counts.push(ComponentTypeCount {
-                kind: ComponentKind::Hook,
-                count: self.components.hooks.len(),
-            });
-        }
-
-        counts
+        ComponentKind::all()
+            .iter()
+            .filter_map(|&kind| {
+                let count = self.components.iter().filter(|c| c.kind == kind).count();
+                if count > 0 {
+                    Some(ComponentTypeCount { kind, count })
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 
     /// 特定種別のコンポーネント名一覧を取得
     pub fn component_names(&self, kind: ComponentKind) -> Vec<ComponentName> {
-        let names = match kind {
-            ComponentKind::Skill => &self.components.skills,
-            ComponentKind::Agent => &self.components.agents,
-            ComponentKind::Command => &self.components.commands,
-            ComponentKind::Instruction => &self.components.instructions,
-            ComponentKind::Hook => &self.components.hooks,
-        };
-
-        names
+        self.components
             .iter()
-            .map(|n| ComponentName { name: n.clone() })
+            .filter(|c| c.kind == kind)
+            .map(|c| ComponentName {
+                name: c.name.clone(),
+            })
             .collect()
     }
 }
@@ -146,7 +116,7 @@ pub fn list_installed_plugins(cache: &dyn PackageCacheAccess) -> Result<Vec<Plug
         .into_iter()
         .map(|pkg| {
             let name = pkg.manifest().name.clone();
-            let scan: ComponentScan = scan_components(pkg.path(), pkg.manifest());
+            let plugin = Plugin::new(pkg.manifest().clone(), pkg.path().to_path_buf());
             let marketplace_str = pkg.marketplace().unwrap_or("github");
             let ops_key = pkg.cache_key().unwrap_or(&name);
             let enabled = meta::is_enabled(pkg.path(), marketplace_str, ops_key, &deployed);
@@ -156,7 +126,7 @@ pub fn list_installed_plugins(cache: &dyn PackageCacheAccess) -> Result<Vec<Plug
                 cache_key: pkg.cache_key().map(str::to_string),
                 marketplace: pkg.marketplace().map(str::to_string),
                 version: pkg.manifest().version.clone(),
-                components: scan,
+                components: plugin.components().to_vec(),
                 enabled,
             }
         })

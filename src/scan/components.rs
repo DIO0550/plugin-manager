@@ -6,7 +6,7 @@
 use super::constants::{AGENT_SUFFIX, MARKDOWN_SUFFIX, PROMPT_SUFFIX, SKILL_MANIFEST};
 use crate::path_ext::PathExt;
 use std::ffi::OsStr;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// スキル名一覧を取得
 ///
@@ -24,7 +24,7 @@ use std::path::Path;
 /// - `skills_dir` がディレクトリでない場合は空配列を返す
 /// - サブディレクトリのうち `SKILL.md` が存在するものだけを抽出
 /// - UTF-8 変換不可のディレクトリ名は除外
-pub fn list_skill_names(skills_dir: &Path) -> Vec<String> {
+pub fn list_skill_names(skills_dir: &Path) -> Vec<(String, PathBuf)> {
     if !skills_dir.is_dir() {
         return Vec::new();
     }
@@ -33,7 +33,10 @@ pub fn list_skill_names(skills_dir: &Path) -> Vec<String> {
         .read_dir_entries()
         .into_iter()
         .filter(|path| path.is_dir() && has_exact_skill_manifest(path))
-        .filter_map(|path| path.file_name().and_then(|n| n.to_str()).map(String::from))
+        .filter_map(|path| {
+            let name = path.file_name()?.to_str().map(String::from)?;
+            Some((name, path))
+        })
         .collect()
 }
 
@@ -61,13 +64,13 @@ fn has_exact_skill_manifest(dir: &Path) -> bool {
 /// * `agents_path` - エージェントファイルまたはディレクトリのパス
 ///
 /// # Returns
-/// エージェント名の一覧。単一ファイルの場合は None を返す可能性がある
-/// （呼び出し側でフォールバック処理が必要）。
-pub fn list_agent_names(agents_path: &Path) -> Vec<String> {
-    // 単一ファイルの場合
+/// エージェント名の一覧。
+/// 単一ファイルで名前を導出できない場合や、`agents_path` がファイル/ディレクトリの
+/// いずれでもない場合は空配列を返す。
+pub fn list_agent_names(agents_path: &Path) -> Vec<(String, PathBuf)> {
     if agents_path.is_file() {
         return file_stem_name(agents_path)
-            .map(|name| vec![name])
+            .map(|name| vec![(name, agents_path.to_path_buf())])
             .unwrap_or_default();
     }
 
@@ -80,14 +83,15 @@ pub fn list_agent_names(agents_path: &Path) -> Vec<String> {
         .into_iter()
         .filter(|path| path.is_file())
         .filter_map(|path| {
-            let name = path.file_name()?.to_str()?;
-            if name.ends_with(AGENT_SUFFIX) {
-                Some(name.trim_end_matches(AGENT_SUFFIX).to_string())
-            } else if name.ends_with(MARKDOWN_SUFFIX) {
-                Some(name.trim_end_matches(MARKDOWN_SUFFIX).to_string())
+            let file_name = path.file_name()?.to_str()?;
+            let name = if file_name.ends_with(AGENT_SUFFIX) {
+                file_name.trim_end_matches(AGENT_SUFFIX).to_string()
+            } else if file_name.ends_with(MARKDOWN_SUFFIX) {
+                file_name.trim_end_matches(MARKDOWN_SUFFIX).to_string()
             } else {
-                None
-            }
+                return None;
+            };
+            Some((name, path))
         })
         .collect()
 }
@@ -101,7 +105,7 @@ pub fn list_agent_names(agents_path: &Path) -> Vec<String> {
 ///
 /// # Returns
 /// コマンド名の一覧。
-pub fn list_command_names(commands_dir: &Path) -> Vec<String> {
+pub fn list_command_names(commands_dir: &Path) -> Vec<(String, PathBuf)> {
     if !commands_dir.is_dir() {
         return Vec::new();
     }
@@ -111,14 +115,15 @@ pub fn list_command_names(commands_dir: &Path) -> Vec<String> {
         .into_iter()
         .filter(|path| path.is_file())
         .filter_map(|path| {
-            let name = path.file_name()?.to_str()?;
-            if name.ends_with(PROMPT_SUFFIX) {
-                Some(name.trim_end_matches(PROMPT_SUFFIX).to_string())
-            } else if name.ends_with(MARKDOWN_SUFFIX) {
-                Some(name.trim_end_matches(MARKDOWN_SUFFIX).to_string())
+            let file_name = path.file_name()?.to_str()?;
+            let name = if file_name.ends_with(PROMPT_SUFFIX) {
+                file_name.trim_end_matches(PROMPT_SUFFIX).to_string()
+            } else if file_name.ends_with(MARKDOWN_SUFFIX) {
+                file_name.trim_end_matches(MARKDOWN_SUFFIX).to_string()
             } else {
-                None
-            }
+                return None;
+            };
+            Some((name, path))
         })
         .collect()
 }
@@ -132,7 +137,7 @@ pub fn list_command_names(commands_dir: &Path) -> Vec<String> {
 ///
 /// # Returns
 /// フック名の一覧。
-pub fn list_hook_names(hooks_dir: &Path) -> Vec<String> {
+pub fn list_hook_names(hooks_dir: &Path) -> Vec<(String, PathBuf)> {
     if !hooks_dir.is_dir() {
         return Vec::new();
     }
@@ -142,13 +147,12 @@ pub fn list_hook_names(hooks_dir: &Path) -> Vec<String> {
         .into_iter()
         .filter(|path| path.is_file())
         .filter_map(|path| {
-            let name = path.file_name()?.to_str()?;
-            // 拡張子を除去（複数ドットの場合は最後のみ）
-            let hook_name = name
+            let file_name = path.file_name()?.to_str()?;
+            let hook_name = file_name
                 .rsplit_once('.')
                 .map(|(n, _)| n.to_string())
-                .unwrap_or_else(|| name.to_string());
-            Some(hook_name)
+                .unwrap_or_else(|| file_name.to_string());
+            Some((hook_name, path))
         })
         .collect()
 }
@@ -162,7 +166,7 @@ pub fn list_hook_names(hooks_dir: &Path) -> Vec<String> {
 ///
 /// # Returns
 /// Markdown ファイル名（拡張子除去済み）の一覧。
-pub fn list_markdown_names(dir: &Path) -> Vec<String> {
+pub fn list_markdown_names(dir: &Path) -> Vec<(String, PathBuf)> {
     if !dir.is_dir() {
         return Vec::new();
     }
@@ -171,9 +175,10 @@ pub fn list_markdown_names(dir: &Path) -> Vec<String> {
         .into_iter()
         .filter(|path| path.is_file())
         .filter_map(|path| {
-            let name = path.file_name()?.to_str()?;
-            if name.ends_with(MARKDOWN_SUFFIX) {
-                Some(name.trim_end_matches(MARKDOWN_SUFFIX).to_string())
+            let file_name = path.file_name()?.to_str()?;
+            if file_name.ends_with(MARKDOWN_SUFFIX) {
+                let name = file_name.trim_end_matches(MARKDOWN_SUFFIX).to_string();
+                Some((name, path))
             } else {
                 None
             }

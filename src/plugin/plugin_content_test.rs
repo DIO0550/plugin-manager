@@ -216,6 +216,65 @@ fn test_plugin_new_with_hooks() {
 }
 
 #[test]
+fn test_plugin_new_with_instruction_file_manifest() {
+    let temp = TempDir::new().unwrap();
+    let path = temp.path().to_path_buf();
+    write_file(&path.join("SETUP.md"), "# Setup guide");
+
+    let mut manifest = make_manifest("test");
+    manifest.instructions = Some("SETUP.md".to_string());
+
+    let plugin = Plugin::new(manifest, path.clone());
+
+    let components = plugin.components();
+    assert_eq!(components.len(), 1);
+    assert_eq!(components[0].kind, ComponentKind::Instruction);
+    assert_eq!(components[0].name, "SETUP");
+    assert_eq!(components[0].path, path.join("SETUP.md"));
+}
+
+#[test]
+fn test_plugin_new_with_missing_instruction_path() {
+    let temp = TempDir::new().unwrap();
+    let path = temp.path().to_path_buf();
+
+    let mut manifest = make_manifest("test");
+    manifest.instructions = Some("nonexistent".to_string());
+
+    let plugin = Plugin::new(manifest, path);
+
+    let instructions: Vec<&Component> = plugin
+        .components()
+        .iter()
+        .filter(|c| c.kind == ComponentKind::Instruction)
+        .collect();
+    assert!(instructions.is_empty());
+}
+
+#[test]
+fn test_plugin_new_with_hooks_same_stem_different_ext() {
+    let temp = TempDir::new().unwrap();
+    let path = temp.path().to_path_buf();
+    write_file(&path.join("hooks/pre-commit.sh"), "#!/bin/sh\n");
+    write_file(&path.join("hooks/pre-commit.py"), "#!/usr/bin/env python\n");
+
+    let plugin = Plugin::new(make_manifest("test"), path.clone());
+
+    let hooks: Vec<&Component> = plugin
+        .components()
+        .iter()
+        .filter(|c| c.kind == ComponentKind::Hook)
+        .collect();
+    // Hooks with the same stem but different extensions should be kept as
+    // separate components, each preserving its own file path.
+    assert_eq!(hooks.len(), 2);
+    assert!(hooks.iter().all(|h| h.name == "pre-commit"));
+    assert!(hooks.iter().all(|h| {
+        h.path == path.join("hooks/pre-commit.sh") || h.path == path.join("hooks/pre-commit.py")
+    }));
+}
+
+#[test]
 fn test_plugin_clone_preserves_components() {
     let temp = TempDir::new().unwrap();
     let path = temp.path().to_path_buf();

@@ -3,6 +3,7 @@
 //! インストール済みプラグインの詳細情報を表示する。
 
 use crate::application::{get_plugin_info, PluginDetail, PluginSource};
+use crate::component::ComponentKind;
 use crate::plugin::PackageCache;
 use clap::{Parser, ValueEnum};
 use comfy_table::{presets::UTF8_FULL, Table};
@@ -110,14 +111,21 @@ fn print_table(detail: &PluginDetail) {
     comp_table.load_preset(UTF8_FULL);
     comp_table.set_header(vec!["Type", "Items"]);
 
-    comp_table.add_row(vec!["Skills", &format_list(&detail.components.skills)]);
-    comp_table.add_row(vec!["Agents", &format_list(&detail.components.agents)]);
-    comp_table.add_row(vec!["Commands", &format_list(&detail.components.commands)]);
-    comp_table.add_row(vec![
-        "Instructions",
-        &format_list(&detail.components.instructions),
-    ]);
-    comp_table.add_row(vec!["Hooks", &format_list(&detail.components.hooks)]);
+    for (kind, label) in [
+        (ComponentKind::Skill, "Skills"),
+        (ComponentKind::Agent, "Agents"),
+        (ComponentKind::Command, "Commands"),
+        (ComponentKind::Instruction, "Instructions"),
+        (ComponentKind::Hook, "Hooks"),
+    ] {
+        let names: Vec<&str> = detail
+            .components
+            .iter()
+            .filter(|c| c.kind == kind)
+            .map(|c| c.name.as_str())
+            .collect();
+        comp_table.add_row(vec![label, &format_list(&names)]);
+    }
 
     println!("{comp_table}");
     println!();
@@ -141,7 +149,7 @@ fn print_table(detail: &PluginDetail) {
     println!("{deploy_table}");
 }
 
-fn format_list(items: &[String]) -> String {
+fn format_list(items: &[&str]) -> String {
     if items.is_empty() {
         "none".to_string()
     } else {

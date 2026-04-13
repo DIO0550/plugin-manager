@@ -14,4 +14,4 @@ pub use kind::{Component, ComponentKind, Scope};
 pub use placement::{
     ComponentRef, PlacementContext, PlacementLocation, PlacementScope, ProjectContext,
 };
-pub use summary::{ComponentName, ComponentTypeCount};
+pub use summary::{serialize_components, ComponentName, ComponentTypeCount};

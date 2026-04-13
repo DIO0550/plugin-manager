@@ -2,7 +2,7 @@
 //!
 //! TUI等での表示に使用する軽量な型を提供する。
 
-use crate::component::ComponentKind;
+use crate::component::{Component, ComponentKind};
 
 /// コンポーネント種別ごとの件数
 #[derive(Debug, Clone)]
@@ -24,6 +24,34 @@ impl ComponentTypeCount {
             ComponentKind::Hook => "Hooks",
         }
     }
+}
+
+/// Vec<Component> を kind 別にグループ化して JSON serialize する純粋関数。
+///
+/// `{"skills": ["name1", ...], "agents": [...], ...}` の形を出力する。
+/// `PluginSummary` では `#[serde(flatten)]` と併用して top-level に展開、
+/// `PluginDetail` では nested `components` キーとして出力する。
+pub fn serialize_components<S>(components: &[Component], serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    use serde::ser::SerializeMap;
+    let mut map = serializer.serialize_map(Some(5))?;
+    for (kind, key) in [
+        (ComponentKind::Skill, "skills"),
+        (ComponentKind::Agent, "agents"),
+        (ComponentKind::Command, "commands"),
+        (ComponentKind::Instruction, "instructions"),
+        (ComponentKind::Hook, "hooks"),
+    ] {
+        let names: Vec<&str> = components
+            .iter()
+            .filter(|c| c.kind == kind)
+            .map(|c| c.name.as_str())
+            .collect();
+        map.serialize_entry(key, &names)?;
+    }
+    map.end()
 }
 
 /// コンポーネント名（表示用）
