@@ -135,63 +135,6 @@ fn test_plugin_summary_cache_key_falls_back_to_name() {
 }
 
 // ========================================
-// component_count tests
-// ========================================
-
-#[test]
-fn test_component_count_empty() {
-    let summary = create_empty_summary();
-    assert_eq!(summary.component_count(), 0);
-}
-
-#[test]
-fn test_component_count_full() {
-    let summary = create_full_summary();
-    assert_eq!(summary.component_count(), 9);
-}
-
-#[test]
-fn test_component_count_partial() {
-    let summary = PluginSummary {
-        name: "partial".to_string(),
-        cache_key: None,
-        marketplace: None,
-        version: "1.0.0".to_string(),
-        components: vec![
-            comp(ComponentKind::Skill, "s1"),
-            comp(ComponentKind::Command, "c1"),
-            comp(ComponentKind::Command, "c2"),
-        ],
-        enabled: true,
-    };
-    assert_eq!(summary.component_count(), 3);
-}
-
-// ========================================
-// has_components tests
-// ========================================
-
-#[test]
-fn test_has_components_empty() {
-    let summary = create_empty_summary();
-    assert!(!summary.has_components());
-}
-
-#[test]
-fn test_has_components_with_skills() {
-    let mut summary = create_empty_summary();
-    summary.components.push(comp(ComponentKind::Skill, "skill"));
-    assert!(summary.has_components());
-}
-
-#[test]
-fn test_has_components_with_hooks_only() {
-    let mut summary = create_empty_summary();
-    summary.components.push(comp(ComponentKind::Hook, "hook"));
-    assert!(summary.has_components());
-}
-
-// ========================================
 // component_type_counts tests
 // ========================================
 

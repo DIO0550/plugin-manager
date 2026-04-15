@@ -67,16 +67,6 @@ impl PluginSummary {
         crate::plugin::resolve_cache_key(self.cache_key.as_deref(), &self.name)
     }
 
-    /// コンポーネントの総数を取得
-    pub fn component_count(&self) -> usize {
-        self.components.len()
-    }
-
-    /// コンポーネントが存在するか
-    pub fn has_components(&self) -> bool {
-        !self.components.is_empty()
-    }
-
     /// コンポーネント種別ごとの件数を取得（空でないもののみ）
     pub fn component_type_counts(&self) -> Vec<ComponentTypeCount> {
         ComponentKind::all()
