@@ -6,8 +6,7 @@ use crate::application::{list_installed_plugins, PluginSummary};
 use crate::component::ComponentKind;
 use crate::host::{HostClientFactory, HostKind};
 use crate::plugin::{
-    fetch_remote_versions, meta, needs_update, PackageCache, PackageCacheAccess, PluginMeta,
-    VersionQueryResult,
+    fetch_remote_versions, meta, PackageCache, PackageCacheAccess, PluginMeta, UpdateCheck,
 };
 use crate::target::TargetKind;
 use clap::Parser;
@@ -37,18 +36,11 @@ pub struct Args {
     pub outdated: bool,
 }
 
-/// プラグイン情報と更新チェック結果を組み合わせた出力用構造体
-#[derive(Debug, Clone, Serialize)]
-struct PluginWithUpdateInfo {
-    #[serde(flatten)]
-    summary: PluginSummary,
-    #[serde(rename = "current_sha")]
-    current_sha: Option<String>,
-    #[serde(rename = "latest_sha")]
-    latest_sha: Option<String>,
-    has_update: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    check_error: Option<String>,
+/// `--outdated --json` 出力用エントリ（`plugin` と `check` のネスト形式）
+#[derive(Debug, Serialize)]
+struct OutdatedEntry<'a> {
+    plugin: &'a PluginSummary,
+    check: &'a UpdateCheck,
 }
 
 pub async fn run(args: Args) -> Result<(), String> {
@@ -60,14 +52,14 @@ pub async fn run(args: Args) -> Result<(), String> {
     let total_count = plugins.len();
 
     // 2. ソート（name昇順）
-    plugins.sort_by(|a, b| a.name.cmp(&b.name));
+    plugins.sort_by(|a, b| a.name().cmp(b.name()));
 
     // 3. フィルタリング
     let filtered = filter_plugins(plugins, &args);
 
     // 4. 出力（--outdated の場合は更新チェックを実行）
     if args.outdated {
-        run_outdated_check(&cache, &filtered, &args, total_count).await?;
+        run_outdated(&cache, &filtered, &args, total_count).await?;
     } else if args.json {
         print_json(&filtered)?;
     } else if args.simple {
@@ -80,7 +72,7 @@ pub async fn run(args: Args) -> Result<(), String> {
 }
 
 /// --outdated 用の更新チェック処理
-async fn run_outdated_check(
+async fn run_outdated(
     cache: &dyn PackageCacheAccess,
     plugins: &[PluginSummary],
     args: &Args,
@@ -95,71 +87,53 @@ async fn run_outdated_check(
         return Ok(());
     }
 
-    // PluginMeta を収集
-    let mut plugin_metas: Vec<(String, PluginMeta)> = Vec::new();
-
-    for plugin in plugins {
-        let plugin_path = cache.plugin_path(plugin.marketplace.as_deref(), plugin.cache_key());
-        let plugin_meta = meta::load_meta(&plugin_path).unwrap_or_default();
-        plugin_metas.push((plugin.cache_key().to_string(), plugin_meta));
-    }
+    // PluginMeta を収集（宣言的）
+    let plugin_metas: Vec<(String, PluginMeta)> = plugins
+        .iter()
+        .map(|plugin| {
+            let plugin_path = cache.plugin_path(plugin.marketplace(), plugin.install_id());
+            let plugin_meta = meta::load_meta(&plugin_path).unwrap_or_default();
+            (plugin.install_id().to_string(), plugin_meta)
+        })
+        .collect();
 
     // GitHub クライアントを作成してリモートバージョンを取得
     let factory = HostClientFactory::with_defaults();
     let client = factory.create(HostKind::GitHub);
     let remote_versions = fetch_remote_versions(&plugin_metas, client.as_ref()).await;
 
-    // PluginSummary と VersionQueryResult を結合
-    let combined: Vec<PluginWithUpdateInfo> = plugins
+    // PluginSummary と UpdateCheck を結合
+    let results: Vec<(&PluginSummary, UpdateCheck)> = plugins
         .iter()
         .zip(plugin_metas.iter())
         .zip(remote_versions.iter())
-        .map(|((summary, (_name, meta)), (_plugin_name, result))| {
-            let current_sha = meta.commit_sha.clone();
-            let (latest_sha, has_update, check_error) = match result {
-                VersionQueryResult::Found(remote) => {
-                    let has_update = needs_update(current_sha.as_deref(), &remote.sha);
-                    (Some(remote.sha.clone()), has_update, None)
-                }
-                VersionQueryResult::Failed { message } => (None, false, Some(message.clone())),
-            };
-            PluginWithUpdateInfo {
-                summary: summary.clone(),
-                current_sha,
-                latest_sha,
-                has_update,
-                check_error,
-            }
-        })
+        .map(|((plugin, (_, meta)), (_, result))| (plugin, UpdateCheck::from_query(meta, result)))
         .collect();
 
     // 出力
     if args.json {
-        // JSON出力: 全件出力（フィルタなし）
-        print_outdated_json(&combined)?;
+        print_outdated_json(&results)?;
     } else {
-        // テーブル出力: 更新ありのみフィルタ
-        print_outdated_table(&combined, total_count);
+        print_outdated_table(&results, total_count);
     }
 
     Ok(())
 }
 
-fn print_outdated_json(plugins: &[PluginWithUpdateInfo]) -> Result<(), String> {
-    serde_json::to_string_pretty(plugins)
+fn print_outdated_json(results: &[(&PluginSummary, UpdateCheck)]) -> Result<(), String> {
+    let entries: Vec<OutdatedEntry> = results
+        .iter()
+        .map(|(plugin, check)| OutdatedEntry { plugin, check })
+        .collect();
+    serde_json::to_string_pretty(&entries)
         .map(|json| println!("{json}"))
         .map_err(|e| format!("Failed to serialize plugins: {}", e))
 }
 
-fn print_outdated_table(plugins: &[PluginWithUpdateInfo], total_count: usize) {
-    // 更新ありかつエラーなしのプラグインをフィルタ
-    let with_updates: Vec<_> = plugins
-        .iter()
-        .filter(|p| p.has_update && p.check_error.is_none())
-        .collect();
-
-    // エラー件数をカウント
-    let error_count = plugins.iter().filter(|p| p.check_error.is_some()).count();
+fn print_outdated_table(results: &[(&PluginSummary, UpdateCheck)], total_count: usize) {
+    let with_updates: Vec<&(&PluginSummary, UpdateCheck)> =
+        results.iter().filter(|(_, c)| c.has_update()).collect();
+    let error_count = results.iter().filter(|(_, c)| c.is_failed()).count();
 
     if with_updates.is_empty() {
         if total_count == 0 {
@@ -172,31 +146,28 @@ fn print_outdated_table(plugins: &[PluginWithUpdateInfo], total_count: usize) {
         table.load_preset(UTF8_FULL);
         table.set_header(vec!["Name", "Version", "Current SHA", "Latest SHA"]);
 
-        for plugin in &with_updates {
-            let current_sha = plugin
-                .current_sha
-                .as_ref()
-                .map(|s| truncate_sha(s))
+        with_updates.iter().for_each(|(plugin, check)| {
+            let current_sha = check
+                .current_sha()
+                .map(truncate_sha)
                 .unwrap_or_else(|| "unknown".to_string());
-            let latest_sha = plugin
-                .latest_sha
-                .as_ref()
-                .map(|s| truncate_sha(s))
+            let latest_sha = check
+                .latest_sha()
+                .map(truncate_sha)
                 .unwrap_or_else(|| "-".to_string());
 
             table.add_row(vec![
-                plugin.summary.name.as_str(),
-                plugin.summary.version.as_str(),
+                plugin.name(),
+                plugin.version(),
                 &current_sha,
                 &latest_sha,
             ]);
-        }
+        });
 
         println!("{table}");
         println!("{} plugin(s) have updates available", with_updates.len());
     }
 
-    // エラーサマリ
     if error_count > 0 {
         println!(
             "{} plugin(s) could not be checked (use --json for details)",
@@ -225,7 +196,7 @@ fn filter_plugins(plugins: Vec<PluginSummary>, args: &Args) -> Vec<PluginSummary
 fn filter_by_type(plugin: &PluginSummary, component_type: Option<&ComponentKind>) -> bool {
     match component_type {
         None => true,
-        Some(kind) => plugin.components.iter().any(|c| c.kind == *kind),
+        Some(kind) => plugin.components().iter().any(|c| c.kind == *kind),
     }
 }
 
@@ -236,7 +207,7 @@ fn filter_by_target(plugin: &PluginSummary, target: Option<&TargetKind>) -> bool
     // enabled = true のプラグインを「ターゲットにデプロイ済み」とみなす
     match target {
         None => true,
-        Some(_) => plugin.enabled,
+        Some(_) => plugin.enabled(),
     }
 }
 
@@ -261,17 +232,17 @@ fn print_table(plugins: &[PluginSummary], total_count: usize) {
     ]);
 
     for plugin in plugins {
-        let status = if plugin.enabled {
+        let status = if plugin.enabled() {
             "enabled"
         } else {
             "disabled"
         };
-        let marketplace = plugin.marketplace.as_deref().unwrap_or("-");
+        let marketplace = plugin.marketplace().unwrap_or("-");
         let components = format_components(plugin);
 
         table.add_row(vec![
-            plugin.name.as_str(),
-            plugin.version.as_str(),
+            plugin.name(),
+            plugin.version(),
             components.as_str(),
             status,
             marketplace,
@@ -298,7 +269,7 @@ fn print_simple(plugins: &[PluginSummary], total_count: usize) {
         return;
     }
     for plugin in plugins {
-        println!("{}", plugin.name);
+        println!("{}", plugin.name());
     }
 }
 

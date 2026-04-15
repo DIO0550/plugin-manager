@@ -20,9 +20,8 @@ pub fn filter_plugins<'a>(
     plugins
         .iter()
         .filter(|p| {
-            p.name.to_lowercase().contains(&query)
-                || p.marketplace
-                    .as_ref()
+            p.name().to_lowercase().contains(&query)
+                || p.marketplace()
                     .is_some_and(|m| m.to_lowercase().contains(&query))
         })
         .collect()

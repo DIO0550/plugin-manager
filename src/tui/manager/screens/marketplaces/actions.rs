@@ -199,7 +199,7 @@ fn build_browse_plugins(
             source: p.source.clone(),
             installed: installed_plugins
                 .iter()
-                .any(|ip| ip.name == p.name || ip.cache_key() == p.name),
+                .any(|ip| ip.name() == p.name || ip.install_id() == p.name),
         })
         .collect()
 }

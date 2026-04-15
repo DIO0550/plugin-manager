@@ -2,14 +2,14 @@ use crate::application::PluginSummary;
 use crate::tui::manager::core::filter::filter_plugins;
 
 fn make_plugin(name: &str, marketplace: Option<&str>) -> PluginSummary {
-    PluginSummary {
-        name: name.to_string(),
-        cache_key: None,
-        marketplace: marketplace.map(|m| m.to_string()),
-        version: "1.0.0".to_string(),
-        components: Vec::new(),
-        enabled: true,
-    }
+    PluginSummary::new_for_test(
+        name,
+        "1.0.0",
+        Vec::new(),
+        None,
+        marketplace.map(|m| m.to_string()),
+        true,
+    )
 }
 
 #[test]
@@ -27,7 +27,7 @@ fn filter_by_name_partial_match() {
     let plugins = vec![make_plugin("my-plugin", None), make_plugin("other", None)];
     let result = filter_plugins(&plugins, "plug");
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].name, "my-plugin");
+    assert_eq!(result[0].name(), "my-plugin");
 }
 
 #[test]
@@ -38,7 +38,7 @@ fn filter_by_marketplace_partial_match() {
     ];
     let result = filter_plugins(&plugins, "awesome");
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].name, "foo");
+    assert_eq!(result[0].name(), "foo");
 }
 
 #[test]
@@ -46,7 +46,7 @@ fn filter_case_insensitive() {
     let plugins = vec![make_plugin("MyPlugin", None), make_plugin("other", None)];
     let result = filter_plugins(&plugins, "myplugin");
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].name, "MyPlugin");
+    assert_eq!(result[0].name(), "MyPlugin");
 }
 
 #[test]

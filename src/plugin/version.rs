@@ -59,6 +59,92 @@ impl VersionQueryResult {
     }
 }
 
+/// プラグイン 1 件に対する更新チェック結果
+///
+/// `--outdated --json` 出力では `#[serde(tag = "status")]` により
+/// `{"status": "up_to_date" | "available" | "failed", ...}` の形で出力される。
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum UpdateCheck {
+    /// 最新状態（ローカルとリモートの SHA が一致）
+    UpToDate {
+        current_sha: Option<String>,
+        latest_sha: String,
+    },
+    /// 更新あり（ローカルとリモートの SHA が異なる、またはローカル未記録）
+    Available {
+        current_sha: Option<String>,
+        latest_sha: String,
+    },
+    /// 取得失敗
+    Failed {
+        current_sha: Option<String>,
+        error: String,
+    },
+}
+
+impl UpdateCheck {
+    /// `PluginMeta` と `VersionQueryResult` から更新チェック結果を構築する。
+    pub fn from_query(meta: &PluginMeta, result: &VersionQueryResult) -> Self {
+        let current_sha = meta.commit_sha.clone();
+        match result {
+            VersionQueryResult::Found(remote) => {
+                if current_sha.as_deref() == Some(remote.sha.as_str()) {
+                    UpdateCheck::UpToDate {
+                        current_sha,
+                        latest_sha: remote.sha.clone(),
+                    }
+                } else {
+                    UpdateCheck::Available {
+                        current_sha,
+                        latest_sha: remote.sha.clone(),
+                    }
+                }
+            }
+            VersionQueryResult::Failed { message } => UpdateCheck::Failed {
+                current_sha,
+                error: message.clone(),
+            },
+        }
+    }
+
+    /// 更新ありかどうか
+    pub fn has_update(&self) -> bool {
+        matches!(self, UpdateCheck::Available { .. })
+    }
+
+    /// 取得失敗かどうか
+    pub fn is_failed(&self) -> bool {
+        matches!(self, UpdateCheck::Failed { .. })
+    }
+
+    /// ローカルの commit SHA を取得
+    pub fn current_sha(&self) -> Option<&str> {
+        match self {
+            UpdateCheck::UpToDate { current_sha, .. }
+            | UpdateCheck::Available { current_sha, .. }
+            | UpdateCheck::Failed { current_sha, .. } => current_sha.as_deref(),
+        }
+    }
+
+    /// リモートの最新 SHA を取得（`Failed` では `None`）
+    pub fn latest_sha(&self) -> Option<&str> {
+        match self {
+            UpdateCheck::UpToDate { latest_sha, .. }
+            | UpdateCheck::Available { latest_sha, .. } => Some(latest_sha.as_str()),
+            UpdateCheck::Failed { .. } => None,
+        }
+    }
+
+    /// エラーメッセージを取得（`Failed` のときのみ）
+    pub fn error(&self) -> Option<&str> {
+        match self {
+            UpdateCheck::Failed { error, .. } => Some(error.as_str()),
+            _ => None,
+        }
+    }
+}
+
 /// ローカルとリモートのバージョンを比較し、更新が必要かどうかを判定
 ///
 /// - ローカルSHAがNoneの場合: 更新が必要（インストール時にSHAが記録されていない）

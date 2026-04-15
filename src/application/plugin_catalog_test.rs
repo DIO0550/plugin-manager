@@ -46,9 +46,9 @@ fn test_list_installed_plugins_one_plugin() {
 
     let result = list_installed_plugins(&cache).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].name, "my-plugin");
-    assert_eq!(result[0].version, "1.0.0");
-    assert!(result[0].marketplace.is_none());
+    assert_eq!(result[0].name(), "my-plugin");
+    assert_eq!(result[0].version(), "1.0.0");
+    assert!(result[0].marketplace().is_none());
 }
 
 #[test]
@@ -70,7 +70,7 @@ fn test_list_installed_plugins_hidden_dir_excluded() {
 
     let result = list_installed_plugins(&cache).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].name, "good-plugin");
+    assert_eq!(result[0].name(), "good-plugin");
 }
 
 #[test]
@@ -82,27 +82,18 @@ fn test_list_installed_plugins_no_manifest_excluded() {
 
     let result = list_installed_plugins(&cache).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].name, "valid-plugin");
+    assert_eq!(result[0].name(), "valid-plugin");
 }
 
 fn create_empty_summary() -> PluginSummary {
-    PluginSummary {
-        name: "test-plugin".to_string(),
-        cache_key: None,
-        marketplace: None,
-        version: "1.0.0".to_string(),
-        components: Vec::new(),
-        enabled: true,
-    }
+    PluginSummary::new_for_test("test-plugin", "1.0.0", Vec::new(), None, None, true)
 }
 
 fn create_full_summary() -> PluginSummary {
-    PluginSummary {
-        name: "full-plugin".to_string(),
-        cache_key: None,
-        marketplace: Some("awesome-marketplace".to_string()),
-        version: "2.0.0".to_string(),
-        components: vec![
+    PluginSummary::new_for_test(
+        "full-plugin",
+        "2.0.0",
+        vec![
             comp(ComponentKind::Skill, "skill1"),
             comp(ComponentKind::Skill, "skill2"),
             comp(ComponentKind::Agent, "agent1"),
@@ -113,25 +104,33 @@ fn create_full_summary() -> PluginSummary {
             comp(ComponentKind::Hook, "hook1"),
             comp(ComponentKind::Hook, "hook2"),
         ],
-        enabled: true,
-    }
+        None,
+        Some("awesome-marketplace".to_string()),
+        true,
+    )
 }
 
 // ========================================
-// cache_key tests
+// install_id tests
 // ========================================
 
 #[test]
-fn test_plugin_summary_cache_key_returns_some_value() {
-    let mut summary = create_empty_summary();
-    summary.cache_key = Some("owner--repo".to_string());
-    assert_eq!(summary.cache_key(), "owner--repo");
+fn test_plugin_summary_install_id_returns_some_value() {
+    let summary = PluginSummary::new_for_test(
+        "test-plugin",
+        "1.0.0",
+        Vec::new(),
+        Some("owner--repo".to_string()),
+        None,
+        true,
+    );
+    assert_eq!(summary.install_id(), "owner--repo");
 }
 
 #[test]
-fn test_plugin_summary_cache_key_falls_back_to_name() {
+fn test_plugin_summary_install_id_falls_back_to_name() {
     let summary = create_empty_summary();
-    assert_eq!(summary.cache_key(), "test-plugin");
+    assert_eq!(summary.install_id(), "test-plugin");
 }
 
 // ========================================
@@ -176,18 +175,18 @@ fn test_component_type_counts_full() {
 
 #[test]
 fn test_component_type_counts_partial() {
-    let summary = PluginSummary {
-        name: "partial".to_string(),
-        cache_key: None,
-        marketplace: None,
-        version: "1.0.0".to_string(),
-        components: vec![
+    let summary = PluginSummary::new_for_test(
+        "partial",
+        "1.0.0",
+        vec![
             comp(ComponentKind::Agent, "a1"),
             comp(ComponentKind::Agent, "a2"),
             comp(ComponentKind::Hook, "h1"),
         ],
-        enabled: true,
-    };
+        None,
+        None,
+        true,
+    );
 
     let counts = summary.component_type_counts();
 

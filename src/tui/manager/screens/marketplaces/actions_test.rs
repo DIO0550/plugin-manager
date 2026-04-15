@@ -23,14 +23,7 @@ fn make_failure_result(name: &str, error: &str) -> PluginInstallResult {
 }
 
 fn make_plugin(name: &str) -> PluginSummary {
-    PluginSummary {
-        name: name.to_string(),
-        cache_key: None,
-        marketplace: None,
-        version: "1.0.0".to_string(),
-        components: Vec::new(),
-        enabled: true,
-    }
+    PluginSummary::new_for_test(name, "1.0.0", Vec::new(), None, None, true)
 }
 
 fn make_marketplace_plugin(name: &str) -> MarketplacePlugin {
@@ -179,8 +172,7 @@ fn maps_all_fields_correctly() {
 #[test]
 fn disabled_plugin_still_counts_as_installed() {
     let cache = make_cache("test-mp", vec![make_marketplace_plugin("plugin-a")]);
-    let mut plugin = make_plugin("plugin-a");
-    plugin.enabled = false;
+    let plugin = PluginSummary::new_for_test("plugin-a", "1.0.0", Vec::new(), None, None, false);
     let installed = vec![plugin];
 
     let result = super::build_browse_plugins(&cache, &installed);
@@ -190,13 +182,16 @@ fn disabled_plugin_still_counts_as_installed() {
 }
 
 #[test]
-fn installed_detected_by_cache_key_when_name_differs() {
+fn installed_detected_by_install_id_when_name_differs() {
     let cache = make_cache("test-mp", vec![make_marketplace_plugin("owner--repo")]);
-    let plugin = PluginSummary {
-        name: "Display Name".to_string(),
-        cache_key: Some("owner--repo".to_string()),
-        ..make_plugin("Display Name")
-    };
+    let plugin = PluginSummary::new_for_test(
+        "Display Name",
+        "1.0.0",
+        Vec::new(),
+        Some("owner--repo".to_string()),
+        None,
+        true,
+    );
     let installed = vec![plugin];
 
     let result = super::build_browse_plugins(&cache, &installed);
@@ -208,8 +203,14 @@ fn installed_detected_by_cache_key_when_name_differs() {
 #[test]
 fn same_name_different_marketplace_counts_as_installed() {
     let cache = make_cache("test-mp", vec![make_marketplace_plugin("plugin-a")]);
-    let mut plugin = make_plugin("plugin-a");
-    plugin.marketplace = Some("other-mp".to_string());
+    let plugin = PluginSummary::new_for_test(
+        "plugin-a",
+        "1.0.0",
+        Vec::new(),
+        None,
+        Some("other-mp".to_string()),
+        true,
+    );
     let installed = vec![plugin];
 
     let result = super::build_browse_plugins(&cache, &installed);
