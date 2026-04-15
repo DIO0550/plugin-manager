@@ -198,3 +198,182 @@ fn test_json_components_flatten_shape() {
     assert_eq!(json["instructions"], serde_json::json!(["inst1"]));
     assert_eq!(json["hooks"], serde_json::json!(["hook1"]));
 }
+
+// ========================================
+// JSON snapshot tests (Phase 1)
+// Guard for Phase 2-5: these snapshots must stay green unchanged.
+// Phase 6 intentionally updates them to the new JSON shape.
+// ========================================
+
+fn snapshot_plugin_full() -> PluginSummary {
+    PluginSummary {
+        name: "my-plugin".to_string(),
+        cache_key: Some("my-plugin-abc".to_string()),
+        marketplace: Some("github".to_string()),
+        version: "1.2.3".to_string(),
+        components: vec![
+            comp(ComponentKind::Skill, "skill-a"),
+            comp(ComponentKind::Skill, "skill-b"),
+            comp(ComponentKind::Agent, "agent-a"),
+            comp(ComponentKind::Command, "cmd-a"),
+            comp(ComponentKind::Instruction, "inst-a"),
+            comp(ComponentKind::Hook, "hook-a"),
+        ],
+        enabled: true,
+    }
+}
+
+#[test]
+fn test_plugin_summary_json_snapshot_full() {
+    let plugin = snapshot_plugin_full();
+    let actual = serde_json::to_string_pretty(&plugin).unwrap();
+    let expected = r#"{
+  "name": "my-plugin",
+  "cache_key": "my-plugin-abc",
+  "marketplace": "github",
+  "version": "1.2.3",
+  "skills": [
+    "skill-a",
+    "skill-b"
+  ],
+  "agents": [
+    "agent-a"
+  ],
+  "commands": [
+    "cmd-a"
+  ],
+  "instructions": [
+    "inst-a"
+  ],
+  "hooks": [
+    "hook-a"
+  ],
+  "enabled": true
+}"#;
+    assert_eq!(actual, expected);
+}
+
+#[test]
+fn test_plugin_summary_json_snapshot_cache_key_none() {
+    let plugin = PluginSummary {
+        name: "no-cache-key".to_string(),
+        cache_key: None,
+        marketplace: Some("github".to_string()),
+        version: "0.1.0".to_string(),
+        components: Vec::new(),
+        enabled: false,
+    };
+    let actual = serde_json::to_string_pretty(&plugin).unwrap();
+    let expected = r#"{
+  "name": "no-cache-key",
+  "marketplace": "github",
+  "version": "0.1.0",
+  "skills": [],
+  "agents": [],
+  "commands": [],
+  "instructions": [],
+  "hooks": [],
+  "enabled": false
+}"#;
+    assert_eq!(actual, expected);
+}
+
+#[test]
+fn test_plugin_summary_json_snapshot_marketplace_null() {
+    let plugin = PluginSummary {
+        name: "local-plugin".to_string(),
+        cache_key: Some("local-plugin".to_string()),
+        marketplace: None,
+        version: "0.0.1".to_string(),
+        components: Vec::new(),
+        enabled: true,
+    };
+    let actual = serde_json::to_string_pretty(&plugin).unwrap();
+    let expected = r#"{
+  "name": "local-plugin",
+  "cache_key": "local-plugin",
+  "marketplace": null,
+  "version": "0.0.1",
+  "skills": [],
+  "agents": [],
+  "commands": [],
+  "instructions": [],
+  "hooks": [],
+  "enabled": true
+}"#;
+    assert_eq!(actual, expected);
+}
+
+#[test]
+fn test_outdated_json_snapshot() {
+    // Case A: update available
+    let entry_a = PluginWithUpdateInfo {
+        summary: snapshot_plugin_full(),
+        current_sha: Some("abc1234567890".to_string()),
+        latest_sha: Some("def1234567890".to_string()),
+        has_update: true,
+        check_error: None,
+    };
+    let actual_a = serde_json::to_string_pretty(&entry_a).unwrap();
+    let expected_a = r#"{
+  "name": "my-plugin",
+  "cache_key": "my-plugin-abc",
+  "marketplace": "github",
+  "version": "1.2.3",
+  "skills": [
+    "skill-a",
+    "skill-b"
+  ],
+  "agents": [
+    "agent-a"
+  ],
+  "commands": [
+    "cmd-a"
+  ],
+  "instructions": [
+    "inst-a"
+  ],
+  "hooks": [
+    "hook-a"
+  ],
+  "enabled": true,
+  "current_sha": "abc1234567890",
+  "latest_sha": "def1234567890",
+  "has_update": true
+}"#;
+    assert_eq!(actual_a, expected_a);
+
+    // Case B: check failed
+    let entry_b = PluginWithUpdateInfo {
+        summary: PluginSummary {
+            name: "failing-plugin".to_string(),
+            cache_key: Some("failing-plugin".to_string()),
+            marketplace: Some("github".to_string()),
+            version: "0.0.1".to_string(),
+            components: Vec::new(),
+            enabled: true,
+        },
+        current_sha: None,
+        latest_sha: None,
+        has_update: false,
+        check_error: Some("network error".to_string()),
+    };
+    let actual_b = serde_json::to_string_pretty(&entry_b).unwrap();
+    let expected_b = r#"{
+  "name": "failing-plugin",
+  "cache_key": "failing-plugin",
+  "marketplace": "github",
+  "version": "0.0.1",
+  "skills": [],
+  "agents": [],
+  "commands": [],
+  "instructions": [],
+  "hooks": [],
+  "enabled": true,
+  "current_sha": null,
+  "latest_sha": null,
+  "has_update": false,
+  "check_error": "network error"
+}"#;
+    assert_eq!(actual_b, expected_b);
+}
