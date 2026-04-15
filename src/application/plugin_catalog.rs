@@ -3,7 +3,7 @@
 //! インストール済みプラグインの一覧取得ユースケースを提供する。
 
 use crate::component::{
-    serialize_components, Component, ComponentKind, ComponentName, ComponentTypeCount, Scope,
+    serialize_components, Component, ComponentKind, ComponentTypeCount, Scope,
 };
 use crate::error::Result;
 use crate::plugin::{meta, MarketplaceContent, PackageCacheAccess, Plugin};
@@ -83,13 +83,11 @@ impl PluginSummary {
     }
 
     /// 特定種別のコンポーネント名一覧を取得
-    pub fn component_names(&self, kind: ComponentKind) -> Vec<ComponentName> {
+    pub fn component_names(&self, kind: ComponentKind) -> Vec<String> {
         self.components
             .iter()
             .filter(|c| c.kind == kind)
-            .map(|c| ComponentName {
-                name: c.name.clone(),
-            })
+            .map(|c| c.name.clone())
             .collect()
     }
 }

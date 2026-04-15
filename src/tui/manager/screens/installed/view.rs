@@ -435,7 +435,7 @@ fn view_component_list(
     let components = ctx.data.component_names(plugin, kind);
     let items: Vec<ListItem> = components
         .iter()
-        .map(|c| ListItem::new(format!("  {}", c.name)))
+        .map(|c| ListItem::new(format!("  {}", c)))
         .collect();
 
     let content_height = (components.len() as u16).max(1) + 7; // +3 for filter bar

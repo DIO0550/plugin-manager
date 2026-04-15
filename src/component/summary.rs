@@ -54,12 +54,6 @@ where
     map.end()
 }
 
-/// コンポーネント名（表示用）
-#[derive(Debug, Clone)]
-pub struct ComponentName {
-    pub name: String,
-}
-
 #[cfg(test)]
 #[path = "summary_test.rs"]
 mod tests;

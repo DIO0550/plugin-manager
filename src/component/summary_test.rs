@@ -58,23 +58,6 @@ fn test_component_type_count_all_titles_are_plural() {
     }
 }
 
-#[test]
-fn test_component_name_creation() {
-    let name = ComponentName {
-        name: "my-component".to_string(),
-    };
-    assert_eq!(name.name, "my-component");
-}
-
-#[test]
-fn test_component_name_clone() {
-    let name = ComponentName {
-        name: "test".to_string(),
-    };
-    let cloned = name.clone();
-    assert_eq!(name.name, cloned.name);
-}
-
 fn comp(kind: ComponentKind, name: &str) -> Component {
     Component {
         kind,

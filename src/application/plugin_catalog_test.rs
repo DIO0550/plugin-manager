@@ -231,8 +231,8 @@ fn test_component_names_skills() {
     let names = summary.component_names(ComponentKind::Skill);
 
     assert_eq!(names.len(), 2);
-    assert_eq!(names[0].name, "skill1");
-    assert_eq!(names[1].name, "skill2");
+    assert_eq!(names[0], "skill1");
+    assert_eq!(names[1], "skill2");
 }
 
 #[test]
@@ -241,7 +241,7 @@ fn test_component_names_agents() {
     let names = summary.component_names(ComponentKind::Agent);
 
     assert_eq!(names.len(), 1);
-    assert_eq!(names[0].name, "agent1");
+    assert_eq!(names[0], "agent1");
 }
 
 #[test]
@@ -258,7 +258,7 @@ fn test_component_names_instructions() {
     let names = summary.component_names(ComponentKind::Instruction);
 
     assert_eq!(names.len(), 1);
-    assert_eq!(names[0].name, "inst1");
+    assert_eq!(names[0], "inst1");
 }
 
 #[test]
