@@ -152,35 +152,26 @@ fn test_component_type_counts_full() {
 
     assert_eq!(counts.len(), 5);
 
-    let skill_count = counts
-        .iter()
-        .find(|c| c.kind == ComponentKind::Skill)
-        .unwrap();
-    assert_eq!(skill_count.count, 2);
+    let skill_count = counts.iter().find(|c| c.0 == ComponentKind::Skill).unwrap();
+    assert_eq!(skill_count.1, 2);
 
-    let agent_count = counts
-        .iter()
-        .find(|c| c.kind == ComponentKind::Agent)
-        .unwrap();
-    assert_eq!(agent_count.count, 1);
+    let agent_count = counts.iter().find(|c| c.0 == ComponentKind::Agent).unwrap();
+    assert_eq!(agent_count.1, 1);
 
     let cmd_count = counts
         .iter()
-        .find(|c| c.kind == ComponentKind::Command)
+        .find(|c| c.0 == ComponentKind::Command)
         .unwrap();
-    assert_eq!(cmd_count.count, 3);
+    assert_eq!(cmd_count.1, 3);
 
     let inst_count = counts
         .iter()
-        .find(|c| c.kind == ComponentKind::Instruction)
+        .find(|c| c.0 == ComponentKind::Instruction)
         .unwrap();
-    assert_eq!(inst_count.count, 1);
+    assert_eq!(inst_count.1, 1);
 
-    let hook_count = counts
-        .iter()
-        .find(|c| c.kind == ComponentKind::Hook)
-        .unwrap();
-    assert_eq!(hook_count.count, 2);
+    let hook_count = counts.iter().find(|c| c.0 == ComponentKind::Hook).unwrap();
+    assert_eq!(hook_count.1, 2);
 }
 
 #[test]
@@ -203,10 +194,10 @@ fn test_component_type_counts_partial() {
     assert_eq!(counts.len(), 2);
     assert!(counts
         .iter()
-        .any(|c| c.kind == ComponentKind::Agent && c.count == 2));
+        .any(|c| c.0 == ComponentKind::Agent && c.1 == 2));
     assert!(counts
         .iter()
-        .any(|c| c.kind == ComponentKind::Hook && c.count == 1));
+        .any(|c| c.0 == ComponentKind::Hook && c.1 == 1));
 }
 
 #[test]
@@ -214,11 +205,11 @@ fn test_component_type_counts_order() {
     let summary = create_full_summary();
     let counts = summary.component_type_counts();
 
-    assert_eq!(counts[0].kind, ComponentKind::Skill);
-    assert_eq!(counts[1].kind, ComponentKind::Agent);
-    assert_eq!(counts[2].kind, ComponentKind::Command);
-    assert_eq!(counts[3].kind, ComponentKind::Instruction);
-    assert_eq!(counts[4].kind, ComponentKind::Hook);
+    assert_eq!(counts[0].0, ComponentKind::Skill);
+    assert_eq!(counts[1].0, ComponentKind::Agent);
+    assert_eq!(counts[2].0, ComponentKind::Command);
+    assert_eq!(counts[3].0, ComponentKind::Instruction);
+    assert_eq!(counts[4].0, ComponentKind::Hook);
 }
 
 // ========================================

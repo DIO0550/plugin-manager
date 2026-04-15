@@ -501,7 +501,7 @@ fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) -> UpdateEf
                 let counts = data.available_component_kinds(plugin);
                 let selected_idx = state.selected().unwrap_or(0);
                 if let Some(count) = counts.get(selected_idx) {
-                    let kind = count.kind;
+                    let kind = count.0;
                     let components = data.component_names(plugin, kind);
                     if !components.is_empty() {
                         let restored_marks = std::mem::take(saved_marked_ids);

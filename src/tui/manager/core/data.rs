@@ -4,7 +4,7 @@
 //! Application層のDTOとパッケージキャッシュを保持する。
 
 use crate::application::{list_installed_plugins, PluginSummary};
-use crate::component::{ComponentKind, ComponentTypeCount};
+use crate::component::ComponentKind;
 use crate::marketplace::{to_display_source, MarketplaceConfig, MarketplaceRegistry};
 use crate::plugin::PackageCache;
 use std::io;
@@ -93,7 +93,10 @@ impl DataStore {
     }
 
     /// プラグインの空でないコンポーネント種別を取得
-    pub fn available_component_kinds(&self, plugin: &PluginSummary) -> Vec<ComponentTypeCount> {
+    pub fn available_component_kinds(
+        &self,
+        plugin: &PluginSummary,
+    ) -> Vec<(ComponentKind, usize)> {
         plugin.component_type_counts()
     }
 

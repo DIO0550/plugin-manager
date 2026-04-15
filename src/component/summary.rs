@@ -4,28 +4,6 @@
 
 use crate::component::{Component, ComponentKind};
 
-/// コンポーネント種別ごとの件数
-#[derive(Debug, Clone)]
-pub struct ComponentTypeCount {
-    /// コンポーネント種別
-    pub kind: ComponentKind,
-    /// 件数
-    pub count: usize,
-}
-
-impl ComponentTypeCount {
-    /// 表示用タイトルを取得（複数形）
-    pub fn title(&self) -> &'static str {
-        match self.kind {
-            ComponentKind::Skill => "Skills",
-            ComponentKind::Agent => "Agents",
-            ComponentKind::Command => "Commands",
-            ComponentKind::Instruction => "Instructions",
-            ComponentKind::Hook => "Hooks",
-        }
-    }
-}
-
 /// Vec<Component> を kind 別にグループ化して JSON serialize する純粋関数。
 ///
 /// `{"skills": ["name1", ...], "agents": [...], ...}` の形を出力する。

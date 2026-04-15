@@ -2,9 +2,7 @@
 //!
 //! インストール済みプラグインの一覧取得ユースケースを提供する。
 
-use crate::component::{
-    serialize_components, Component, ComponentKind, ComponentTypeCount, Scope,
-};
+use crate::component::{serialize_components, Component, ComponentKind, Scope};
 use crate::error::Result;
 use crate::plugin::{meta, MarketplaceContent, PackageCacheAccess, Plugin};
 use crate::scan::list_placed_plugins;
@@ -68,13 +66,13 @@ impl PluginSummary {
     }
 
     /// コンポーネント種別ごとの件数を取得（空でないもののみ）
-    pub fn component_type_counts(&self) -> Vec<ComponentTypeCount> {
+    pub fn component_type_counts(&self) -> Vec<(ComponentKind, usize)> {
         ComponentKind::all()
             .iter()
             .filter_map(|&kind| {
                 let count = self.components.iter().filter(|c| c.kind == kind).count();
                 if count > 0 {
-                    Some(ComponentTypeCount { kind, count })
+                    Some((kind, count))
                 } else {
                     None
                 }

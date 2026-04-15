@@ -310,7 +310,7 @@ fn format_components(plugin: &PluginSummary) -> String {
     // component_type_counts() は固定順序: Skill → Agent → Command → Instruction → Hook
     counts
         .iter()
-        .map(|c| format!("{} {}", c.count, c.kind.plural()))
+        .map(|(kind, count)| format!("{} {}", count, kind.plural()))
         .collect::<Vec<_>>()
         .join(", ")
 }

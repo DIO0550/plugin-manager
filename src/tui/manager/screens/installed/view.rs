@@ -392,8 +392,8 @@ fn view_component_types(
         // コンポーネントがある場合
         let items: Vec<ListItem> = counts
             .iter()
-            .map(|count| {
-                let text = format!("  {} ({})", count.title(), count.count);
+            .map(|(kind, count)| {
+                let text = format!("  {} ({})", component_kind_title(*kind), count);
                 ListItem::new(text)
             })
             .collect();
