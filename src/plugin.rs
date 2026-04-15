@@ -19,4 +19,4 @@ pub use marketplace_content::MarketplaceContent;
 pub use meta::PluginMeta;
 pub(crate) use plugin_content::Plugin;
 pub use update::{update_all_plugins, update_plugin, UpdateResult, UpdateStatus};
-pub use version::{fetch_remote_versions, needs_update, UpdateCheck, VersionQueryResult};
+pub use version::{fetch_remote_versions, UpdateCheck};

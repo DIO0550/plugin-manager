@@ -46,14 +46,14 @@ pub(crate) fn list_installed(cache: &dyn PackageCacheAccess) -> Result<Vec<Marke
 /// `Plugin`（manifest + path + components）を内部に所有し、
 /// 起源情報（marketplace / install_id）とデプロイ状態（enabled）を追加で保持する。
 #[derive(Debug, Clone)]
-pub struct PluginSummary {
+pub struct InstalledPlugin {
     plugin: Plugin,
     install_id: Option<String>,
     marketplace: Option<String>,
     enabled: bool,
 }
 
-impl PluginSummary {
+impl InstalledPlugin {
     /// プラグイン名
     pub fn name(&self) -> &str {
         self.plugin.name()
@@ -113,7 +113,7 @@ impl PluginSummary {
             .collect()
     }
 
-    /// テスト専用: FS スキャンをバイパスして PluginSummary を構築する
+    /// テスト専用: FS スキャンをバイパスして InstalledPlugin を構築する
     #[cfg(test)]
     pub(crate) fn new_for_test(
         name: &str,
@@ -152,13 +152,13 @@ impl PluginSummary {
     }
 }
 
-impl Serialize for PluginSummary {
+impl Serialize for InstalledPlugin {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
         let field_count = if self.marketplace.is_some() { 6 } else { 5 };
-        let mut state = serializer.serialize_struct("PluginSummary", field_count)?;
+        let mut state = serializer.serialize_struct("InstalledPlugin", field_count)?;
         state.serialize_field("name", self.name())?;
         state.serialize_field("version", self.version())?;
         state.serialize_field("install_id", self.install_id())?;
@@ -211,7 +211,7 @@ impl Serialize for ComponentsByKind<'_> {
 /// インストール済みプラグインの一覧を取得
 ///
 /// キャッシュディレクトリをスキャンし、有効なプラグインの一覧を返す。
-pub fn list_installed_plugins(cache: &dyn PackageCacheAccess) -> Result<Vec<PluginSummary>> {
+pub fn list_installed_plugins(cache: &dyn PackageCacheAccess) -> Result<Vec<InstalledPlugin>> {
     // デプロイ済みプラグイン集合を事前取得（パフォーマンス改善）
     let project_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let deployed = list_all_placed(&project_root);
@@ -225,7 +225,7 @@ pub fn list_installed_plugins(cache: &dyn PackageCacheAccess) -> Result<Vec<Plug
             let ops_key = pkg.cache_key().unwrap_or(&name);
             let enabled = meta::is_enabled(pkg.path(), marketplace_str, ops_key, &deployed);
 
-            PluginSummary {
+            InstalledPlugin {
                 plugin,
                 install_id: pkg.cache_key().map(str::to_string),
                 marketplace: pkg.marketplace().map(str::to_string),

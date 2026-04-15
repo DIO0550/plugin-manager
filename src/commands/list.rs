@@ -2,7 +2,7 @@
 //!
 //! インストール済みプラグインの一覧を表示する。
 
-use crate::application::{list_installed_plugins, PluginSummary};
+use crate::application::{list_installed_plugins, InstalledPlugin};
 use crate::component::ComponentKind;
 use crate::host::{HostClientFactory, HostKind};
 use crate::plugin::{
@@ -39,7 +39,7 @@ pub struct Args {
 /// `--outdated --json` 出力用エントリ（`plugin` と `check` のネスト形式）
 #[derive(Debug, Serialize)]
 struct OutdatedEntry<'a> {
-    plugin: &'a PluginSummary,
+    plugin: &'a InstalledPlugin,
     check: &'a UpdateCheck,
 }
 
@@ -74,7 +74,7 @@ pub async fn run(args: Args) -> Result<(), String> {
 /// --outdated 用の更新チェック処理
 async fn run_outdated(
     cache: &dyn PackageCacheAccess,
-    plugins: &[PluginSummary],
+    plugins: &[InstalledPlugin],
     args: &Args,
     total_count: usize,
 ) -> Result<(), String> {
@@ -102,8 +102,8 @@ async fn run_outdated(
     let client = factory.create(HostKind::GitHub);
     let remote_versions = fetch_remote_versions(&plugin_metas, client.as_ref()).await;
 
-    // PluginSummary と UpdateCheck を結合
-    let results: Vec<(&PluginSummary, UpdateCheck)> = plugins
+    // InstalledPlugin と UpdateCheck を結合
+    let results: Vec<(&InstalledPlugin, UpdateCheck)> = plugins
         .iter()
         .zip(plugin_metas.iter())
         .zip(remote_versions.iter())
@@ -120,7 +120,7 @@ async fn run_outdated(
     Ok(())
 }
 
-fn print_outdated_json(results: &[(&PluginSummary, UpdateCheck)]) -> Result<(), String> {
+fn print_outdated_json(results: &[(&InstalledPlugin, UpdateCheck)]) -> Result<(), String> {
     let entries: Vec<OutdatedEntry> = results
         .iter()
         .map(|(plugin, check)| OutdatedEntry { plugin, check })
@@ -130,8 +130,8 @@ fn print_outdated_json(results: &[(&PluginSummary, UpdateCheck)]) -> Result<(), 
         .map_err(|e| format!("Failed to serialize plugins: {}", e))
 }
 
-fn print_outdated_table(results: &[(&PluginSummary, UpdateCheck)], total_count: usize) {
-    let with_updates: Vec<&(&PluginSummary, UpdateCheck)> =
+fn print_outdated_table(results: &[(&InstalledPlugin, UpdateCheck)], total_count: usize) {
+    let with_updates: Vec<&(&InstalledPlugin, UpdateCheck)> =
         results.iter().filter(|(_, c)| c.has_update()).collect();
     let error_count = results.iter().filter(|(_, c)| c.is_failed()).count();
 
@@ -185,7 +185,7 @@ fn truncate_sha(sha: &str) -> String {
     }
 }
 
-fn filter_plugins(plugins: Vec<PluginSummary>, args: &Args) -> Vec<PluginSummary> {
+fn filter_plugins(plugins: Vec<InstalledPlugin>, args: &Args) -> Vec<InstalledPlugin> {
     plugins
         .into_iter()
         .filter(|p| filter_by_type(p, args.component_type.as_ref()))
@@ -193,17 +193,17 @@ fn filter_plugins(plugins: Vec<PluginSummary>, args: &Args) -> Vec<PluginSummary
         .collect()
 }
 
-fn filter_by_type(plugin: &PluginSummary, component_type: Option<&ComponentKind>) -> bool {
+fn filter_by_type(plugin: &InstalledPlugin, component_type: Option<&ComponentKind>) -> bool {
     match component_type {
         None => true,
         Some(kind) => plugin.components().iter().any(|c| c.kind == *kind),
     }
 }
 
-fn filter_by_target(plugin: &PluginSummary, target: Option<&TargetKind>) -> bool {
+fn filter_by_target(plugin: &InstalledPlugin, target: Option<&TargetKind>) -> bool {
     // Phase 1: シンプルにenabled状態でフィルタ
     // ターゲット指定時は、そのターゲットで有効なプラグインのみ表示
-    // 現状の PluginSummary にはターゲット別のデプロイ情報がないため、
+    // 現状の InstalledPlugin にはターゲット別のデプロイ情報がないため、
     // enabled = true のプラグインを「ターゲットにデプロイ済み」とみなす
     match target {
         None => true,
@@ -211,7 +211,7 @@ fn filter_by_target(plugin: &PluginSummary, target: Option<&TargetKind>) -> bool
     }
 }
 
-fn print_table(plugins: &[PluginSummary], total_count: usize) {
+fn print_table(plugins: &[InstalledPlugin], total_count: usize) {
     if plugins.is_empty() {
         if total_count == 0 {
             println!("No plugins installed");
@@ -252,14 +252,14 @@ fn print_table(plugins: &[PluginSummary], total_count: usize) {
     println!("{table}");
 }
 
-fn print_json(plugins: &[PluginSummary]) -> Result<(), String> {
+fn print_json(plugins: &[InstalledPlugin]) -> Result<(), String> {
     // 空の場合も [] を出力
     serde_json::to_string_pretty(plugins)
         .map(|json| println!("{json}"))
         .map_err(|e| format!("Failed to serialize plugins: {}", e))
 }
 
-fn print_simple(plugins: &[PluginSummary], total_count: usize) {
+fn print_simple(plugins: &[InstalledPlugin], total_count: usize) {
     if plugins.is_empty() {
         if total_count == 0 {
             println!("No plugins installed");
@@ -273,7 +273,7 @@ fn print_simple(plugins: &[PluginSummary], total_count: usize) {
     }
 }
 
-fn format_components(plugin: &PluginSummary) -> String {
+fn format_components(plugin: &InstalledPlugin) -> String {
     let counts = plugin.component_type_counts();
     if counts.is_empty() {
         return "-".to_string();

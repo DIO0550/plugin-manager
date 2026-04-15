@@ -85,12 +85,12 @@ fn test_list_installed_plugins_no_manifest_excluded() {
     assert_eq!(result[0].name(), "valid-plugin");
 }
 
-fn create_empty_summary() -> PluginSummary {
-    PluginSummary::new_for_test("test-plugin", "1.0.0", Vec::new(), None, None, true)
+fn create_empty_summary() -> InstalledPlugin {
+    InstalledPlugin::new_for_test("test-plugin", "1.0.0", Vec::new(), None, None, true)
 }
 
-fn create_full_summary() -> PluginSummary {
-    PluginSummary::new_for_test(
+fn create_full_summary() -> InstalledPlugin {
+    InstalledPlugin::new_for_test(
         "full-plugin",
         "2.0.0",
         vec![
@@ -116,7 +116,7 @@ fn create_full_summary() -> PluginSummary {
 
 #[test]
 fn test_plugin_summary_install_id_returns_some_value() {
-    let summary = PluginSummary::new_for_test(
+    let summary = InstalledPlugin::new_for_test(
         "test-plugin",
         "1.0.0",
         Vec::new(),
@@ -175,7 +175,7 @@ fn test_component_type_counts_full() {
 
 #[test]
 fn test_component_type_counts_partial() {
-    let summary = PluginSummary::new_for_test(
+    let summary = InstalledPlugin::new_for_test(
         "partial",
         "1.0.0",
         vec![

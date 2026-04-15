@@ -1,12 +1,12 @@
 use crossterm::event::KeyCode;
 
 use super::{key_to_msg, CacheState, Model, Msg};
-use crate::application::PluginSummary;
+use crate::application::InstalledPlugin;
 use crate::tui::manager::core::DataStore;
 use std::collections::HashSet;
 
-fn make_plugin(name: &str) -> PluginSummary {
-    PluginSummary::new_for_test(
+fn make_plugin(name: &str) -> InstalledPlugin {
+    InstalledPlugin::new_for_test(
         name,
         "1.0.0",
         Vec::new(),

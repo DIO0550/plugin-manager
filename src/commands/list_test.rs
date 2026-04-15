@@ -10,12 +10,12 @@ fn comp(kind: ComponentKind, name: &str) -> Component {
     }
 }
 
-fn create_empty_plugin(name: &str) -> PluginSummary {
-    PluginSummary::new_for_test(name, "1.0.0", Vec::new(), None, None, false)
+fn create_empty_plugin(name: &str) -> InstalledPlugin {
+    InstalledPlugin::new_for_test(name, "1.0.0", Vec::new(), None, None, false)
 }
 
-fn create_plugin_with_skills(name: &str, skill_count: usize, enabled: bool) -> PluginSummary {
-    PluginSummary::new_for_test(
+fn create_plugin_with_skills(name: &str, skill_count: usize, enabled: bool) -> InstalledPlugin {
+    InstalledPlugin::new_for_test(
         name,
         "1.0.0",
         (0..skill_count)
@@ -27,8 +27,8 @@ fn create_plugin_with_skills(name: &str, skill_count: usize, enabled: bool) -> P
     )
 }
 
-fn create_full_plugin(name: &str, enabled: bool) -> PluginSummary {
-    PluginSummary::new_for_test(
+fn create_full_plugin(name: &str, enabled: bool) -> InstalledPlugin {
+    InstalledPlugin::new_for_test(
         name,
         "2.0.0",
         vec![
@@ -203,8 +203,8 @@ fn test_json_components_nested_shape() {
 // JSON snapshot tests (Phase 6 new shape)
 // ========================================
 
-fn snapshot_plugin_full() -> PluginSummary {
-    PluginSummary::new_for_test(
+fn snapshot_plugin_full() -> InstalledPlugin {
+    InstalledPlugin::new_for_test(
         "my-plugin",
         "1.2.3",
         vec![
@@ -256,7 +256,7 @@ fn test_plugin_summary_json_snapshot_full() {
 #[test]
 fn test_plugin_summary_json_snapshot_install_id_fallback() {
     // install_id = None → name にフォールバックし、常に install_id キーは出力される
-    let plugin = PluginSummary::new_for_test(
+    let plugin = InstalledPlugin::new_for_test(
         "no-install-id",
         "0.1.0",
         Vec::new(),
@@ -285,7 +285,7 @@ fn test_plugin_summary_json_snapshot_install_id_fallback() {
 #[test]
 fn test_plugin_summary_json_snapshot_marketplace_none() {
     // marketplace = None → marketplace キー自体を出力しない
-    let plugin = PluginSummary::new_for_test(
+    let plugin = InstalledPlugin::new_for_test(
         "local-plugin",
         "0.0.1",
         Vec::new(),
@@ -360,7 +360,7 @@ fn test_outdated_json_snapshot() {
     assert_eq!(actual_a, expected_a);
 
     // Case B: check failed
-    let plugin_b = PluginSummary::new_for_test(
+    let plugin_b = InstalledPlugin::new_for_test(
         "failing-plugin",
         "0.0.1",
         Vec::new(),
@@ -401,7 +401,7 @@ fn test_outdated_json_snapshot() {
     assert_eq!(actual_b, expected_b);
 
     // Case C: up to date
-    let plugin_c = PluginSummary::new_for_test(
+    let plugin_c = InstalledPlugin::new_for_test(
         "uptodate-plugin",
         "1.0.0",
         Vec::new(),

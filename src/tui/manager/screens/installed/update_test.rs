@@ -1,5 +1,5 @@
 use super::{execute_batch_with, update};
-use crate::application::PluginSummary;
+use crate::application::InstalledPlugin;
 use crate::tui::manager::core::DataStore;
 use crate::tui::manager::screens::installed::model::{Model, Msg, UpdateStatusDisplay};
 
@@ -16,8 +16,8 @@ fn stub_reload(_data: &mut DataStore) -> std::io::Result<()> {
     Ok(())
 }
 
-fn make_plugin(name: &str) -> PluginSummary {
-    PluginSummary::new_for_test(
+fn make_plugin(name: &str) -> InstalledPlugin {
+    InstalledPlugin::new_for_test(
         name,
         "1.0.0",
         Vec::new(),

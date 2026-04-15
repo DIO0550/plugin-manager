@@ -1,12 +1,12 @@
-use crate::application::PluginSummary;
+use crate::application::InstalledPlugin;
 use crate::tui::manager::core::DataStore;
 
-fn make_plugin(name: &str) -> PluginSummary {
-    PluginSummary::new_for_test(name, "1.0.0", Vec::new(), None, None, true)
+fn make_plugin(name: &str) -> InstalledPlugin {
+    InstalledPlugin::new_for_test(name, "1.0.0", Vec::new(), None, None, true)
 }
 
-fn make_plugin_with_install_id(name: &str, install_id: &str) -> PluginSummary {
-    PluginSummary::new_for_test(
+fn make_plugin_with_install_id(name: &str, install_id: &str) -> InstalledPlugin {
+    InstalledPlugin::new_for_test(
         name,
         "1.0.0",
         Vec::new(),
@@ -53,8 +53,8 @@ fn rejects_partial_match() {
 #[test]
 fn ignores_marketplace_difference() {
     let plugin_a =
-        PluginSummary::new_for_test("shared-name", "1.0.0", Vec::new(), None, None, true);
-    let plugin_b = PluginSummary::new_for_test(
+        InstalledPlugin::new_for_test("shared-name", "1.0.0", Vec::new(), None, None, true);
+    let plugin_b = InstalledPlugin::new_for_test(
         "shared-name",
         "1.0.0",
         Vec::new(),
@@ -69,7 +69,7 @@ fn ignores_marketplace_difference() {
 #[test]
 fn returns_true_when_plugin_disabled() {
     let plugin =
-        PluginSummary::new_for_test("disabled-plugin", "1.0.0", Vec::new(), None, None, false);
+        InstalledPlugin::new_for_test("disabled-plugin", "1.0.0", Vec::new(), None, None, false);
     let (_tmp, store) = DataStore::for_test(vec![plugin], vec![], None);
     assert!(store.is_plugin_installed("disabled-plugin"));
 }

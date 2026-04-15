@@ -1,8 +1,8 @@
-use crate::application::PluginSummary;
+use crate::application::InstalledPlugin;
 use crate::tui::manager::core::filter::filter_plugins;
 
-fn make_plugin(name: &str, marketplace: Option<&str>) -> PluginSummary {
-    PluginSummary::new_for_test(
+fn make_plugin(name: &str, marketplace: Option<&str>) -> InstalledPlugin {
+    InstalledPlugin::new_for_test(
         name,
         "1.0.0",
         Vec::new(),
