@@ -5,6 +5,7 @@
 mod plugin_action;
 mod plugin_action_types;
 mod plugin_catalog;
+mod plugin_component_serde;
 mod plugin_deployment;
 mod plugin_info;
 mod plugin_info_types;

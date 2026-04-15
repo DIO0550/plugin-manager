@@ -2,7 +2,7 @@
 //!
 //! インストール済みプラグインの一覧取得ユースケースを提供する。
 
-use crate::component::{serialize_components, Component, ComponentKind, Scope};
+use crate::component::{Component, ComponentKind, Scope};
 use crate::error::Result;
 use crate::plugin::{meta, MarketplaceContent, PackageCacheAccess, Plugin};
 use crate::scan::list_placed_plugins;
@@ -53,7 +53,10 @@ pub struct PluginSummary {
     /// バージョン
     pub version: String,
     /// コンポーネント一覧
-    #[serde(flatten, serialize_with = "serialize_components")]
+    #[serde(
+        flatten,
+        serialize_with = "crate::application::plugin_component_serde::serialize_components"
+    )]
     pub components: Vec<Component>,
     /// 有効状態（デプロイ先に配置されているか）
     pub enabled: bool,

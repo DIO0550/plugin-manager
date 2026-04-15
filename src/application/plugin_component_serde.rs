@@ -1,14 +1,11 @@
-//! コンポーネントのサマリ情報
+//! `InstalledPlugin` / `PluginDetail` 共通の components シリアライズヘルパ。
 //!
-//! TUI等での表示に使用する軽量な型を提供する。
+//! `Vec<Component>` を kind 別にグループ化し
+//! `{"skills": [...], "agents": [...], ...}` の形で JSON 出力する。
 
 use crate::component::{Component, ComponentKind};
 
-/// Vec<Component> を kind 別にグループ化して JSON serialize する純粋関数。
-///
-/// `{"skills": ["name1", ...], "agents": [...], ...}` の形を出力する。
-/// `PluginSummary` では `#[serde(flatten)]` と併用して top-level に展開、
-/// `PluginDetail` では nested `components` キーとして出力する。
+/// `Vec<Component>` を kind 別にグループ化して JSON serialize する純粋関数。
 pub fn serialize_components<S>(components: &[Component], serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
@@ -33,5 +30,5 @@ where
 }
 
 #[cfg(test)]
-#[path = "summary_test.rs"]
+#[path = "plugin_component_serde_test.rs"]
 mod tests;

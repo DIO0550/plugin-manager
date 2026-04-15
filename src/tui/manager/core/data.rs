@@ -93,10 +93,7 @@ impl DataStore {
     }
 
     /// プラグインの空でないコンポーネント種別を取得
-    pub fn available_component_kinds(
-        &self,
-        plugin: &PluginSummary,
-    ) -> Vec<(ComponentKind, usize)> {
+    pub fn available_component_kinds(&self, plugin: &PluginSummary) -> Vec<(ComponentKind, usize)> {
         plugin.component_type_counts()
     }
 
