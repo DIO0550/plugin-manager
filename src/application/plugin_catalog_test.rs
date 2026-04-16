@@ -115,7 +115,7 @@ fn create_full_summary() -> InstalledPlugin {
 // ========================================
 
 #[test]
-fn test_plugin_summary_install_id_returns_some_value() {
+fn test_installed_plugin_install_id_returns_some_value() {
     let summary = InstalledPlugin::new_for_test(
         "test-plugin",
         "1.0.0",
@@ -128,7 +128,7 @@ fn test_plugin_summary_install_id_returns_some_value() {
 }
 
 #[test]
-fn test_plugin_summary_install_id_falls_back_to_name() {
+fn test_installed_plugin_install_id_falls_back_to_name() {
     let summary = create_empty_summary();
     assert_eq!(summary.install_id(), "test-plugin");
 }

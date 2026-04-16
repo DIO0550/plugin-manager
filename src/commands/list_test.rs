@@ -222,7 +222,7 @@ fn snapshot_plugin_full() -> InstalledPlugin {
 }
 
 #[test]
-fn test_plugin_summary_json_snapshot_full() {
+fn test_installed_plugin_json_snapshot_full() {
     let plugin = snapshot_plugin_full();
     let actual = serde_json::to_string_pretty(&plugin).unwrap();
     let expected = r#"{
@@ -254,7 +254,7 @@ fn test_plugin_summary_json_snapshot_full() {
 }
 
 #[test]
-fn test_plugin_summary_json_snapshot_install_id_fallback() {
+fn test_installed_plugin_json_snapshot_install_id_fallback() {
     // install_id = None → name にフォールバックし、常に install_id キーは出力される
     let plugin = InstalledPlugin::new_for_test(
         "no-install-id",
@@ -283,7 +283,7 @@ fn test_plugin_summary_json_snapshot_install_id_fallback() {
 }
 
 #[test]
-fn test_plugin_summary_json_snapshot_marketplace_none() {
+fn test_installed_plugin_json_snapshot_marketplace_none() {
     // marketplace = None → marketplace キー自体を出力しない
     let plugin = InstalledPlugin::new_for_test(
         "local-plugin",
