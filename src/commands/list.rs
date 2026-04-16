@@ -6,7 +6,7 @@ use crate::application::{list_installed_plugins, InstalledPlugin};
 use crate::component::ComponentKind;
 use crate::host::{HostClientFactory, HostKind};
 use crate::plugin::{
-    fetch_remote_versions, meta, PackageCache, PackageCacheAccess, PluginMeta, UpdateAvailability,
+    fetch_remote_versions, meta, PackageCache, PackageCacheAccess, PluginMeta, UpgradeState,
 };
 use crate::target::TargetKind;
 use clap::Parser;
@@ -40,7 +40,7 @@ pub struct Args {
 #[derive(Debug, Serialize)]
 struct OutdatedEntry<'a> {
     plugin: &'a InstalledPlugin,
-    check: &'a UpdateAvailability,
+    check: &'a UpgradeState,
 }
 
 pub async fn run(args: Args) -> Result<(), String> {
@@ -102,13 +102,13 @@ async fn run_outdated(
     let client = factory.create(HostKind::GitHub);
     let remote_versions = fetch_remote_versions(&plugin_metas, client.as_ref()).await;
 
-    // InstalledPlugin と UpdateAvailability を結合
-    let results: Vec<(&InstalledPlugin, UpdateAvailability)> = plugins
+    // InstalledPlugin と UpgradeState を結合
+    let results: Vec<(&InstalledPlugin, UpgradeState)> = plugins
         .iter()
         .zip(plugin_metas.iter())
         .zip(remote_versions.iter())
         .map(|((plugin, (_, meta)), (_, result))| {
-            (plugin, UpdateAvailability::from_query(meta, result))
+            (plugin, UpgradeState::from_query(meta, result))
         })
         .collect();
 
@@ -122,7 +122,7 @@ async fn run_outdated(
     Ok(())
 }
 
-fn print_outdated_json(results: &[(&InstalledPlugin, UpdateAvailability)]) -> Result<(), String> {
+fn print_outdated_json(results: &[(&InstalledPlugin, UpgradeState)]) -> Result<(), String> {
     let entries = results
         .iter()
         .map(|(plugin, check)| OutdatedEntry { plugin, check })
@@ -132,7 +132,7 @@ fn print_outdated_json(results: &[(&InstalledPlugin, UpdateAvailability)]) -> Re
         .map_err(|e| format!("Failed to serialize plugins: {}", e))
 }
 
-fn print_outdated_table(results: &[(&InstalledPlugin, UpdateAvailability)], total_count: usize) {
+fn print_outdated_table(results: &[(&InstalledPlugin, UpgradeState)], total_count: usize) {
     let with_updates = results
         .iter()
         .filter(|(_, c)| c.has_update())

@@ -312,11 +312,11 @@ fn test_installed_plugin_json_snapshot_marketplace_none() {
 
 #[test]
 fn test_outdated_json_snapshot() {
-    use crate::plugin::UpdateAvailability;
+    use crate::plugin::UpgradeState;
 
     // Case A: update available
     let plugin_a = snapshot_plugin_full();
-    let check_a = UpdateAvailability::Outdated {
+    let check_a = UpgradeState::Outdated {
         current_sha: Some("abc1234567890".to_string()),
         latest_sha: "def1234567890".to_string(),
     };
@@ -368,7 +368,7 @@ fn test_outdated_json_snapshot() {
         Some("github".to_string()),
         true,
     );
-    let check_b = UpdateAvailability::Unknown {
+    let check_b = UpgradeState::Unknown {
         current_sha: None,
         error: "network error".to_string(),
     };
@@ -409,7 +409,7 @@ fn test_outdated_json_snapshot() {
         Some("github".to_string()),
         true,
     );
-    let check_c = UpdateAvailability::Latest {
+    let check_c = UpgradeState::Latest {
         current_sha: Some("same1234567890".to_string()),
         latest_sha: "same1234567890".to_string(),
     };

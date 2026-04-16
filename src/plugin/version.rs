@@ -65,7 +65,7 @@ impl VersionQueryResult {
 /// `{"status": "latest" | "outdated" | "unknown", ...}` の形で出力される。
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "status", rename_all = "snake_case")]
-pub enum UpdateAvailability {
+pub enum UpgradeState {
     /// 最新状態（ローカルとリモートの SHA が一致）
     Latest {
         current_sha: Option<String>,
@@ -83,25 +83,25 @@ pub enum UpdateAvailability {
     },
 }
 
-impl UpdateAvailability {
+impl UpgradeState {
     /// `PluginMeta` と `VersionQueryResult` から更新可否を判定する。
     pub fn from_query(meta: &PluginMeta, result: &VersionQueryResult) -> Self {
         let current_sha = meta.commit_sha.clone();
         match result {
             VersionQueryResult::Found(remote) => {
                 if current_sha.as_deref() == Some(remote.sha.as_str()) {
-                    UpdateAvailability::Latest {
+                    UpgradeState::Latest {
                         current_sha,
                         latest_sha: remote.sha.clone(),
                     }
                 } else {
-                    UpdateAvailability::Outdated {
+                    UpgradeState::Outdated {
                         current_sha,
                         latest_sha: remote.sha.clone(),
                     }
                 }
             }
-            VersionQueryResult::Failed { message } => UpdateAvailability::Unknown {
+            VersionQueryResult::Failed { message } => UpgradeState::Unknown {
                 current_sha,
                 error: message.clone(),
             },
@@ -110,36 +110,36 @@ impl UpdateAvailability {
 
     /// 更新ありかどうか
     pub fn has_update(&self) -> bool {
-        matches!(self, UpdateAvailability::Outdated { .. })
+        matches!(self, UpgradeState::Outdated { .. })
     }
 
     /// 確認不能かどうか
     pub fn is_unknown(&self) -> bool {
-        matches!(self, UpdateAvailability::Unknown { .. })
+        matches!(self, UpgradeState::Unknown { .. })
     }
 
     /// ローカルの commit SHA を取得
     pub fn current_sha(&self) -> Option<&str> {
         match self {
-            UpdateAvailability::Latest { current_sha, .. }
-            | UpdateAvailability::Outdated { current_sha, .. }
-            | UpdateAvailability::Unknown { current_sha, .. } => current_sha.as_deref(),
+            UpgradeState::Latest { current_sha, .. }
+            | UpgradeState::Outdated { current_sha, .. }
+            | UpgradeState::Unknown { current_sha, .. } => current_sha.as_deref(),
         }
     }
 
     /// リモートの最新 SHA を取得（`Unknown` では `None`）
     pub fn latest_sha(&self) -> Option<&str> {
         match self {
-            UpdateAvailability::Latest { latest_sha, .. }
-            | UpdateAvailability::Outdated { latest_sha, .. } => Some(latest_sha.as_str()),
-            UpdateAvailability::Unknown { .. } => None,
+            UpgradeState::Latest { latest_sha, .. }
+            | UpgradeState::Outdated { latest_sha, .. } => Some(latest_sha.as_str()),
+            UpgradeState::Unknown { .. } => None,
         }
     }
 
     /// エラーメッセージを取得（`Unknown` のときのみ）
     pub fn error(&self) -> Option<&str> {
         match self {
-            UpdateAvailability::Unknown { error, .. } => Some(error.as_str()),
+            UpgradeState::Unknown { error, .. } => Some(error.as_str()),
             _ => None,
         }
     }

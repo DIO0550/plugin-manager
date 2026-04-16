@@ -157,12 +157,12 @@ async fn test_fetch_remote_version_not_found() {
 }
 
 // ========================================
-// UpdateAvailability unit tests
+// UpgradeState unit tests
 // ========================================
 
 #[test]
 fn test_update_check_has_update_available() {
-    let check = UpdateAvailability::Outdated {
+    let check = UpgradeState::Outdated {
         current_sha: Some("abc".to_string()),
         latest_sha: "def".to_string(),
     };
@@ -172,7 +172,7 @@ fn test_update_check_has_update_available() {
 
 #[test]
 fn test_update_check_has_update_up_to_date() {
-    let check = UpdateAvailability::Latest {
+    let check = UpgradeState::Latest {
         current_sha: Some("same".to_string()),
         latest_sha: "same".to_string(),
     };
@@ -182,7 +182,7 @@ fn test_update_check_has_update_up_to_date() {
 
 #[test]
 fn test_update_check_has_update_failed() {
-    let check = UpdateAvailability::Unknown {
+    let check = UpgradeState::Unknown {
         current_sha: None,
         error: "network error".to_string(),
     };
@@ -192,7 +192,7 @@ fn test_update_check_has_update_failed() {
 
 #[test]
 fn test_update_check_accessors_up_to_date() {
-    let check = UpdateAvailability::Latest {
+    let check = UpgradeState::Latest {
         current_sha: Some("sha1".to_string()),
         latest_sha: "sha1".to_string(),
     };
@@ -203,7 +203,7 @@ fn test_update_check_accessors_up_to_date() {
 
 #[test]
 fn test_update_check_accessors_available() {
-    let check = UpdateAvailability::Outdated {
+    let check = UpgradeState::Outdated {
         current_sha: None,
         latest_sha: "new".to_string(),
     };
@@ -214,7 +214,7 @@ fn test_update_check_accessors_available() {
 
 #[test]
 fn test_update_check_accessors_failed() {
-    let check = UpdateAvailability::Unknown {
+    let check = UpgradeState::Unknown {
         current_sha: Some("local".to_string()),
         error: "boom".to_string(),
     };
@@ -230,8 +230,8 @@ fn test_update_check_from_query_found_same_sha() {
         sha: "same123".to_string(),
         git_ref: "main".to_string(),
     });
-    let check = UpdateAvailability::from_query(&meta, &result);
-    assert!(matches!(check, UpdateAvailability::Latest { .. }));
+    let check = UpgradeState::from_query(&meta, &result);
+    assert!(matches!(check, UpgradeState::Latest { .. }));
     assert_eq!(check.current_sha(), Some("same123"));
     assert_eq!(check.latest_sha(), Some("same123"));
 }
@@ -243,8 +243,8 @@ fn test_update_check_from_query_found_different_sha() {
         sha: "new456".to_string(),
         git_ref: "main".to_string(),
     });
-    let check = UpdateAvailability::from_query(&meta, &result);
-    assert!(matches!(check, UpdateAvailability::Outdated { .. }));
+    let check = UpgradeState::from_query(&meta, &result);
+    assert!(matches!(check, UpgradeState::Outdated { .. }));
     assert!(check.has_update());
     assert_eq!(check.current_sha(), Some("old123"));
     assert_eq!(check.latest_sha(), Some("new456"));
@@ -258,8 +258,8 @@ fn test_update_check_from_query_found_current_none_yields_available() {
         sha: "new456".to_string(),
         git_ref: "main".to_string(),
     });
-    let check = UpdateAvailability::from_query(&meta, &result);
-    assert!(matches!(check, UpdateAvailability::Outdated { .. }));
+    let check = UpgradeState::from_query(&meta, &result);
+    assert!(matches!(check, UpgradeState::Outdated { .. }));
     assert!(check.has_update());
     assert_eq!(check.current_sha(), None);
 }
@@ -270,8 +270,8 @@ fn test_update_check_from_query_failed() {
     let result = VersionQueryResult::Failed {
         message: "Rate limited".to_string(),
     };
-    let check = UpdateAvailability::from_query(&meta, &result);
-    assert!(matches!(check, UpdateAvailability::Unknown { .. }));
+    let check = UpgradeState::from_query(&meta, &result);
+    assert!(matches!(check, UpgradeState::Unknown { .. }));
     assert!(check.is_unknown());
     assert_eq!(check.current_sha(), Some("local123"));
     assert_eq!(check.error(), Some("Rate limited"));
@@ -279,7 +279,7 @@ fn test_update_check_from_query_failed() {
 
 #[test]
 fn test_update_check_serde_tag_available() {
-    let check = UpdateAvailability::Outdated {
+    let check = UpgradeState::Outdated {
         current_sha: Some("abc".to_string()),
         latest_sha: "def".to_string(),
     };
@@ -291,7 +291,7 @@ fn test_update_check_serde_tag_available() {
 
 #[test]
 fn test_update_check_serde_tag_latest() {
-    let check = UpdateAvailability::Latest {
+    let check = UpgradeState::Latest {
         current_sha: Some("same".to_string()),
         latest_sha: "same".to_string(),
     };
@@ -301,7 +301,7 @@ fn test_update_check_serde_tag_latest() {
 
 #[test]
 fn test_update_check_serde_tag_unknown() {
-    let check = UpdateAvailability::Unknown {
+    let check = UpgradeState::Unknown {
         current_sha: None,
         error: "boom".to_string(),
     };
