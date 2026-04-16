@@ -1,4 +1,4 @@
-use crate::application::PluginSummary;
+use crate::application::InstalledPlugin;
 use crate::marketplace::{MarketplaceCache, MarketplacePlugin, MarketplaceRegistry, PluginSource};
 use crate::tui::manager::screens::marketplaces::model::PluginInstallResult;
 
@@ -22,15 +22,8 @@ fn make_failure_result(name: &str, error: &str) -> PluginInstallResult {
     }
 }
 
-fn make_plugin(name: &str) -> PluginSummary {
-    PluginSummary {
-        name: name.to_string(),
-        cache_key: None,
-        marketplace: None,
-        version: "1.0.0".to_string(),
-        components: Vec::new(),
-        enabled: true,
-    }
+fn make_plugin(name: &str) -> InstalledPlugin {
+    InstalledPlugin::new_for_test(name, "1.0.0", Vec::new(), None, None, true)
 }
 
 fn make_marketplace_plugin(name: &str) -> MarketplacePlugin {
@@ -80,7 +73,7 @@ fn returns_plugins_with_installed_flag() {
 fn returns_empty_when_cache_not_found() {
     let tmp_dir = tempfile::tempdir().unwrap();
     let registry = MarketplaceRegistry::with_cache_dir(tmp_dir.path().to_path_buf()).unwrap();
-    let installed: Vec<PluginSummary> = vec![];
+    let installed: Vec<InstalledPlugin> = vec![];
 
     let result = super::get_browse_plugins_with_registry(&registry, "nonexistent", &installed);
 
@@ -90,7 +83,7 @@ fn returns_empty_when_cache_not_found() {
 #[test]
 fn returns_empty_when_cache_has_no_plugins() {
     let cache = make_cache("test-mp", vec![]);
-    let installed: Vec<PluginSummary> = vec![];
+    let installed: Vec<InstalledPlugin> = vec![];
 
     let result = super::build_browse_plugins(&cache, &installed);
 
@@ -124,7 +117,7 @@ fn no_plugins_installed() {
             make_marketplace_plugin("plugin-b"),
         ],
     );
-    let installed: Vec<PluginSummary> = vec![];
+    let installed: Vec<InstalledPlugin> = vec![];
 
     let result = super::build_browse_plugins(&cache, &installed);
 
@@ -164,7 +157,7 @@ fn maps_all_fields_correctly() {
         version: Some("2.0.0".to_string()),
     };
     let cache = make_cache("test-mp", vec![mp]);
-    let installed: Vec<PluginSummary> = vec![];
+    let installed: Vec<InstalledPlugin> = vec![];
 
     let result = super::build_browse_plugins(&cache, &installed);
 
@@ -179,8 +172,7 @@ fn maps_all_fields_correctly() {
 #[test]
 fn disabled_plugin_still_counts_as_installed() {
     let cache = make_cache("test-mp", vec![make_marketplace_plugin("plugin-a")]);
-    let mut plugin = make_plugin("plugin-a");
-    plugin.enabled = false;
+    let plugin = InstalledPlugin::new_for_test("plugin-a", "1.0.0", Vec::new(), None, None, false);
     let installed = vec![plugin];
 
     let result = super::build_browse_plugins(&cache, &installed);
@@ -190,13 +182,16 @@ fn disabled_plugin_still_counts_as_installed() {
 }
 
 #[test]
-fn installed_detected_by_cache_key_when_name_differs() {
+fn installed_detected_by_install_id_when_name_differs() {
     let cache = make_cache("test-mp", vec![make_marketplace_plugin("owner--repo")]);
-    let plugin = PluginSummary {
-        name: "Display Name".to_string(),
-        cache_key: Some("owner--repo".to_string()),
-        ..make_plugin("Display Name")
-    };
+    let plugin = InstalledPlugin::new_for_test(
+        "Display Name",
+        "1.0.0",
+        Vec::new(),
+        Some("owner--repo".to_string()),
+        None,
+        true,
+    );
     let installed = vec![plugin];
 
     let result = super::build_browse_plugins(&cache, &installed);
@@ -208,8 +203,14 @@ fn installed_detected_by_cache_key_when_name_differs() {
 #[test]
 fn same_name_different_marketplace_counts_as_installed() {
     let cache = make_cache("test-mp", vec![make_marketplace_plugin("plugin-a")]);
-    let mut plugin = make_plugin("plugin-a");
-    plugin.marketplace = Some("other-mp".to_string());
+    let plugin = InstalledPlugin::new_for_test(
+        "plugin-a",
+        "1.0.0",
+        Vec::new(),
+        None,
+        Some("other-mp".to_string()),
+        true,
+    );
     let installed = vec![plugin];
 
     let result = super::build_browse_plugins(&cache, &installed);
@@ -230,7 +231,7 @@ fn returns_empty_when_cache_json_corrupted() {
     )
     .unwrap();
 
-    let installed: Vec<PluginSummary> = vec![];
+    let installed: Vec<InstalledPlugin> = vec![];
     let result = super::get_browse_plugins_with_registry(&registry, "corrupted-mp", &installed);
 
     assert!(result.is_empty());

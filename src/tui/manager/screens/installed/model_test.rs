@@ -1,19 +1,19 @@
 use crossterm::event::KeyCode;
 
 use super::{key_to_msg, CacheState, Model, Msg};
-use crate::application::PluginSummary;
+use crate::application::InstalledPlugin;
 use crate::tui::manager::core::DataStore;
 use std::collections::HashSet;
 
-fn make_plugin(name: &str) -> PluginSummary {
-    PluginSummary {
-        name: name.to_string(),
-        cache_key: None,
-        marketplace: Some("github".to_string()),
-        version: "1.0.0".to_string(),
-        components: Vec::new(),
-        enabled: true,
-    }
+fn make_plugin(name: &str) -> InstalledPlugin {
+    InstalledPlugin::new_for_test(
+        name,
+        "1.0.0",
+        Vec::new(),
+        None,
+        Some("github".to_string()),
+        true,
+    )
 }
 
 fn make_data(names: &[&str]) -> (tempfile::TempDir, DataStore) {

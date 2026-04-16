@@ -36,6 +36,20 @@ impl Plugin {
         }
     }
 
+    /// テスト専用コンストラクタ: FS スキャンをバイパスしてコンポーネントを直接注入する
+    #[cfg(test)]
+    pub(crate) fn new_for_test(
+        manifest: PluginManifest,
+        path: PathBuf,
+        components: Vec<Component>,
+    ) -> Self {
+        Self {
+            manifest,
+            path,
+            components,
+        }
+    }
+
     /// プラグイン名を取得（`manifest.name` を参照する）
     pub fn name(&self) -> &str {
         &self.manifest.name

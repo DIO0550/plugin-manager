@@ -6,7 +6,6 @@ pub mod convert;
 mod deployment;
 mod kind;
 mod placement;
-mod summary;
 
 pub use convert::{AgentFormat, CommandFormat};
 pub use deployment::{ComponentDeployment, DeploymentResult};
@@ -14,4 +13,3 @@ pub use kind::{Component, ComponentKind, Scope};
 pub use placement::{
     ComponentRef, PlacementContext, PlacementLocation, PlacementScope, ProjectContext,
 };
-pub use summary::{serialize_components, ComponentName, ComponentTypeCount};

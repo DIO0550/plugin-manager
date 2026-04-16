@@ -3,7 +3,7 @@
 //! マーケットプレイスの追加・削除・更新操作を実行する。
 
 use super::model::{BrowsePlugin, InstallSummary, PluginInstallResult};
-use crate::application::PluginSummary;
+use crate::application::InstalledPlugin;
 use crate::component::Scope;
 use crate::install::{self, PlaceRequest};
 use crate::marketplace::{
@@ -162,7 +162,7 @@ pub fn get_marketplace_plugins(name: &str) -> Vec<(String, Option<String>)> {
 /// マーケットプレイスのブラウズ用プラグイン一覧を取得
 pub(super) fn get_browse_plugins(
     marketplace_name: &str,
-    installed_plugins: &[PluginSummary],
+    installed_plugins: &[InstalledPlugin],
 ) -> Vec<BrowsePlugin> {
     let registry = match MarketplaceRegistry::new() {
         Ok(r) => r,
@@ -176,7 +176,7 @@ pub(super) fn get_browse_plugins(
 fn get_browse_plugins_with_registry(
     registry: &MarketplaceRegistry,
     marketplace_name: &str,
-    installed_plugins: &[PluginSummary],
+    installed_plugins: &[InstalledPlugin],
 ) -> Vec<BrowsePlugin> {
     match registry.get(marketplace_name) {
         Ok(Some(cache)) => build_browse_plugins(&cache, installed_plugins),
@@ -187,7 +187,7 @@ fn get_browse_plugins_with_registry(
 /// 純粋変換: MarketplaceCache -> Vec<BrowsePlugin>
 fn build_browse_plugins(
     cache: &MarketplaceCache,
-    installed_plugins: &[PluginSummary],
+    installed_plugins: &[InstalledPlugin],
 ) -> Vec<BrowsePlugin> {
     cache
         .plugins
@@ -197,9 +197,7 @@ fn build_browse_plugins(
             description: p.description.clone(),
             version: p.version.clone(),
             source: p.source.clone(),
-            installed: installed_plugins
-                .iter()
-                .any(|ip| ip.name == p.name || ip.cache_key() == p.name),
+            installed: installed_plugins.iter().any(|ip| ip.install_id() == p.name),
         })
         .collect()
 }

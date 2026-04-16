@@ -156,6 +156,160 @@ async fn test_fetch_remote_version_not_found() {
     assert_eq!(result.error_message(), Some("Repository or ref not found"));
 }
 
+// ========================================
+// UpgradeState unit tests
+// ========================================
+
+#[test]
+fn test_update_check_has_update_available() {
+    let check = UpgradeState::Outdated {
+        current_sha: Some("abc".to_string()),
+        latest_sha: "def".to_string(),
+    };
+    assert!(check.has_update());
+    assert!(!check.is_unknown());
+}
+
+#[test]
+fn test_update_check_has_update_up_to_date() {
+    let check = UpgradeState::Latest {
+        current_sha: Some("same".to_string()),
+        latest_sha: "same".to_string(),
+    };
+    assert!(!check.has_update());
+    assert!(!check.is_unknown());
+}
+
+#[test]
+fn test_update_check_has_update_failed() {
+    let check = UpgradeState::Unknown {
+        current_sha: None,
+        error: "network error".to_string(),
+    };
+    assert!(!check.has_update());
+    assert!(check.is_unknown());
+}
+
+#[test]
+fn test_update_check_accessors_up_to_date() {
+    let check = UpgradeState::Latest {
+        current_sha: Some("sha1".to_string()),
+        latest_sha: "sha1".to_string(),
+    };
+    assert_eq!(check.current_sha(), Some("sha1"));
+    assert_eq!(check.latest_sha(), Some("sha1"));
+    assert_eq!(check.error(), None);
+}
+
+#[test]
+fn test_update_check_accessors_available() {
+    let check = UpgradeState::Outdated {
+        current_sha: None,
+        latest_sha: "new".to_string(),
+    };
+    assert_eq!(check.current_sha(), None);
+    assert_eq!(check.latest_sha(), Some("new"));
+    assert_eq!(check.error(), None);
+}
+
+#[test]
+fn test_update_check_accessors_failed() {
+    let check = UpgradeState::Unknown {
+        current_sha: Some("local".to_string()),
+        error: "boom".to_string(),
+    };
+    assert_eq!(check.current_sha(), Some("local"));
+    assert_eq!(check.latest_sha(), None);
+    assert_eq!(check.error(), Some("boom"));
+}
+
+#[test]
+fn test_update_check_from_query_found_same_sha() {
+    let meta = create_meta(Some("owner/repo"), Some("main"), Some("same123"));
+    let result = VersionQueryResult::Found(RemoteVersion {
+        sha: "same123".to_string(),
+        git_ref: "main".to_string(),
+    });
+    let check = UpgradeState::from_query(&meta, &result);
+    assert!(matches!(check, UpgradeState::Latest { .. }));
+    assert_eq!(check.current_sha(), Some("same123"));
+    assert_eq!(check.latest_sha(), Some("same123"));
+}
+
+#[test]
+fn test_update_check_from_query_found_different_sha() {
+    let meta = create_meta(Some("owner/repo"), Some("main"), Some("old123"));
+    let result = VersionQueryResult::Found(RemoteVersion {
+        sha: "new456".to_string(),
+        git_ref: "main".to_string(),
+    });
+    let check = UpgradeState::from_query(&meta, &result);
+    assert!(matches!(check, UpgradeState::Outdated { .. }));
+    assert!(check.has_update());
+    assert_eq!(check.current_sha(), Some("old123"));
+    assert_eq!(check.latest_sha(), Some("new456"));
+}
+
+#[test]
+fn test_update_check_from_query_found_current_none_yields_available() {
+    // current_sha が未記録の場合は Available バリアント（SHA 不一致扱い）
+    let meta = create_meta(Some("owner/repo"), Some("main"), None);
+    let result = VersionQueryResult::Found(RemoteVersion {
+        sha: "new456".to_string(),
+        git_ref: "main".to_string(),
+    });
+    let check = UpgradeState::from_query(&meta, &result);
+    assert!(matches!(check, UpgradeState::Outdated { .. }));
+    assert!(check.has_update());
+    assert_eq!(check.current_sha(), None);
+}
+
+#[test]
+fn test_update_check_from_query_failed() {
+    let meta = create_meta(Some("owner/repo"), Some("main"), Some("local123"));
+    let result = VersionQueryResult::Failed {
+        message: "Rate limited".to_string(),
+    };
+    let check = UpgradeState::from_query(&meta, &result);
+    assert!(matches!(check, UpgradeState::Unknown { .. }));
+    assert!(check.is_unknown());
+    assert_eq!(check.current_sha(), Some("local123"));
+    assert_eq!(check.error(), Some("Rate limited"));
+}
+
+#[test]
+fn test_update_check_serde_tag_available() {
+    let check = UpgradeState::Outdated {
+        current_sha: Some("abc".to_string()),
+        latest_sha: "def".to_string(),
+    };
+    let value: serde_json::Value = serde_json::to_value(&check).unwrap();
+    assert_eq!(value["status"], "outdated");
+    assert_eq!(value["current_sha"], "abc");
+    assert_eq!(value["latest_sha"], "def");
+}
+
+#[test]
+fn test_update_check_serde_tag_latest() {
+    let check = UpgradeState::Latest {
+        current_sha: Some("same".to_string()),
+        latest_sha: "same".to_string(),
+    };
+    let value: serde_json::Value = serde_json::to_value(&check).unwrap();
+    assert_eq!(value["status"], "latest");
+}
+
+#[test]
+fn test_update_check_serde_tag_unknown() {
+    let check = UpgradeState::Unknown {
+        current_sha: None,
+        error: "boom".to_string(),
+    };
+    let value: serde_json::Value = serde_json::to_value(&check).unwrap();
+    assert_eq!(value["status"], "unknown");
+    assert_eq!(value["error"], "boom");
+}
+
 #[tokio::test]
 async fn test_fetch_remote_versions_batch() {
     let plugins = vec![

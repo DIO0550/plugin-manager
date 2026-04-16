@@ -46,9 +46,9 @@ fn test_list_installed_plugins_one_plugin() {
 
     let result = list_installed_plugins(&cache).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].name, "my-plugin");
-    assert_eq!(result[0].version, "1.0.0");
-    assert!(result[0].marketplace.is_none());
+    assert_eq!(result[0].name(), "my-plugin");
+    assert_eq!(result[0].version(), "1.0.0");
+    assert!(result[0].marketplace().is_none());
 }
 
 #[test]
@@ -70,7 +70,7 @@ fn test_list_installed_plugins_hidden_dir_excluded() {
 
     let result = list_installed_plugins(&cache).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].name, "good-plugin");
+    assert_eq!(result[0].name(), "good-plugin");
 }
 
 #[test]
@@ -82,27 +82,18 @@ fn test_list_installed_plugins_no_manifest_excluded() {
 
     let result = list_installed_plugins(&cache).unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].name, "valid-plugin");
+    assert_eq!(result[0].name(), "valid-plugin");
 }
 
-fn create_empty_summary() -> PluginSummary {
-    PluginSummary {
-        name: "test-plugin".to_string(),
-        cache_key: None,
-        marketplace: None,
-        version: "1.0.0".to_string(),
-        components: Vec::new(),
-        enabled: true,
-    }
+fn create_empty_summary() -> InstalledPlugin {
+    InstalledPlugin::new_for_test("test-plugin", "1.0.0", Vec::new(), None, None, true)
 }
 
-fn create_full_summary() -> PluginSummary {
-    PluginSummary {
-        name: "full-plugin".to_string(),
-        cache_key: None,
-        marketplace: Some("awesome-marketplace".to_string()),
-        version: "2.0.0".to_string(),
-        components: vec![
+fn create_full_summary() -> InstalledPlugin {
+    InstalledPlugin::new_for_test(
+        "full-plugin",
+        "2.0.0",
+        vec![
             comp(ComponentKind::Skill, "skill1"),
             comp(ComponentKind::Skill, "skill2"),
             comp(ComponentKind::Agent, "agent1"),
@@ -113,82 +104,33 @@ fn create_full_summary() -> PluginSummary {
             comp(ComponentKind::Hook, "hook1"),
             comp(ComponentKind::Hook, "hook2"),
         ],
-        enabled: true,
-    }
+        None,
+        Some("awesome-marketplace".to_string()),
+        true,
+    )
 }
 
 // ========================================
-// cache_key tests
+// install_id tests
 // ========================================
 
 #[test]
-fn test_plugin_summary_cache_key_returns_some_value() {
-    let mut summary = create_empty_summary();
-    summary.cache_key = Some("owner--repo".to_string());
-    assert_eq!(summary.cache_key(), "owner--repo");
+fn test_installed_plugin_install_id_returns_some_value() {
+    let summary = InstalledPlugin::new_for_test(
+        "test-plugin",
+        "1.0.0",
+        Vec::new(),
+        Some("owner--repo".to_string()),
+        None,
+        true,
+    );
+    assert_eq!(summary.install_id(), "owner--repo");
 }
 
 #[test]
-fn test_plugin_summary_cache_key_falls_back_to_name() {
+fn test_installed_plugin_install_id_falls_back_to_name() {
     let summary = create_empty_summary();
-    assert_eq!(summary.cache_key(), "test-plugin");
-}
-
-// ========================================
-// component_count tests
-// ========================================
-
-#[test]
-fn test_component_count_empty() {
-    let summary = create_empty_summary();
-    assert_eq!(summary.component_count(), 0);
-}
-
-#[test]
-fn test_component_count_full() {
-    let summary = create_full_summary();
-    assert_eq!(summary.component_count(), 9);
-}
-
-#[test]
-fn test_component_count_partial() {
-    let summary = PluginSummary {
-        name: "partial".to_string(),
-        cache_key: None,
-        marketplace: None,
-        version: "1.0.0".to_string(),
-        components: vec![
-            comp(ComponentKind::Skill, "s1"),
-            comp(ComponentKind::Command, "c1"),
-            comp(ComponentKind::Command, "c2"),
-        ],
-        enabled: true,
-    };
-    assert_eq!(summary.component_count(), 3);
-}
-
-// ========================================
-// has_components tests
-// ========================================
-
-#[test]
-fn test_has_components_empty() {
-    let summary = create_empty_summary();
-    assert!(!summary.has_components());
-}
-
-#[test]
-fn test_has_components_with_skills() {
-    let mut summary = create_empty_summary();
-    summary.components.push(comp(ComponentKind::Skill, "skill"));
-    assert!(summary.has_components());
-}
-
-#[test]
-fn test_has_components_with_hooks_only() {
-    let mut summary = create_empty_summary();
-    summary.components.push(comp(ComponentKind::Hook, "hook"));
-    assert!(summary.has_components());
+    assert_eq!(summary.install_id(), "test-plugin");
 }
 
 // ========================================
@@ -209,61 +151,52 @@ fn test_component_type_counts_full() {
 
     assert_eq!(counts.len(), 5);
 
-    let skill_count = counts
-        .iter()
-        .find(|c| c.kind == ComponentKind::Skill)
-        .unwrap();
-    assert_eq!(skill_count.count, 2);
+    let skill_count = counts.iter().find(|c| c.0 == ComponentKind::Skill).unwrap();
+    assert_eq!(skill_count.1, 2);
 
-    let agent_count = counts
-        .iter()
-        .find(|c| c.kind == ComponentKind::Agent)
-        .unwrap();
-    assert_eq!(agent_count.count, 1);
+    let agent_count = counts.iter().find(|c| c.0 == ComponentKind::Agent).unwrap();
+    assert_eq!(agent_count.1, 1);
 
     let cmd_count = counts
         .iter()
-        .find(|c| c.kind == ComponentKind::Command)
+        .find(|c| c.0 == ComponentKind::Command)
         .unwrap();
-    assert_eq!(cmd_count.count, 3);
+    assert_eq!(cmd_count.1, 3);
 
     let inst_count = counts
         .iter()
-        .find(|c| c.kind == ComponentKind::Instruction)
+        .find(|c| c.0 == ComponentKind::Instruction)
         .unwrap();
-    assert_eq!(inst_count.count, 1);
+    assert_eq!(inst_count.1, 1);
 
-    let hook_count = counts
-        .iter()
-        .find(|c| c.kind == ComponentKind::Hook)
-        .unwrap();
-    assert_eq!(hook_count.count, 2);
+    let hook_count = counts.iter().find(|c| c.0 == ComponentKind::Hook).unwrap();
+    assert_eq!(hook_count.1, 2);
 }
 
 #[test]
 fn test_component_type_counts_partial() {
-    let summary = PluginSummary {
-        name: "partial".to_string(),
-        cache_key: None,
-        marketplace: None,
-        version: "1.0.0".to_string(),
-        components: vec![
+    let summary = InstalledPlugin::new_for_test(
+        "partial",
+        "1.0.0",
+        vec![
             comp(ComponentKind::Agent, "a1"),
             comp(ComponentKind::Agent, "a2"),
             comp(ComponentKind::Hook, "h1"),
         ],
-        enabled: true,
-    };
+        None,
+        None,
+        true,
+    );
 
     let counts = summary.component_type_counts();
 
     assert_eq!(counts.len(), 2);
     assert!(counts
         .iter()
-        .any(|c| c.kind == ComponentKind::Agent && c.count == 2));
+        .any(|c| c.0 == ComponentKind::Agent && c.1 == 2));
     assert!(counts
         .iter()
-        .any(|c| c.kind == ComponentKind::Hook && c.count == 1));
+        .any(|c| c.0 == ComponentKind::Hook && c.1 == 1));
 }
 
 #[test]
@@ -271,11 +204,11 @@ fn test_component_type_counts_order() {
     let summary = create_full_summary();
     let counts = summary.component_type_counts();
 
-    assert_eq!(counts[0].kind, ComponentKind::Skill);
-    assert_eq!(counts[1].kind, ComponentKind::Agent);
-    assert_eq!(counts[2].kind, ComponentKind::Command);
-    assert_eq!(counts[3].kind, ComponentKind::Instruction);
-    assert_eq!(counts[4].kind, ComponentKind::Hook);
+    assert_eq!(counts[0].0, ComponentKind::Skill);
+    assert_eq!(counts[1].0, ComponentKind::Agent);
+    assert_eq!(counts[2].0, ComponentKind::Command);
+    assert_eq!(counts[3].0, ComponentKind::Instruction);
+    assert_eq!(counts[4].0, ComponentKind::Hook);
 }
 
 // ========================================
@@ -288,8 +221,8 @@ fn test_component_names_skills() {
     let names = summary.component_names(ComponentKind::Skill);
 
     assert_eq!(names.len(), 2);
-    assert_eq!(names[0].name, "skill1");
-    assert_eq!(names[1].name, "skill2");
+    assert_eq!(names[0], "skill1");
+    assert_eq!(names[1], "skill2");
 }
 
 #[test]
@@ -298,7 +231,7 @@ fn test_component_names_agents() {
     let names = summary.component_names(ComponentKind::Agent);
 
     assert_eq!(names.len(), 1);
-    assert_eq!(names[0].name, "agent1");
+    assert_eq!(names[0], "agent1");
 }
 
 #[test]
@@ -315,7 +248,7 @@ fn test_component_names_instructions() {
     let names = summary.component_names(ComponentKind::Instruction);
 
     assert_eq!(names.len(), 1);
-    assert_eq!(names[0].name, "inst1");
+    assert_eq!(names[0], "inst1");
 }
 
 #[test]

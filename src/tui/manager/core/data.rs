@@ -3,8 +3,8 @@
 //! 全タブで共有されるデータを一元管理する。
 //! Application層のDTOとパッケージキャッシュを保持する。
 
-use crate::application::{list_installed_plugins, PluginSummary};
-use crate::component::{ComponentKind, ComponentName, ComponentTypeCount};
+use crate::application::{list_installed_plugins, InstalledPlugin};
+use crate::component::ComponentKind;
 use crate::marketplace::{to_display_source, MarketplaceConfig, MarketplaceRegistry};
 use crate::plugin::PackageCache;
 use std::io;
@@ -39,7 +39,7 @@ pub struct DataStore {
     /// パッケージキャッシュ（再利用のため保持）
     cache: PackageCache,
     /// インストール済みプラグイン一覧
-    pub plugins: Vec<PluginSummary>,
+    pub plugins: Vec<InstalledPlugin>,
     /// マーケットプレイス一覧
     pub marketplaces: Vec<MarketplaceItem>,
     /// 最後のエラー
@@ -74,41 +74,41 @@ impl DataStore {
     }
 
     /// プラグインIDでプラグインを検索
-    pub fn find_plugin(&self, id: &PluginId) -> Option<&PluginSummary> {
-        self.plugins.iter().find(|p| p.cache_key() == id.as_str())
+    pub fn find_plugin(&self, id: &PluginId) -> Option<&InstalledPlugin> {
+        self.plugins.iter().find(|p| p.install_id() == id.as_str())
     }
 
-    /// `plugin_id` は `PluginSummary.cache_key()`（= 操作用キー）と完全一致で比較される。
+    /// `plugin_id` は `InstalledPlugin.install_id()`（= 操作用キー）と完全一致で比較される。
     /// marketplace の区別はしない（既存の `find_plugin` と同じ設計）。
     /// `enabled` の状態に関わらず、`plugins` に存在すれば `true` を返す。
     pub fn is_plugin_installed(&self, plugin_id: &str) -> bool {
-        self.plugins.iter().any(|p| p.cache_key() == plugin_id)
+        self.plugins.iter().any(|p| p.install_id() == plugin_id)
     }
 
     /// プラグインIDでインデックスを検索
     pub fn plugin_index(&self, id: &PluginId) -> Option<usize> {
         self.plugins
             .iter()
-            .position(|p| p.cache_key() == id.as_str())
+            .position(|p| p.install_id() == id.as_str())
     }
 
     /// プラグインの空でないコンポーネント種別を取得
-    pub fn available_component_kinds(&self, plugin: &PluginSummary) -> Vec<ComponentTypeCount> {
+    pub fn available_component_kinds(
+        &self,
+        plugin: &InstalledPlugin,
+    ) -> Vec<(ComponentKind, usize)> {
         plugin.component_type_counts()
     }
 
     /// コンポーネント種別に応じたコンポーネント名一覧を取得
-    pub fn component_names(
-        &self,
-        plugin: &PluginSummary,
-        kind: ComponentKind,
-    ) -> Vec<ComponentName> {
+    pub fn component_names(&self, plugin: &InstalledPlugin, kind: ComponentKind) -> Vec<String> {
         plugin.component_names(kind)
     }
 
     /// プラグインを一覧から削除
     pub fn remove_plugin(&mut self, plugin_id: &PluginId) {
-        self.plugins.retain(|p| p.cache_key() != plugin_id.as_str());
+        self.plugins
+            .retain(|p| p.install_id() != plugin_id.as_str());
     }
 
     /// プラグインの有効状態を更新
@@ -116,9 +116,9 @@ impl DataStore {
         if let Some(plugin) = self
             .plugins
             .iter_mut()
-            .find(|p| p.cache_key() == plugin_id.as_str())
+            .find(|p| p.install_id() == plugin_id.as_str())
         {
-            plugin.enabled = enabled;
+            plugin.set_enabled(enabled);
         }
     }
 
@@ -226,7 +226,7 @@ impl DataStore {
     /// `tempfile::TempDir` を使用してユニークな一時ディレクトリを作成する。
     /// 呼び出し側で `TempDir` をスコープに保持し、Drop で自動クリーンアップされる。
     pub fn for_test(
-        plugins: Vec<PluginSummary>,
+        plugins: Vec<InstalledPlugin>,
         marketplaces: Vec<MarketplaceItem>,
         last_error: Option<String>,
     ) -> (tempfile::TempDir, Self) {

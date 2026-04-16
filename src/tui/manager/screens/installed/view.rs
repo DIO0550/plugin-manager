@@ -178,20 +178,19 @@ fn view_plugin_list(
         let items: Vec<ListItem> = filtered
             .iter()
             .map(|p| {
-                let is_marked = marked_ids.contains(p.cache_key());
+                let is_marked = marked_ids.contains(p.install_id());
                 let mark_indicator = if is_marked { "[x] " } else { "[ ] " };
 
                 let marketplace_str = p
-                    .marketplace
-                    .as_ref()
+                    .marketplace()
                     .map(|m| format!(" @{}", m))
                     .unwrap_or_default();
-                let status_str = if p.enabled { "" } else { " [disabled]" };
+                let status_str = if p.enabled() { "" } else { " [disabled]" };
 
                 // 行のベーススタイル（マーク・disabled 状態に応じて統一）
                 let base_style = if is_marked {
                     Style::default().fg(Color::Yellow)
-                } else if p.enabled {
+                } else if p.enabled() {
                     Style::default()
                 } else {
                     Style::default().fg(Color::DarkGray)
@@ -205,12 +204,15 @@ fn view_plugin_list(
                 // プラグイン名
                 let name_text = format!(
                     "{}{}  v{}{}",
-                    p.name, marketplace_str, p.version, status_str
+                    p.name(),
+                    marketplace_str,
+                    p.version(),
+                    status_str
                 );
                 spans.push(Span::styled(name_text, base_style));
 
                 // 更新ステータス
-                if let Some(update_status) = update_statuses.get(p.cache_key()) {
+                if let Some(update_status) = update_statuses.get(p.install_id()) {
                     spans.push(update_status_span(update_status));
                 }
 
@@ -284,13 +286,12 @@ fn view_plugin_detail(
 
     // プラグイン情報
     let marketplace_str = plugin
-        .marketplace
-        .as_ref()
+        .marketplace()
         .map(|m| format!(" @ {}", m))
         .unwrap_or_default();
-    let title = format!(" {}{} ", plugin.name, marketplace_str);
+    let title = format!(" {}{} ", plugin.name(), marketplace_str);
 
-    let (status_text, status_color) = if plugin.enabled {
+    let (status_text, status_color) = if plugin.enabled() {
         ("Enabled", Color::Green)
     } else {
         ("Disabled", Color::DarkGray)
@@ -303,7 +304,7 @@ fn view_plugin_detail(
         ]),
         Line::from(vec![
             Span::raw("Version: "),
-            Span::styled(&plugin.version, Style::default().fg(Color::White)),
+            Span::styled(plugin.version(), Style::default().fg(Color::White)),
         ]),
         Line::raw(""),
         Line::from(vec![
@@ -321,7 +322,7 @@ fn view_plugin_detail(
     f.render_widget(info_para, chunks[2]);
 
     // アクションメニュー（enabled 状態に応じて動的に切り替え）
-    let actions = DetailAction::for_plugin(plugin.enabled);
+    let actions = DetailAction::for_plugin(plugin.enabled());
     let items: Vec<ListItem> = actions
         .iter()
         .map(|a| ListItem::new(format!("  {}", a.label())).style(a.style()))
@@ -351,7 +352,7 @@ fn view_component_types(
     };
 
     let counts = ctx.data.available_component_kinds(plugin);
-    let has_marketplace = plugin.marketplace.is_some();
+    let has_marketplace = plugin.marketplace().is_some();
     let base_lines = if has_marketplace { 4 } else { 3 };
     let type_lines = if counts.is_empty() { 1 } else { counts.len() };
     let content_height = (base_lines + type_lines) as u16 + 7; // +3 for filter bar
@@ -373,13 +374,13 @@ fn view_component_types(
     // フィルタバー（read-only）
     render_filter_bar(f, chunks[0], ctx.filter_text, ctx.filter_focused);
 
-    let title = format!(" {} ", plugin.name);
+    let title = format!(" {} ", plugin.name());
 
     if counts.is_empty() {
         // コンポーネントがない場合
         let mut lines = Vec::new();
-        lines.push(format!("  Version: {}", plugin.version));
-        if let Some(marketplace) = &plugin.marketplace {
+        lines.push(format!("  Version: {}", plugin.version()));
+        if let Some(marketplace) = plugin.marketplace() {
             lines.push(format!("  Marketplace: {}", marketplace));
         }
         lines.push(String::new());
@@ -392,8 +393,8 @@ fn view_component_types(
         // コンポーネントがある場合
         let items: Vec<ListItem> = counts
             .iter()
-            .map(|count| {
-                let text = format!("  {} ({})", count.title(), count.count);
+            .map(|(kind, count)| {
+                let text = format!("  {} ({})", component_kind_title(*kind), count);
                 ListItem::new(text)
             })
             .collect();
@@ -435,7 +436,7 @@ fn view_component_list(
     let components = ctx.data.component_names(plugin, kind);
     let items: Vec<ListItem> = components
         .iter()
-        .map(|c| ListItem::new(format!("  {}", c.name)))
+        .map(|c| ListItem::new(format!("  {}", c)))
         .collect();
 
     let content_height = (components.len() as u16).max(1) + 7; // +3 for filter bar
@@ -459,7 +460,7 @@ fn view_component_list(
 
     let title = format!(
         " {} > {} ({}) ",
-        plugin.name,
+        plugin.name(),
         component_kind_title(kind),
         components.len()
     );

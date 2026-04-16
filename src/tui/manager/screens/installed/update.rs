@@ -109,17 +109,17 @@ fn toggle_all_marks(model: &mut Model, data: &DataStore, filter_text: &str) {
         let all_marked = !filtered.is_empty()
             && filtered
                 .iter()
-                .all(|plugin| marked_ids.contains(plugin.cache_key()));
+                .all(|plugin| marked_ids.contains(plugin.install_id()));
 
         if all_marked {
             // フィルタ済み分のみ解除
             for plugin in &filtered {
-                marked_ids.remove(plugin.cache_key());
+                marked_ids.remove(plugin.install_id());
             }
         } else {
             // フィルタ済みプラグインを全マーク
             for plugin in &filtered {
-                marked_ids.insert(plugin.cache_key().to_string());
+                marked_ids.insert(plugin.install_id().to_string());
             }
         }
     }
@@ -163,7 +163,7 @@ fn update_all(model: &mut Model, data: &DataStore) -> UpdateEffect {
         update_statuses.clear();
         for plugin in &data.plugins {
             update_statuses.insert(
-                plugin.cache_key().to_string(),
+                plugin.install_id().to_string(),
                 UpdateStatusDisplay::Updating,
             );
         }
@@ -205,7 +205,7 @@ fn execute_batch_with(
     {
         // update_statuses から Updating のプラグイン名を収集
         // O(n) の HashSet で存在チェックし、find_plugin の線形探索 O(n^2) を回避
-        let existing_names: HashSet<&str> = data.plugins.iter().map(|p| p.cache_key()).collect();
+        let existing_names: HashSet<&str> = data.plugins.iter().map(|p| p.install_id()).collect();
         let plugin_names: Vec<String> = update_statuses
             .iter()
             .filter(|(_, status)| matches!(status, UpdateStatusDisplay::Updating))
@@ -264,11 +264,12 @@ fn execute_batch_with(
         let filtered = filter_plugins(&data.plugins, filter_text);
         let current_selected = selected_id.as_ref();
         let new_idx = current_selected
-            .and_then(|id| filtered.iter().position(|p| p.cache_key() == id.as_str()))
+            .and_then(|id| filtered.iter().position(|p| p.install_id() == id.as_str()))
             .or(if filtered.is_empty() { None } else { Some(0) });
 
         state.select(new_idx);
-        *selected_id = new_idx.and_then(|idx| filtered.get(idx).map(|p| p.cache_key().to_string()));
+        *selected_id =
+            new_idx.and_then(|idx| filtered.get(idx).map(|p| p.install_id().to_string()));
     }
 }
 
@@ -350,8 +351,10 @@ fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) -> UpdateEf
         } => {
             // プラグイン情報を取得
             let plugin = data.find_plugin(plugin_id).cloned();
-            let marketplace = plugin.as_ref().and_then(|p| p.marketplace.clone());
-            let enabled = plugin.as_ref().is_some_and(|p| p.enabled);
+            let marketplace = plugin
+                .as_ref()
+                .and_then(|p| p.marketplace().map(str::to_string));
+            let enabled = plugin.as_ref().is_some_and(|p| p.enabled());
 
             // enabled 状態に応じたアクション一覧を取得
             let detail_actions = DetailAction::for_plugin(enabled);
@@ -401,7 +404,7 @@ fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) -> UpdateEf
                             let mut new_state = ListState::default();
                             let selected_id = if !filtered.is_empty() {
                                 new_state.select(Some(0));
-                                Some(filtered[0].cache_key().to_string())
+                                Some(filtered[0].install_id().to_string())
                             } else {
                                 None
                             };
@@ -438,13 +441,13 @@ fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) -> UpdateEf
                     let restored_statuses = std::mem::take(saved_update_statuses);
                     let filtered = filter_plugins(&data.plugins, filter_text);
                     let mut new_state = ListState::default();
-                    let idx = filtered.iter().position(|p| p.cache_key() == id);
+                    let idx = filtered.iter().position(|p| p.install_id() == id);
                     let selected_id = if let Some(idx) = idx {
                         new_state.select(Some(idx));
                         Some(id)
                     } else if !filtered.is_empty() {
                         new_state.select(Some(0));
-                        Some(filtered[0].cache_key().to_string())
+                        Some(filtered[0].install_id().to_string())
                     } else {
                         None
                     };
@@ -466,13 +469,13 @@ fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) -> UpdateEf
                     // PluginList に遷移（フィルタ済みリストで選択位置を同期）
                     let filtered = filter_plugins(&data.plugins, filter_text);
                     let mut new_state = ListState::default();
-                    let idx = filtered.iter().position(|p| p.cache_key() == target_id);
+                    let idx = filtered.iter().position(|p| p.install_id() == target_id);
                     let selected_id = if let Some(idx) = idx {
                         new_state.select(Some(idx));
                         Some(target_id)
                     } else if !filtered.is_empty() {
                         new_state.select(Some(0));
-                        Some(filtered[0].cache_key().to_string())
+                        Some(filtered[0].install_id().to_string())
                     } else {
                         None
                     };
@@ -501,7 +504,7 @@ fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) -> UpdateEf
                 let counts = data.available_component_kinds(plugin);
                 let selected_idx = state.selected().unwrap_or(0);
                 if let Some(count) = counts.get(selected_idx) {
-                    let kind = count.kind;
+                    let kind = count.0;
                     let components = data.component_names(plugin, kind);
                     if !components.is_empty() {
                         let restored_marks = std::mem::take(saved_marked_ids);
@@ -546,13 +549,13 @@ fn back(model: &mut Model, filter_text: &str, data: &DataStore) {
             let restored_statuses = std::mem::take(saved_update_statuses);
             let filtered = filter_plugins(&data.plugins, filter_text);
             let mut new_state = ListState::default();
-            let idx = filtered.iter().position(|p| p.cache_key() == id);
+            let idx = filtered.iter().position(|p| p.install_id() == id);
             let selected_id = if let Some(idx) = idx {
                 new_state.select(Some(idx));
                 Some(id)
             } else if !filtered.is_empty() {
                 new_state.select(Some(0));
-                Some(filtered[0].cache_key().to_string())
+                Some(filtered[0].install_id().to_string())
             } else {
                 None
             };
@@ -610,7 +613,7 @@ fn list_len(model: &Model, data: &DataStore, filter_text: &str) -> usize {
     match model {
         Model::PluginList { .. } => filter_plugins(&data.plugins, filter_text).len(),
         Model::PluginDetail { plugin_id, .. } => {
-            let enabled = data.find_plugin(plugin_id).is_some_and(|p| p.enabled);
+            let enabled = data.find_plugin(plugin_id).is_some_and(|p| p.enabled());
             DetailAction::for_plugin(enabled).len()
         }
         Model::ComponentTypes { plugin_id, .. } => {
@@ -640,7 +643,7 @@ fn update_selected_id(model: &mut Model, data: &DataStore, filter_text: &str) {
     {
         if let Some(idx) = state.selected() {
             let filtered = filter_plugins(&data.plugins, filter_text);
-            *selected_id = filtered.get(idx).map(|p| p.cache_key().to_string());
+            *selected_id = filtered.get(idx).map(|p| p.install_id().to_string());
         }
     }
 }

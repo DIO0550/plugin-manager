@@ -1,15 +1,19 @@
-use crate::application::PluginSummary;
+use crate::application::InstalledPlugin;
 use crate::tui::manager::core::DataStore;
 
-fn make_plugin(name: &str) -> PluginSummary {
-    PluginSummary {
-        name: name.to_string(),
-        cache_key: None,
-        marketplace: None,
-        version: "1.0.0".to_string(),
-        components: Vec::new(),
-        enabled: true,
-    }
+fn make_plugin(name: &str) -> InstalledPlugin {
+    InstalledPlugin::new_for_test(name, "1.0.0", Vec::new(), None, None, true)
+}
+
+fn make_plugin_with_install_id(name: &str, install_id: &str) -> InstalledPlugin {
+    InstalledPlugin::new_for_test(
+        name,
+        "1.0.0",
+        Vec::new(),
+        Some(install_id.to_string()),
+        None,
+        true,
+    )
 }
 
 #[test]
@@ -48,104 +52,83 @@ fn rejects_partial_match() {
 
 #[test]
 fn ignores_marketplace_difference() {
-    let plugin_a = PluginSummary {
-        marketplace: None,
-        ..make_plugin("shared-name")
-    };
-    let plugin_b = PluginSummary {
-        marketplace: Some("market-a".to_string()),
-        ..make_plugin("shared-name")
-    };
+    let plugin_a =
+        InstalledPlugin::new_for_test("shared-name", "1.0.0", Vec::new(), None, None, true);
+    let plugin_b = InstalledPlugin::new_for_test(
+        "shared-name",
+        "1.0.0",
+        Vec::new(),
+        None,
+        Some("market-a".to_string()),
+        true,
+    );
     let (_tmp, store) = DataStore::for_test(vec![plugin_a, plugin_b], vec![], None);
     assert!(store.is_plugin_installed("shared-name"));
 }
 
 #[test]
 fn returns_true_when_plugin_disabled() {
-    let plugin = PluginSummary {
-        enabled: false,
-        ..make_plugin("disabled-plugin")
-    };
+    let plugin =
+        InstalledPlugin::new_for_test("disabled-plugin", "1.0.0", Vec::new(), None, None, false);
     let (_tmp, store) = DataStore::for_test(vec![plugin], vec![], None);
     assert!(store.is_plugin_installed("disabled-plugin"));
 }
 
 // ============================================================================
-// cache_key が設定されている場合のテスト
+// install_id が設定されている場合のテスト
 // ============================================================================
 
 #[test]
-fn is_plugin_installed_matches_by_cache_key() {
-    let plugin = PluginSummary {
-        cache_key: Some("owner--repo".to_string()),
-        ..make_plugin("Display Name")
-    };
+fn is_plugin_installed_matches_by_install_id() {
+    let plugin = make_plugin_with_install_id("Display Name", "owner--repo");
     let (_tmp, store) = DataStore::for_test(vec![plugin], vec![], None);
     assert!(store.is_plugin_installed("owner--repo"));
 }
 
 #[test]
-fn is_plugin_installed_does_not_match_by_display_name_when_cache_key_set() {
-    let plugin = PluginSummary {
-        cache_key: Some("owner--repo".to_string()),
-        ..make_plugin("Display Name")
-    };
+fn is_plugin_installed_does_not_match_by_display_name_when_install_id_set() {
+    let plugin = make_plugin_with_install_id("Display Name", "owner--repo");
     let (_tmp, store) = DataStore::for_test(vec![plugin], vec![], None);
     assert!(!store.is_plugin_installed("Display Name"));
 }
 
 #[test]
-fn find_plugin_matches_by_cache_key() {
-    let plugin = PluginSummary {
-        cache_key: Some("owner--repo".to_string()),
-        ..make_plugin("Display Name")
-    };
+fn find_plugin_matches_by_install_id() {
+    let plugin = make_plugin_with_install_id("Display Name", "owner--repo");
     let (_tmp, store) = DataStore::for_test(vec![plugin], vec![], None);
     let found = store.find_plugin(&"owner--repo".to_string());
     assert!(found.is_some());
-    assert_eq!(found.unwrap().name, "Display Name");
+    assert_eq!(found.unwrap().name(), "Display Name");
 }
 
 #[test]
-fn find_plugin_does_not_match_by_display_name_when_cache_key_set() {
-    let plugin = PluginSummary {
-        cache_key: Some("owner--repo".to_string()),
-        ..make_plugin("Display Name")
-    };
+fn find_plugin_does_not_match_by_display_name_when_install_id_set() {
+    let plugin = make_plugin_with_install_id("Display Name", "owner--repo");
     let (_tmp, store) = DataStore::for_test(vec![plugin], vec![], None);
     assert!(store.find_plugin(&"Display Name".to_string()).is_none());
 }
 
 #[test]
-fn plugin_index_matches_by_cache_key() {
-    let plugin = PluginSummary {
-        cache_key: Some("owner--repo".to_string()),
-        ..make_plugin("Display Name")
-    };
+fn plugin_index_matches_by_install_id() {
+    let plugin = make_plugin_with_install_id("Display Name", "owner--repo");
     let (_tmp, store) = DataStore::for_test(vec![plugin], vec![], None);
     assert_eq!(store.plugin_index(&"owner--repo".to_string()), Some(0));
     assert_eq!(store.plugin_index(&"Display Name".to_string()), None);
 }
 
 #[test]
-fn remove_plugin_works_by_cache_key() {
-    let plugin = PluginSummary {
-        cache_key: Some("owner--repo".to_string()),
-        ..make_plugin("Display Name")
-    };
+fn remove_plugin_works_by_install_id() {
+    let plugin = make_plugin_with_install_id("Display Name", "owner--repo");
     let (_tmp, mut store) = DataStore::for_test(vec![plugin], vec![], None);
     store.remove_plugin(&"owner--repo".to_string());
     assert!(!store.is_plugin_installed("owner--repo"));
 }
 
 #[test]
-fn set_plugin_enabled_works_by_cache_key() {
-    let plugin = PluginSummary {
-        cache_key: Some("owner--repo".to_string()),
-        ..make_plugin("Display Name")
-    };
+fn set_plugin_enabled_works_by_install_id() {
+    let plugin = make_plugin_with_install_id("Display Name", "owner--repo");
     let (_tmp, mut store) = DataStore::for_test(vec![plugin], vec![], None);
     store.set_plugin_enabled(&"owner--repo".to_string(), false);
     let found = store.find_plugin(&"owner--repo".to_string()).unwrap();
-    assert!(!found.enabled);
+    assert!(!found.enabled());
 }
