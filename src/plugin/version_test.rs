@@ -157,42 +157,42 @@ async fn test_fetch_remote_version_not_found() {
 }
 
 // ========================================
-// UpdateCheck unit tests
+// UpdateAvailability unit tests
 // ========================================
 
 #[test]
 fn test_update_check_has_update_available() {
-    let check = UpdateCheck::Available {
+    let check = UpdateAvailability::Outdated {
         current_sha: Some("abc".to_string()),
         latest_sha: "def".to_string(),
     };
     assert!(check.has_update());
-    assert!(!check.is_failed());
+    assert!(!check.is_unknown());
 }
 
 #[test]
 fn test_update_check_has_update_up_to_date() {
-    let check = UpdateCheck::UpToDate {
+    let check = UpdateAvailability::Latest {
         current_sha: Some("same".to_string()),
         latest_sha: "same".to_string(),
     };
     assert!(!check.has_update());
-    assert!(!check.is_failed());
+    assert!(!check.is_unknown());
 }
 
 #[test]
 fn test_update_check_has_update_failed() {
-    let check = UpdateCheck::Failed {
+    let check = UpdateAvailability::Unknown {
         current_sha: None,
         error: "network error".to_string(),
     };
     assert!(!check.has_update());
-    assert!(check.is_failed());
+    assert!(check.is_unknown());
 }
 
 #[test]
 fn test_update_check_accessors_up_to_date() {
-    let check = UpdateCheck::UpToDate {
+    let check = UpdateAvailability::Latest {
         current_sha: Some("sha1".to_string()),
         latest_sha: "sha1".to_string(),
     };
@@ -203,7 +203,7 @@ fn test_update_check_accessors_up_to_date() {
 
 #[test]
 fn test_update_check_accessors_available() {
-    let check = UpdateCheck::Available {
+    let check = UpdateAvailability::Outdated {
         current_sha: None,
         latest_sha: "new".to_string(),
     };
@@ -214,7 +214,7 @@ fn test_update_check_accessors_available() {
 
 #[test]
 fn test_update_check_accessors_failed() {
-    let check = UpdateCheck::Failed {
+    let check = UpdateAvailability::Unknown {
         current_sha: Some("local".to_string()),
         error: "boom".to_string(),
     };
@@ -230,8 +230,8 @@ fn test_update_check_from_query_found_same_sha() {
         sha: "same123".to_string(),
         git_ref: "main".to_string(),
     });
-    let check = UpdateCheck::from_query(&meta, &result);
-    assert!(matches!(check, UpdateCheck::UpToDate { .. }));
+    let check = UpdateAvailability::from_query(&meta, &result);
+    assert!(matches!(check, UpdateAvailability::Latest { .. }));
     assert_eq!(check.current_sha(), Some("same123"));
     assert_eq!(check.latest_sha(), Some("same123"));
 }
@@ -243,8 +243,8 @@ fn test_update_check_from_query_found_different_sha() {
         sha: "new456".to_string(),
         git_ref: "main".to_string(),
     });
-    let check = UpdateCheck::from_query(&meta, &result);
-    assert!(matches!(check, UpdateCheck::Available { .. }));
+    let check = UpdateAvailability::from_query(&meta, &result);
+    assert!(matches!(check, UpdateAvailability::Outdated { .. }));
     assert!(check.has_update());
     assert_eq!(check.current_sha(), Some("old123"));
     assert_eq!(check.latest_sha(), Some("new456"));
@@ -258,8 +258,8 @@ fn test_update_check_from_query_found_current_none_yields_available() {
         sha: "new456".to_string(),
         git_ref: "main".to_string(),
     });
-    let check = UpdateCheck::from_query(&meta, &result);
-    assert!(matches!(check, UpdateCheck::Available { .. }));
+    let check = UpdateAvailability::from_query(&meta, &result);
+    assert!(matches!(check, UpdateAvailability::Outdated { .. }));
     assert!(check.has_update());
     assert_eq!(check.current_sha(), None);
 }
@@ -270,43 +270,43 @@ fn test_update_check_from_query_failed() {
     let result = VersionQueryResult::Failed {
         message: "Rate limited".to_string(),
     };
-    let check = UpdateCheck::from_query(&meta, &result);
-    assert!(matches!(check, UpdateCheck::Failed { .. }));
-    assert!(check.is_failed());
+    let check = UpdateAvailability::from_query(&meta, &result);
+    assert!(matches!(check, UpdateAvailability::Unknown { .. }));
+    assert!(check.is_unknown());
     assert_eq!(check.current_sha(), Some("local123"));
     assert_eq!(check.error(), Some("Rate limited"));
 }
 
 #[test]
 fn test_update_check_serde_tag_available() {
-    let check = UpdateCheck::Available {
+    let check = UpdateAvailability::Outdated {
         current_sha: Some("abc".to_string()),
         latest_sha: "def".to_string(),
     };
     let value: serde_json::Value = serde_json::to_value(&check).unwrap();
-    assert_eq!(value["status"], "available");
+    assert_eq!(value["status"], "outdated");
     assert_eq!(value["current_sha"], "abc");
     assert_eq!(value["latest_sha"], "def");
 }
 
 #[test]
-fn test_update_check_serde_tag_up_to_date() {
-    let check = UpdateCheck::UpToDate {
+fn test_update_check_serde_tag_latest() {
+    let check = UpdateAvailability::Latest {
         current_sha: Some("same".to_string()),
         latest_sha: "same".to_string(),
     };
     let value: serde_json::Value = serde_json::to_value(&check).unwrap();
-    assert_eq!(value["status"], "up_to_date");
+    assert_eq!(value["status"], "latest");
 }
 
 #[test]
-fn test_update_check_serde_tag_failed() {
-    let check = UpdateCheck::Failed {
+fn test_update_check_serde_tag_unknown() {
+    let check = UpdateAvailability::Unknown {
         current_sha: None,
         error: "boom".to_string(),
     };
     let value: serde_json::Value = serde_json::to_value(&check).unwrap();
-    assert_eq!(value["status"], "failed");
+    assert_eq!(value["status"], "unknown");
     assert_eq!(value["error"], "boom");
 }
 

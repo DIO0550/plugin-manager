@@ -312,11 +312,11 @@ fn test_installed_plugin_json_snapshot_marketplace_none() {
 
 #[test]
 fn test_outdated_json_snapshot() {
-    use crate::plugin::UpdateCheck;
+    use crate::plugin::UpdateAvailability;
 
     // Case A: update available
     let plugin_a = snapshot_plugin_full();
-    let check_a = UpdateCheck::Available {
+    let check_a = UpdateAvailability::Outdated {
         current_sha: Some("abc1234567890".to_string()),
         latest_sha: "def1234567890".to_string(),
     };
@@ -352,7 +352,7 @@ fn test_outdated_json_snapshot() {
     }
   },
   "check": {
-    "status": "available",
+    "status": "outdated",
     "current_sha": "abc1234567890",
     "latest_sha": "def1234567890"
   }
@@ -368,7 +368,7 @@ fn test_outdated_json_snapshot() {
         Some("github".to_string()),
         true,
     );
-    let check_b = UpdateCheck::Failed {
+    let check_b = UpdateAvailability::Unknown {
         current_sha: None,
         error: "network error".to_string(),
     };
@@ -393,7 +393,7 @@ fn test_outdated_json_snapshot() {
     }
   },
   "check": {
-    "status": "failed",
+    "status": "unknown",
     "current_sha": null,
     "error": "network error"
   }
@@ -409,7 +409,7 @@ fn test_outdated_json_snapshot() {
         Some("github".to_string()),
         true,
     );
-    let check_c = UpdateCheck::UpToDate {
+    let check_c = UpdateAvailability::Latest {
         current_sha: Some("same1234567890".to_string()),
         latest_sha: "same1234567890".to_string(),
     };
@@ -434,7 +434,7 @@ fn test_outdated_json_snapshot() {
     }
   },
   "check": {
-    "status": "up_to_date",
+    "status": "latest",
     "current_sha": "same1234567890",
     "latest_sha": "same1234567890"
   }
