@@ -153,11 +153,9 @@ fn select_prev(model: &mut Model, data: &DataStore) {
             highlighted_idx,
             state,
             ..
-        } => {
-            if *highlighted_idx > 0 {
-                *highlighted_idx -= 1;
-                state.select(Some(*highlighted_idx));
-            }
+        } if *highlighted_idx > 0 => {
+            *highlighted_idx -= 1;
+            state.select(Some(*highlighted_idx));
         }
         _ => {}
     }

@@ -107,7 +107,9 @@ async fn run_outdated(
         .iter()
         .zip(plugin_metas.iter())
         .zip(remote_versions.iter())
-        .map(|((plugin, (_, meta)), (_, result))| (plugin, UpdateAvailability::from_query(meta, result)))
+        .map(|((plugin, (_, meta)), (_, result))| {
+            (plugin, UpdateAvailability::from_query(meta, result))
+        })
         .collect();
 
     // 出力
