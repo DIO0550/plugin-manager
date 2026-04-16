@@ -130,8 +130,9 @@ impl UpgradeState {
     /// リモートの最新 SHA を取得（`Unknown` では `None`）
     pub fn latest_sha(&self) -> Option<&str> {
         match self {
-            UpgradeState::Latest { latest_sha, .. }
-            | UpgradeState::Outdated { latest_sha, .. } => Some(latest_sha.as_str()),
+            UpgradeState::Latest { latest_sha, .. } | UpgradeState::Outdated { latest_sha, .. } => {
+                Some(latest_sha.as_str())
+            }
             UpgradeState::Unknown { .. } => None,
         }
     }
