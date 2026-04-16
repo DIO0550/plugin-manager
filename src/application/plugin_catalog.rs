@@ -171,7 +171,8 @@ impl Serialize for InstalledPlugin {
     }
 }
 
-/// 手書き Serialize 用: components を kind 別にネストオブジェクトとしてシリアライズ
+/// 手書き Serialize 用: components を kind 別にネストオブジェクトとしてシリアライズ。
+/// 内部的に `plugin_component_serde::serialize_components` へ委譲する。
 struct ComponentsByKind<'a>(&'a [Component]);
 
 impl Serialize for ComponentsByKind<'_> {
@@ -179,32 +180,7 @@ impl Serialize for ComponentsByKind<'_> {
     where
         S: Serializer,
     {
-        #[derive(Serialize)]
-        struct Groups<'a> {
-            skills: Vec<&'a str>,
-            agents: Vec<&'a str>,
-            commands: Vec<&'a str>,
-            instructions: Vec<&'a str>,
-            hooks: Vec<&'a str>,
-        }
-
-        let mut groups = Groups {
-            skills: Vec::new(),
-            agents: Vec::new(),
-            commands: Vec::new(),
-            instructions: Vec::new(),
-            hooks: Vec::new(),
-        };
-        for c in self.0 {
-            match c.kind {
-                ComponentKind::Skill => groups.skills.push(c.name.as_str()),
-                ComponentKind::Agent => groups.agents.push(c.name.as_str()),
-                ComponentKind::Command => groups.commands.push(c.name.as_str()),
-                ComponentKind::Instruction => groups.instructions.push(c.name.as_str()),
-                ComponentKind::Hook => groups.hooks.push(c.name.as_str()),
-            }
-        }
-        groups.serialize(serializer)
+        super::plugin_component_serde::serialize_components(self.0, serializer)
     }
 }
 
