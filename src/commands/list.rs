@@ -121,18 +121,20 @@ async fn run_outdated(
 }
 
 fn print_outdated_json(results: &[(&InstalledPlugin, UpdateCheck)]) -> Result<(), String> {
-    let entries: Vec<OutdatedEntry> = results
+    let entries = results
         .iter()
         .map(|(plugin, check)| OutdatedEntry { plugin, check })
-        .collect();
+        .collect::<Vec<_>>();
     serde_json::to_string_pretty(&entries)
         .map(|json| println!("{json}"))
         .map_err(|e| format!("Failed to serialize plugins: {}", e))
 }
 
 fn print_outdated_table(results: &[(&InstalledPlugin, UpdateCheck)], total_count: usize) {
-    let with_updates: Vec<&(&InstalledPlugin, UpdateCheck)> =
-        results.iter().filter(|(_, c)| c.has_update()).collect();
+    let with_updates = results
+        .iter()
+        .filter(|(_, c)| c.has_update())
+        .collect::<Vec<_>>();
     let error_count = results.iter().filter(|(_, c)| c.is_failed()).count();
 
     if with_updates.is_empty() {
@@ -146,7 +148,7 @@ fn print_outdated_table(results: &[(&InstalledPlugin, UpdateCheck)], total_count
         table.load_preset(UTF8_FULL);
         table.set_header(vec!["Name", "Version", "Current SHA", "Latest SHA"]);
 
-        with_updates.iter().for_each(|(plugin, check)| {
+        with_updates.iter().for_each(|&&(plugin, ref check)| {
             let current_sha = check
                 .current_sha()
                 .map(truncate_sha)
