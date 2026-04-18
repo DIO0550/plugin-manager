@@ -19,6 +19,23 @@ fn setup_plugin_fixture(cache_dir: &Path, marketplace: &str, name: &str, version
     fs::write(plugin_dir.join("plugin.json"), manifest).unwrap();
 }
 
+/// 任意の author を持つプラグインフィクスチャを作成
+fn setup_plugin_fixture_with_author(
+    cache_dir: &Path,
+    marketplace: &str,
+    name: &str,
+    author_name: &str,
+) {
+    let plugin_dir = cache_dir.join(marketplace).join(name);
+    fs::create_dir_all(&plugin_dir).unwrap();
+
+    let manifest = format!(
+        r#"{{"name":"{}","version":"1.0.0","author":{{"name":"{}"}}}}"#,
+        name, author_name
+    );
+    fs::write(plugin_dir.join("plugin.json"), manifest).unwrap();
+}
+
 // ========================================
 // find_plugin_candidates tests (cache-based)
 // ========================================
@@ -70,6 +87,15 @@ fn test_get_plugin_info_not_found() {
     let (_temp_dir, cache) = create_test_cache();
     let result = get_plugin_info(&cache, "nonexistent");
     assert!(result.is_err());
+}
+
+#[test]
+fn get_plugin_info_normalizes_empty_author_name_to_none() {
+    let (temp_dir, cache) = create_test_cache();
+    setup_plugin_fixture_with_author(temp_dir.path(), "github", "empty-author-plugin", "");
+
+    let result = get_plugin_info(&cache, "empty-author-plugin").unwrap();
+    assert!(result.author.is_none());
 }
 
 #[test]

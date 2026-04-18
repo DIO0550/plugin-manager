@@ -41,10 +41,18 @@ pub async fn run(args: Args) -> Result<(), String> {
 }
 
 fn print_table(detail: &PluginDetail) {
+    print!("{}", render_table(detail));
+}
+
+fn render_table(detail: &PluginDetail) -> String {
+    use std::fmt::Write;
+
+    let mut out = String::new();
+
     // 基本情報
-    println!("Plugin Information");
-    println!("==================");
-    println!();
+    writeln!(out, "Plugin Information").unwrap();
+    writeln!(out, "==================").unwrap();
+    writeln!(out).unwrap();
 
     let mut table = Table::new();
     table.load_preset(UTF8_FULL);
@@ -57,13 +65,13 @@ fn print_table(detail: &PluginDetail) {
         detail.description.as_deref().unwrap_or("-"),
     ]);
 
-    println!("{table}");
-    println!();
+    writeln!(out, "{table}").unwrap();
+    writeln!(out).unwrap();
 
     // 作者情報
     if let Some(author) = &detail.author {
-        println!("Author");
-        println!("------");
+        writeln!(out, "Author").unwrap();
+        writeln!(out, "------").unwrap();
 
         let mut author_table = Table::new();
         author_table.load_preset(UTF8_FULL);
@@ -77,13 +85,13 @@ fn print_table(detail: &PluginDetail) {
             author_table.add_row(vec!["URL", url]);
         }
 
-        println!("{author_table}");
-        println!();
+        writeln!(out, "{author_table}").unwrap();
+        writeln!(out).unwrap();
     }
 
     // インストール情報
-    println!("Installation");
-    println!("------------");
+    writeln!(out, "Installation").unwrap();
+    writeln!(out, "------------").unwrap();
 
     let mut install_table = Table::new();
     install_table.load_preset(UTF8_FULL);
@@ -100,12 +108,12 @@ fn print_table(detail: &PluginDetail) {
     };
     install_table.add_row(vec!["Source", &source_str]);
 
-    println!("{install_table}");
-    println!();
+    writeln!(out, "{install_table}").unwrap();
+    writeln!(out).unwrap();
 
     // コンポーネント
-    println!("Components");
-    println!("----------");
+    writeln!(out, "Components").unwrap();
+    writeln!(out, "----------").unwrap();
 
     let mut comp_table = Table::new();
     comp_table.load_preset(UTF8_FULL);
@@ -127,12 +135,12 @@ fn print_table(detail: &PluginDetail) {
         comp_table.add_row(vec![label, &format_list(&names)]);
     }
 
-    println!("{comp_table}");
-    println!();
+    writeln!(out, "{comp_table}").unwrap();
+    writeln!(out).unwrap();
 
     // デプロイ情報
-    println!("Deployment");
-    println!("----------");
+    writeln!(out, "Deployment").unwrap();
+    writeln!(out, "----------").unwrap();
 
     let mut deploy_table = Table::new();
     deploy_table.load_preset(UTF8_FULL);
@@ -146,7 +154,9 @@ fn print_table(detail: &PluginDetail) {
     deploy_table.add_row(vec!["Status", status]);
     deploy_table.add_row(vec!["Cache Path", &detail.cache_path]);
 
-    println!("{deploy_table}");
+    writeln!(out, "{deploy_table}").unwrap();
+
+    out
 }
 
 fn format_list(items: &[&str]) -> String {

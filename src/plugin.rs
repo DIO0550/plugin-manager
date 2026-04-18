@@ -9,7 +9,7 @@ mod update;
 mod version;
 
 pub use cache::{CachedPackage, PackageCache, PackageCacheAccess};
-pub use manifest::PluginManifest;
+pub use manifest::{Author, PluginManifest};
 
 /// cache_key フォールバック: cache_key が None なら name を返す
 pub(crate) fn resolve_cache_key<'a>(cache_key: Option<&'a str>, name: &'a str) -> &'a str {
