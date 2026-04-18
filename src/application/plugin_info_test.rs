@@ -296,13 +296,12 @@ fn test_resolve_single_plugin_filtered_not_found() {
 }
 
 // ========================================
-// determine_source_from_path tests
+// determine_source tests
 // ========================================
 
 #[test]
 fn test_determine_source_github() {
-    let path = PathBuf::from("/cache/github/owner--repo");
-    let source = determine_source_from_path(&path, "github", "owner--repo");
+    let source = determine_source("github", "owner--repo");
     match source {
         Source::GitHub { repository } => {
             assert_eq!(repository, "owner/repo");
@@ -313,8 +312,7 @@ fn test_determine_source_github() {
 
 #[test]
 fn test_determine_source_marketplace() {
-    let path = PathBuf::from("/cache/awesome-plugins/my-plugin");
-    let source = determine_source_from_path(&path, "awesome-plugins", "my-plugin");
+    let source = determine_source("awesome-plugins", "my-plugin");
     match source {
         Source::Marketplace { name } => {
             assert_eq!(name, "awesome-plugins");
