@@ -173,10 +173,7 @@ fn restore_github_repo(dir_name: &str) -> String {
 
 /// PluginInfo を構築
 fn build_plugin_info(content: MarketplaceContent) -> Result<PluginInfo> {
-    let marketplace = content
-        .marketplace()
-        .map(str::to_string)
-        .unwrap_or_else(|| "github".to_string());
+    let marketplace_opt = content.marketplace().map(str::to_string);
     let dir_name = content
         .cache_key()
         .map(str::to_string)
@@ -184,19 +181,22 @@ fn build_plugin_info(content: MarketplaceContent) -> Result<PluginInfo> {
     let cache_path = content.path().to_path_buf();
     let manifest = content.manifest().clone();
 
+    // GitHub の場合は marketplace() == None。source / enabled 判定用に "github" を既定値とする
+    let marketplace_key = marketplace_opt.as_deref().unwrap_or("github");
+
     // ソース判定
-    let source = determine_source(&marketplace, &dir_name);
+    let source = determine_source(marketplace_key, &dir_name);
 
     // インストール時刻
     let installed_at = meta::resolve_installed_at(&cache_path, Some(&manifest));
 
     // デプロイ状態判定（キャッシュディレクトリ名で判定）
-    let enabled = resolve_enabled(&cache_path, &marketplace, &dir_name);
+    let enabled = resolve_enabled(&cache_path, marketplace_key, &dir_name);
 
-    // InstalledPlugin を組み立てる
+    // InstalledPlugin を組み立てる（list_installed_plugins と同じく marketplace は Option<String> を保つ）
     let install_id = Some(dir_name);
     let plugin = Plugin::new(manifest, cache_path);
-    let installed = InstalledPlugin::new(plugin, install_id, Some(marketplace), enabled);
+    let installed = InstalledPlugin::new(plugin, install_id, marketplace_opt, enabled);
 
     Ok(PluginInfo {
         installed,
@@ -208,10 +208,10 @@ fn build_plugin_info(content: MarketplaceContent) -> Result<PluginInfo> {
 /// デプロイ状態を判定
 ///
 /// `meta::is_enabled()` に委譲する。
-fn resolve_enabled(cache_path: &Path, marketplace: &str, plugin_name: &str) -> bool {
+fn resolve_enabled(cache_path: &Path, marketplace: &str, install_id: &str) -> bool {
     let project_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let deployed = list_all_placed(&project_root);
-    meta::is_enabled(cache_path, marketplace, plugin_name, &deployed)
+    meta::is_enabled(cache_path, marketplace, install_id, &deployed)
 }
 
 #[cfg(test)]

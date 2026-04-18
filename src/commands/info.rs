@@ -4,6 +4,7 @@
 
 mod json;
 mod table;
+mod wire;
 mod yaml;
 
 use crate::application::get_plugin_info;
