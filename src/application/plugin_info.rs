@@ -4,7 +4,7 @@
 
 use super::plugin_catalog::{list_all_placed, list_installed, InstalledPlugin};
 use crate::error::{PlmError, Result};
-use crate::plugin::{meta, PackageCacheAccess, Plugin, PluginManifest};
+use crate::plugin::{meta, MarketplaceContent, PackageCacheAccess, Plugin};
 use std::path::{Path, PathBuf};
 
 /// プラグイン詳細情報（composition）
@@ -31,15 +31,6 @@ impl PluginInfo {
 pub enum Source {
     GitHub { repository: String },
     Marketplace { name: String },
-}
-
-/// 内部用: プラグイン候補
-#[derive(Debug)]
-struct PluginCandidate {
-    marketplace: String,
-    dir_name: String,
-    cache_path: PathBuf,
-    manifest: PluginManifest,
 }
 
 /// プラグイン詳細情報を取得
@@ -107,25 +98,10 @@ fn parse_plugin_name(name: &str) -> Result<(Option<String>, String)> {
 fn find_plugin_candidates(
     cache: &dyn PackageCacheAccess,
     name: &str,
-) -> Result<Vec<PluginCandidate>> {
+) -> Result<Vec<MarketplaceContent>> {
     let candidates = list_installed(cache)?
         .into_iter()
         .filter(|pkg| pkg.manifest().name == name)
-        .map(|pkg| {
-            let dir_name = pkg
-                .cache_key()
-                .map(str::to_string)
-                .unwrap_or_else(|| pkg.name().to_string());
-            PluginCandidate {
-                marketplace: pkg
-                    .marketplace()
-                    .map(str::to_string)
-                    .unwrap_or_else(|| "github".to_string()),
-                dir_name,
-                cache_path: pkg.path().to_path_buf(),
-                manifest: pkg.manifest().clone(),
-            }
-        })
         .collect();
 
     Ok(candidates)
@@ -133,15 +109,15 @@ fn find_plugin_candidates(
 
 /// 候補から単一プラグインを解決
 fn resolve_single_plugin(
-    candidates: Vec<PluginCandidate>,
+    candidates: Vec<MarketplaceContent>,
     marketplace_filter: Option<&str>,
     name: &str,
-) -> Result<PluginCandidate> {
+) -> Result<MarketplaceContent> {
     // マーケットプレイスフィルタがある場合は絞り込み
     let filtered: Vec<_> = if let Some(mp) = marketplace_filter {
         candidates
             .into_iter()
-            .filter(|c| c.marketplace == mp)
+            .filter(|c| c.marketplace().unwrap_or("github") == mp)
             .collect()
     } else {
         candidates
@@ -154,7 +130,13 @@ fn resolve_single_plugin(
             // 複数候補がある場合
             let candidate_names: Vec<String> = filtered
                 .iter()
-                .map(|c| format!("{}/{}", c.marketplace, c.manifest.name))
+                .map(|c| {
+                    format!(
+                        "{}/{}",
+                        c.marketplace().unwrap_or("github"),
+                        c.manifest().name
+                    )
+                })
                 .collect();
             Err(PlmError::AmbiguousPlugin {
                 name: name.to_string(),
@@ -190,13 +172,17 @@ fn restore_github_repo(dir_name: &str) -> String {
 }
 
 /// PluginInfo を構築
-fn build_plugin_detail(candidate: PluginCandidate) -> Result<PluginInfo> {
-    let PluginCandidate {
-        marketplace,
-        dir_name,
-        cache_path,
-        manifest,
-    } = candidate;
+fn build_plugin_detail(content: MarketplaceContent) -> Result<PluginInfo> {
+    let marketplace = content
+        .marketplace()
+        .map(str::to_string)
+        .unwrap_or_else(|| "github".to_string());
+    let dir_name = content
+        .cache_key()
+        .map(str::to_string)
+        .unwrap_or_else(|| content.name().to_string());
+    let cache_path = content.path().to_path_buf();
+    let manifest = content.manifest().clone();
 
     // ソース判定
     let source = determine_source_from_path(&cache_path, &marketplace, &dir_name);

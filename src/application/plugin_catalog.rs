@@ -226,7 +226,6 @@ impl Serialize for InstalledPlugin {
 }
 
 /// 手書き Serialize 用: components を kind 別にネストオブジェクトとしてシリアライズ。
-/// 内部的に `plugin_component_serde::serialize_components` へ委譲する。
 struct ComponentsByKind<'a>(&'a [Component]);
 
 impl Serialize for ComponentsByKind<'_> {
@@ -234,7 +233,24 @@ impl Serialize for ComponentsByKind<'_> {
     where
         S: Serializer,
     {
-        super::plugin_component_serde::serialize_components(self.0, serializer)
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(Some(5))?;
+        for (kind, key) in [
+            (ComponentKind::Skill, "skills"),
+            (ComponentKind::Agent, "agents"),
+            (ComponentKind::Command, "commands"),
+            (ComponentKind::Instruction, "instructions"),
+            (ComponentKind::Hook, "hooks"),
+        ] {
+            let names: Vec<&str> = self
+                .0
+                .iter()
+                .filter(|c| c.kind == kind)
+                .map(|c| c.name.as_str())
+                .collect();
+            map.serialize_entry(key, &names)?;
+        }
+        map.end()
     }
 }
 

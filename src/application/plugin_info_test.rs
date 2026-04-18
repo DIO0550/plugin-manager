@@ -1,5 +1,5 @@
 use super::*;
-use crate::plugin::PackageCache;
+use crate::plugin::{CachedPackage, PackageCache, PluginManifest};
 use std::fs;
 use std::path::Path;
 use tempfile::TempDir;
@@ -54,8 +54,8 @@ fn test_find_plugin_candidates_found() {
 
     let result = find_plugin_candidates(&cache, "my-plugin").unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].marketplace, "github");
-    assert_eq!(result[0].manifest.name, "my-plugin");
+    assert_eq!(result[0].marketplace().unwrap_or("github"), "github");
+    assert_eq!(result[0].manifest().name, "my-plugin");
 }
 
 #[test]
@@ -200,30 +200,36 @@ fn test_restore_github_repo_multiple_dashes() {
 // resolve_single_plugin tests
 // ========================================
 
-fn create_candidate(marketplace: &str, name: &str) -> PluginCandidate {
-    PluginCandidate {
-        marketplace: marketplace.to_string(),
-        dir_name: name.to_string(),
-        cache_path: PathBuf::from(format!("/cache/{}/{}", marketplace, name)),
-        manifest: PluginManifest {
-            name: name.to_string(),
-            version: "1.0.0".to_string(),
-            description: None,
-            author: None,
-            homepage: None,
-            repository: None,
-            license: None,
-            keywords: None,
-            commands: None,
-            agents: None,
-            skills: None,
-            instructions: None,
-            hooks: None,
-            mcp_servers: None,
-            lsp_servers: None,
-            installed_at: None,
-        },
-    }
+fn create_marketplace_content(marketplace: &str, name: &str) -> MarketplaceContent {
+    let manifest = PluginManifest {
+        name: name.to_string(),
+        version: "1.0.0".to_string(),
+        description: None,
+        author: None,
+        homepage: None,
+        repository: None,
+        license: None,
+        keywords: None,
+        commands: None,
+        agents: None,
+        skills: None,
+        instructions: None,
+        hooks: None,
+        mcp_servers: None,
+        lsp_servers: None,
+        installed_at: None,
+    };
+    let cached = CachedPackage {
+        name: name.to_string(),
+        cache_key: Some(name.to_string()),
+        marketplace: Some(marketplace.to_string()),
+        path: PathBuf::from(format!("/cache/{}/{}", marketplace, name)),
+        manifest,
+        git_ref: "unknown".to_string(),
+        commit_sha: "unknown".to_string(),
+        marketplace_manifest: None,
+    };
+    MarketplaceContent::from(cached)
 }
 
 #[test]
@@ -240,18 +246,18 @@ fn test_resolve_single_plugin_not_found() {
 
 #[test]
 fn test_resolve_single_plugin_one_match() {
-    let candidates = vec![create_candidate("github", "my-plugin")];
+    let candidates = vec![create_marketplace_content("github", "my-plugin")];
     let result = resolve_single_plugin(candidates, None, "my-plugin");
     assert!(result.is_ok());
     let resolved = result.unwrap();
-    assert_eq!(resolved.marketplace, "github");
+    assert_eq!(resolved.marketplace().unwrap_or("github"), "github");
 }
 
 #[test]
 fn test_resolve_single_plugin_multiple_ambiguous() {
     let candidates = vec![
-        create_candidate("marketplace-a", "common"),
-        create_candidate("marketplace-b", "common"),
+        create_marketplace_content("marketplace-a", "common"),
+        create_marketplace_content("marketplace-b", "common"),
     ];
     let result = resolve_single_plugin(candidates, None, "common");
     assert!(result.is_err());
@@ -267,18 +273,18 @@ fn test_resolve_single_plugin_multiple_ambiguous() {
 #[test]
 fn test_resolve_single_plugin_filtered_by_marketplace() {
     let candidates = vec![
-        create_candidate("marketplace-a", "common"),
-        create_candidate("marketplace-b", "common"),
+        create_marketplace_content("marketplace-a", "common"),
+        create_marketplace_content("marketplace-b", "common"),
     ];
     let result = resolve_single_plugin(candidates, Some("marketplace-a"), "common");
     assert!(result.is_ok());
     let resolved = result.unwrap();
-    assert_eq!(resolved.marketplace, "marketplace-a");
+    assert_eq!(resolved.marketplace().unwrap_or("github"), "marketplace-a");
 }
 
 #[test]
 fn test_resolve_single_plugin_filtered_not_found() {
-    let candidates = vec![create_candidate("marketplace-a", "common")];
+    let candidates = vec![create_marketplace_content("marketplace-a", "common")];
     let result = resolve_single_plugin(candidates, Some("marketplace-b"), "common");
     assert!(result.is_err());
     match result.unwrap_err() {
