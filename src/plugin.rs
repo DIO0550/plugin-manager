@@ -1,5 +1,6 @@
 mod cache;
 mod cached_package;
+mod installed;
 mod manifest;
 mod manifest_resolve;
 mod marketplace_content;
@@ -9,6 +10,7 @@ mod update;
 mod version;
 
 pub use cache::{CachedPackage, PackageCache, PackageCacheAccess};
+pub use installed::InstalledPlugin;
 pub use manifest::{Author, PluginManifest};
 
 /// cache_key フォールバック: cache_key が None なら name を返す
