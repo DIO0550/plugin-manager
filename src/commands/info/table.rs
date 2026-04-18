@@ -91,7 +91,8 @@ pub(super) fn render_table(info: &PluginInfo) -> String {
             .filter(|c| c.kind == kind)
             .map(|c| c.name.as_str())
             .collect();
-        comp_table.add_row(vec![label, &format_list(&names)]);
+        let formatted = format_list(&names);
+        comp_table.add_row(vec![label, formatted.as_str()]);
     }
 
     writeln!(out, "{comp_table}").unwrap();
@@ -111,10 +112,8 @@ pub(super) fn render_table(info: &PluginInfo) -> String {
         "disabled"
     };
     deploy_table.add_row(vec!["Status", status]);
-    deploy_table.add_row(vec![
-        "Cache Path",
-        &info.installed.cache_path().to_string_lossy(),
-    ]);
+    let cache_path = info.installed.cache_path().to_string_lossy().into_owned();
+    deploy_table.add_row(vec!["Cache Path", cache_path.as_str()]);
 
     writeln!(out, "{deploy_table}").unwrap();
 
