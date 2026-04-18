@@ -1,5 +1,7 @@
-use super::*;
-use crate::application::{AuthorInfo, PluginSource};
+use super::json::render_json;
+use super::table::{format_list, render_table};
+use super::yaml::render_yaml;
+use crate::application::{AuthorInfo, PluginDetail, PluginSource};
 use crate::component::{Component, ComponentKind};
 use std::path::PathBuf;
 
@@ -56,7 +58,7 @@ fn test_format_list_multiple() {
 #[test]
 fn test_json_serialization() {
     let detail = create_test_detail();
-    let json = serde_json::to_string_pretty(&detail).unwrap();
+    let json = render_json(&detail).unwrap();
 
     assert!(json.contains("\"name\": \"test-plugin\""));
     assert!(json.contains("\"version\": \"1.0.0\""));
@@ -79,7 +81,7 @@ fn test_json_serialization_no_author() {
     let mut detail = create_test_detail();
     detail.author = None;
 
-    let json = serde_json::to_string_pretty(&detail).unwrap();
+    let json = render_json(&detail).unwrap();
 
     assert!(!json.contains("\"author\""));
 }
@@ -87,7 +89,7 @@ fn test_json_serialization_no_author() {
 #[test]
 fn test_yaml_serialization() {
     let detail = create_test_detail();
-    let yaml = serde_yaml::to_string(&detail).unwrap();
+    let yaml = render_yaml(&detail).unwrap();
 
     assert!(yaml.contains("name: test-plugin"));
     assert!(yaml.contains("version: 1.0.0"));
