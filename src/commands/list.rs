@@ -61,6 +61,17 @@ pub async fn run(args: Args) -> Result<(), String> {
     Ok(())
 }
 
+/// 空のプラグイン一覧表示時のメッセージを出力する
+///
+/// simple / table / outdated の各フォーマットで共通利用。
+pub(super) fn print_empty_list(total_count: usize) {
+    let msg = match total_count {
+        0 => "No plugins installed",
+        _ => "No plugins matched",
+    };
+    println!("{msg}");
+}
+
 fn filter_plugins(plugins: Vec<InstalledPlugin>, args: &Args) -> Vec<InstalledPlugin> {
     plugins
         .into_iter()

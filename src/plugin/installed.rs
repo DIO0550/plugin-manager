@@ -73,11 +73,7 @@ impl InstalledPlugin {
             .iter()
             .filter_map(|&kind| {
                 let count = self.components().iter().filter(|c| c.kind == kind).count();
-                if count > 0 {
-                    Some((kind, count))
-                } else {
-                    None
-                }
+                (count > 0).then_some((kind, count))
             })
             .collect()
     }

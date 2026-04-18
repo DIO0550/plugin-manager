@@ -27,11 +27,7 @@ pub(super) async fn run_outdated(
     total_count: usize,
 ) -> Result<(), String> {
     if plugins.is_empty() {
-        if total_count == 0 {
-            println!("No plugins installed");
-        } else {
-            println!("No plugins matched");
-        }
+        super::print_empty_list(total_count);
         return Ok(());
     }
 
@@ -80,36 +76,9 @@ fn print_outdated_table(results: &[(&InstalledPlugin, UpgradeState)], total_coun
     let error_count = results.iter().filter(|(_, c)| c.is_unknown()).count();
 
     if with_updates.is_empty() {
-        if total_count == 0 {
-            println!("No plugins installed");
-        } else {
-            println!("All plugins are up to date");
-        }
+        print_no_updates_message(total_count);
     } else {
-        let mut table = Table::new();
-        table.load_preset(UTF8_FULL);
-        table.set_header(vec!["Name", "Version", "Current SHA", "Latest SHA"]);
-
-        with_updates.iter().for_each(|&&(plugin, ref check)| {
-            let current_sha = check
-                .current_sha()
-                .map(truncate_sha)
-                .unwrap_or_else(|| "unknown".to_string());
-            let latest_sha = check
-                .latest_sha()
-                .map(truncate_sha)
-                .unwrap_or_else(|| "-".to_string());
-
-            table.add_row(vec![
-                plugin.name(),
-                plugin.version(),
-                &current_sha,
-                &latest_sha,
-            ]);
-        });
-
-        println!("{table}");
-        println!("{} plugin(s) have updates available", with_updates.len());
+        print_updates_table(&with_updates);
     }
 
     if error_count > 0 {
@@ -120,12 +89,43 @@ fn print_outdated_table(results: &[(&InstalledPlugin, UpgradeState)], total_coun
     }
 }
 
-fn truncate_sha(sha: &str) -> String {
-    if sha.len() > 7 {
-        sha[..7].to_string()
-    } else {
-        sha.to_string()
+fn print_no_updates_message(total_count: usize) {
+    let msg = match total_count {
+        0 => "No plugins installed",
+        _ => "All plugins are up to date",
+    };
+    println!("{msg}");
+}
+
+fn print_updates_table(with_updates: &[&(&InstalledPlugin, UpgradeState)]) {
+    let mut table = Table::new();
+    table.load_preset(UTF8_FULL);
+    table.set_header(vec!["Name", "Version", "Current SHA", "Latest SHA"]);
+
+    for &(plugin, ref check) in with_updates {
+        let current_sha = check
+            .current_sha()
+            .map(truncate_sha)
+            .unwrap_or_else(|| "unknown".to_string());
+        let latest_sha = check
+            .latest_sha()
+            .map(truncate_sha)
+            .unwrap_or_else(|| "-".to_string());
+
+        table.add_row(vec![
+            plugin.name(),
+            plugin.version(),
+            &current_sha,
+            &latest_sha,
+        ]);
     }
+
+    println!("{table}");
+    println!("{} plugin(s) have updates available", with_updates.len());
+}
+
+fn truncate_sha(sha: &str) -> String {
+    sha.get(..7).unwrap_or(sha).to_string()
 }
 
 #[cfg(test)]

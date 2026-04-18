@@ -5,11 +5,7 @@ use comfy_table::{presets::UTF8_FULL, Table};
 
 pub(super) fn print_table(plugins: &[InstalledPlugin], total_count: usize) {
     if plugins.is_empty() {
-        if total_count == 0 {
-            println!("No plugins installed");
-        } else {
-            println!("No plugins matched");
-        }
+        super::print_empty_list(total_count);
         return;
     }
 
