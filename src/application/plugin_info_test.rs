@@ -1,5 +1,5 @@
 use super::*;
-use crate::plugin::PackageCache;
+use crate::plugin::{CachedPackage, PackageCache, PluginManifest};
 use std::fs;
 use std::path::Path;
 use tempfile::TempDir;
@@ -10,13 +10,23 @@ fn create_test_cache() -> (TempDir, PackageCache) {
     (temp_dir, cache)
 }
 
-/// tempdir cache 内にプラグインフィクスチャを作成
-fn setup_plugin_fixture(cache_dir: &Path, marketplace: &str, name: &str, version: &str) {
+/// tempdir cache 内に manifest を書き出す
+fn write_plugin_manifest(cache_dir: &Path, marketplace: &str, manifest: serde_json::Value) {
+    let name = manifest["name"]
+        .as_str()
+        .expect("manifest must have a string `name` field");
     let plugin_dir = cache_dir.join(marketplace).join(name);
     fs::create_dir_all(&plugin_dir).unwrap();
+    fs::write(plugin_dir.join("plugin.json"), manifest.to_string()).unwrap();
+}
 
-    let manifest = format!(r#"{{"name":"{}","version":"{}"}}"#, name, version);
-    fs::write(plugin_dir.join("plugin.json"), manifest).unwrap();
+/// name + version のみの最小 manifest を書き出す
+fn write_minimal_plugin(cache_dir: &Path, marketplace: &str, name: &str, version: &str) {
+    write_plugin_manifest(
+        cache_dir,
+        marketplace,
+        serde_json::json!({ "name": name, "version": version }),
+    );
 }
 
 // ========================================
@@ -33,19 +43,19 @@ fn test_find_plugin_candidates_empty_cache() {
 #[test]
 fn test_find_plugin_candidates_found() {
     let (temp_dir, cache) = create_test_cache();
-    setup_plugin_fixture(temp_dir.path(), "github", "my-plugin", "1.0.0");
+    write_minimal_plugin(temp_dir.path(), "github", "my-plugin", "1.0.0");
 
     let result = find_plugin_candidates(&cache, "my-plugin").unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].marketplace, "github");
-    assert_eq!(result[0].manifest.name, "my-plugin");
+    assert_eq!(result[0].marketplace().unwrap_or("github"), "github");
+    assert_eq!(result[0].manifest().name, "my-plugin");
 }
 
 #[test]
 fn test_find_plugin_candidates_multiple_marketplaces() {
     let (temp_dir, cache) = create_test_cache();
-    setup_plugin_fixture(temp_dir.path(), "github", "common-plugin", "1.0.0");
-    setup_plugin_fixture(temp_dir.path(), "my-market", "common-plugin", "2.0.0");
+    write_minimal_plugin(temp_dir.path(), "github", "common-plugin", "1.0.0");
+    write_minimal_plugin(temp_dir.path(), "my-market", "common-plugin", "2.0.0");
 
     let result = find_plugin_candidates(&cache, "common-plugin").unwrap();
     assert_eq!(result.len(), 2);
@@ -58,11 +68,11 @@ fn test_find_plugin_candidates_multiple_marketplaces() {
 #[test]
 fn test_get_plugin_info_found() {
     let (temp_dir, cache) = create_test_cache();
-    setup_plugin_fixture(temp_dir.path(), "github", "test-plugin", "1.2.3");
+    write_minimal_plugin(temp_dir.path(), "github", "test-plugin", "1.2.3");
 
     let result = get_plugin_info(&cache, "test-plugin").unwrap();
-    assert_eq!(result.name, "test-plugin");
-    assert_eq!(result.version, "1.2.3");
+    assert_eq!(result.installed.name(), "test-plugin");
+    assert_eq!(result.installed.version(), "1.2.3");
 }
 
 #[test]
@@ -73,12 +83,29 @@ fn test_get_plugin_info_not_found() {
 }
 
 #[test]
+fn get_plugin_info_normalizes_empty_author_name_to_none() {
+    let (temp_dir, cache) = create_test_cache();
+    write_plugin_manifest(
+        temp_dir.path(),
+        "github",
+        serde_json::json!({
+            "name": "empty-author-plugin",
+            "version": "1.0.0",
+            "author": { "name": "" },
+        }),
+    );
+
+    let result = get_plugin_info(&cache, "empty-author-plugin").unwrap();
+    assert!(result.installed.author().is_none());
+}
+
+#[test]
 fn test_get_plugin_info_with_marketplace_prefix() {
     let (temp_dir, cache) = create_test_cache();
-    setup_plugin_fixture(temp_dir.path(), "my-market", "my-plugin", "1.0.0");
+    write_minimal_plugin(temp_dir.path(), "my-market", "my-plugin", "1.0.0");
 
     let result = get_plugin_info(&cache, "my-market/my-plugin").unwrap();
-    assert_eq!(result.name, "my-plugin");
+    assert_eq!(result.installed.name(), "my-plugin");
 }
 
 // ========================================
@@ -174,30 +201,36 @@ fn test_restore_github_repo_multiple_dashes() {
 // resolve_single_plugin tests
 // ========================================
 
-fn create_candidate(marketplace: &str, name: &str) -> PluginCandidate {
-    PluginCandidate {
-        marketplace: marketplace.to_string(),
-        dir_name: name.to_string(),
-        cache_path: PathBuf::from(format!("/cache/{}/{}", marketplace, name)),
-        manifest: PluginManifest {
-            name: name.to_string(),
-            version: "1.0.0".to_string(),
-            description: None,
-            author: None,
-            homepage: None,
-            repository: None,
-            license: None,
-            keywords: None,
-            commands: None,
-            agents: None,
-            skills: None,
-            instructions: None,
-            hooks: None,
-            mcp_servers: None,
-            lsp_servers: None,
-            installed_at: None,
-        },
-    }
+fn create_marketplace_content(marketplace: &str, name: &str) -> MarketplaceContent {
+    let manifest = PluginManifest {
+        name: name.to_string(),
+        version: "1.0.0".to_string(),
+        description: None,
+        author: None,
+        homepage: None,
+        repository: None,
+        license: None,
+        keywords: None,
+        commands: None,
+        agents: None,
+        skills: None,
+        instructions: None,
+        hooks: None,
+        mcp_servers: None,
+        lsp_servers: None,
+        installed_at: None,
+    };
+    let cached = CachedPackage {
+        name: name.to_string(),
+        cache_key: Some(name.to_string()),
+        marketplace: Some(marketplace.to_string()),
+        path: PathBuf::from(format!("/cache/{}/{}", marketplace, name)),
+        manifest,
+        git_ref: "unknown".to_string(),
+        commit_sha: "unknown".to_string(),
+        marketplace_manifest: None,
+    };
+    MarketplaceContent::from(cached)
 }
 
 #[test]
@@ -214,18 +247,18 @@ fn test_resolve_single_plugin_not_found() {
 
 #[test]
 fn test_resolve_single_plugin_one_match() {
-    let candidates = vec![create_candidate("github", "my-plugin")];
+    let candidates = vec![create_marketplace_content("github", "my-plugin")];
     let result = resolve_single_plugin(candidates, None, "my-plugin");
     assert!(result.is_ok());
     let resolved = result.unwrap();
-    assert_eq!(resolved.marketplace, "github");
+    assert_eq!(resolved.marketplace().unwrap_or("github"), "github");
 }
 
 #[test]
 fn test_resolve_single_plugin_multiple_ambiguous() {
     let candidates = vec![
-        create_candidate("marketplace-a", "common"),
-        create_candidate("marketplace-b", "common"),
+        create_marketplace_content("marketplace-a", "common"),
+        create_marketplace_content("marketplace-b", "common"),
     ];
     let result = resolve_single_plugin(candidates, None, "common");
     assert!(result.is_err());
@@ -241,18 +274,18 @@ fn test_resolve_single_plugin_multiple_ambiguous() {
 #[test]
 fn test_resolve_single_plugin_filtered_by_marketplace() {
     let candidates = vec![
-        create_candidate("marketplace-a", "common"),
-        create_candidate("marketplace-b", "common"),
+        create_marketplace_content("marketplace-a", "common"),
+        create_marketplace_content("marketplace-b", "common"),
     ];
     let result = resolve_single_plugin(candidates, Some("marketplace-a"), "common");
     assert!(result.is_ok());
     let resolved = result.unwrap();
-    assert_eq!(resolved.marketplace, "marketplace-a");
+    assert_eq!(resolved.marketplace().unwrap_or("github"), "marketplace-a");
 }
 
 #[test]
 fn test_resolve_single_plugin_filtered_not_found() {
-    let candidates = vec![create_candidate("marketplace-a", "common")];
+    let candidates = vec![create_marketplace_content("marketplace-a", "common")];
     let result = resolve_single_plugin(candidates, Some("marketplace-b"), "common");
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -264,15 +297,14 @@ fn test_resolve_single_plugin_filtered_not_found() {
 }
 
 // ========================================
-// determine_source_from_path tests
+// determine_source tests
 // ========================================
 
 #[test]
 fn test_determine_source_github() {
-    let path = PathBuf::from("/cache/github/owner--repo");
-    let source = determine_source_from_path(&path, "github", "owner--repo");
+    let source = determine_source("github", "owner--repo");
     match source {
-        PluginSource::GitHub { repository } => {
+        Source::GitHub { repository } => {
             assert_eq!(repository, "owner/repo");
         }
         _ => panic!("Expected GitHub source"),
@@ -281,10 +313,9 @@ fn test_determine_source_github() {
 
 #[test]
 fn test_determine_source_marketplace() {
-    let path = PathBuf::from("/cache/awesome-plugins/my-plugin");
-    let source = determine_source_from_path(&path, "awesome-plugins", "my-plugin");
+    let source = determine_source("awesome-plugins", "my-plugin");
     match source {
-        PluginSource::Marketplace { name } => {
+        Source::Marketplace { name } => {
             assert_eq!(name, "awesome-plugins");
         }
         _ => panic!("Expected Marketplace source"),

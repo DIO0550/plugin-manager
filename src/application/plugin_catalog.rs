@@ -4,7 +4,7 @@
 
 use crate::component::{Component, ComponentKind, Scope};
 use crate::error::Result;
-use crate::plugin::{meta, MarketplaceContent, PackageCacheAccess, Plugin};
+use crate::plugin::{meta, Author, MarketplaceContent, PackageCacheAccess, Plugin};
 use crate::scan::list_placed_plugins;
 use crate::target::all_targets;
 use serde::ser::SerializeStruct;
@@ -54,6 +54,21 @@ pub struct InstalledPlugin {
 }
 
 impl InstalledPlugin {
+    /// application 層内部用のコンストラクタ
+    pub(super) fn new(
+        plugin: Plugin,
+        install_id: Option<String>,
+        marketplace: Option<String>,
+        enabled: bool,
+    ) -> Self {
+        Self {
+            plugin,
+            install_id,
+            marketplace,
+            enabled,
+        }
+    }
+
     /// プラグイン名
     pub fn name(&self) -> &str {
         self.plugin.name()
@@ -113,6 +128,26 @@ impl InstalledPlugin {
             .collect()
     }
 
+    /// プラグインの説明文
+    pub fn description(&self) -> Option<&str> {
+        self.plugin.manifest().description.as_deref()
+    }
+
+    /// 作者情報を返す。
+    /// 空 name の author は `None` として扱う（正規化責務をここに集約）。
+    pub fn author(&self) -> Option<&Author> {
+        self.plugin
+            .manifest()
+            .author
+            .as_ref()
+            .filter(|a| !a.name.is_empty())
+    }
+
+    /// キャッシュ上のプラグインパス
+    pub fn cache_path(&self) -> &Path {
+        self.plugin.path()
+    }
+
     /// テスト専用: FS スキャンをバイパスして InstalledPlugin を構築する
     #[cfg(test)]
     pub(crate) fn new_for_test(
@@ -150,6 +185,26 @@ impl InstalledPlugin {
             enabled,
         }
     }
+
+    /// テスト専用: 任意の manifest / cache_path を指定して InstalledPlugin を構築する
+    #[cfg(test)]
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn new_for_test_full(
+        manifest: crate::plugin::PluginManifest,
+        cache_path: PathBuf,
+        components: Vec<Component>,
+        install_id: Option<String>,
+        marketplace: Option<String>,
+        enabled: bool,
+    ) -> Self {
+        let plugin = Plugin::new_for_test(manifest, cache_path, components);
+        Self {
+            plugin,
+            install_id,
+            marketplace,
+            enabled,
+        }
+    }
 }
 
 impl Serialize for InstalledPlugin {
@@ -172,7 +227,6 @@ impl Serialize for InstalledPlugin {
 }
 
 /// 手書き Serialize 用: components を kind 別にネストオブジェクトとしてシリアライズ。
-/// 内部的に `plugin_component_serde::serialize_components` へ委譲する。
 struct ComponentsByKind<'a>(&'a [Component]);
 
 impl Serialize for ComponentsByKind<'_> {
@@ -180,7 +234,24 @@ impl Serialize for ComponentsByKind<'_> {
     where
         S: Serializer,
     {
-        super::plugin_component_serde::serialize_components(self.0, serializer)
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(Some(5))?;
+        for (kind, key) in [
+            (ComponentKind::Skill, "skills"),
+            (ComponentKind::Agent, "agents"),
+            (ComponentKind::Command, "commands"),
+            (ComponentKind::Instruction, "instructions"),
+            (ComponentKind::Hook, "hooks"),
+        ] {
+            let names: Vec<&str> = self
+                .0
+                .iter()
+                .filter(|c| c.kind == kind)
+                .map(|c| c.name.as_str())
+                .collect();
+            map.serialize_entry(key, &names)?;
+        }
+        map.end()
     }
 }
 
