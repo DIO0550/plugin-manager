@@ -1,7 +1,7 @@
 //! `--outdated` 出力フォーマット
 //!
 //! `render_outdated_json` は HostClient に依存しない純粋 render 関数。
-//! live ネットワーク呼び出しを含む `run` の実装は module root 側。
+//! live ネットワーク呼び出しを含む `run_outdated` の実装はこのファイルにある。
 
 use super::wire::OutdatedWire;
 use crate::host::{HostClientFactory, HostKind};
