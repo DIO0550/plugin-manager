@@ -188,6 +188,7 @@ impl InstalledPlugin {
 
     /// テスト専用: 任意の manifest / cache_path を指定して InstalledPlugin を構築する
     #[cfg(test)]
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new_for_test_full(
         manifest: crate::plugin::PluginManifest,
         cache_path: PathBuf,
