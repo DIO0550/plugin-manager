@@ -5,7 +5,6 @@ use crate::component::{Component, ComponentKind};
 use crate::plugin::Author;
 use serde::ser::SerializeMap;
 use serde::{Serialize, Serializer};
-use std::path::Path;
 
 #[derive(Serialize)]
 struct Wire<'a> {
@@ -20,7 +19,7 @@ struct Wire<'a> {
     source: WireSource<'a>,
     components: WireComponents<'a>,
     enabled: bool,
-    cache_path: &'a Path,
+    cache_path: String,
 }
 
 #[derive(Serialize)]
@@ -96,7 +95,7 @@ impl<'a> From<&'a PluginInfo> for Wire<'a> {
             source: WireSource::from(&info.source),
             components: WireComponents(info.installed.components()),
             enabled: info.installed.enabled(),
-            cache_path: info.installed.cache_path(),
+            cache_path: info.installed.cache_path().to_string_lossy().into_owned(),
         }
     }
 }
