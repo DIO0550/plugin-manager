@@ -99,29 +99,28 @@ fn print_no_updates_message(total_count: usize) {
 
 fn print_updates_table(with_updates: &[&(&InstalledPlugin, UpgradeState)]) {
     let mut table = Table::new();
-    table.load_preset(UTF8_FULL);
-    table.set_header(vec!["Name", "Version", "Current SHA", "Latest SHA"]);
-
-    for &(plugin, ref check) in with_updates {
-        let current_sha = check
-            .current_sha()
-            .map(truncate_sha)
-            .unwrap_or_else(|| "unknown".to_string());
-        let latest_sha = check
-            .latest_sha()
-            .map(truncate_sha)
-            .unwrap_or_else(|| "-".to_string());
-
-        table.add_row(vec![
-            plugin.name(),
-            plugin.version(),
-            &current_sha,
-            &latest_sha,
-        ]);
-    }
+    table
+        .load_preset(UTF8_FULL)
+        .set_header(vec!["Name", "Version", "Current SHA", "Latest SHA"])
+        .add_rows(with_updates.iter().copied().map(update_row));
 
     println!("{table}");
     println!("{} plugin(s) have updates available", with_updates.len());
+}
+
+fn update_row((plugin, check): &(&InstalledPlugin, UpgradeState)) -> Vec<String> {
+    vec![
+        plugin.name().to_string(),
+        plugin.version().to_string(),
+        check
+            .current_sha()
+            .map(truncate_sha)
+            .unwrap_or_else(|| "unknown".to_string()),
+        check
+            .latest_sha()
+            .map(truncate_sha)
+            .unwrap_or_else(|| "-".to_string()),
+    ]
 }
 
 fn truncate_sha(sha: &str) -> String {
