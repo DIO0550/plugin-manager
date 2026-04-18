@@ -11,7 +11,7 @@ fn create_test_cache() -> (TempDir, PackageCache) {
 }
 
 /// tempdir cache 内に manifest を書き出す
-fn setup_plugin_manifest(cache_dir: &Path, marketplace: &str, manifest: serde_json::Value) {
+fn write_plugin_manifest(cache_dir: &Path, marketplace: &str, manifest: serde_json::Value) {
     let name = manifest["name"]
         .as_str()
         .expect("manifest must have a string `name` field");
@@ -21,8 +21,8 @@ fn setup_plugin_manifest(cache_dir: &Path, marketplace: &str, manifest: serde_js
 }
 
 /// name + version のみの最小 manifest を書き出す
-fn setup_plugin_fixture(cache_dir: &Path, marketplace: &str, name: &str, version: &str) {
-    setup_plugin_manifest(
+fn write_minimal_plugin(cache_dir: &Path, marketplace: &str, name: &str, version: &str) {
+    write_plugin_manifest(
         cache_dir,
         marketplace,
         serde_json::json!({ "name": name, "version": version }),
@@ -43,7 +43,7 @@ fn test_find_plugin_candidates_empty_cache() {
 #[test]
 fn test_find_plugin_candidates_found() {
     let (temp_dir, cache) = create_test_cache();
-    setup_plugin_fixture(temp_dir.path(), "github", "my-plugin", "1.0.0");
+    write_minimal_plugin(temp_dir.path(), "github", "my-plugin", "1.0.0");
 
     let result = find_plugin_candidates(&cache, "my-plugin").unwrap();
     assert_eq!(result.len(), 1);
@@ -54,8 +54,8 @@ fn test_find_plugin_candidates_found() {
 #[test]
 fn test_find_plugin_candidates_multiple_marketplaces() {
     let (temp_dir, cache) = create_test_cache();
-    setup_plugin_fixture(temp_dir.path(), "github", "common-plugin", "1.0.0");
-    setup_plugin_fixture(temp_dir.path(), "my-market", "common-plugin", "2.0.0");
+    write_minimal_plugin(temp_dir.path(), "github", "common-plugin", "1.0.0");
+    write_minimal_plugin(temp_dir.path(), "my-market", "common-plugin", "2.0.0");
 
     let result = find_plugin_candidates(&cache, "common-plugin").unwrap();
     assert_eq!(result.len(), 2);
@@ -68,7 +68,7 @@ fn test_find_plugin_candidates_multiple_marketplaces() {
 #[test]
 fn test_get_plugin_info_found() {
     let (temp_dir, cache) = create_test_cache();
-    setup_plugin_fixture(temp_dir.path(), "github", "test-plugin", "1.2.3");
+    write_minimal_plugin(temp_dir.path(), "github", "test-plugin", "1.2.3");
 
     let result = get_plugin_info(&cache, "test-plugin").unwrap();
     assert_eq!(result.installed.name(), "test-plugin");
@@ -85,7 +85,7 @@ fn test_get_plugin_info_not_found() {
 #[test]
 fn get_plugin_info_normalizes_empty_author_name_to_none() {
     let (temp_dir, cache) = create_test_cache();
-    setup_plugin_manifest(
+    write_plugin_manifest(
         temp_dir.path(),
         "github",
         serde_json::json!({
@@ -102,7 +102,7 @@ fn get_plugin_info_normalizes_empty_author_name_to_none() {
 #[test]
 fn test_get_plugin_info_with_marketplace_prefix() {
     let (temp_dir, cache) = create_test_cache();
-    setup_plugin_fixture(temp_dir.path(), "my-market", "my-plugin", "1.0.0");
+    write_minimal_plugin(temp_dir.path(), "my-market", "my-plugin", "1.0.0");
 
     let result = get_plugin_info(&cache, "my-market/my-plugin").unwrap();
     assert_eq!(result.installed.name(), "my-plugin");
