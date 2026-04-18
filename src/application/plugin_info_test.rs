@@ -10,30 +10,23 @@ fn create_test_cache() -> (TempDir, PackageCache) {
     (temp_dir, cache)
 }
 
-/// tempdir cache 内にプラグインフィクスチャを作成
-fn setup_plugin_fixture(cache_dir: &Path, marketplace: &str, name: &str, version: &str) {
+/// tempdir cache 内に manifest を書き出す
+fn setup_plugin_manifest(cache_dir: &Path, marketplace: &str, manifest: serde_json::Value) {
+    let name = manifest["name"]
+        .as_str()
+        .expect("manifest must have a string `name` field");
     let plugin_dir = cache_dir.join(marketplace).join(name);
     fs::create_dir_all(&plugin_dir).unwrap();
-
-    let manifest = format!(r#"{{"name":"{}","version":"{}"}}"#, name, version);
-    fs::write(plugin_dir.join("plugin.json"), manifest).unwrap();
+    fs::write(plugin_dir.join("plugin.json"), manifest.to_string()).unwrap();
 }
 
-/// 任意の author を持つプラグインフィクスチャを作成
-fn setup_plugin_fixture_with_author(
-    cache_dir: &Path,
-    marketplace: &str,
-    name: &str,
-    author_name: &str,
-) {
-    let plugin_dir = cache_dir.join(marketplace).join(name);
-    fs::create_dir_all(&plugin_dir).unwrap();
-
-    let manifest = format!(
-        r#"{{"name":"{}","version":"1.0.0","author":{{"name":"{}"}}}}"#,
-        name, author_name
+/// name + version のみの最小 manifest を書き出す
+fn setup_plugin_fixture(cache_dir: &Path, marketplace: &str, name: &str, version: &str) {
+    setup_plugin_manifest(
+        cache_dir,
+        marketplace,
+        serde_json::json!({ "name": name, "version": version }),
     );
-    fs::write(plugin_dir.join("plugin.json"), manifest).unwrap();
 }
 
 // ========================================
@@ -92,7 +85,15 @@ fn test_get_plugin_info_not_found() {
 #[test]
 fn get_plugin_info_normalizes_empty_author_name_to_none() {
     let (temp_dir, cache) = create_test_cache();
-    setup_plugin_fixture_with_author(temp_dir.path(), "github", "empty-author-plugin", "");
+    setup_plugin_manifest(
+        temp_dir.path(),
+        "github",
+        serde_json::json!({
+            "name": "empty-author-plugin",
+            "version": "1.0.0",
+            "author": { "name": "" },
+        }),
+    );
 
     let result = get_plugin_info(&cache, "empty-author-plugin").unwrap();
     assert!(result.installed.author().is_none());
