@@ -2,9 +2,9 @@
 //!
 //! 特定のプラグインの詳細情報を取得するユースケースを提供する。
 
-use super::plugin_catalog::{list_all_placed, list_installed, InstalledPlugin};
+use super::plugin_catalog::{list_all_placed, list_installed};
 use crate::error::{PlmError, Result};
-use crate::plugin::{meta, MarketplaceContent, PackageCacheAccess, Plugin};
+use crate::plugin::{meta, InstalledPlugin, MarketplaceContent, PackageCacheAccess, Plugin};
 use std::path::{Path, PathBuf};
 
 /// プラグイン詳細情報（composition）
@@ -196,7 +196,8 @@ fn build_plugin_info(content: MarketplaceContent) -> Result<PluginInfo> {
     // InstalledPlugin を組み立てる（list_installed_plugins と同じく marketplace は Option<String> を保つ）
     let install_id = Some(dir_name);
     let plugin = Plugin::new(manifest, cache_path);
-    let installed = InstalledPlugin::new(plugin, install_id, marketplace_opt, enabled);
+    let installed =
+        InstalledPlugin::from_cached_package(plugin, install_id, marketplace_opt, enabled);
 
     Ok(PluginInfo {
         installed,
