@@ -1,11 +1,11 @@
 //! Table 出力フォーマット
 
-use crate::application::{PluginDetail, PluginSource};
+use crate::application::{PluginInfo, Source};
 use crate::component::ComponentKind;
 use comfy_table::{presets::UTF8_FULL, Table};
 use std::fmt::Write;
 
-pub(super) fn render_table(detail: &PluginDetail) -> String {
+pub(super) fn render_table(info: &PluginInfo) -> String {
     let mut out = String::new();
 
     // 基本情報
@@ -17,18 +17,18 @@ pub(super) fn render_table(detail: &PluginDetail) -> String {
     table.load_preset(UTF8_FULL);
     table.set_header(vec!["Field", "Value"]);
 
-    table.add_row(vec!["Name", &detail.name]);
-    table.add_row(vec!["Version", &detail.version]);
+    table.add_row(vec!["Name", info.installed.name()]);
+    table.add_row(vec!["Version", info.installed.version()]);
     table.add_row(vec![
         "Description",
-        detail.description.as_deref().unwrap_or("-"),
+        info.installed.description().unwrap_or("-"),
     ]);
 
     writeln!(out, "{table}").unwrap();
     writeln!(out).unwrap();
 
     // 作者情報
-    if let Some(author) = &detail.author {
+    if let Some(author) = info.installed.author() {
         writeln!(out, "Author").unwrap();
         writeln!(out, "------").unwrap();
 
@@ -58,12 +58,12 @@ pub(super) fn render_table(detail: &PluginDetail) -> String {
 
     install_table.add_row(vec![
         "Installed At",
-        detail.installed_at.as_deref().unwrap_or("N/A"),
+        info.installed_at.as_deref().unwrap_or("N/A"),
     ]);
 
-    let source_str = match &detail.source {
-        PluginSource::GitHub { repository } => format!("GitHub ({})", repository),
-        PluginSource::Marketplace { name } => format!("Marketplace ({})", name),
+    let source_str = match &info.source {
+        Source::GitHub { repository } => format!("GitHub ({})", repository),
+        Source::Marketplace { name } => format!("Marketplace ({})", name),
     };
     install_table.add_row(vec!["Source", &source_str]);
 
@@ -78,6 +78,7 @@ pub(super) fn render_table(detail: &PluginDetail) -> String {
     comp_table.load_preset(UTF8_FULL);
     comp_table.set_header(vec!["Type", "Items"]);
 
+    let components = info.installed.components();
     for (kind, label) in [
         (ComponentKind::Skill, "Skills"),
         (ComponentKind::Agent, "Agents"),
@@ -85,8 +86,7 @@ pub(super) fn render_table(detail: &PluginDetail) -> String {
         (ComponentKind::Instruction, "Instructions"),
         (ComponentKind::Hook, "Hooks"),
     ] {
-        let names: Vec<&str> = detail
-            .components
+        let names: Vec<&str> = components
             .iter()
             .filter(|c| c.kind == kind)
             .map(|c| c.name.as_str())
@@ -105,21 +105,24 @@ pub(super) fn render_table(detail: &PluginDetail) -> String {
     deploy_table.load_preset(UTF8_FULL);
     deploy_table.set_header(vec!["Field", "Value"]);
 
-    let status = if detail.enabled {
+    let status = if info.installed.enabled() {
         "enabled"
     } else {
         "disabled"
     };
     deploy_table.add_row(vec!["Status", status]);
-    deploy_table.add_row(vec!["Cache Path", &detail.cache_path]);
+    deploy_table.add_row(vec![
+        "Cache Path",
+        &info.installed.cache_path().to_string_lossy(),
+    ]);
 
     writeln!(out, "{deploy_table}").unwrap();
 
     out
 }
 
-pub(super) fn print_table(detail: &PluginDetail) {
-    print!("{}", render_table(detail));
+pub(super) fn print_table(info: &PluginInfo) {
+    print!("{}", render_table(info));
 }
 
 pub(super) fn format_list(items: &[&str]) -> String {

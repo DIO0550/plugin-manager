@@ -268,3 +268,58 @@ fn test_component_names_empty() {
         assert!(names.is_empty(), "{:?} should be empty", kind);
     }
 }
+
+// ========================================
+// InstalledPlugin::author() tests
+// ========================================
+
+fn installed_plugin_with_author(author: Option<Author>) -> InstalledPlugin {
+    use crate::plugin::PluginManifest;
+    let manifest = PluginManifest {
+        name: "author-test".to_string(),
+        version: "1.0.0".to_string(),
+        description: None,
+        author,
+        homepage: None,
+        repository: None,
+        license: None,
+        keywords: None,
+        commands: None,
+        agents: None,
+        skills: None,
+        instructions: None,
+        hooks: None,
+        mcp_servers: None,
+        lsp_servers: None,
+        installed_at: None,
+    };
+    let plugin = Plugin::new_for_test(manifest, PathBuf::from("/test"), Vec::new());
+    InstalledPlugin {
+        plugin,
+        install_id: None,
+        marketplace: None,
+        enabled: false,
+    }
+}
+
+#[test]
+fn author_returns_some_when_name_is_non_empty() {
+    let summary = installed_plugin_with_author(Some(Author {
+        name: "alice".to_string(),
+        email: None,
+        url: None,
+    }));
+    let author = summary.author();
+    assert!(author.is_some());
+    assert_eq!(author.unwrap().name, "alice");
+}
+
+#[test]
+fn author_returns_none_when_name_is_empty() {
+    let summary = installed_plugin_with_author(Some(Author {
+        name: String::new(),
+        email: None,
+        url: None,
+    }));
+    assert!(summary.author().is_none());
+}

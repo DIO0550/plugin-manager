@@ -78,8 +78,8 @@ fn test_get_plugin_info_found() {
     setup_plugin_fixture(temp_dir.path(), "github", "test-plugin", "1.2.3");
 
     let result = get_plugin_info(&cache, "test-plugin").unwrap();
-    assert_eq!(result.name, "test-plugin");
-    assert_eq!(result.version, "1.2.3");
+    assert_eq!(result.installed.name(), "test-plugin");
+    assert_eq!(result.installed.version(), "1.2.3");
 }
 
 #[test]
@@ -95,7 +95,7 @@ fn get_plugin_info_normalizes_empty_author_name_to_none() {
     setup_plugin_fixture_with_author(temp_dir.path(), "github", "empty-author-plugin", "");
 
     let result = get_plugin_info(&cache, "empty-author-plugin").unwrap();
-    assert!(result.author.is_none());
+    assert!(result.installed.author().is_none());
 }
 
 #[test]
@@ -104,7 +104,7 @@ fn test_get_plugin_info_with_marketplace_prefix() {
     setup_plugin_fixture(temp_dir.path(), "my-market", "my-plugin", "1.0.0");
 
     let result = get_plugin_info(&cache, "my-market/my-plugin").unwrap();
-    assert_eq!(result.name, "my-plugin");
+    assert_eq!(result.installed.name(), "my-plugin");
 }
 
 // ========================================
@@ -298,7 +298,7 @@ fn test_determine_source_github() {
     let path = PathBuf::from("/cache/github/owner--repo");
     let source = determine_source_from_path(&path, "github", "owner--repo");
     match source {
-        PluginSource::GitHub { repository } => {
+        Source::GitHub { repository } => {
             assert_eq!(repository, "owner/repo");
         }
         _ => panic!("Expected GitHub source"),
@@ -310,7 +310,7 @@ fn test_determine_source_marketplace() {
     let path = PathBuf::from("/cache/awesome-plugins/my-plugin");
     let source = determine_source_from_path(&path, "awesome-plugins", "my-plugin");
     match source {
-        PluginSource::Marketplace { name } => {
+        Source::Marketplace { name } => {
             assert_eq!(name, "awesome-plugins");
         }
         _ => panic!("Expected Marketplace source"),
