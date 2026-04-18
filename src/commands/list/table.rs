@@ -10,34 +10,36 @@ pub(super) fn print_table(plugins: &[InstalledPlugin], total_count: usize) {
     }
 
     let mut table = Table::new();
-    table.load_preset(UTF8_FULL);
-    table.set_header(vec![
-        "Name",
-        "Version",
-        "Components",
-        "Status",
-        "Marketplace",
-    ]);
-
-    for plugin in plugins {
-        let status = if plugin.enabled() {
-            "enabled"
-        } else {
-            "disabled"
-        };
-        let marketplace = plugin.marketplace().unwrap_or("-");
-        let components = format_components(plugin);
-
-        table.add_row(vec![
-            plugin.name(),
-            plugin.version(),
-            components.as_str(),
-            status,
-            marketplace,
-        ]);
-    }
+    table
+        .load_preset(UTF8_FULL)
+        .set_header(vec![
+            "Name",
+            "Version",
+            "Components",
+            "Status",
+            "Marketplace",
+        ])
+        .add_rows(plugins.iter().map(plugin_row));
 
     println!("{table}");
+}
+
+fn plugin_row(plugin: &InstalledPlugin) -> Vec<String> {
+    vec![
+        plugin.name().to_string(),
+        plugin.version().to_string(),
+        format_components(plugin),
+        status_label(plugin.enabled()).to_string(),
+        plugin.marketplace().unwrap_or("-").to_string(),
+    ]
+}
+
+fn status_label(enabled: bool) -> &'static str {
+    if enabled {
+        "enabled"
+    } else {
+        "disabled"
+    }
 }
 
 pub(super) fn format_components(plugin: &InstalledPlugin) -> String {
