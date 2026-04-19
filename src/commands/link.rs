@@ -140,13 +140,14 @@ pub(crate) fn absolutize(path: &Path) -> PathBuf {
 
 /// Compute a relative path from `dest_parent` to `src`.
 ///
-/// Both `src` and `dest_parent` must be absolute paths. The result is a
-/// relative path that, when resolved from `dest_parent`, points to `src`.
+/// Both `src` and `dest_parent` are assumed to be absolute paths; behavior with
+/// relative paths is unspecified. The result is a relative path that, when
+/// resolved from `dest_parent`, points to `src`.
 ///
 /// # Arguments
 ///
-/// * `src` - Absolute path to the file the symlink should target.
-/// * `dest_parent` - Absolute directory that contains the symlink.
+/// * `src` - Path the symlink should target. Assumed to be absolute.
+/// * `dest_parent` - Directory that contains the symlink. Assumed to be absolute.
 ///
 /// # Examples
 ///
