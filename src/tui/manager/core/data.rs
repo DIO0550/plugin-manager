@@ -9,7 +9,7 @@ use crate::marketplace::{to_display_source, MarketplaceConfig, MarketplaceRegist
 use crate::plugin::PackageCache;
 use std::io;
 
-/// プラグインID（リポジトリ名で識別）
+/// プラグインID（`InstalledPlugin::install_id()` の値で識別。リポジトリ名と異なる場合あり）
 pub type PluginId = String;
 
 /// マーケットプレイスアイテム（TUI表示用）
