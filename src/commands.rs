@@ -20,6 +20,7 @@ pub mod update;
 /// Dispatch the parsed CLI command to the matching handler.
 ///
 /// # Arguments
+///
 /// * `cli` - Parsed top-level CLI invocation containing the selected subcommand.
 pub async fn dispatch(cli: crate::cli::Cli) -> Result<(), String> {
     match cli.command {

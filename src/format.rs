@@ -22,6 +22,7 @@ pub enum Format {
 /// Forward lookup: find value by key in a `(key, value)` pair table.
 ///
 /// # Arguments
+///
 /// * `map` - Table of `(key, value)` pairs to search.
 /// * `key` - Key to look up in the table.
 pub(crate) fn lookup_forward<'a>(map: &'a [(&'a str, &'a str)], key: &str) -> Option<&'a str> {
@@ -31,6 +32,7 @@ pub(crate) fn lookup_forward<'a>(map: &'a [(&'a str, &'a str)], key: &str) -> Op
 /// Reverse lookup: find key by value in a `(key, value)` pair table.
 ///
 /// # Arguments
+///
 /// * `map` - Table of `(key, value)` pairs to search.
 /// * `value` - Value to look up in the table.
 pub(crate) fn lookup_reverse<'a>(map: &'a [(&'a str, &'a str)], value: &str) -> Option<&'a str> {

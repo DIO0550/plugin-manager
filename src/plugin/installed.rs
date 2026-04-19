@@ -20,6 +20,7 @@ impl InstalledPlugin {
     /// Plugin（キャッシュ済みパッケージ）と起源情報から InstalledPlugin を構築する
     ///
     /// # Arguments
+    ///
     /// * `plugin` - cached plugin data (manifest, path, components)
     /// * `install_id` - optional install identifier (falls back to `plugin.name()`)
     /// * `marketplace` - optional marketplace name of origin
@@ -66,6 +67,7 @@ impl InstalledPlugin {
     /// 内部的な有効状態の設定（TUI からの状態更新用）
     ///
     /// # Arguments
+    ///
     /// * `enabled` - new enabled state to assign
     pub(crate) fn set_enabled(&mut self, enabled: bool) {
         self.enabled = enabled;
@@ -90,6 +92,7 @@ impl InstalledPlugin {
     /// 特定種別のコンポーネント名一覧を取得
     ///
     /// # Arguments
+    ///
     /// * `kind` - component kind to filter by
     pub fn component_names(&self, kind: ComponentKind) -> Vec<String> {
         self.components()

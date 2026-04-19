@@ -72,6 +72,7 @@ impl ClaudeCodeCommand {
     /// The name field is taken directly from frontmatter (no filename fallback).
     ///
     /// # Arguments
+    ///
     /// * `content` - Raw markdown content including optional YAML frontmatter.
     pub fn parse(content: &str) -> Result<Self> {
         let ParsedDocument { frontmatter, body } =
@@ -96,6 +97,7 @@ impl ClaudeCodeCommand {
     /// If the frontmatter doesn't specify a name, the filename is used as fallback.
     ///
     /// # Arguments
+    ///
     /// * `path` - Path to the `.claude/commands/<name>.md` file to load.
     pub fn load(path: &Path) -> Result<Self> {
         let content = fs::read_to_string(path)?;
@@ -146,6 +148,7 @@ impl ClaudeCodeCommand {
     /// Returns a boxed trait object implementing `TargetFormat`.
     ///
     /// # Arguments
+    ///
     /// * `target` - Destination format to convert this command into.
     pub fn to_format(&self, target: TargetType) -> Result<Box<dyn TargetFormat>> {
         match target {
@@ -197,6 +200,7 @@ impl ClaudeCodeCommand {
 /// Normalizes name: empty or whitespace-only string becomes None.
 ///
 /// # Arguments
+///
 /// * `name` - Optional raw name string from frontmatter.
 fn normalize_name(name: Option<String>) -> Option<String> {
     name.map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
@@ -207,6 +211,7 @@ fn normalize_name(name: Option<String>) -> Option<String> {
 /// Removes the `.md` extension from the filename.
 ///
 /// # Arguments
+///
 /// * `path` - File path whose stem will be used as the command name.
 fn extract_name_from_path(path: &Path) -> Option<String> {
     path.file_name()

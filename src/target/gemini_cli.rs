@@ -26,6 +26,7 @@ impl GeminiCliTarget {
     /// スコープに応じたベースディレクトリを取得
     ///
     /// # Arguments
+    ///
     /// * `scope` - Scope (`Personal` or `Project`) that selects the base directory.
     /// * `project_root` - Project root directory used for project scope.
     fn base_dir(scope: Scope, project_root: &Path) -> PathBuf {
@@ -38,6 +39,7 @@ impl GeminiCliTarget {
     /// この組み合わせで配置できるか（Skill + Instruction のみサポート）
     ///
     /// # Arguments
+    ///
     /// * `kind` - Component kind to check.
     fn can_place(kind: ComponentKind) -> bool {
         kind == ComponentKind::Skill || kind == ComponentKind::Instruction
@@ -46,6 +48,7 @@ impl GeminiCliTarget {
     /// コンポーネント種別に応じたフィルタリング（SKILL.md 存在チェック）
     ///
     /// # Arguments
+    ///
     /// * `c` - Scanned component entry.
     /// * `kind` - Component kind expected for the entry.
     fn filter_component(c: &ScannedComponent, kind: ComponentKind) -> Option<String> {

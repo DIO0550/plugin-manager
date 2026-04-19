@@ -14,6 +14,7 @@ const MANIFEST_PATHS: &[&str] = &[".claude-plugin/plugin.json", "plugin.json"];
 /// 2. `plugin.json` (フォールバック)
 ///
 /// # Arguments
+///
 /// * `plugin_dir` - プラグインのルートディレクトリ
 ///
 /// # Returns
@@ -35,6 +36,7 @@ pub(crate) fn resolve_manifest_path(plugin_dir: &Path) -> Option<PathBuf> {
 /// プラグインディレクトリがマニフェストを持つか確認する
 ///
 /// # Arguments
+///
 /// * `plugin_dir` - Plugin root directory to check for a manifest.
 pub fn has_manifest(plugin_dir: &Path) -> bool {
     resolve_manifest_path(plugin_dir).is_some()

@@ -16,6 +16,7 @@ impl ComponentIdentity {
     /// Create a new `ComponentIdentity`.
     ///
     /// # Arguments
+    ///
     /// * `kind` - Component kind identified.
     /// * `name` - Fully-qualified component name.
     /// * `scope` - Placement scope of the component.
@@ -39,6 +40,7 @@ impl PlacedComponent {
     /// Create a new `PlacedComponent`.
     ///
     /// # Arguments
+    ///
     /// * `kind` - Component kind.
     /// * `name` - Fully-qualified component name.
     /// * `scope` - Placement scope of the component.
@@ -78,6 +80,7 @@ impl PlacedComponent {
     /// パスが project_root 配下かを検証
     ///
     /// # Arguments
+    ///
     /// * `project_root` - Project root directory that the path must be contained within.
     pub fn validate_path(&self, project_root: &Path) -> Result<()> {
         // パスが存在しない場合は検証をスキップ（これから作成される場合）

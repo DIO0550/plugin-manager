@@ -104,6 +104,7 @@ impl ImportRegistry {
     /// カスタムパスで作成（テスト用）
     ///
     /// # Arguments
+    ///
     /// * `path` - Registry file path to use instead of the default location.
     pub fn with_path(path: PathBuf) -> Self {
         Self {
@@ -169,6 +170,7 @@ impl ImportRegistry {
     /// インポートを記録（Loaded → Modified → save → Idle）
     ///
     /// # Arguments
+    ///
     /// * `record` - Import history entry to append and persist.
     pub fn record(&mut self, record: ImportRecord) -> Result<()> {
         if self.state == State::Idle {
@@ -186,6 +188,7 @@ impl ImportRegistry {
     /// 特定ソースからのインポート履歴を取得
     ///
     /// # Arguments
+    ///
     /// * `source_repo` - Source repository in `owner/repo` form to filter by.
     pub fn list_by_source(&mut self, source_repo: &str) -> Result<Vec<ImportRecord>> {
         if self.state == State::Idle {

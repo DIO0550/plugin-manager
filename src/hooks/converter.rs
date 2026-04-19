@@ -26,6 +26,7 @@ pub const SCRIPTS_DIR: &str = "wrappers";
 /// prefix がない場合はそのまま返す。
 ///
 /// # Arguments
+///
 /// * `path` - Original script path to namespace.
 /// * `namespace` - Namespace segment to insert after the prefix.
 ///
@@ -124,6 +125,7 @@ pub(crate) trait EventMap {
     /// Returns `None` for unsupported/unknown events.
     ///
     /// # Arguments
+    ///
     /// * `event` - Claude Code event name to translate.
     fn map_event(&self, event: &str) -> Option<&'static str>;
 }
@@ -134,6 +136,7 @@ pub(crate) trait ToolMap {
     /// Unknown tools are passed through.
     ///
     /// # Arguments
+    ///
     /// * `tool` - Claude Code tool name to translate.
     fn map_tool(&self, tool: &str) -> String;
 }
@@ -144,6 +147,7 @@ pub(crate) trait KeyMap {
     /// Returns the mapped JSON object and any warnings for removed fields.
     ///
     /// # Arguments
+    ///
     /// * `hook` - Raw hook definition JSON to remap.
     /// * `hook_type` - Canonical hook type string (`command`, `http`, etc.).
     fn map_keys(&self, hook: &Value, hook_type: &str) -> (Value, Vec<ConversionWarning>);
@@ -154,6 +158,7 @@ pub(crate) trait StructureConverter {
     /// Detect whether the input is in the target format or Claude Code format.
     ///
     /// # Arguments
+    ///
     /// * `value` - Root JSON value to inspect.
     fn detect_format(&self, value: &Value) -> SourceFormat;
 
@@ -161,6 +166,7 @@ pub(crate) trait StructureConverter {
     /// Returns an error if the target format is invalid (e.g., unsupported version).
     ///
     /// # Arguments
+    ///
     /// * `value` - Root JSON value in the target format.
     fn handle_target_format(
         &self,
@@ -171,6 +177,7 @@ pub(crate) trait StructureConverter {
     /// Returns the full JSON with top-level fields transformed (hooks preserved as-is).
     ///
     /// # Arguments
+    ///
     /// * `value` - Root JSON value in Claude Code format.
     fn convert_top_level(&self, value: &Value) -> (Value, Vec<ConversionWarning>);
 }
@@ -180,6 +187,7 @@ pub(crate) trait ScriptGenerator {
     /// Generate a script for a command-type hook.
     ///
     /// # Arguments
+    ///
     /// * `hook` - Parsed command hook definition.
     /// * `event` - Target event name the script belongs to.
     /// * `matcher` - Optional tool matcher pattern to embed in the script.
@@ -195,6 +203,7 @@ pub(crate) trait ScriptGenerator {
     /// Generate a script for an http-type hook.
     ///
     /// # Arguments
+    ///
     /// * `hook` - Parsed HTTP hook definition.
     /// * `event` - Target event name the script belongs to.
     /// * `matcher` - Optional tool matcher pattern to embed in the script.
@@ -210,6 +219,7 @@ pub(crate) trait ScriptGenerator {
     /// Generate a stub script for prompt/agent-type hooks.
     ///
     /// # Arguments
+    ///
     /// * `hook` - Parsed stub hook definition.
     /// * `event` - Target event name the script belongs to.
     /// * `matcher` - Optional tool matcher pattern to embed in the script.
@@ -235,6 +245,7 @@ pub(crate) struct HookConversionLayers {
 /// Create conversion layers for the given target.
 ///
 /// # Arguments
+///
 /// * `target` - Target environment to build conversion layers for.
 pub(crate) fn create_layers(target: TargetKind) -> Result<HookConversionLayers, PlmError> {
     match target {
@@ -256,6 +267,7 @@ pub(crate) fn create_layers(target: TargetKind) -> Result<HookConversionLayers, 
 /// Replaces `'` with `'\''` (end quote, escaped quote, start quote).
 ///
 /// # Arguments
+///
 /// * `s` - Raw string to escape for single-quoted shell contexts.
 pub(crate) fn shell_escape(s: &str) -> String {
     s.replace('\'', "'\\''")
@@ -267,6 +279,7 @@ pub(crate) fn shell_escape(s: &str) -> String {
 /// Returns empty string if matcher is None.
 ///
 /// # Arguments
+///
 /// * `matcher` - Optional matcher pattern to embed in the generated snippet.
 pub(crate) fn generate_matcher_filter(matcher: Option<&str>) -> String {
     match matcher {
@@ -288,6 +301,7 @@ pub(crate) fn generate_matcher_filter(matcher: Option<&str>) -> String {
 /// If the input is already in the target format, it is returned as-is.
 ///
 /// # Arguments
+///
 /// * `input` - Raw JSON string containing the Claude Code or target-format hooks.
 /// * `target` - Target environment to convert for.
 pub fn convert(input: &str, target: TargetKind) -> Result<ConvertResult, PlmError> {
@@ -356,6 +370,7 @@ struct ConvertOutput<'a> {
 /// Convert event hooks using the 4 layers.
 ///
 /// # Arguments
+///
 /// * `hooks` - JSON object mapping Claude Code event names to matcher groups.
 /// * `layers` - Conversion layers resolved for the target.
 /// * `out` - Accumulator for warnings and generated scripts.
@@ -389,6 +404,7 @@ fn convert_event_hooks(
 /// Flatten matcher groups into a flat array of hook definitions.
 ///
 /// # Arguments
+///
 /// * `groups` - Matcher group array for a single event.
 /// * `event` - Target event name (already mapped).
 /// * `layers` - Conversion layers resolved for the target.
@@ -455,6 +471,7 @@ fn flatten_matchers(
 /// Insert `bash` script path and `type: "command"` into a mapped hook value.
 ///
 /// # Arguments
+///
 /// * `mapped` - Mapped hook JSON object to extend in place.
 /// * `script_path` - Relative script path to record under the `bash` field.
 fn insert_script_fields(mapped: &mut Value, script_path: String) -> Result<(), PlmError> {
@@ -469,6 +486,7 @@ fn insert_script_fields(mapped: &mut Value, script_path: String) -> Result<(), P
 /// Convert an individual hook definition using layers.
 ///
 /// # Arguments
+///
 /// * `hook` - Raw hook definition JSON value.
 /// * `matcher` - Optional matcher pattern inherited from the enclosing group.
 /// * `event` - Target event name (already mapped).

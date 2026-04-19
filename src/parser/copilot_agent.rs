@@ -81,6 +81,7 @@ impl CopilotAgent {
     /// The name field is taken directly from frontmatter (no filename fallback).
     ///
     /// # Arguments
+    ///
     /// * `content` - Raw markdown content including optional YAML frontmatter.
     pub fn parse(content: &str) -> Result<Self> {
         let ParsedDocument { frontmatter, body } =
@@ -104,6 +105,7 @@ impl CopilotAgent {
     /// If the frontmatter doesn't specify a name, the filename is used as fallback.
     ///
     /// # Arguments
+    ///
     /// * `path` - Path to the `.github/agents/<name>.agent.md` file to load.
     pub fn load(path: &Path) -> Result<Self> {
         let content = fs::read_to_string(path)?;
@@ -179,6 +181,7 @@ impl TargetFormat for CopilotAgent {
 /// Normalizes name: empty or whitespace-only string becomes None.
 ///
 /// # Arguments
+///
 /// * `name` - Optional raw name string from frontmatter.
 fn normalize_name(name: Option<String>) -> Option<String> {
     name.map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
@@ -189,6 +192,7 @@ fn normalize_name(name: Option<String>) -> Option<String> {
 /// Removes `.agent.md` or `.md` extension from the filename.
 ///
 /// # Arguments
+///
 /// * `path` - File path whose stem will be used as the agent name.
 fn extract_name_from_path(path: &Path) -> Option<String> {
     path.file_name()

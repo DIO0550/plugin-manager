@@ -17,6 +17,7 @@ impl SearchSource {
     /// Create a source that searches all registered marketplaces for a plugin name.
     ///
     /// # Arguments
+    ///
     /// * `query` - Plugin name to look up across every registered marketplace.
     pub fn new(query: &str) -> Self {
         Self {

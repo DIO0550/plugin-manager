@@ -99,6 +99,7 @@ pub struct PlaceFailure {
 /// デフォルトの `PackageCache` を使用する CLI/TUI 向け便利関数。
 ///
 /// # Arguments
+///
 /// * `source_str` - Plugin source locator (GitHub or marketplace format).
 /// * `force` - When true, ignore the existing cache entry and re-download.
 pub async fn download_plugin(
@@ -114,6 +115,7 @@ pub async fn download_plugin(
 /// テストや DI が必要な場面で使用する。
 ///
 /// # Arguments
+///
 /// * `source_str` - Plugin source locator (GitHub or marketplace format).
 /// * `force` - When true, ignore the existing cache entry and re-download.
 /// * `cache` - Package cache implementation used to resolve and store downloads.
@@ -132,6 +134,7 @@ pub async fn download_plugin_with_cache(
 /// `type_filter` が指定された場合、該当する種別のコンポーネントのみを返す。
 ///
 /// # Arguments
+///
 /// * `package` - Downloaded plugin content to scan.
 /// * `type_filter` - Optional list of component kinds to retain; `None` keeps all kinds.
 pub fn scan_plugin(
@@ -153,6 +156,7 @@ pub fn scan_plugin(
 /// プラグインのコンポーネントをターゲットに配置
 ///
 /// # Arguments
+///
 /// * `request` - Placement request describing the scanned plugin, targets, scope, and project root.
 pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
     let mut successes = Vec::new();

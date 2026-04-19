@@ -203,6 +203,7 @@ impl TargetRegistry {
     /// ターゲットを削除（load → modify → normalize → save）
     ///
     /// # Arguments
+    ///
     /// * `target` - Target kind to remove from the registry.
     pub fn remove(&mut self, target: TargetKind) -> Result<RemoveResult> {
         if self.state == State::Idle {

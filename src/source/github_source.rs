@@ -25,6 +25,7 @@ impl GitHubSource {
     /// Create a direct Git repository source with no marketplace association.
     ///
     /// # Arguments
+    ///
     /// * `repo` - Repository descriptor identifying the Git host, owner, name, and optional ref.
     pub fn new(repo: Repo) -> Self {
         Self {
@@ -37,6 +38,7 @@ impl GitHubSource {
     /// マーケットプレイス経由でのソースを作成
     ///
     /// # Arguments
+    ///
     /// * `repo` - Repository descriptor for the underlying Git source.
     /// * `marketplace` - Name of the marketplace that surfaced this plugin.
     pub fn with_marketplace(repo: Repo, marketplace: String) -> Self {
@@ -51,6 +53,7 @@ impl GitHubSource {
     /// Local プラグイン専用: marketplace と source_path は両方必須
     ///
     /// # Arguments
+    ///
     /// * `repo` - Repository descriptor for the underlying Git source.
     /// * `marketplace` - Name of the marketplace that surfaced this plugin.
     /// * `source_path` - Normalized sub-path within the repository pointing at the local plugin.

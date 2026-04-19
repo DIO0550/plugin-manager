@@ -25,6 +25,7 @@ pub struct ScannedComponent {
 /// 3層ディレクトリ構造をスキャンしてコンポーネント一覧を取得
 ///
 /// # 引数
+///
 /// - `base_dir`: `<kind>`ディレクトリ（skills/, agents/等）
 ///
 /// # 既存挙動の維持
@@ -96,6 +97,7 @@ fn collect_recursively(
 /// ファイル名を取得（lossy変換、エラーにしない）
 ///
 /// # Arguments
+///
 /// * `entry` - Directory entry whose file name is read.
 fn entry_name_lossy(entry: &fs::DirEntry) -> String {
     entry.file_name().to_string_lossy().to_string()

@@ -31,6 +31,7 @@ impl PluginDeployment {
 /// マニフェストとパス情報を含む PluginDeployment を構築する。
 ///
 /// # Arguments
+///
 /// * `cache` - package cache access used to read the manifest and path
 /// * `marketplace` - marketplace name (`None` defaults to `"github"`)
 /// * `plugin_name` - plugin name or repository identifier
@@ -62,6 +63,7 @@ pub(crate) fn load_plugin_deployment(
 /// コンポーネント削除後に空になったプラグインディレクトリを削除する。
 ///
 /// # Arguments
+///
 /// * `target_name` - target environment identifier (e.g. `"codex"`, `"copilot"`)
 /// * `origin` - plugin origin providing marketplace and plugin segments
 /// * `project_root` - project root under which deploy directories live

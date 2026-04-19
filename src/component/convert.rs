@@ -90,6 +90,7 @@ pub struct AgentConversionResult {
 /// 変換成功時のみファイルを配置するため、一時ファイル経由で書き込む。
 ///
 /// # Arguments
+///
 /// * `source_path` - Path to the source command file to read.
 /// * `dest_path` - Destination path to write the (possibly converted) command file to.
 /// * `source_format` - Format of the source file.
@@ -125,6 +126,7 @@ pub fn convert_and_write(
 /// ClaudeCode からのみ変換可能。他の形式からの変換は UnsupportedConversion エラー。
 ///
 /// # Arguments
+///
 /// * `content` - Raw markdown content to convert.
 /// * `source_format` - Format of the provided `content`.
 /// * `dest_format` - Target format to convert into.
@@ -164,6 +166,7 @@ fn convert_content(
 /// - `ClaudeCode → Codex`
 ///
 /// # Arguments
+///
 /// * `source_path` - Path to the source agent file to read.
 /// * `dest_path` - Destination path to write the (possibly converted) agent file to.
 /// * `source_format` - Format of the source file.
@@ -199,6 +202,7 @@ pub fn convert_agent_and_write(
 /// ClaudeCode からのみ変換可能。他の形式からの変換は UnsupportedConversion エラー。
 ///
 /// # Arguments
+///
 /// * `content` - Raw markdown content to convert.
 /// * `source_format` - Format of the provided `content`.
 /// * `dest_format` - Target format to convert into.
@@ -227,6 +231,7 @@ fn convert_agent_content(
 /// ファイルをコピー（親ディレクトリを作成）
 ///
 /// # Arguments
+///
 /// * `source` - Source file to copy from.
 /// * `dest` - Destination path to copy to; parent directories are created as needed.
 fn copy_file(source: &Path, dest: &Path) -> Result<()> {
@@ -243,6 +248,7 @@ fn copy_file(source: &Path, dest: &Path) -> Result<()> {
 /// 書き込み成功後に rename でアトミックに移動する。
 ///
 /// # Arguments
+///
 /// * `dest_path` - Final destination path where the content should end up.
 /// * `content` - Content to write atomically.
 fn atomic_write(dest_path: &Path, content: &str) -> Result<()> {

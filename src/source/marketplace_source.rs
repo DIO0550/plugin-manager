@@ -21,6 +21,7 @@ impl MarketplaceSource {
     /// Create a source that resolves a plugin through a specific marketplace.
     ///
     /// # Arguments
+    ///
     /// * `plugin` - Name of the plugin to resolve inside the marketplace.
     /// * `marketplace` - Name of the registered marketplace to query.
     pub fn new(plugin: &str, marketplace: &str) -> Self {

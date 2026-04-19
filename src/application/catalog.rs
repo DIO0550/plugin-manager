@@ -12,6 +12,7 @@ use std::path::PathBuf;
 /// キャッシュディレクトリをスキャンし、有効なプラグインの一覧を返す。
 ///
 /// # Arguments
+///
 /// * `cache` - Package cache accessor used to enumerate installed plugins.
 pub fn list_installed_plugins(cache: &dyn PackageCacheAccess) -> Result<Vec<InstalledPlugin>> {
     // デプロイ済みプラグイン集合を事前取得（パフォーマンス改善）

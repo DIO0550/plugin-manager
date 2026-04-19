@@ -9,6 +9,7 @@ impl CommandSummary {
     /// Build a summary line from the success / failure counts of a command.
     ///
     /// # Arguments
+    ///
     /// * `success` - Number of successfully placed components.
     /// * `failure` - Number of failed placements.
     pub fn format(success: usize, failure: usize) -> Self {

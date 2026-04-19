@@ -26,6 +26,7 @@ impl CodexTarget {
     /// スコープに応じたベースディレクトリを取得
     ///
     /// # Arguments
+    ///
     /// * `scope` - Scope (`Personal` or `Project`) that selects the base directory.
     /// * `project_root` - Project root directory used for project scope.
     fn base_dir(scope: Scope, project_root: &Path) -> PathBuf {
@@ -38,6 +39,7 @@ impl CodexTarget {
     /// この組み合わせで配置できるか
     ///
     /// # Arguments
+    ///
     /// * `kind` - Component kind to check.
     fn can_place(kind: ComponentKind) -> bool {
         kind != ComponentKind::Command && kind != ComponentKind::Hook
@@ -46,6 +48,7 @@ impl CodexTarget {
     /// コンポーネント種別に応じたフィルタリング
     ///
     /// # Arguments
+    ///
     /// * `c` - Scanned component entry.
     /// * `kind` - Component kind expected for the entry.
     fn filter_component(c: &ScannedComponent, kind: ComponentKind) -> Option<String> {

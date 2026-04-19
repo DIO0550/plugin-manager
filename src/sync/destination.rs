@@ -29,6 +29,7 @@ impl SyncDestination {
     /// 本番用コンストラクタ
     ///
     /// # Arguments
+    ///
     /// * `kind` - Target environment kind to synchronize into.
     /// * `project_root` - Project root directory used when resolving placement paths.
     pub fn new(kind: TargetKind, project_root: &Path) -> Result<Self> {
@@ -42,6 +43,7 @@ impl SyncDestination {
     /// テスト用コンストラクタ（Target を注入）
     ///
     /// # Arguments
+    ///
     /// * `target` - Injected target implementation to use in tests.
     /// * `project_root` - Project root directory used when resolving placement paths.
     pub fn with_target(target: Box<dyn Target>, project_root: &Path) -> Self {
@@ -66,6 +68,7 @@ impl SyncDestination {
     /// 重複 identity がある場合はエラー
     ///
     /// # Arguments
+    ///
     /// * `options` - Options selecting which kinds and scopes to include.
     pub fn placed_components(&self, options: &SyncOptions) -> Result<Vec<PlacedComponent>> {
         let mut components = Vec::new();
@@ -102,6 +105,7 @@ impl SyncDestination {
     /// コンポーネントの配置先パスを取得
     ///
     /// # Arguments
+    ///
     /// * `component` - Placed component whose destination path should be resolved.
     pub fn path_for(&self, component: &PlacedComponent) -> Result<PathBuf> {
         self.resolve_path(component.kind(), component.name(), component.scope())
@@ -110,6 +114,7 @@ impl SyncDestination {
     /// このコンポーネントをサポートしているか
     ///
     /// # Arguments
+    ///
     /// * `identity` - Component identity whose kind and scope support is checked.
     pub fn supports(&self, identity: &ComponentIdentity) -> bool {
         self.target.supports(identity.kind)
@@ -119,6 +124,7 @@ impl SyncDestination {
     /// 対象の SyncableKind リストを取得
     ///
     /// # Arguments
+    ///
     /// * `options` - Options whose `component_type` filter is applied.
     fn target_kinds(&self, options: &SyncOptions) -> Vec<SyncableKind> {
         match options.component_type {
@@ -130,6 +136,7 @@ impl SyncDestination {
     /// 対象の Scope リストを取得
     ///
     /// # Arguments
+    ///
     /// * `options` - Options whose `scope` filter is applied.
     fn target_scopes(&self, options: &SyncOptions) -> Vec<Scope> {
         match options.scope {
@@ -141,6 +148,7 @@ impl SyncDestination {
     /// パスを解決
     ///
     /// # Arguments
+    ///
     /// * `kind` - Component kind to resolve.
     /// * `name` - Fully-qualified component name (e.g. `marketplace/plugin/component`).
     /// * `scope` - Placement scope (personal or project).

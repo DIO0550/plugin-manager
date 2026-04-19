@@ -46,6 +46,7 @@ use std::collections::HashMap;
 /// 何が行われるかを `SyncResult` で返す。
 ///
 /// # Arguments
+///
 /// * `source` - Source target to read placed components from.
 /// * `dest` - Destination target to synchronize into.
 /// * `options` - Options controlling scope, component type and dry-run behavior.
@@ -60,6 +61,7 @@ pub fn sync(
 /// テスト用エントリポイント（FileSystem を注入）
 ///
 /// # Arguments
+///
 /// * `source` - Source target to read placed components from.
 /// * `dest` - Destination target to synchronize into.
 /// * `options` - Options controlling scope, component type and dry-run behavior.
@@ -130,6 +132,7 @@ pub(crate) fn sync_with_fs(
 /// 更新が必要かを判定（mtime または内容比較）
 ///
 /// # Arguments
+///
 /// * `src` - Source-side placed component to compare.
 /// * `dest` - Destination-side placed component to compare.
 /// * `fs` - File system abstraction used to query mtime and content hash.
@@ -164,6 +167,7 @@ struct SyncPlan {
 /// 同期を実行
 ///
 /// # Arguments
+///
 /// * `source` - Source target used to resolve source paths.
 /// * `dest` - Destination target used to resolve destination paths.
 /// * `plan` - Precomputed plan containing create/update/delete component sets.
@@ -215,6 +219,7 @@ fn execute_sync(
 /// 新規作成を実行
 ///
 /// # Arguments
+///
 /// * `source` - Source target used to resolve the source path.
 /// * `dest` - Destination target used to resolve the destination path.
 /// * `component` - Component to create on the destination.
@@ -247,6 +252,7 @@ fn execute_create(
 /// 更新を実行
 ///
 /// # Arguments
+///
 /// * `source` - Source target used to resolve the source path.
 /// * `dest` - Destination target used to resolve the destination path.
 /// * `component` - Component to update on the destination.
@@ -264,6 +270,7 @@ fn execute_update(
 /// 削除を実行
 ///
 /// # Arguments
+///
 /// * `component` - Component whose destination path should be removed.
 /// * `fs` - File system abstraction used to check existence and remove the entry.
 fn execute_delete(component: &PlacedComponent, fs: &dyn FileSystem) -> Result<()> {

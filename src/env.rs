@@ -5,6 +5,7 @@ impl EnvVar {
     /// 環境変数を取得（空文字列はNoneとして扱う）
     ///
     /// # Arguments
+    ///
     /// * `key` - Name of the environment variable to read.
     pub fn get(key: &str) -> Option<String> {
         std::env::var(key).ok().filter(|s| !s.is_empty())

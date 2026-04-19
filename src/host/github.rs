@@ -23,6 +23,7 @@ impl GitHubClient {
     /// 新しいGitHubClientを作成
     ///
     /// # Arguments
+    ///
     /// * `config` - HTTP configuration used to build the reqwest client.
     /// * `auth` - Authentication provider supplying the GitHub token.
     pub fn new(config: &HttpConfig, auth: &AuthProvider) -> Self {
@@ -70,6 +71,7 @@ impl GitHubClient {
     /// リポジトリAPI URL
     ///
     /// # Arguments
+    ///
     /// * `repo` - Repository whose API URL is built.
     fn repo_api_url(&self, repo: &Repo) -> String {
         format!("{}/repos/{}/{}", API_BASE, repo.owner(), repo.name())
@@ -78,6 +80,7 @@ impl GitHubClient {
     /// Zipball URL
     ///
     /// # Arguments
+    ///
     /// * `repo` - Target repository.
     /// * `git_ref` - Branch, tag, or commit SHA to archive.
     fn zipball_url(&self, repo: &Repo, git_ref: &str) -> String {
@@ -93,6 +96,7 @@ impl GitHubClient {
     /// コミットURL
     ///
     /// # Arguments
+    ///
     /// * `repo` - Target repository.
     /// * `git_ref` - Branch, tag, or commit SHA to resolve.
     fn commit_url(&self, repo: &Repo, git_ref: &str) -> String {
@@ -108,6 +112,7 @@ impl GitHubClient {
     /// コンテンツURL
     ///
     /// # Arguments
+    ///
     /// * `repo` - Target repository.
     /// * `path` - File path within the repository.
     /// * `git_ref` - Branch, tag, or commit SHA to fetch from.
@@ -271,6 +276,7 @@ impl HostClient for GitHubClient {
 /// - `github.com/owner/repo`
 ///
 /// # Arguments
+///
 /// * `input` - GitHub-shaped source locator to parse into `(owner, repo)`.
 pub fn parse_repo_path(input: &str) -> Result<(String, String)> {
     let input = input.trim();

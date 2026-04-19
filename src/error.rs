@@ -9,6 +9,7 @@ use thiserror::Error;
 /// AmbiguousPlugin エラーのフォーマット
 ///
 /// # Arguments
+///
 /// * `name` - Ambiguous plugin short name.
 /// * `candidates` - Full qualified plugin identifiers to disambiguate among.
 fn format_ambiguous_plugin(name: &str, candidates: &[String]) -> String {

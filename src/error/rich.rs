@@ -22,6 +22,7 @@ impl ErrorContext {
     /// Sets the file path
     ///
     /// # Arguments
+    ///
     /// * `path` - File path associated with the error.
     pub fn with_file_path(mut self, path: impl Into<PathBuf>) -> Self {
         self.file_path = Some(path.into());
@@ -31,6 +32,7 @@ impl ErrorContext {
     /// Sets the URL
     ///
     /// # Arguments
+    ///
     /// * `url` - URL associated with the error.
     pub fn with_url(mut self, url: impl Into<String>) -> Self {
         self.url = Some(url.into());
@@ -40,6 +42,7 @@ impl ErrorContext {
     /// Sets the plugin name
     ///
     /// # Arguments
+    ///
     /// * `name` - Plugin name associated with the error.
     pub fn with_plugin_name(mut self, name: impl Into<String>) -> Self {
         self.plugin_name = Some(name.into());
@@ -49,6 +52,7 @@ impl ErrorContext {
     /// Adds an additional key-value pair
     ///
     /// # Arguments
+    ///
     /// * `key` - Context key.
     /// * `value` - Context value.
     pub fn with_additional(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
@@ -88,6 +92,7 @@ impl RichError {
     /// Creates a new RichError with the given code and message
     ///
     /// # Arguments
+    ///
     /// * `code` - Categorized error code.
     /// * `message` - Human-readable message for display.
     pub fn new(code: ErrorCode, message: impl Into<String>) -> Self {
@@ -102,6 +107,7 @@ impl RichError {
     /// Sets the error context
     ///
     /// # Arguments
+    ///
     /// * `context` - Structured context attached to this error.
     pub fn with_context(mut self, context: ErrorContext) -> Self {
         self.context = context;
@@ -111,6 +117,7 @@ impl RichError {
     /// Sets the source error
     ///
     /// # Arguments
+    ///
     /// * `source` - Underlying error cause, boxed internally.
     pub fn with_source<E>(mut self, source: E) -> Self
     where

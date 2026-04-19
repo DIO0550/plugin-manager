@@ -16,6 +16,7 @@ impl ScopedPath {
     /// 検証して生成
     ///
     /// # Arguments
+    ///
     /// * `path` - Candidate path to validate and wrap.
     /// * `project_root` - Root directory that `path` must reside under.
     ///
@@ -67,6 +68,7 @@ impl ScopedPath {
 /// `..` や `.` を論理的に正規化する（ファイルシステムを参照しない）
 ///
 /// # Arguments
+///
 /// * `path` - Path to normalize purely by analysing its components.
 pub(crate) fn normalize_path(path: &Path) -> PathBuf {
     use std::path::Component;
@@ -108,6 +110,7 @@ pub(crate) fn normalize_path(path: &Path) -> PathBuf {
 /// 発見した場合はエラーを返す（fail closed）。
 ///
 /// # Arguments
+///
 /// * `path` - Non-existent path to resolve against its nearest existing ancestor.
 fn resolve_nonexistent_path(path: &Path) -> Result<PathBuf> {
     // パス自体がダングリングシンボリックリンクかチェック

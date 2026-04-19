@@ -43,6 +43,7 @@ pub struct ParsedDocument<T> {
 ///   `DeserializeOwned` and `Default` (for empty frontmatter handling).
 ///
 /// # Arguments
+///
 /// * `content` - Document text whose optional YAML frontmatter should be parsed.
 pub fn parse_frontmatter<T: DeserializeOwned + Default>(
     content: &str,

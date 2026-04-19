@@ -26,6 +26,7 @@ impl SyncResult {
     /// dry_run 用の結果を作成
     ///
     /// # Arguments
+    ///
     /// * `created` - Components that would be created.
     /// * `updated` - Components that would be updated.
     /// * `deleted` - Components that would be deleted.
@@ -115,6 +116,7 @@ impl SyncFailure {
     /// Create a new `SyncFailure` record.
     ///
     /// # Arguments
+    ///
     /// * `component` - Component whose action failed.
     /// * `action` - Sync action that was attempted.
     /// * `error` - Error message describing the failure.

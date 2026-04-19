@@ -57,6 +57,7 @@ impl ComponentDeployment {
     /// JSON 内の hooks[].bash パスを名前空間付きに書き換える
     ///
     /// # Arguments
+    ///
     /// * `json` - Hook definition JSON whose `hooks[].bash` paths should be rewritten in place.
     /// * `original_paths` - Set of original `./<SCRIPTS_DIR>/...` paths eligible for rewriting.
     /// * `safe_name` - Sanitized hook name used as the namespace segment in the new path.
@@ -376,6 +377,7 @@ impl ComponentDeploymentBuilder {
     /// Component から kind, name, source_path を設定
     ///
     /// # Arguments
+    ///
     /// * `component` - Component whose `kind`, `name`, and `path` are copied into the builder.
     pub fn component(mut self, component: &Component) -> Self {
         self.kind = Some(component.kind);
@@ -387,6 +389,7 @@ impl ComponentDeploymentBuilder {
     /// コンポーネント種別を設定
     ///
     /// # Arguments
+    ///
     /// * `kind` - Component kind (`Skill`, `Agent`, `Command`, `Instruction`, `Hook`).
     pub fn kind(mut self, kind: ComponentKind) -> Self {
         self.kind = Some(kind);
@@ -396,6 +399,7 @@ impl ComponentDeploymentBuilder {
     /// コンポーネント名を設定
     ///
     /// # Arguments
+    ///
     /// * `name` - Component name.
     pub fn name(mut self, name: impl Into<String>) -> Self {
         self.name = Some(name.into());
@@ -405,6 +409,7 @@ impl ComponentDeploymentBuilder {
     /// スコープを設定
     ///
     /// # Arguments
+    ///
     /// * `scope` - Deployment scope (`Personal` or `Project`).
     pub fn scope(mut self, scope: Scope) -> Self {
         self.scope = Some(scope);
@@ -414,6 +419,7 @@ impl ComponentDeploymentBuilder {
     /// ソースパスを設定
     ///
     /// # Arguments
+    ///
     /// * `path` - Source path to read the component from.
     pub fn source_path(mut self, path: impl Into<PathBuf>) -> Self {
         self.source_path = Some(path.into());
@@ -423,6 +429,7 @@ impl ComponentDeploymentBuilder {
     /// ターゲットパスを設定
     ///
     /// # Arguments
+    ///
     /// * `path` - Target path to deploy the component to.
     pub fn target_path(mut self, path: impl Into<PathBuf>) -> Self {
         self.target_path = Some(path.into());
@@ -432,6 +439,7 @@ impl ComponentDeploymentBuilder {
     /// ソースの Command フォーマットを設定
     ///
     /// # Arguments
+    ///
     /// * `format` - Source command format.
     pub fn source_format(mut self, format: CommandFormat) -> Self {
         self.source_format = Some(format);
@@ -441,6 +449,7 @@ impl ComponentDeploymentBuilder {
     /// ターゲットの Command フォーマットを設定
     ///
     /// # Arguments
+    ///
     /// * `format` - Destination command format.
     pub fn dest_format(mut self, format: CommandFormat) -> Self {
         self.dest_format = Some(format);
@@ -450,6 +459,7 @@ impl ComponentDeploymentBuilder {
     /// ソースの Agent フォーマットを設定
     ///
     /// # Arguments
+    ///
     /// * `format` - Source agent format.
     pub fn source_agent_format(mut self, format: AgentFormat) -> Self {
         self.source_agent_format = Some(format);
@@ -459,6 +469,7 @@ impl ComponentDeploymentBuilder {
     /// ターゲットの Agent フォーマットを設定
     ///
     /// # Arguments
+    ///
     /// * `format` - Destination agent format.
     pub fn dest_agent_format(mut self, format: AgentFormat) -> Self {
         self.dest_agent_format = Some(format);
@@ -468,6 +479,7 @@ impl ComponentDeploymentBuilder {
     /// Hook 変換を有効化
     ///
     /// # Arguments
+    ///
     /// * `convert` - Whether to run the hook converter during deployment.
     pub fn hook_convert(mut self, convert: bool) -> Self {
         self.hook_convert = Some(convert);
@@ -477,6 +489,7 @@ impl ComponentDeploymentBuilder {
     /// Hook 変換のターゲット種別を設定
     ///
     /// # Arguments
+    ///
     /// * `kind` - Target kind that drives hook conversion rules.
     pub fn target_kind(mut self, kind: TargetKind) -> Self {
         self.target_kind = Some(kind);
@@ -486,6 +499,7 @@ impl ComponentDeploymentBuilder {
     /// プラグインルートパスを設定（@@PLUGIN_ROOT@@ 置換用）
     ///
     /// # Arguments
+    ///
     /// * `path` - Plugin cache root substituted for the `@@PLUGIN_ROOT@@` placeholder in scripts.
     pub fn plugin_root(mut self, path: impl Into<PathBuf>) -> Self {
         self.plugin_root = Some(path.into());
@@ -538,6 +552,7 @@ impl ComponentDeploymentBuilder {
 /// スクリプトファイルを書き出し、Unix では実行権限 (0o755) を設定する。
 ///
 /// # Arguments
+///
 /// * `path` - File path to write the script to.
 /// * `content` - Script contents to write.
 fn write_executable_script(path: &Path, content: &str) -> Result<()> {
@@ -556,6 +571,7 @@ fn write_executable_script(path: &Path, content: &str) -> Result<()> {
 /// 用途: `@@PLUGIN_ROOT@@` プレースホルダーの置換値として使用
 ///
 /// # Arguments
+///
 /// * `s` - Raw string to escape for safe interpolation inside bash double quotes.
 fn escape_for_bash_double_quote(s: &str) -> String {
     let mut out = String::with_capacity(s.len());

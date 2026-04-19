@@ -23,6 +23,7 @@ impl AntigravityTarget {
     /// スコープに応じたベースディレクトリを取得
     ///
     /// # Arguments
+    ///
     /// * `scope` - Scope (`Personal` or `Project`) that selects the base directory.
     /// * `project_root` - Project root directory used for project scope.
     fn base_dir(scope: Scope, project_root: &Path) -> PathBuf {
@@ -35,6 +36,7 @@ impl AntigravityTarget {
     /// この組み合わせで配置できるか（Skillのみサポート）
     ///
     /// # Arguments
+    ///
     /// * `kind` - Component kind to check.
     fn can_place(kind: ComponentKind) -> bool {
         kind == ComponentKind::Skill
@@ -43,6 +45,7 @@ impl AntigravityTarget {
     /// コンポーネント種別に応じたフィルタリング（SKILL.md存在チェック維持）
     ///
     /// # Arguments
+    ///
     /// * `c` - Scanned component entry.
     /// * `kind` - Component kind expected for the entry.
     fn filter_component(c: &ScannedComponent, kind: ComponentKind) -> Option<String> {

@@ -16,6 +16,7 @@ impl ErrorFormatter {
     /// Creates a new ErrorFormatter with default TTY detection
     ///
     /// # Arguments
+    ///
     /// * `verbose` - When true, include cause, remediation, and source chain.
     pub fn new(verbose: bool) -> Self {
         Self::with_color_detection(verbose, Self::default_should_use_color)
@@ -24,6 +25,7 @@ impl ErrorFormatter {
     /// Creates a new ErrorFormatter with injectable TTY detection for testing
     ///
     /// # Arguments
+    ///
     /// * `verbose` - When true, include cause, remediation, and source chain.
     /// * `detect_color` - Function returning whether ANSI color should be applied.
     pub fn with_color_detection(verbose: bool, detect_color: fn() -> bool) -> Self {
@@ -38,6 +40,7 @@ impl ErrorFormatter {
     /// Formats the error for display
     ///
     /// # Arguments
+    ///
     /// * `error` - Rich error to render as a user-facing string.
     pub fn format(&self, error: &RichError) -> String {
         let plain = if self.verbose {
@@ -60,6 +63,7 @@ impl ErrorFormatter {
     /// Render the simple (non-verbose) error layout.
     ///
     /// # Arguments
+    ///
     /// * `error` - Rich error to render.
     fn format_simple_plain(&self, error: &RichError) -> String {
         let mut output = format!("error[{}]: {}", error.code().as_str(), error.message());
@@ -76,6 +80,7 @@ impl ErrorFormatter {
     /// Render the verbose error layout (cause, remediation, source chain).
     ///
     /// # Arguments
+    ///
     /// * `error` - Rich error to render.
     fn format_verbose_plain(&self, error: &RichError) -> String {
         let mut output = format!("error[{}]: {}", error.code().as_str(), error.message());
@@ -110,6 +115,7 @@ impl ErrorFormatter {
     /// Render the context block lines for the error.
     ///
     /// # Arguments
+    ///
     /// * `error` - Rich error whose context is rendered.
     fn format_context(&self, error: &RichError) -> String {
         let ctx = error.context();
@@ -139,6 +145,7 @@ impl ErrorFormatter {
     /// Render the `std::error::Error` source chain for the error.
     ///
     /// # Arguments
+    ///
     /// * `error` - Rich error whose source chain is traversed.
     fn format_source_chain(&self, error: &RichError) -> String {
         let mut chain = Vec::new();
@@ -155,6 +162,7 @@ impl ErrorFormatter {
     /// Masks sensitive data in the text
     ///
     /// # Arguments
+    ///
     /// * `text` - Text to redact.
     fn mask_sensitive(&self, text: &str) -> String {
         let mut result = text.to_string();
@@ -170,6 +178,7 @@ impl ErrorFormatter {
     /// Mask values of URL query parameters (`?k=v&k=v`).
     ///
     /// # Arguments
+    ///
     /// * `text` - Text containing potential query parameter pairs.
     fn mask_query_params(text: &str) -> String {
         use regex::Regex;
@@ -181,6 +190,7 @@ impl ErrorFormatter {
     /// Replace the value following `pattern` up to the next delimiter.
     ///
     /// # Arguments
+    ///
     /// * `text` - Text containing the pattern and value.
     /// * `pattern` - Literal marker preceding the value.
     /// * `replacement` - Replacement written in place of `pattern` plus its value.
@@ -201,6 +211,7 @@ impl ErrorFormatter {
     /// Mask `Authorization: Bearer ...` header values.
     ///
     /// # Arguments
+    ///
     /// * `text` - Text containing potential Authorization headers.
     fn mask_authorization(text: &str) -> String {
         use regex::Regex;
@@ -212,6 +223,7 @@ impl ErrorFormatter {
     /// Mask file paths that commonly carry secrets (`.env`, `credentials*`).
     ///
     /// # Arguments
+    ///
     /// * `text` - Text that may embed sensitive file paths.
     fn mask_sensitive_paths(text: &str) -> String {
         // Only mask file-like patterns, not URLs
@@ -248,6 +260,7 @@ impl ErrorFormatter {
     /// Apply ANSI color codes to rendered error lines.
     ///
     /// # Arguments
+    ///
     /// * `text` - Plain rendered error text.
     /// * `code` - Error code (currently unused; reserved for future per-code styling).
     fn apply_color(&self, text: &str, code: ErrorCode) -> String {

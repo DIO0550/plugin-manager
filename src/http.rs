@@ -9,6 +9,7 @@ use std::time::Duration;
 /// プログレスバー付きダウンロード
 ///
 /// # Arguments
+///
 /// * `client` - HTTP client used to issue the download request.
 /// * `url` - URL of the resource to download.
 /// * `auth_header` - Optional `(name, value)` pair appended as an HTTP header.
@@ -23,6 +24,7 @@ pub async fn download_with_progress(
 /// ホスト名付きプログレスバーダウンロード
 ///
 /// # Arguments
+///
 /// * `client` - HTTP client used to issue the download request.
 /// * `url` - URL of the resource to download.
 /// * `auth_header` - Optional `(name, value)` pair appended as an HTTP header.
@@ -40,6 +42,7 @@ pub async fn download_with_progress_and_host(
 /// プログレスバー付きダウンロード実装
 ///
 /// # Arguments
+///
 /// * `client` - HTTP client used to issue the download request.
 /// * `url` - URL of the resource to download.
 /// * `auth_header` - Optional `(name, value)` pair appended as an HTTP header.
@@ -80,6 +83,7 @@ async fn download_with_progress_impl(
 /// サイズに応じたプログレスバーを作成
 ///
 /// # Arguments
+///
 /// * `total_size` - Expected total byte count; `0` selects a spinner style.
 fn create_progress_bar(total_size: u64) -> ProgressBar {
     if total_size > 0 {
@@ -107,6 +111,7 @@ fn create_progress_bar(total_size: u64) -> ProgressBar {
 /// PlmError::is_retryable の判定に加え、レート制限エラー（429, 403 rate limit）も対象とする。
 ///
 /// # Arguments
+///
 /// * `e` - Error to classify for retry eligibility.
 pub fn is_retriable_error(e: &PlmError) -> bool {
     if e.is_retryable() {
@@ -130,6 +135,7 @@ pub fn is_retriable_error(e: &PlmError) -> bool {
 /// 初回 + max_retries 回 = 最大 (max_retries + 1) 回試行。
 ///
 /// # Arguments
+///
 /// * `f` - Closure that produces the future to execute on each attempt.
 /// * `max_retries` - Maximum additional retries after the initial attempt.
 pub async fn with_retry<F, Fut, T>(mut f: F, max_retries: u32) -> Result<T>
@@ -166,6 +172,7 @@ where
 /// レート制限時の警告表示
 ///
 /// # Arguments
+///
 /// * `last_error` - Previous error used to detect rate-limit status codes.
 /// * `delay_secs` - Number of seconds the next retry will wait.
 /// * `attempt` - Current retry attempt index (1-based).

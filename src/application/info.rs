@@ -38,6 +38,7 @@ pub enum Source {
 /// プラグイン詳細情報を取得
 ///
 /// # Arguments
+///
 /// * `cache` - プラグインを検索するためのパッケージキャッシュアクセサ
 /// * `name` - プラグイン名（"plugin" または "marketplace/plugin" 形式）
 pub fn get_plugin_info(cache: &dyn PackageCacheAccess, name: &str) -> Result<PluginInfo> {
@@ -50,6 +51,7 @@ pub fn get_plugin_info(cache: &dyn PackageCacheAccess, name: &str) -> Result<Plu
 /// 入力名をパースしバリデーション
 ///
 /// # Arguments
+///
 /// * `name` - Raw plugin name string, either `"plugin"` or `"marketplace/plugin"`.
 ///
 /// # Returns
@@ -99,6 +101,7 @@ fn parse_plugin_name(name: &str) -> Result<(Option<String>, String)> {
 /// キャッシュ全体をスキャンし、manifest.name が一致するプラグインを列挙
 ///
 /// # Arguments
+///
 /// * `cache` - Package cache accessor to enumerate installed plugins.
 /// * `name` - Plugin name to match against each manifest.
 fn find_plugin_candidates(
@@ -116,6 +119,7 @@ fn find_plugin_candidates(
 /// 候補から単一プラグインを解決
 ///
 /// # Arguments
+///
 /// * `candidates` - Plugin candidates returned by `find_plugin_candidates`.
 /// * `marketplace_filter` - Optional marketplace name to narrow candidates.
 /// * `name` - Plugin name used in error messages when resolution fails.
@@ -158,6 +162,7 @@ fn resolve_single_plugin(
 /// マーケットプレイスとディレクトリ名からソース情報を判定
 ///
 /// # Arguments
+///
 /// * `marketplace` - Marketplace key (e.g. `"github"`).
 /// * `dir_name` - Cache directory name associated with the plugin.
 fn determine_source(marketplace: &str, dir_name: &str) -> Source {
@@ -175,6 +180,7 @@ fn determine_source(marketplace: &str, dir_name: &str) -> Source {
 /// owner--repo → owner/repo に変換
 ///
 /// # Arguments
+///
 /// * `dir_name` - Cache directory name in the `owner--repo` form.
 fn restore_github_repo(dir_name: &str) -> String {
     if let Some(pos) = dir_name.find("--") {
@@ -188,6 +194,7 @@ fn restore_github_repo(dir_name: &str) -> String {
 /// PluginInfo を構築
 ///
 /// # Arguments
+///
 /// * `content` - Marketplace content resolved from cache.
 fn build_plugin_info(content: MarketplaceContent) -> Result<PluginInfo> {
     let marketplace_opt = content.marketplace().map(str::to_string);
@@ -225,6 +232,7 @@ fn build_plugin_info(content: MarketplaceContent) -> Result<PluginInfo> {
 /// `meta::is_enabled()` に委譲する。
 ///
 /// # Arguments
+///
 /// * `cache_path` - Path to the plugin's cache directory.
 /// * `marketplace` - Marketplace key (e.g. `"github"`).
 /// * `install_id` - Install identifier used to match deployed entries.

@@ -30,6 +30,7 @@ impl From<(Option<String>, String)> for PluginCacheKey {
 /// キャッシュ内のマーケットプレイスパッケージを列挙
 ///
 /// # Arguments
+///
 /// * `cache` - package cache access used to enumerate stored plugins
 pub(crate) fn list_installed(cache: &dyn PackageCacheAccess) -> Result<Vec<MarketplaceContent>> {
     let packages = cache
@@ -56,6 +57,7 @@ pub trait PackageCacheAccess: Send + Sync {
     /// プラグインのキャッシュパスを取得（階層型: marketplace/plugin）
     ///
     /// # Arguments
+    ///
     /// * `marketplace` - マーケットプレイス名（None の場合は "github" を使用）
     /// * `name` - プラグイン名またはリポジトリ識別子（owner--repo 形式）
     fn plugin_path(&self, marketplace: Option<&str>, name: &str) -> PathBuf;
@@ -63,6 +65,7 @@ pub trait PackageCacheAccess: Send + Sync {
     /// キャッシュ済みかチェック
     ///
     /// # Arguments
+    ///
     /// * `marketplace` - marketplace name (`None` uses `"github"`)
     /// * `name` - plugin name or repository identifier
     fn is_cached(&self, marketplace: Option<&str>, name: &str) -> bool;
@@ -72,6 +75,7 @@ pub trait PackageCacheAccess: Send + Sync {
     /// GitHubのzipballは `{repo}-{ref}/` というプレフィックスが付くため、それを除去する。
     ///
     /// # Arguments
+    ///
     /// * `marketplace` - マーケットプレイス名（None の場合は "github" を使用）
     /// * `name` - プラグイン名またはリポジトリ識別子
     /// * `archive` - zipアーカイブのバイト列
@@ -88,6 +92,7 @@ pub trait PackageCacheAccess: Send + Sync {
     /// キャッシュからマニフェストを読み込み
     ///
     /// # Arguments
+    ///
     /// * `marketplace` - marketplace name (`None` uses `"github"`)
     /// * `name` - plugin name or repository identifier
     fn load_manifest(&self, marketplace: Option<&str>, name: &str) -> Result<PluginManifest>;
@@ -95,6 +100,7 @@ pub trait PackageCacheAccess: Send + Sync {
     /// キャッシュから削除
     ///
     /// # Arguments
+    ///
     /// * `marketplace` - marketplace name (`None` uses `"github"`)
     /// * `name` - plugin name or repository identifier
     fn remove(&self, marketplace: Option<&str>, name: &str) -> Result<()>;
@@ -108,6 +114,7 @@ pub trait PackageCacheAccess: Send + Sync {
     /// プラグインは平文ファイルのみを含むことを前提とする。
     ///
     /// # Arguments
+    ///
     /// * `marketplace` - marketplace name (`None` uses `"github"`)
     /// * `name` - plugin name or repository identifier
     fn backup(&self, marketplace: Option<&str>, name: &str) -> Result<PathBuf>;
@@ -115,6 +122,7 @@ pub trait PackageCacheAccess: Send + Sync {
     /// バックアップからリストア
     ///
     /// # Arguments
+    ///
     /// * `marketplace` - marketplace name (`None` uses `"github"`)
     /// * `name` - plugin name or repository identifier
     fn restore(&self, marketplace: Option<&str>, name: &str) -> Result<()>;
@@ -122,6 +130,7 @@ pub trait PackageCacheAccess: Send + Sync {
     /// バックアップを削除
     ///
     /// # Arguments
+    ///
     /// * `marketplace` - marketplace name (`None` uses `"github"`)
     /// * `name` - plugin name or repository identifier
     fn remove_backup(&self, marketplace: Option<&str>, name: &str) -> Result<()>;
@@ -132,6 +141,7 @@ pub trait PackageCacheAccess: Send + Sync {
     /// CachedPackage を構築する。
     ///
     /// # Arguments
+    ///
     /// * `marketplace` - marketplace name (`None` uses `"github"`)
     /// * `name` - plugin name or repository identifier
     fn load_package(&self, marketplace: Option<&str>, name: &str) -> Result<CachedPackage> {
@@ -167,6 +177,7 @@ pub trait PackageCacheAccess: Send + Sync {
     /// 展開ロジックは store_from_archive と同一（トップディレクトリ除去含む）。
     ///
     /// # Arguments
+    ///
     /// * `marketplace` - マーケットプレイス名
     /// * `name` - プラグイン名
     /// * `archive` - zipアーカイブのバイト列
@@ -208,6 +219,7 @@ impl PackageCache {
     /// カスタムキャッシュディレクトリで初期化（テスト用）
     ///
     /// # Arguments
+    ///
     /// * `cache_dir` - custom cache root directory
     pub fn with_cache_dir(cache_dir: PathBuf) -> Result<Self> {
         let fs = RealFs;
@@ -231,6 +243,7 @@ impl PackageCache {
     /// バックアップパスを取得
     ///
     /// # Arguments
+    ///
     /// * `marketplace` - marketplace name (`None` uses `"github"`)
     /// * `name` - plugin name or repository identifier
     fn backup_path(&self, marketplace: Option<&str>, name: &str) -> PathBuf {
@@ -244,6 +257,7 @@ impl PackageCache {
     /// 一時パスを取得
     ///
     /// # Arguments
+    ///
     /// * `marketplace` - marketplace name (`None` uses `"github"`)
     /// * `name` - plugin name or repository identifier
     fn temp_path(&self, marketplace: Option<&str>, name: &str) -> PathBuf {
@@ -457,6 +471,7 @@ impl PackageCacheAccess for PackageCache {
 /// source_path の防御的検証
 ///
 /// # Arguments
+///
 /// * `source_path` - optional normalized sub-path inside the archive
 fn validate_source_path(source_path: Option<&str>) -> Result<()> {
     let sp = match source_path {
@@ -491,6 +506,7 @@ fn validate_source_path(source_path: Option<&str>) -> Result<()> {
 /// zipアーカイブのプレフィックス（トップディレクトリ）を取得
 ///
 /// # Arguments
+///
 /// * `zip` - open zip archive to inspect
 fn get_archive_prefix(zip: &mut ZipArchive<Cursor<&[u8]>>) -> Result<String> {
     if zip.is_empty() {
@@ -509,6 +525,7 @@ fn get_archive_prefix(zip: &mut ZipArchive<Cursor<&[u8]>>) -> Result<String> {
 /// アーカイブを展開（source_path 指定対応）
 ///
 /// # Arguments
+///
 /// * `dest` - destination directory to extract into
 /// * `archive` - zip archive bytes
 /// * `source_path` - optional normalized sub-path to extract
@@ -581,6 +598,7 @@ fn extract_archive_with_source_path(
 /// source_path フィルタを適用し、展開すべきパスを返す（None = スキップ）
 ///
 /// # Arguments
+///
 /// * `relative_path` - archive entry path after prefix removal
 /// * `source_path` - normalized sub-path being extracted
 /// * `file` - current zip entry (used for unix mode inspection)
@@ -632,6 +650,7 @@ fn extract_with_source_path_filter(
 /// zipエントリをファイルシステムに書き込み
 ///
 /// # Arguments
+///
 /// * `file` - current zip entry
 /// * `target_path` - destination path on the local filesystem
 fn write_zip_entry(file: &mut zip::read::ZipFile, target_path: &Path) -> Result<()> {

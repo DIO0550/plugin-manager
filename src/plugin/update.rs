@@ -44,6 +44,7 @@ impl UpdateResult {
     /// 更新成功
     ///
     /// # Arguments
+    ///
     /// * `name` - Plugin name.
     /// * `from` - Commit SHA before the update, or `None` when unrecorded.
     /// * `to` - Commit SHA after the update.
@@ -72,6 +73,7 @@ impl UpdateResult {
     /// 既に最新
     ///
     /// # Arguments
+    ///
     /// * `name` - Plugin name.
     pub fn up_to_date(name: &str) -> Self {
         Self {
@@ -87,6 +89,7 @@ impl UpdateResult {
     /// 更新失敗
     ///
     /// # Arguments
+    ///
     /// * `name` - Plugin name.
     /// * `error` - Error message describing the failure.
     pub fn failed(name: &str, error: String) -> Self {
@@ -103,6 +106,7 @@ impl UpdateResult {
     /// スキップ
     ///
     /// # Arguments
+    ///
     /// * `name` - Plugin name.
     /// * `reason` - Reason the update was skipped.
     pub fn skipped(name: &str, reason: String) -> Self {
@@ -124,6 +128,7 @@ impl UpdateResult {
 /// 2. プラグイン名からフォールバック（owner--repo形式）
 ///
 /// # Arguments
+///
 /// * `meta` - Plugin metadata used as the primary source of repository info.
 /// * `plugin_name` - Plugin name, interpreted as `owner--repo` during fallback.
 /// * `git_ref` - Target Git reference to associate with the restored repo.
@@ -158,6 +163,7 @@ fn restore_repo(
 /// 単一プラグインの更新
 ///
 /// # Arguments
+///
 /// * `cache` - Package cache accessor for the plugin.
 /// * `plugin_name` - Name of the plugin to update.
 /// * `project_root` - Project root path used for redeployment.
@@ -234,6 +240,7 @@ struct UpdateCtx<'a> {
 /// 更新処理の実行
 ///
 /// # Arguments
+///
 /// * `plugin_name` - Plugin name.
 /// * `latest_sha` - Latest commit SHA reported by the remote.
 /// * `ctx` - Shared update context containing cache, client, and repo info.
@@ -300,6 +307,7 @@ async fn do_update(plugin_name: &str, latest_sha: &str, ctx: &UpdateCtx<'_>) -> 
 /// ターゲットへの再デプロイ
 ///
 /// # Arguments
+///
 /// * `cache` - Package cache accessor for the plugin.
 /// * `plugin_name` - Plugin name being redeployed.
 /// * `targets` - Target names to redeploy to.
@@ -339,6 +347,7 @@ fn redeploy_to_targets(
 /// 一部失敗しても後続の処理を継続する。
 ///
 /// # Arguments
+///
 /// * `cache` - Package cache accessor used to enumerate and update plugins.
 /// * `project_root` - Project root path used for redeployment.
 /// * `target_filter` - When `Some`, only redeploy to this single target.
