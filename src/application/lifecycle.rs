@@ -20,7 +20,7 @@ use std::path::Path;
 /// プラグインを Disable（デプロイ先から削除、キャッシュは残す）
 ///
 /// # Arguments
-/// * `cache` - Package cache accessor used to look up the plugin.
+/// * `cache` - プラグインを検索するためのパッケージキャッシュアクセサ
 /// * `plugin_name` - プラグイン名
 /// * `marketplace` - マーケットプレイス名（任意）
 /// * `project_root` - プロジェクトルートパス
@@ -77,7 +77,7 @@ pub fn disable_plugin(
 /// プラグインを Enable（キャッシュからデプロイ先に配置）
 ///
 /// # Arguments
-/// * `cache` - Package cache accessor used to look up the plugin.
+/// * `cache` - プラグインを検索するためのパッケージキャッシュアクセサ
 /// * `plugin_name` - プラグイン名
 /// * `marketplace` - マーケットプレイス名（任意）
 /// * `project_root` - プロジェクトルートパス
@@ -120,7 +120,7 @@ pub fn enable_plugin(
 /// プラグインの存在確認と、削除対象の情報を取得する。
 ///
 /// # Arguments
-/// * `cache` - Package cache accessor used to look up the plugin.
+/// * `cache` - プラグインを検索するためのパッケージキャッシュアクセサ
 /// * `plugin_name` - プラグイン名
 /// * `marketplace` - マーケットプレイス名（任意、デフォルト: "github"）
 ///
@@ -174,7 +174,7 @@ pub struct UninstallInfo {
 /// プラグインを Uninstall（デプロイ先 + キャッシュ削除）
 ///
 /// # Arguments
-/// * `cache` - Package cache accessor used to look up the plugin.
+/// * `cache` - プラグインを検索するためのパッケージキャッシュアクセサ
 /// * `plugin_name` - プラグイン名
 /// * `marketplace` - マーケットプレイス名（任意）
 /// * `project_root` - プロジェクトルートパス
