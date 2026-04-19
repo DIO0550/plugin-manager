@@ -53,9 +53,9 @@ pub fn get_plugin_info(cache: &dyn PackageCacheAccess, name: &str) -> Result<Plu
 /// * `name` - Raw plugin name string, either `"plugin"` or `"marketplace/plugin"`.
 ///
 /// # Returns
-/// * `Ok((None, "plugin"))` - プラグイン名のみ
-/// * `Ok((Some("marketplace"), "plugin"))` - マーケットプレイス指定
-/// * `Err` - 不正な形式
+/// * `Ok((None, "plugin"))` - Plugin name only.
+/// * `Ok((Some("marketplace"), "plugin"))` - Marketplace-qualified plugin name.
+/// * `Err` - Invalid format.
 fn parse_plugin_name(name: &str) -> Result<(Option<String>, String)> {
     if name.is_empty() {
         return Err(PlmError::InvalidArgument("plugin name is empty".into()));
