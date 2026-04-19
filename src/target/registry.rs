@@ -114,7 +114,8 @@ impl TargetRegistry {
     /// カスタムパスで作成（テスト用）
     ///
     /// # Arguments
-    /// * `path` - Absolute path to the `targets.json` file to manage.
+    ///
+    /// * `path` - Path to the `targets.json` file to manage.
     pub fn with_path(path: PathBuf) -> Self {
         Self {
             config_path: path,
