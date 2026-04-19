@@ -11,7 +11,7 @@ use thiserror::Error;
 /// # Arguments
 ///
 /// * `name` - Ambiguous plugin short name.
-/// * `candidates` - Full qualified plugin identifiers to disambiguate among.
+/// * `candidates` - Fully qualified plugin identifiers to disambiguate among.
 fn format_ambiguous_plugin(name: &str, candidates: &[String]) -> String {
     let mut msg = format!("multiple plugins named '{}' found:\n", name);
     for c in candidates {
