@@ -24,7 +24,7 @@ impl Model {
     ///
     /// # Arguments
     ///
-    /// * `_data` - shared data store (currently unused on this tab)
+    /// * `_data` - Shared data store (currently unused on this tab).
     pub fn new(_data: &DataStore) -> Self {
         Self {
             selected_id: None,
@@ -36,8 +36,8 @@ impl Model {
     ///
     /// # Arguments
     ///
-    /// * `_data` - shared data store (currently unused on this tab)
-    /// * `cache` - cached state carried across tab switches
+    /// * `_data` - Shared data store (currently unused on this tab).
+    /// * `cache` - Cached state carried across tab switches.
     pub fn from_cache(_data: &DataStore, cache: &CacheState) -> Self {
         Self {
             selected_id: cache.selected_id.clone(),
@@ -62,7 +62,7 @@ pub enum Msg {
 ///
 /// # Arguments
 ///
-/// * `_key` - pressed key code
+/// * `_key` - Pressed key code.
 pub fn key_to_msg(_key: KeyCode) -> Option<Msg> {
     None
 }
@@ -71,9 +71,9 @@ pub fn key_to_msg(_key: KeyCode) -> Option<Msg> {
 ///
 /// # Arguments
 ///
-/// * `_model` - mutable screen state
-/// * `_msg` - incoming message
-/// * `_data` - shared data store
+/// * `_model` - Mutable screen state.
+/// * `_msg` - Incoming message.
+/// * `_data` - Shared data store.
 pub fn update(_model: &mut Model, _msg: Msg, _data: &DataStore) {
     // 将来の拡張用
 }
