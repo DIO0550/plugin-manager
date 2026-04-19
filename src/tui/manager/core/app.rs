@@ -327,18 +327,18 @@ fn clamp_selection(model: &mut Model) {
         } = m
         {
             if let Some(id) = selected_id.as_ref() {
-                if let Some(idx) = filtered.iter().position(|p| p.install_id() == id.as_str()) {
+                if let Some(idx) = filtered.iter().position(|p| p.id() == id.as_str()) {
                     state.select(Some(idx));
                 } else if !filtered.is_empty() {
                     state.select(Some(0));
-                    *selected_id = Some(filtered[0].install_id().to_string());
+                    *selected_id = Some(filtered[0].id().to_string());
                 } else {
                     state.select(None);
                     *selected_id = None;
                 }
             } else if !filtered.is_empty() {
                 state.select(Some(0));
-                *selected_id = Some(filtered[0].install_id().to_string());
+                *selected_id = Some(filtered[0].id().to_string());
             } else {
                 state.select(None);
             }

@@ -206,7 +206,7 @@ fn view_plugin_list(
         let items: Vec<ListItem> = filtered
             .iter()
             .map(|p| {
-                let is_marked = marked_ids.contains(p.install_id());
+                let is_marked = marked_ids.contains(p.id());
                 let mark_indicator = if is_marked { "[x] " } else { "[ ] " };
 
                 let marketplace_str = p
@@ -240,7 +240,7 @@ fn view_plugin_list(
                 spans.push(Span::styled(name_text, base_style));
 
                 // 更新ステータス
-                if let Some(update_status) = update_statuses.get(p.install_id()) {
+                if let Some(update_status) = update_statuses.get(p.id()) {
                     spans.push(update_status_span(update_status));
                 }
 

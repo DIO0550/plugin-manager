@@ -13,7 +13,8 @@ use serde::{Serialize, Serializer};
 pub(super) struct Wire<'a> {
     pub(super) name: &'a str,
     pub(super) version: &'a str,
-    pub(super) install_id: &'a str,
+    #[serde(rename = "install_id")]
+    pub(super) id: &'a str,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) marketplace: Option<&'a str>,
     pub(super) enabled: bool,
@@ -30,7 +31,7 @@ impl<'a> Wire<'a> {
         Self {
             name: plugin.name(),
             version: plugin.version(),
-            install_id: plugin.install_id(),
+            id: plugin.id(),
             marketplace: plugin.marketplace(),
             enabled: plugin.enabled(),
             components: ComponentsWire(plugin.components()),

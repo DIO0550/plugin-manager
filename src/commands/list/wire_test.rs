@@ -63,7 +63,7 @@ fn wire_from_installed_snapshot_full() {
 }
 
 #[test]
-fn wire_install_id_fallback_to_name() {
+fn wire_id_fallback_to_name() {
     let plugin = InstalledPlugin::new_for_test(
         "no-install-id",
         "0.1.0",

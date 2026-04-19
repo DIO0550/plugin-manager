@@ -215,10 +215,9 @@ fn build_plugin_info(content: MarketplaceContent) -> Result<PluginInfo> {
     let enabled = resolve_enabled(&cache_path, marketplace_key, &dir_name);
 
     // InstalledPlugin を組み立てる（list_installed_plugins と同じく marketplace は Option<String> を保つ）
-    let install_id = Some(dir_name);
+    let id = Some(dir_name);
     let plugin = Plugin::new(manifest, cache_path);
-    let installed =
-        InstalledPlugin::from_cached_package(plugin, install_id, marketplace_opt, enabled);
+    let installed = InstalledPlugin::from_cached_package(plugin, id, marketplace_opt, enabled);
 
     Ok(PluginInfo {
         installed,
@@ -235,11 +234,11 @@ fn build_plugin_info(content: MarketplaceContent) -> Result<PluginInfo> {
 ///
 /// * `cache_path` - Path to the plugin's cache directory.
 /// * `marketplace` - Marketplace key (e.g. `"github"`).
-/// * `install_id` - Install identifier used to match deployed entries.
-fn resolve_enabled(cache_path: &Path, marketplace: &str, install_id: &str) -> bool {
+/// * `id` - Install identifier used to match deployed entries.
+fn resolve_enabled(cache_path: &Path, marketplace: &str, id: &str) -> bool {
     let project_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let deployed = list_all_placed(&project_root);
-    meta::is_enabled(cache_path, marketplace, install_id, &deployed)
+    meta::is_enabled(cache_path, marketplace, id, &deployed)
 }
 
 #[cfg(test)]
