@@ -27,7 +27,7 @@ pub struct AddResult {
 ///
 /// # Arguments
 ///
-/// * `source` - Marketplace source url or `owner/repo` spec.
+/// * `source` - Marketplace source URL or `owner/repo` spec.
 /// * `name` - Local name used to reference the marketplace.
 /// * `source_path` - Optional subdirectory path inside the source repository.
 pub fn add_marketplace(
