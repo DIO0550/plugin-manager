@@ -7,6 +7,10 @@ pub use rich::{ErrorContext, RichError};
 use thiserror::Error;
 
 /// AmbiguousPlugin エラーのフォーマット
+///
+/// # Arguments
+/// * `name` - Ambiguous plugin short name.
+/// * `candidates` - Full qualified plugin identifiers to disambiguate among.
 fn format_ambiguous_plugin(name: &str, candidates: &[String]) -> String {
     let mut msg = format!("multiple plugins named '{}' found:\n", name);
     for c in candidates {
@@ -122,12 +126,10 @@ impl From<PlmError> for RichError {
     fn from(err: PlmError) -> Self {
         let (code, message, context) = match &err {
             PlmError::Network(e) => {
-                // Extract URL from reqwest::Error if available
                 let mut ctx = ErrorContext::default();
                 if let Some(url) = e.url() {
                     ctx.url = Some(url.to_string());
                 }
-                // Distinguish timeout errors
                 let code = if e.is_timeout() {
                     ErrorCode::Net002
                 } else {
@@ -189,7 +191,6 @@ impl From<PlmError> for RichError {
                 ErrorContext::default(),
             ),
             PlmError::Io(e) => {
-                // Distinguish I/O error types by ErrorKind
                 let code = match e.kind() {
                     std::io::ErrorKind::NotFound => ErrorCode::Io001,
                     std::io::ErrorKind::PermissionDenied => ErrorCode::Io002,

@@ -43,21 +43,38 @@ impl std::fmt::Display for HostKind {
 /// ホスト別クライアント trait
 pub trait HostClient: Send + Sync {
     /// デフォルトブランチを取得
+    ///
+    /// # Arguments
+    /// * `repo` - Target repository.
     fn get_default_branch<'a>(&'a self, repo: &'a Repo) -> BoxFuture<'a, String>;
 
     /// コミットSHAを取得
+    ///
+    /// # Arguments
+    /// * `repo` - Target repository.
+    /// * `git_ref` - Branch, tag, or ref to resolve to a commit SHA.
     fn get_commit_sha<'a>(&'a self, repo: &'a Repo, git_ref: &'a str) -> BoxFuture<'a, String>;
 
     /// リポジトリをzipアーカイブとしてダウンロード
+    ///
+    /// # Arguments
+    /// * `repo` - Target repository.
     fn download_archive<'a>(&'a self, repo: &'a Repo) -> BoxFuture<'a, Vec<u8>>;
 
     /// リポジトリをダウンロードし、コミットSHAも一緒に返す
+    ///
+    /// # Arguments
+    /// * `repo` - Target repository.
     fn download_archive_with_sha<'a>(
         &'a self,
         repo: &'a Repo,
     ) -> BoxFuture<'a, (Vec<u8>, String, String)>;
 
     /// リポジトリ内のファイルを取得
+    ///
+    /// # Arguments
+    /// * `repo` - Target repository.
+    /// * `path` - File path inside the repository.
     fn fetch_file<'a>(&'a self, repo: &'a Repo, path: &'a str) -> BoxFuture<'a, String>;
 }
 
@@ -71,6 +88,10 @@ pub struct HostClientFactory {
 
 impl HostClientFactory {
     /// 新しいファクトリーを作成
+    ///
+    /// # Arguments
+    /// * `config` - HTTP configuration applied to created clients.
+    /// * `auth` - Authentication provider shared with created clients.
     pub fn new(config: HttpConfig, auth: AuthProvider) -> Self {
         Self { config, auth }
     }
@@ -81,6 +102,9 @@ impl HostClientFactory {
     }
 
     /// ホスト種別に応じたクライアントを生成
+    ///
+    /// # Arguments
+    /// * `host` - Host kind that selects the concrete `HostClient` implementation.
     pub fn create(&self, host: HostKind) -> Box<dyn HostClient> {
         match host {
             HostKind::GitHub => Box::new(GitHubClient::new(&self.config, &self.auth)),

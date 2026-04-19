@@ -39,6 +39,12 @@ pub struct Repo {
 
 impl Repo {
     /// 新しいRepoを作成
+    ///
+    /// # Arguments
+    /// * `host` - Repository hosting service.
+    /// * `owner` - Repository owner or organization.
+    /// * `name` - Repository name.
+    /// * `git_ref` - Optional branch, tag, or commit SHA.
     pub fn new(
         host: HostKind,
         owner: impl Into<String>,
@@ -105,10 +111,12 @@ enum SourceLocatorKind {
 /// 3. `@ref` を分離
 /// 4. ホスト別パース: `host::<name>::parse_repo_path()` に委譲
 /// 5. 正規化: `Repo { host, owner, name, git_ref }` を生成
+///
+/// # Arguments
+/// * `input` - Source locator in shorthand, HTTP URL, SSH URL, or SCP format.
 pub fn from_url(input: &str) -> Result<Repo> {
     let (host, path, git_ref) = parse_input(input)?;
 
-    // ホスト別パース
     let (owner, name) = match host {
         HostKind::GitHub => host::github::parse_repo_path(&path)?,
         HostKind::GitLab => return Err(PlmError::Validation("GitLab is not yet supported".into())),
@@ -123,6 +131,9 @@ pub fn from_url(input: &str) -> Result<Repo> {
 }
 
 /// 入力形式を判定
+///
+/// # Arguments
+/// * `input` - Raw source locator string.
 fn detect_source_locator_kind(input: &str) -> Result<SourceLocatorKind> {
     if let Some((scheme, _rest)) = input.split_once("://") {
         return match scheme {
@@ -143,6 +154,9 @@ fn detect_source_locator_kind(input: &str) -> Result<SourceLocatorKind> {
 }
 
 /// 入力をパースしてホスト、パス、git refを抽出
+///
+/// # Arguments
+/// * `input` - Raw source locator string.
 fn parse_input(input: &str) -> Result<(HostKind, String, Option<String>)> {
     let input = input.trim();
     if input.is_empty() {
@@ -163,8 +177,10 @@ fn parse_input(input: &str) -> Result<(HostKind, String, Option<String>)> {
 }
 
 /// パスから `@ref` を分離
+///
+/// # Arguments
+/// * `path` - Path portion of a source locator, potentially containing `@ref`.
 fn split_ref(path: &str) -> Result<(String, Option<String>)> {
-    // .git サフィックスを除去
     let path = path.strip_suffix(".git").unwrap_or(path);
 
     if let Some((left, right)) = path.split_once('@') {
@@ -181,6 +197,9 @@ fn split_ref(path: &str) -> Result<(String, Option<String>)> {
 }
 
 /// HTTP/HTTPS URLをパース
+///
+/// # Arguments
+/// * `input` - HTTP or HTTPS URL to parse.
 fn parse_http_url(input: &str) -> Result<(Option<HostKind>, String)> {
     let rest = input
         .strip_prefix("https://")
@@ -198,6 +217,9 @@ fn parse_http_url(input: &str) -> Result<(Option<HostKind>, String)> {
 }
 
 /// SSH URLをパース (ssh://git@github.com/owner/repo)
+///
+/// # Arguments
+/// * `input` - SSH URL to parse.
 fn parse_ssh_url(input: &str) -> Result<(Option<HostKind>, String)> {
     let rest = input.strip_prefix("ssh://").unwrap_or(input);
 
@@ -205,7 +227,6 @@ fn parse_ssh_url(input: &str) -> Result<(Option<HostKind>, String)> {
         .split_once('/')
         .ok_or_else(|| PlmError::InvalidRepoFormat(input.to_string()))?;
 
-    // user@host から host を抽出
     let host = host_part
         .rsplit_once('@')
         .map(|(_, h)| h)
@@ -218,6 +239,9 @@ fn parse_ssh_url(input: &str) -> Result<(Option<HostKind>, String)> {
 }
 
 /// SCP形式URLをパース (git@github.com:owner/repo)
+///
+/// # Arguments
+/// * `input` - SCP-style URL to parse.
 fn parse_scp_url(input: &str) -> Result<(Option<HostKind>, String)> {
     let rest = input.strip_prefix("git@").unwrap_or(input);
 
@@ -232,8 +256,10 @@ fn parse_scp_url(input: &str) -> Result<(Option<HostKind>, String)> {
 }
 
 /// ホスト名からHostKindを取得
+///
+/// # Arguments
+/// * `host` - Host name portion, optionally including a port (stripped before matching).
 fn host_kind_from_host(host: &str) -> Option<HostKind> {
-    // ポート番号を除去 (host:port -> host)
     let host = host.split(':').next().unwrap_or(host);
 
     match host.to_ascii_lowercase().as_str() {
