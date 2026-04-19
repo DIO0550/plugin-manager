@@ -52,11 +52,11 @@ pub fn update(_model: &mut Model, _msg: Msg, _data: &DataStore) {
 ///
 /// # Arguments
 ///
-/// * `f` - ratatui frame to render into
-/// * `_model` - current screen state
-/// * `data` - shared data store providing the last error
-/// * `filter_text` - current filter input text
-/// * `filter_focused` - whether the filter bar has focus
+/// * `f` - Ratatui frame to render into.
+/// * `_model` - Current screen state.
+/// * `data` - Shared data store providing the last error.
+/// * `filter_text` - Current filter input text.
+/// * `filter_focused` - Whether the filter bar has focus.
 pub fn view(
     f: &mut Frame,
     _model: &Model,
