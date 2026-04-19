@@ -22,7 +22,7 @@ use std::path::Path;
 /// # Arguments
 ///
 /// * `cache` - プラグインを検索するためのパッケージキャッシュアクセサ
-/// * `plugin_name` - プラグイン名
+/// * `plugin_name` - プラグインのキャッシュキー（GitHub なら `owner--repo`、Marketplace なら登録名。`InstalledPlugin::install_id()` 相当）
 /// * `marketplace` - マーケットプレイス名（任意）
 /// * `project_root` - プロジェクトルートパス
 /// * `target_filter` - ターゲットフィルタ（None で全ターゲット）
@@ -80,7 +80,7 @@ pub fn disable_plugin(
 /// # Arguments
 ///
 /// * `cache` - プラグインを検索するためのパッケージキャッシュアクセサ
-/// * `plugin_name` - プラグイン名
+/// * `plugin_name` - プラグインのキャッシュキー（GitHub なら `owner--repo`、Marketplace なら登録名。`InstalledPlugin::install_id()` 相当）
 /// * `marketplace` - マーケットプレイス名（任意）
 /// * `project_root` - プロジェクトルートパス
 /// * `target_filter` - ターゲットフィルタ（None で全ターゲット）
@@ -124,7 +124,7 @@ pub fn enable_plugin(
 /// # Arguments
 ///
 /// * `cache` - プラグインを検索するためのパッケージキャッシュアクセサ
-/// * `plugin_name` - プラグイン名
+/// * `plugin_name` - プラグインのキャッシュキー（GitHub なら `owner--repo`、Marketplace なら登録名。`InstalledPlugin::install_id()` 相当）
 /// * `marketplace` - マーケットプレイス名（任意、デフォルト: "github"）
 ///
 /// # Returns
@@ -179,7 +179,7 @@ pub struct UninstallInfo {
 /// # Arguments
 ///
 /// * `cache` - プラグインを検索するためのパッケージキャッシュアクセサ
-/// * `plugin_name` - プラグイン名
+/// * `plugin_name` - プラグインのキャッシュキー（GitHub なら `owner--repo`、Marketplace なら登録名。`InstalledPlugin::install_id()` 相当）
 /// * `marketplace` - マーケットプレイス名（任意）
 /// * `project_root` - プロジェクトルートパス
 pub fn uninstall_plugin(
