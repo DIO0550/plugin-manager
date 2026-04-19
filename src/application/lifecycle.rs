@@ -9,11 +9,11 @@
 //! 2. Functional Core: `PluginIntent::expand()` で操作を展開（パス検証時にFS参照あり）
 //! 3. Imperative Shell: `PluginIntent::apply()` で実行（I/O）
 
-use super::plugin_action::PluginAction;
-use super::plugin_deployment::{cleanup_plugin_directories, load_plugin_deployment};
-use super::plugin_intent::PluginIntent;
 use crate::component::Component;
-use crate::plugin::PackageCacheAccess;
+use crate::plugin::{
+    cleanup_plugin_directories, load_plugin_deployment, PackageCacheAccess, PluginAction,
+    PluginIntent,
+};
 use crate::target::{all_targets, OperationResult};
 use std::path::Path;
 
@@ -200,5 +200,5 @@ pub fn uninstall_plugin(
 }
 
 #[cfg(test)]
-#[path = "plugin_operations_test.rs"]
+#[path = "lifecycle_test.rs"]
 mod tests;

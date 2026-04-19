@@ -29,7 +29,7 @@ impl PluginDeployment {
 /// キャッシュから PluginDeployment を読み込む
 ///
 /// マニフェストとパス情報を含む PluginDeployment を構築する。
-pub(super) fn load_plugin_deployment(
+pub(crate) fn load_plugin_deployment(
     cache: &dyn PackageCacheAccess,
     marketplace: Option<&str>,
     plugin_name: &str,
@@ -55,7 +55,7 @@ pub(super) fn load_plugin_deployment(
 /// プラグインディレクトリをクリーンアップ
 ///
 /// コンポーネント削除後に空になったプラグインディレクトリを削除する。
-pub(super) fn cleanup_plugin_directories(
+pub(crate) fn cleanup_plugin_directories(
     target_name: &str,
     origin: &PluginOrigin,
     project_root: &Path,

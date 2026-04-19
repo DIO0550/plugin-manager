@@ -4,12 +4,16 @@
 
 pub mod convert;
 mod deployment;
+mod file_operation;
 mod kind;
 mod placement;
+mod scoped_path;
 
 pub use convert::{AgentFormat, CommandFormat};
 pub use deployment::{ComponentDeployment, DeploymentResult};
+pub use file_operation::FileOperation;
 pub use kind::{Component, ComponentKind, Scope};
 pub use placement::{
     ComponentRef, PlacementContext, PlacementLocation, PlacementScope, ProjectContext,
 };
+pub use scoped_path::ScopedPath;

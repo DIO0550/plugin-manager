@@ -24,8 +24,13 @@ mod codex;
 mod copilot;
 mod effect;
 mod gemini_cli;
+mod id;
+mod placed;
 mod registry;
 pub mod scanner;
+
+pub use id::TargetId;
+pub(crate) use placed::list_all_placed;
 
 pub use registry::{AddResult, RemoveResult, TargetRegistry};
 

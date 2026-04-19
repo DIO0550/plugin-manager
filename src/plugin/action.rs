@@ -72,5 +72,5 @@ impl PluginAction {
 }
 
 #[cfg(test)]
-#[path = "plugin_action_test.rs"]
+#[path = "action_test.rs"]
 mod tests;

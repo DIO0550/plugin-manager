@@ -3,6 +3,7 @@
 //! GitHubやマーケットプレイスからダウンロードしたパッケージのキャッシュ管理を行う。
 
 use super::manifest_resolve::resolve_manifest_path;
+use super::marketplace_content::MarketplaceContent;
 use super::{meta, PluginManifest};
 use crate::error::{PlmError, Result};
 use crate::fs::{FileSystem, RealFs};
@@ -13,6 +14,35 @@ use zip::ZipArchive;
 // Re-export
 pub use super::cached_package::CachedPackage;
 pub use super::manifest_resolve::has_manifest;
+
+/// cache.list() の生タプルからのマッピング型（変更吸収層）
+struct PluginCacheKey {
+    marketplace: Option<String>,
+    name: String,
+}
+
+impl From<(Option<String>, String)> for PluginCacheKey {
+    fn from((marketplace, name): (Option<String>, String)) -> Self {
+        Self { marketplace, name }
+    }
+}
+
+/// キャッシュ内のマーケットプレイスパッケージを列挙
+pub(crate) fn list_installed(cache: &dyn PackageCacheAccess) -> Result<Vec<MarketplaceContent>> {
+    let packages = cache
+        .list()?
+        .into_iter()
+        .map(PluginCacheKey::from)
+        .filter(|key| !key.name.starts_with('.'))
+        .filter_map(|key| {
+            cache
+                .load_package(key.marketplace.as_deref(), &key.name)
+                .ok()
+                .map(MarketplaceContent::from)
+        })
+        .collect();
+    Ok(packages)
+}
 
 /// パッケージキャッシュアクセスの抽象化トレイト
 ///
