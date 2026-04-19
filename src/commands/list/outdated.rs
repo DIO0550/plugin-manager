@@ -146,7 +146,7 @@ fn print_updates_table(with_updates: &[&(&InstalledPlugin, UpgradeState)]) {
 ///
 /// # Arguments
 ///
-/// * `plugin` and `check` - Borrowed tuple of the installed plugin and its upgrade state.
+/// * `(plugin, check)` - Borrowed tuple of the installed plugin and its upgrade state.
 fn update_row((plugin, check): &(&InstalledPlugin, UpgradeState)) -> Vec<String> {
     vec![
         plugin.name().to_string(),
