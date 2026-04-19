@@ -159,7 +159,10 @@ impl TargetRegistry {
         let content = serde_json::to_string_pretty(config)?;
         temp_file.write_all(content.as_bytes())?;
 
-        // Atomically replace the target file to avoid partial writes on crash.
+        // Replace the target file via persist() to avoid partial writes on crash.
+        // Note: NamedTempFile::persist() can fail on Windows when the destination
+        // already exists; cross-platform AlreadyExists retry is intentionally not
+        // applied here (handled in plugin/meta.rs::write_meta where it is required).
         temp_file
             .persist(&self.config_path)
             .map_err(|e| PlmError::TargetRegistry(format!("Failed to persist config: {}", e)))?;
