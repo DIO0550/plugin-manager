@@ -42,7 +42,7 @@ pub struct CachedPackage {
 impl CachedPackage {
     /// キャッシュディレクトリ名を返す（`id` が `None` の場合は `name` にフォールバック）
     pub fn id(&self) -> &str {
-        super::resolve_cache_key(self.id.as_deref(), &self.name)
+        super::resolve_id(self.id.as_deref(), &self.name)
     }
 
     /// プラグインのバージョンを取得

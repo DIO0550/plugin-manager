@@ -75,7 +75,7 @@ impl InstalledPlugin {
 
     /// インストール識別子（`id` が `None` の場合は `name` にフォールバック）
     pub fn id(&self) -> &str {
-        crate::plugin::resolve_cache_key(self.id.as_deref(), self.plugin.name())
+        crate::plugin::resolve_id(self.id.as_deref(), self.plugin.name())
     }
 
     /// コンポーネント種別ごとの件数を取得（空でないもののみ）
