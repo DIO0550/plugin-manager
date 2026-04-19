@@ -112,15 +112,18 @@ pub(crate) fn absolutize(path: &Path) -> PathBuf {
     let mut components = Vec::new();
     for component in abs.components() {
         match component {
-            Component::CurDir => {}
+            Component::CurDir => {
+                // Skip `.`
+            }
             Component::ParentDir => {
-                // Pop the last normal component if possible, and clamp at root
-                // so `..` cannot escape above the filesystem root.
+                // Pop the last normal component if possible, and clamp at root.
                 match components.last() {
                     Some(Component::Normal(_)) => {
                         components.pop();
                     }
-                    Some(Component::RootDir) => {}
+                    Some(Component::RootDir) => {
+                        // Don't allow `..` to go above filesystem root.
+                    }
                     _ => {
                         components.push(component);
                     }

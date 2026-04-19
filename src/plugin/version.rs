@@ -87,8 +87,8 @@ impl UpgradeState {
     /// `PluginMeta` と `VersionQueryResult` から更新可否を判定する。
     ///
     /// # Arguments
-    /// * `meta` - プラグインのローカルメタデータ
-    /// * `result` - リモートバージョン取得結果
+    /// * `meta` - Local plugin metadata used to read the current SHA.
+    /// * `result` - Remote version query result to compare against.
     pub fn from_query(meta: &PluginMeta, result: &VersionQueryResult) -> Self {
         let current_sha = meta.commit_sha.clone();
         match result {
@@ -157,8 +157,8 @@ impl UpgradeState {
 /// - ローカルSHAとリモートSHAが同じ場合: 更新不要
 ///
 /// # Arguments
-/// * `local_sha` - ローカルに記録されているコミット SHA（未記録なら `None`）
-/// * `remote_sha` - リモートの最新コミット SHA
+/// * `local_sha` - Locally recorded commit SHA, or `None` when unrecorded.
+/// * `remote_sha` - Latest commit SHA reported by the remote.
 pub fn needs_update(local_sha: Option<&str>, remote_sha: &str) -> bool {
     match local_sha {
         Some(local) => local != remote_sha,
@@ -169,7 +169,7 @@ pub fn needs_update(local_sha: Option<&str>, remote_sha: &str) -> bool {
 /// PlmErrorからエラーメッセージを生成
 ///
 /// # Arguments
-/// * `error` - 変換対象の `PlmError`
+/// * `error` - `PlmError` to convert into a short message.
 fn error_message(error: &PlmError) -> String {
     match error {
         PlmError::RepoApi {
@@ -196,8 +196,8 @@ fn error_message(error: &PlmError) -> String {
 /// 2. `client.get_commit_sha()` で最新 SHA を取得
 ///
 /// # Arguments
-/// * `meta` - プラグインのローカルメタデータ
-/// * `client` - ホストクライアント（GitHub API 等）
+/// * `meta` - Local plugin metadata containing `source_repo` and `git_ref`.
+/// * `client` - Host client used to query the remote (e.g. GitHub API).
 pub async fn fetch_remote_version(
     meta: &PluginMeta,
     client: &dyn HostClient,
@@ -241,8 +241,8 @@ pub async fn fetch_remote_version(
 /// エラーが発生しても後続の処理を継続する。
 ///
 /// # Arguments
-/// * `plugins` - `(プラグイン名, メタデータ)` のリスト
-/// * `client` - ホストクライアント（GitHub API 等）
+/// * `plugins` - List of `(plugin name, metadata)` pairs to query.
+/// * `client` - Host client used to query the remote (e.g. GitHub API).
 pub async fn fetch_remote_versions(
     plugins: &[(String, PluginMeta)],
     client: &dyn HostClient,

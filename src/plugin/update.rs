@@ -44,11 +44,11 @@ impl UpdateResult {
     /// 更新成功
     ///
     /// # Arguments
-    /// * `name` - プラグイン名
-    /// * `from` - 更新前のコミット SHA（未記録時は `None`）
-    /// * `to` - 更新後のコミット SHA
-    /// * `deployed` - 再デプロイに成功したターゲット一覧
-    /// * `failed` - 再デプロイに失敗したターゲット一覧
+    /// * `name` - Plugin name.
+    /// * `from` - Commit SHA before the update, or `None` when unrecorded.
+    /// * `to` - Commit SHA after the update.
+    /// * `deployed` - Targets that were redeployed successfully.
+    /// * `failed` - Targets that failed to redeploy.
     pub fn updated(
         name: &str,
         from: Option<String>,
@@ -72,7 +72,7 @@ impl UpdateResult {
     /// 既に最新
     ///
     /// # Arguments
-    /// * `name` - プラグイン名
+    /// * `name` - Plugin name.
     pub fn up_to_date(name: &str) -> Self {
         Self {
             plugin_name: name.to_string(),
@@ -87,8 +87,8 @@ impl UpdateResult {
     /// 更新失敗
     ///
     /// # Arguments
-    /// * `name` - プラグイン名
-    /// * `error` - 失敗理由のエラーメッセージ
+    /// * `name` - Plugin name.
+    /// * `error` - Error message describing the failure.
     pub fn failed(name: &str, error: String) -> Self {
         Self {
             plugin_name: name.to_string(),
@@ -103,8 +103,8 @@ impl UpdateResult {
     /// スキップ
     ///
     /// # Arguments
-    /// * `name` - プラグイン名
-    /// * `reason` - スキップ理由
+    /// * `name` - Plugin name.
+    /// * `reason` - Reason the update was skipped.
     pub fn skipped(name: &str, reason: String) -> Self {
         Self {
             plugin_name: name.to_string(),
@@ -124,9 +124,9 @@ impl UpdateResult {
 /// 2. プラグイン名からフォールバック（owner--repo形式）
 ///
 /// # Arguments
-/// * `meta` - プラグインのメタデータ
-/// * `plugin_name` - プラグイン名（フォールバック時に `owner--repo` 形式として解釈）
-/// * `git_ref` - 対象の Git 参照
+/// * `meta` - Plugin metadata used as the primary source of repository info.
+/// * `plugin_name` - Plugin name, interpreted as `owner--repo` during fallback.
+/// * `git_ref` - Target Git reference to associate with the restored repo.
 fn restore_repo(
     meta: &PluginMeta,
     plugin_name: &str,
@@ -158,10 +158,10 @@ fn restore_repo(
 /// 単一プラグインの更新
 ///
 /// # Arguments
-/// * `cache` - プラグインキャッシュへのアクセサ
-/// * `plugin_name` - 更新対象のプラグイン名
-/// * `project_root` - プロジェクトルートパス
-/// * `target_filter` - 特定ターゲットのみ再デプロイする場合に指定
+/// * `cache` - Package cache accessor for the plugin.
+/// * `plugin_name` - Name of the plugin to update.
+/// * `project_root` - Project root path used for redeployment.
+/// * `target_filter` - When `Some`, only redeploy to this single target.
 pub async fn update_plugin(
     cache: &dyn PackageCacheAccess,
     plugin_name: &str,
@@ -234,9 +234,9 @@ struct UpdateCtx<'a> {
 /// 更新処理の実行
 ///
 /// # Arguments
-/// * `plugin_name` - プラグイン名
-/// * `latest_sha` - リモートの最新コミット SHA
-/// * `ctx` - 更新処理コンテキスト
+/// * `plugin_name` - Plugin name.
+/// * `latest_sha` - Latest commit SHA reported by the remote.
+/// * `ctx` - Shared update context containing cache, client, and repo info.
 async fn do_update(plugin_name: &str, latest_sha: &str, ctx: &UpdateCtx<'_>) -> UpdateResult {
     let current_sha = ctx.plugin_meta.commit_sha.clone();
     let git_ref = ctx.plugin_meta.git_ref.as_deref().unwrap_or("HEAD");
@@ -300,10 +300,10 @@ async fn do_update(plugin_name: &str, latest_sha: &str, ctx: &UpdateCtx<'_>) -> 
 /// ターゲットへの再デプロイ
 ///
 /// # Arguments
-/// * `cache` - プラグインキャッシュへのアクセサ
-/// * `plugin_name` - プラグイン名
-/// * `targets` - 再デプロイ対象のターゲット一覧
-/// * `project_root` - プロジェクトルートパス
+/// * `cache` - Package cache accessor for the plugin.
+/// * `plugin_name` - Plugin name being redeployed.
+/// * `targets` - Target names to redeploy to.
+/// * `project_root` - Project root path used for redeployment.
 fn redeploy_to_targets(
     cache: &dyn PackageCacheAccess,
     plugin_name: &str,
@@ -339,9 +339,9 @@ fn redeploy_to_targets(
 /// 一部失敗しても後続の処理を継続する。
 ///
 /// # Arguments
-/// * `cache` - プラグインキャッシュへのアクセサ
-/// * `project_root` - プロジェクトルートパス
-/// * `target_filter` - 特定ターゲットのみ再デプロイする場合に指定
+/// * `cache` - Package cache accessor used to enumerate and update plugins.
+/// * `project_root` - Project root path used for redeployment.
+/// * `target_filter` - When `Some`, only redeploy to this single target.
 pub async fn update_all_plugins(
     cache: &dyn PackageCacheAccess,
     project_root: &Path,

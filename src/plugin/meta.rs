@@ -68,7 +68,7 @@ impl PluginMeta {
     /// 指定ターゲットのステータスを取得
     ///
     /// # Arguments
-    /// * `target` - ターゲット名（例: `"codex"`, `"copilot"`）
+    /// * `target` - Target name (e.g. `"codex"`, `"copilot"`).
     pub fn get_status(&self, target: &str) -> Option<&str> {
         self.status_by_target.get(target).map(|s| s.as_str())
     }
@@ -76,8 +76,8 @@ impl PluginMeta {
     /// 指定ターゲットのステータスを設定
     ///
     /// # Arguments
-    /// * `target` - ターゲット名
-    /// * `status` - 状態文字列（`"enabled"` / `"disabled"`）
+    /// * `target` - Target name.
+    /// * `status` - Status string (`"enabled"` or `"disabled"`).
     pub fn set_status(&mut self, target: &str, status: &str) {
         self.status_by_target
             .insert(target.to_string(), status.to_string());
@@ -86,7 +86,7 @@ impl PluginMeta {
     /// 指定ターゲットが有効化されているか
     ///
     /// # Arguments
-    /// * `target` - ターゲット名
+    /// * `target` - Target name.
     pub fn is_enabled(&self, target: &str) -> bool {
         self.get_status(target) == Some("enabled")
     }
@@ -99,8 +99,8 @@ impl PluginMeta {
     /// Git参照情報を更新
     ///
     /// # Arguments
-    /// * `git_ref` - Git 参照（ブランチ名やタグ）
-    /// * `commit_sha` - コミット SHA
+    /// * `git_ref` - Git reference (branch name or tag).
+    /// * `commit_sha` - Commit SHA to record.
     pub fn set_git_info(&mut self, git_ref: &str, commit_sha: &str) {
         self.git_ref = Some(git_ref.to_string());
         self.commit_sha = Some(commit_sha.to_string());
@@ -119,8 +119,8 @@ impl PluginMeta {
     /// ソースリポジトリを設定
     ///
     /// # Arguments
-    /// * `owner` - リポジトリオーナー名
-    /// * `repo` - リポジトリ名
+    /// * `owner` - Repository owner name.
+    /// * `repo` - Repository name.
     pub fn set_source_repo(&mut self, owner: &str, repo: &str) {
         self.source_repo = Some(format!("{}/{}", owner, repo));
     }
@@ -140,7 +140,7 @@ impl PluginMeta {
 /// 空文字/空白のみ → None、それ以外 → Some(trimmed)
 ///
 /// # Arguments
-/// * `value` - 正規化対象の文字列（未設定なら `None`）
+/// * `value` - Optional string to normalize (`None` when unset).
 fn normalize_installed_at(value: Option<&str>) -> Option<String> {
     value
         .map(|s| s.trim())
@@ -154,8 +154,8 @@ fn normalize_installed_at(value: Option<&str>) -> Option<String> {
 /// 書き込み失敗時は Err を返す（呼び出し側で警告ログ + 継続を判断）。
 ///
 /// # Arguments
-/// * `plugin_dir` - プラグインのルートディレクトリ
-/// * `meta` - 書き込む `PluginMeta`
+/// * `plugin_dir` - Plugin root directory where the metadata file lives.
+/// * `meta` - `PluginMeta` value to serialize and persist.
 pub fn write_meta(plugin_dir: &Path, meta: &PluginMeta) -> Result<()> {
     let meta_path = plugin_dir.join(META_FILE);
 
@@ -185,7 +185,7 @@ pub fn write_meta(plugin_dir: &Path, meta: &PluginMeta) -> Result<()> {
 /// 現在時刻で installedAt を設定したメタデータを書き込む
 ///
 /// # Arguments
-/// * `plugin_dir` - プラグインのルートディレクトリ
+/// * `plugin_dir` - Plugin root directory where the metadata file lives.
 pub fn write_installed_at(plugin_dir: &Path) -> Result<()> {
     let now = Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
     let meta = PluginMeta {
@@ -201,7 +201,7 @@ pub fn write_installed_at(plugin_dir: &Path) -> Result<()> {
 /// 読み取り時は副作用なし（`.bak` 退避などを行わない）。
 ///
 /// # Arguments
-/// * `plugin_dir` - プラグインのルートディレクトリ
+/// * `plugin_dir` - Plugin root directory where the metadata file lives.
 pub fn load_meta(plugin_dir: &Path) -> Option<PluginMeta> {
     let fs = RealFs;
     let meta_path = plugin_dir.join(META_FILE);
@@ -242,8 +242,8 @@ pub fn load_meta(plugin_dir: &Path) -> Option<PluginMeta> {
 /// manifest が None の場合は plugin.json を読み込んでフォールバック
 ///
 /// # Arguments
-/// * `plugin_dir` - プラグインのルートディレクトリ
-/// * `manifest` - 既に読み込み済みの `PluginManifest`（未読込なら `None`）
+/// * `plugin_dir` - Plugin root directory where the metadata file lives.
+/// * `manifest` - Pre-loaded `PluginManifest`, or `None` to load it on demand.
 pub fn resolve_installed_at(
     plugin_dir: &Path,
     manifest: Option<&PluginManifest>,
