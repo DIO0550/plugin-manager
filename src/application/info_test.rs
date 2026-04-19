@@ -222,7 +222,7 @@ fn create_marketplace_content(marketplace: &str, name: &str) -> MarketplaceConte
     };
     let cached = CachedPackage {
         name: name.to_string(),
-        cache_key: Some(name.to_string()),
+        id: Some(name.to_string()),
         marketplace: Some(marketplace.to_string()),
         path: PathBuf::from(format!("/cache/{}/{}", marketplace, name)),
         manifest,

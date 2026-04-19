@@ -199,7 +199,7 @@ fn restore_github_repo(dir_name: &str) -> String {
 fn build_plugin_info(content: MarketplaceContent) -> Result<PluginInfo> {
     let marketplace_opt = content.marketplace().map(str::to_string);
     let dir_name = content
-        .cache_key()
+        .id()
         .map(str::to_string)
         .unwrap_or_else(|| content.name().to_string());
     let cache_path = content.path().to_path_buf();

@@ -63,7 +63,7 @@ fn create_test_cached_package(
 
     CachedPackage {
         name: "test-plugin".to_string(),
-        cache_key: None,
+        id: None,
         marketplace: Some("test-marketplace".to_string()),
         path: base_dir.to_path_buf(),
         manifest,
@@ -238,47 +238,47 @@ fn test_place_plugin_multiple_targets() {
 }
 
 // =============================================================================
-// cache_key 伝搬テスト
+// id 伝搬テスト
 // =============================================================================
 
 #[test]
-fn test_scan_plugin_propagates_cache_key() {
+fn test_scan_plugin_propagates_id() {
     let temp = TempDir::new().unwrap();
     let mut cached = create_test_cached_package(temp.path(), &["skill-a"], &[], &[]);
-    cached.cache_key = Some("owner--repo".to_string());
+    cached.id = Some("owner--repo".to_string());
     let package = MarketplaceContent::from(cached);
 
     let result = scan_plugin(&package, None).unwrap();
 
-    assert_eq!(result.cache_key(), "owner--repo");
+    assert_eq!(result.id(), "owner--repo");
 }
 
 #[test]
-fn test_scan_plugin_cache_key_none_falls_back_to_name() {
+fn test_scan_plugin_id_none_falls_back_to_name() {
     let temp = TempDir::new().unwrap();
     let cached = create_test_cached_package(temp.path(), &["skill-a"], &[], &[]);
     let package = MarketplaceContent::from(cached);
 
     let result = scan_plugin(&package, None).unwrap();
 
-    assert_eq!(result.cache_key(), "test-plugin");
+    assert_eq!(result.id(), "test-plugin");
 }
 
-/// place_plugin が cache_key を使って PluginOrigin を構成することを検証
+/// place_plugin が id を使って PluginOrigin を構成することを検証
 #[test]
-fn test_place_plugin_uses_cache_key_for_origin() {
+fn test_place_plugin_uses_id_for_origin() {
     let temp = TempDir::new().unwrap();
     let project_dir = TempDir::new().unwrap();
     let mut cached = create_test_cached_package(temp.path(), &["my-skill"], &[], &[]);
-    // name はマニフェスト名、cache_key はキャッシュディレクトリ名
+    // name はマニフェスト名、id はキャッシュディレクトリ名
     cached.name = "My Plugin".to_string();
     cached.manifest.name = "My Plugin".to_string();
-    cached.cache_key = Some("owner--repo".to_string());
+    cached.id = Some("owner--repo".to_string());
     let package = MarketplaceContent::from(cached);
     let scanned = scan_plugin(&package, None).unwrap();
 
-    // cache_key が "owner--repo" であることを確認
-    assert_eq!(scanned.cache_key(), "owner--repo");
+    // id が "owner--repo" であることを確認
+    assert_eq!(scanned.id(), "owner--repo");
     assert_eq!(scanned.name(), "My Plugin");
 
     let targets: Vec<Box<dyn crate::target::Target>> = vec![Box::new(CodexTarget::new())];
@@ -290,14 +290,14 @@ fn test_place_plugin_uses_cache_key_for_origin() {
         project_root: project_dir.path(),
     });
 
-    // PluginOrigin の plugin フィールドが cache_key() ("owner--repo") を使用していることを
+    // PluginOrigin の plugin フィールドが id() ("owner--repo") を使用していることを
     // 配置先パスに "owner--repo" が含まれることで間接的に検証
     assert_eq!(result.plugin_name, "My Plugin");
     assert_eq!(result.successes.len(), 1);
     let target_path = result.successes[0].target_path.to_string_lossy();
     assert!(
         target_path.contains("owner--repo"),
-        "target path should contain cache_key 'owner--repo', got: {}",
+        "target path should contain id 'owner--repo', got: {}",
         target_path
     );
 }

@@ -161,7 +161,7 @@ pub trait PackageCacheAccess: Send + Sync {
 
         Ok(CachedPackage {
             name: manifest.name.clone(),
-            cache_key: Some(name.to_string()),
+            id: Some(name.to_string()),
             marketplace: marketplace.map(String::from),
             path,
             manifest,
