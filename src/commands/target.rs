@@ -34,6 +34,9 @@ pub enum Command {
     },
 }
 
+/// # Arguments
+///
+/// * `args` - Parsed CLI arguments for `plm target`.
 pub async fn run(args: Args) -> Result<(), String> {
     let mut registry = TargetRegistry::new().map_err(|e| e.to_string())?;
 

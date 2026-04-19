@@ -18,6 +18,10 @@ pub(crate) enum HookEvent {
 impl HookEvent {
     /// Parse a Claude Code event name string into a `HookEvent`.
     /// Unknown or excluded events become `Other(s)`.
+    ///
+    /// # Arguments
+    ///
+    /// * `s` - raw event name string from the hook payload
     pub fn from_str(s: &str) -> Self {
         match s {
             "SessionStart" => Self::SessionStart,
@@ -40,11 +44,21 @@ pub(crate) struct EventBridge {
 
 /// Forward lookup: HookEvent -> target event name.
 /// Returns `None` for `Other` variants (not in table).
+///
+/// # Arguments
+///
+/// * `table` - event bridge table to search
+/// * `event` - Claude Code side hook event to look up
 pub(crate) fn to_target_event(table: &[EventBridge], event: &HookEvent) -> Option<&'static str> {
     table.iter().find(|e| e.event == *event).map(|e| e.target)
 }
 
 /// Reverse lookup: target event name -> HookEvent.
+///
+/// # Arguments
+///
+/// * `table` - event bridge table to search
+/// * `target_name` - target-side event name to resolve
 pub(crate) fn to_source_event(table: &[EventBridge], target_name: &str) -> Option<HookEvent> {
     table
         .iter()

@@ -33,6 +33,9 @@ pub(crate) fn resolve_manifest_path(plugin_dir: &Path) -> Option<PathBuf> {
 }
 
 /// プラグインディレクトリがマニフェストを持つか確認する
+///
+/// # Arguments
+/// * `plugin_dir` - プラグインのルートディレクトリ
 pub fn has_manifest(plugin_dir: &Path) -> bool {
     resolve_manifest_path(plugin_dir).is_some()
 }

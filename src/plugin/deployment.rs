@@ -29,6 +29,11 @@ impl PluginDeployment {
 /// キャッシュから PluginDeployment を読み込む
 ///
 /// マニフェストとパス情報を含む PluginDeployment を構築する。
+///
+/// # Arguments
+/// * `cache` - package cache access used to read the manifest and path
+/// * `marketplace` - marketplace name (`None` defaults to `"github"`)
+/// * `plugin_name` - plugin name or repository identifier
 pub(crate) fn load_plugin_deployment(
     cache: &dyn PackageCacheAccess,
     marketplace: Option<&str>,
@@ -55,6 +60,11 @@ pub(crate) fn load_plugin_deployment(
 /// プラグインディレクトリをクリーンアップ
 ///
 /// コンポーネント削除後に空になったプラグインディレクトリを削除する。
+///
+/// # Arguments
+/// * `target_name` - target environment identifier (e.g. `"codex"`, `"copilot"`)
+/// * `origin` - plugin origin providing marketplace and plugin segments
+/// * `project_root` - project root under which deploy directories live
 pub(crate) fn cleanup_plugin_directories(
     target_name: &str,
     origin: &PluginOrigin,
@@ -62,7 +72,6 @@ pub(crate) fn cleanup_plugin_directories(
 ) {
     let fs = RealFs;
 
-    // ターゲットごとのディレクトリ構造
     let dirs_to_check: Vec<(&str, &str)> = match target_name {
         "codex" => vec![("agents", ".codex"), ("skills", ".codex")],
         "copilot" => vec![
@@ -74,14 +83,12 @@ pub(crate) fn cleanup_plugin_directories(
     };
 
     for (kind_dir, base_dir) in dirs_to_check {
-        // プラグインディレクトリのパス: <base>/<kind>/<marketplace>/<plugin>/
         let plugin_dir = project_root
             .join(base_dir)
             .join(kind_dir)
             .join(&origin.marketplace)
             .join(&origin.plugin);
 
-        // ディレクトリが存在して空なら削除
         if fs.is_dir(&plugin_dir) {
             if let Ok(entries) = fs.read_dir(&plugin_dir) {
                 if entries.is_empty() {
@@ -90,7 +97,6 @@ pub(crate) fn cleanup_plugin_directories(
             }
         }
 
-        // マーケットプレイスディレクトリも空なら削除
         let marketplace_dir = project_root
             .join(base_dir)
             .join(kind_dir)
@@ -104,7 +110,6 @@ pub(crate) fn cleanup_plugin_directories(
             }
         }
 
-        // kind ディレクトリも空なら削除
         let kind_dir_path = project_root.join(base_dir).join(kind_dir);
 
         if fs.is_dir(&kind_dir_path) {

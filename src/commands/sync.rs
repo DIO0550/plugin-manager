@@ -33,32 +33,29 @@ pub struct Args {
     pub dry_run: bool,
 }
 
+/// # Arguments
+///
+/// * `args` - Parsed CLI arguments for `plm sync`.
 pub async fn run(args: Args) -> Result<(), String> {
-    // 同一ターゲットチェック
     if args.from == args.to {
         return Err("Cannot sync to the same target".to_string());
     }
 
     let project_root = env::current_dir().map_err(|e| e.to_string())?;
 
-    // Source と Destination を作成
     let source = SyncSource::new(args.from, &project_root).map_err(|e| e.to_string())?;
     let dest = SyncDestination::new(args.to, &project_root).map_err(|e| e.to_string())?;
 
-    // オプションを構築
     let options = SyncOptions {
         component_type: args.component_type,
         scope: args.scope,
         dry_run: args.dry_run,
     };
 
-    // 同期を実行
     let result = sync(&source, &dest, &options).map_err(|e| e.to_string())?;
 
-    // 結果を表示
     print_result(&result, source.name(), dest.name());
 
-    // 失敗があれば非0終了
     if result.failure_count() > 0 {
         return Err(format!("{} item(s) failed to sync", result.failure_count()));
     }
@@ -66,6 +63,11 @@ pub async fn run(args: Args) -> Result<(), String> {
     Ok(())
 }
 
+/// # Arguments
+///
+/// * `result` - Outcome returned by the `sync` engine.
+/// * `from_name` - Display name of the source target.
+/// * `to_name` - Display name of the destination target.
 fn print_result(result: &SyncResult, from_name: &str, to_name: &str) {
     println!("Sync: {} -> {}\n", from_name.cyan(), to_name.cyan());
 
@@ -75,39 +77,32 @@ fn print_result(result: &SyncResult, from_name: &str, to_name: &str) {
         return;
     }
 
-    // テーブルを表示
     let mut table = Table::new();
     table.load_preset(UTF8_FULL);
     table.set_header(vec!["Type", "Name", "Scope", "Action"]);
 
-    // Created
     for component in &result.created {
         add_component_row(&mut table, component, "Create", Color::Green);
     }
 
-    // Updated
     for component in &result.updated {
         add_component_row(&mut table, component, "Update", Color::Yellow);
     }
 
-    // Deleted
     for component in &result.deleted {
         add_component_row(&mut table, component, "Delete", Color::Red);
     }
 
-    // Skipped
     for component in &result.skipped {
         add_component_row(&mut table, component, "Skip (no change)", Color::DarkGrey);
     }
 
-    // Unsupported
     for component in &result.unsupported {
         add_component_row(&mut table, component, "Skip (unsupported)", Color::DarkGrey);
     }
 
     println!("{table}");
 
-    // サマリー
     let prefix = if result.dry_run {
         "Would sync"
     } else {
@@ -122,7 +117,6 @@ fn print_result(result: &SyncResult, from_name: &str, to_name: &str) {
         result.skip_count().to_string().dimmed()
     );
 
-    // 失敗
     if !result.failed.is_empty() {
         println!("\n{}", "Failed items:".red().bold());
         for failure in &result.failed {
@@ -138,6 +132,12 @@ fn print_result(result: &SyncResult, from_name: &str, to_name: &str) {
     }
 }
 
+/// # Arguments
+///
+/// * `table` - Table to append a row to.
+/// * `component` - Placed component that describes the row.
+/// * `action` - Human-readable action label (Create, Update, ...).
+/// * `color` - Foreground color used for the action cell.
 fn add_component_row(table: &mut Table, component: &PlacedComponent, action: &str, color: Color) {
     table.add_row(vec![
         Cell::new(component.kind().display_name()),

@@ -42,6 +42,13 @@ pub struct UpdateResult {
 
 impl UpdateResult {
     /// 更新成功
+    ///
+    /// # Arguments
+    /// * `name` - プラグイン名
+    /// * `from` - 更新前のコミット SHA（未記録時は `None`）
+    /// * `to` - 更新後のコミット SHA
+    /// * `deployed` - 再デプロイに成功したターゲット一覧
+    /// * `failed` - 再デプロイに失敗したターゲット一覧
     pub fn updated(
         name: &str,
         from: Option<String>,
@@ -63,6 +70,9 @@ impl UpdateResult {
     }
 
     /// 既に最新
+    ///
+    /// # Arguments
+    /// * `name` - プラグイン名
     pub fn up_to_date(name: &str) -> Self {
         Self {
             plugin_name: name.to_string(),
@@ -75,6 +85,10 @@ impl UpdateResult {
     }
 
     /// 更新失敗
+    ///
+    /// # Arguments
+    /// * `name` - プラグイン名
+    /// * `error` - 失敗理由のエラーメッセージ
     pub fn failed(name: &str, error: String) -> Self {
         Self {
             plugin_name: name.to_string(),
@@ -87,6 +101,10 @@ impl UpdateResult {
     }
 
     /// スキップ
+    ///
+    /// # Arguments
+    /// * `name` - プラグイン名
+    /// * `reason` - スキップ理由
     pub fn skipped(name: &str, reason: String) -> Self {
         Self {
             plugin_name: name.to_string(),
@@ -104,6 +122,11 @@ impl UpdateResult {
 /// 優先順位:
 /// 1. meta.source_repo（owner/repo形式）
 /// 2. プラグイン名からフォールバック（owner--repo形式）
+///
+/// # Arguments
+/// * `meta` - プラグインのメタデータ
+/// * `plugin_name` - プラグイン名（フォールバック時に `owner--repo` 形式として解釈）
+/// * `git_ref` - 対象の Git 参照
 fn restore_repo(
     meta: &PluginMeta,
     plugin_name: &str,
@@ -133,13 +156,18 @@ fn restore_repo(
 }
 
 /// 単一プラグインの更新
+///
+/// # Arguments
+/// * `cache` - プラグインキャッシュへのアクセサ
+/// * `plugin_name` - 更新対象のプラグイン名
+/// * `project_root` - プロジェクトルートパス
+/// * `target_filter` - 特定ターゲットのみ再デプロイする場合に指定
 pub async fn update_plugin(
     cache: &dyn PackageCacheAccess,
     plugin_name: &str,
     project_root: &Path,
     target_filter: Option<&str>,
 ) -> UpdateResult {
-    // プラグインがキャッシュに存在するか確認
     if !cache.is_cached(Some("github"), plugin_name) {
         return UpdateResult::failed(plugin_name, "Plugin not found in cache".to_string());
     }
@@ -147,26 +175,22 @@ pub async fn update_plugin(
     let plugin_path = cache.plugin_path(Some("github"), plugin_name);
     let plugin_meta = meta::load_meta(&plugin_path).unwrap_or_default();
 
-    // GitHub プラグインかどうか確認
     if !plugin_meta.is_github() {
         return UpdateResult::skipped(plugin_name, "Not a GitHub plugin".to_string());
     }
 
-    // Git情報取得（未保存時はHEAD）
+    // 未保存時は HEAD をデフォルト参照として扱う
     let git_ref = plugin_meta.git_ref.as_deref().unwrap_or("HEAD");
     let current_sha = plugin_meta.commit_sha.clone();
 
-    // リポジトリ情報復元
     let repo = match restore_repo(&plugin_meta, plugin_name, git_ref) {
         Ok(r) => r,
         Err(e) => return UpdateResult::failed(plugin_name, e),
     };
 
-    // GitHubクライアント作成
     let factory = HostClientFactory::with_defaults();
     let client = factory.create(HostKind::GitHub);
 
-    // 最新SHAを取得（リトライ付き）
     let latest_sha = match with_retry(|| client.get_commit_sha(&repo, git_ref), 3).await {
         Ok(sha) => sha,
         Err(e) => {
@@ -174,12 +198,11 @@ pub async fn update_plugin(
         }
     };
 
-    // 比較判定
     if current_sha.as_deref() == Some(&latest_sha) {
         return UpdateResult::up_to_date(plugin_name);
     }
 
-    // commit_sha 未保存時は警告表示
+    // commit_sha が未保存なら比較できないため強制更新扱いとし、利用者に警告する
     if current_sha.is_none() {
         eprintln!(
             "Warning: No commit SHA recorded for '{}'. Forcing update.",
@@ -187,7 +210,6 @@ pub async fn update_plugin(
         );
     }
 
-    // 更新処理実行
     let ctx = UpdateCtx {
         cache,
         client: &*client,
@@ -210,28 +232,29 @@ struct UpdateCtx<'a> {
 }
 
 /// 更新処理の実行
+///
+/// # Arguments
+/// * `plugin_name` - プラグイン名
+/// * `latest_sha` - リモートの最新コミット SHA
+/// * `ctx` - 更新処理コンテキスト
 async fn do_update(plugin_name: &str, latest_sha: &str, ctx: &UpdateCtx<'_>) -> UpdateResult {
     let current_sha = ctx.plugin_meta.commit_sha.clone();
     let git_ref = ctx.plugin_meta.git_ref.as_deref().unwrap_or("HEAD");
 
-    // バックアップ作成
     println!("  Creating backup...");
     if let Err(e) = ctx.cache.backup(Some("github"), plugin_name) {
         return UpdateResult::failed(plugin_name, format!("Backup failed: {}", e));
     }
 
-    // ダウンロード（リトライ付き）
     println!("  Downloading...");
     let archive = match with_retry(|| ctx.client.download_archive(ctx.repo), 3).await {
         Ok(a) => a,
         Err(e) => {
-            // ロールバック
             let _ = ctx.cache.restore(Some("github"), plugin_name);
             return UpdateResult::failed(plugin_name, format!("Download failed: {}", e));
         }
     };
 
-    // アトミック更新
     println!("  Extracting...");
     let plugin_path = match ctx
         .cache
@@ -239,13 +262,11 @@ async fn do_update(plugin_name: &str, latest_sha: &str, ctx: &UpdateCtx<'_>) -> 
     {
         Ok(p) => p,
         Err(e) => {
-            // ロールバック
             let _ = ctx.cache.restore(Some("github"), plugin_name);
             return UpdateResult::failed(plugin_name, format!("Extraction failed: {}", e));
         }
     };
 
-    // 再デプロイ
     println!("  Deploying...");
     let enabled = ctx.plugin_meta.enabled_targets();
     let targets: Vec<&str> = match ctx.target_filter {
@@ -256,7 +277,6 @@ async fn do_update(plugin_name: &str, latest_sha: &str, ctx: &UpdateCtx<'_>) -> 
     let (deployed, failed) =
         redeploy_to_targets(ctx.cache, plugin_name, &targets, ctx.project_root);
 
-    // メタデータ更新
     let mut new_meta = ctx.plugin_meta.clone();
     new_meta.set_git_info(git_ref, latest_sha);
     for t in &failed {
@@ -266,7 +286,6 @@ async fn do_update(plugin_name: &str, latest_sha: &str, ctx: &UpdateCtx<'_>) -> 
         eprintln!("Warning: Failed to update metadata: {}", e);
     }
 
-    // バックアップ削除
     let _ = ctx.cache.remove_backup(Some("github"), plugin_name);
 
     UpdateResult::updated(
@@ -279,6 +298,12 @@ async fn do_update(plugin_name: &str, latest_sha: &str, ctx: &UpdateCtx<'_>) -> 
 }
 
 /// ターゲットへの再デプロイ
+///
+/// # Arguments
+/// * `cache` - プラグインキャッシュへのアクセサ
+/// * `plugin_name` - プラグイン名
+/// * `targets` - 再デプロイ対象のターゲット一覧
+/// * `project_root` - プロジェクトルートパス
 fn redeploy_to_targets(
     cache: &dyn PackageCacheAccess,
     plugin_name: &str,
@@ -312,12 +337,16 @@ fn redeploy_to_targets(
 /// sourceRepo を取得して更新を実行する。
 /// GitHub以外のプラグインはSkippedとして扱う。
 /// 一部失敗しても後続の処理を継続する。
+///
+/// # Arguments
+/// * `cache` - プラグインキャッシュへのアクセサ
+/// * `project_root` - プロジェクトルートパス
+/// * `target_filter` - 特定ターゲットのみ再デプロイする場合に指定
 pub async fn update_all_plugins(
     cache: &dyn PackageCacheAccess,
     project_root: &Path,
     target_filter: Option<&str>,
 ) -> Vec<UpdateResult> {
-    // キャッシュ内の全プラグインを取得
     let plugins = match cache.list() {
         Ok(p) => p,
         Err(e) => {
@@ -331,10 +360,9 @@ pub async fn update_all_plugins(
         return vec![];
     }
 
-    // 更新チェック用のメタデータを収集
     let mut plugin_metas: Vec<(String, PluginMeta)> = Vec::new();
     for (marketplace, name) in &plugins {
-        // GitHub プラグインのみ対象
+        // GitHub プラグイン以外（明示的に別マーケットプレイスが設定されたもの）はスキップする
         if marketplace.is_some() && marketplace.as_deref() != Some("github") {
             continue;
         }
@@ -343,13 +371,11 @@ pub async fn update_all_plugins(
         plugin_metas.push((name.clone(), meta));
     }
 
-    // 一括リモートバージョン取得（version モジュールを使用）
     println!("Checking for updates...");
     let factory = HostClientFactory::with_defaults();
     let client = factory.create(HostKind::GitHub);
     let remote_versions = fetch_remote_versions(&plugin_metas, client.as_ref()).await;
 
-    // 更新対象を集計
     let mut updates_to_do: Vec<(&str, String, &PluginMeta)> = Vec::new();
     let mut error_count = 0;
 
@@ -406,7 +432,6 @@ pub async fn update_all_plugins(
         }
     );
 
-    // 各プラグインを更新
     let mut results = Vec::new();
     let mut update_idx = 0;
 
@@ -436,7 +461,6 @@ pub async fn update_all_plugins(
         };
         let result = do_update(name, latest_sha, &update_ctx).await;
 
-        // 結果表示
         match &result.status {
             UpdateStatus::Updated { from_sha, to_sha } => {
                 let from = from_sha.as_deref().unwrap_or("unknown");
@@ -453,7 +477,7 @@ pub async fn update_all_plugins(
         results.push(result);
     }
 
-    // 更新対象外のプラグインも結果に追加
+    // 更新対象外のプラグインも up_to_date として結果に含める（呼び出し側が全件を集計するため）
     for (name, _) in &plugin_metas {
         if !updates_to_do.iter().any(|(n, _, _)| n == name) {
             results.push(UpdateResult::up_to_date(name));

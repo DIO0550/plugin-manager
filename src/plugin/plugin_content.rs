@@ -27,6 +27,11 @@ pub struct Plugin {
 
 impl Plugin {
     /// Plugin を構築し、コンポーネントをスキャンしてキャッシュする
+    ///
+    /// # Arguments
+    ///
+    /// * `manifest` - Plugin manifest describing the plugin metadata and layout.
+    /// * `path` - Root directory path of the plugin on disk.
     pub fn new(manifest: PluginManifest, path: PathBuf) -> Self {
         let components = Self::build_components(&path, &manifest);
         Self {
@@ -66,6 +71,11 @@ impl Plugin {
     }
 
     /// プラグインのコンポーネントをスキャンして Vec<Component> に変換する
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Plugin root directory used to resolve component directories.
+    /// * `manifest` - Plugin manifest that defines component layout and names.
     fn build_components(path: &Path, manifest: &PluginManifest) -> Vec<Component> {
         let mut components = Vec::new();
 
@@ -106,6 +116,13 @@ impl Plugin {
         components
     }
 
+    /// Append instruction components resolved from the manifest into `components`.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Plugin root directory used to resolve instruction paths.
+    /// * `manifest` - Plugin manifest that optionally specifies an instructions path.
+    /// * `components` - Output buffer that receives discovered instruction components.
     fn build_instructions(path: &Path, manifest: &PluginManifest, components: &mut Vec<Component>) {
         if let Some(path_str) = &manifest.instructions {
             let instr_path = path.join(path_str);
@@ -153,10 +170,6 @@ impl Plugin {
         }
     }
 
-    // =========================================================================
-    // ディレクトリ解決メソッド
-    // =========================================================================
-
     /// スキルディレクトリのパスを解決
     pub fn skills_dir(&self) -> PathBuf {
         self.manifest.skills_dir(&self.path)
@@ -181,10 +194,6 @@ impl Plugin {
     pub fn hooks_dir(&self) -> PathBuf {
         self.manifest.hooks_dir(&self.path)
     }
-
-    // =========================================================================
-    // スキャンメソッド
-    // =========================================================================
 
     /// プラグイン内のコンポーネントを取得（構築時のスナップショット）
     pub fn components(&self) -> &[Component] {

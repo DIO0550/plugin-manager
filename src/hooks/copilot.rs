@@ -14,10 +14,6 @@ use crate::hooks::hook_definition::{CommandHook, HttpHook, StubHook};
 use super::converter::{KeyMap, ScriptGenerator, StructureConverter};
 pub(crate) use super::event::copilot::CopilotEventMap;
 
-// ============================================================================
-// Copilot-specific constants
-// ============================================================================
-
 /// Exit code and stdout conversion logic for command hook scripts.
 const EXIT_CODE_HANDLER: &str = r#"# --- execute original command and capture result ---
 PLM_STDOUT_FILE="$(mktemp)"
@@ -55,10 +51,6 @@ elif [ "$EXIT_CODE" -eq 2 ] && [ "$HOOK_EVENT" = "preToolUse" ]; then
   fi
 fi
 exit 0"#;
-
-// ============================================================================
-// KeyMap
-// ============================================================================
 
 pub(crate) struct CopilotKeyMap;
 
@@ -113,10 +105,6 @@ impl KeyMap for CopilotKeyMap {
         (Value::Object(output), warnings)
     }
 }
-
-// ============================================================================
-// StructureConverter
-// ============================================================================
 
 pub(crate) struct CopilotStructureConverter;
 
@@ -194,10 +182,6 @@ impl StructureConverter for CopilotStructureConverter {
         (result, warnings)
     }
 }
-
-// ============================================================================
-// ScriptGenerator
-// ============================================================================
 
 pub(crate) struct CopilotScriptGenerator;
 
@@ -330,11 +314,11 @@ exit 0
     }
 }
 
-// ============================================================================
-// Copilot-specific helpers
-// ============================================================================
-
 /// Build event-specific environment variable bridge for scripts.
+///
+/// # Arguments
+///
+/// * `event` - Hook event name (e.g. `preToolUse`, `postToolUse`, `sessionStart`).
 fn build_env_bridge(event: &str) -> String {
     let base_jq = r#"    . as $in | $in
     # Remove Copilot-specific timestamp
@@ -428,6 +412,10 @@ export CLAUDE_PLUGIN_ROOT="@@PLUGIN_ROOT@@""#,
 }
 
 /// Build HTTP headers lines for curl command from validated headers.
+///
+/// # Arguments
+///
+/// * `headers` - Slice of `(name, value)` header pairs to emit as `-H` flags.
 fn build_headers_lines(headers: &[(&str, &str)]) -> String {
     let mut headers_lines = String::new();
 

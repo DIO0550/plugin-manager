@@ -3,6 +3,12 @@
 use crate::plugin::InstalledPlugin;
 use comfy_table::{presets::UTF8_FULL, Table};
 
+/// Prints installed plugins as a formatted table.
+///
+/// # Arguments
+///
+/// * `plugins` - Installed plugins to render.
+/// * `total_count` - Total number of installed plugins (for empty-state messages).
 pub(super) fn print_table(plugins: &[InstalledPlugin], total_count: usize) {
     if plugins.is_empty() {
         super::print_empty_list(total_count);
@@ -24,6 +30,11 @@ pub(super) fn print_table(plugins: &[InstalledPlugin], total_count: usize) {
     println!("{table}");
 }
 
+/// Builds a table row for a single installed plugin.
+///
+/// # Arguments
+///
+/// * `plugin` - Plugin to render as a row.
 fn plugin_row(plugin: &InstalledPlugin) -> Vec<String> {
     vec![
         plugin.name().to_string(),
@@ -34,6 +45,11 @@ fn plugin_row(plugin: &InstalledPlugin) -> Vec<String> {
     ]
 }
 
+/// Returns the human-readable status label for a plugin.
+///
+/// # Arguments
+///
+/// * `enabled` - Whether the plugin is enabled.
 fn status_label(enabled: bool) -> &'static str {
     if enabled {
         "enabled"
@@ -42,6 +58,11 @@ fn status_label(enabled: bool) -> &'static str {
     }
 }
 
+/// Formats a plugin's component counts as a comma-separated summary.
+///
+/// # Arguments
+///
+/// * `plugin` - Plugin whose component counts should be rendered.
 pub(super) fn format_components(plugin: &InstalledPlugin) -> String {
     let counts = plugin.component_type_counts();
     if counts.is_empty() {

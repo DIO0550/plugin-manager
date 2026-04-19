@@ -49,19 +49,20 @@ pub struct Args {
 /// - plural_kind: skills, agents, commands, instructions, hooks (case-insensitive)
 /// - name: component name (case-sensitive)
 ///
+/// # Arguments
+///
+/// * `path` - Component path in `<plural_kind>/<name>` form.
+///
 /// # Examples
 /// - "skills/pdf" -> Ok((Skill, "pdf"))
 /// - "SKILLS/pdf" -> Ok((Skill, "pdf")) (kind normalized)
 /// - "skills/PDF" -> Ok((Skill, "PDF")) (name preserved)
 /// - "skill/pdf" -> Err (singular not allowed)
 pub fn parse_component_path(path: &str) -> Result<(ComponentKind, String), String> {
-    // 1. Trim whitespace
     let path = path.trim();
 
-    // 2. Remove trailing slash
     let path = path.trim_end_matches('/');
 
-    // 3. Check for consecutive slashes
     if path.contains("//") {
         return Err(format!(
             "Invalid component path format: '{}'. Consecutive slashes are not allowed.",
@@ -69,7 +70,6 @@ pub fn parse_component_path(path: &str) -> Result<(ComponentKind, String), Strin
         ));
     }
 
-    // 4. Split by first slash
     let (kind_str, name) = path.split_once('/').ok_or_else(|| {
         format!(
             "Invalid component path format: '{}'. Expected: <kind>/<name>",
@@ -77,7 +77,6 @@ pub fn parse_component_path(path: &str) -> Result<(ComponentKind, String), Strin
         )
     })?;
 
-    // 5. Check for nested paths (more than one slash)
     if name.contains('/') {
         return Err(format!(
             "Invalid component path format: '{}'. Nested paths are not allowed.",
@@ -85,7 +84,6 @@ pub fn parse_component_path(path: &str) -> Result<(ComponentKind, String), Strin
         ));
     }
 
-    // 6. Check empty name
     if name.is_empty() {
         return Err(format!(
             "Invalid component path format: '{}'. Component name cannot be empty.",
@@ -93,7 +91,6 @@ pub fn parse_component_path(path: &str) -> Result<(ComponentKind, String), Strin
         ));
     }
 
-    // 7. Parse kind (case-insensitive, must be plural form)
     let kind = match kind_str.to_lowercase().as_str() {
         "skills" => ComponentKind::Skill,
         "agents" => ComponentKind::Agent,
@@ -117,6 +114,12 @@ pub fn parse_component_path(path: &str) -> Result<(ComponentKind, String), Strin
 /// - If paths is non-empty: filter by kind + name exact match
 /// - If types is non-empty: filter by kind only
 /// - If both empty: return all components
+///
+/// # Arguments
+///
+/// * `components` - Candidate components scanned from the plugin.
+/// * `paths` - Exact (kind, name) pairs requested by the user.
+/// * `types` - Component kinds requested by the user.
 pub fn filter_components(
     components: Vec<Component>,
     paths: &[(ComponentKind, String)],
@@ -124,12 +127,10 @@ pub fn filter_components(
 ) -> (Vec<Component>, Vec<String>) {
     use std::collections::HashSet;
 
-    // If both empty, return all components
     if paths.is_empty() && types.is_empty() {
         return (components, vec![]);
     }
 
-    // Filter by types (kind only)
     if !types.is_empty() {
         let filtered = components
             .into_iter()
@@ -138,8 +139,6 @@ pub fn filter_components(
         return (filtered, vec![]);
     }
 
-    // Filter by paths (kind + name exact match)
-    // Deduplicate paths while preserving order
     let mut seen_paths: HashSet<(ComponentKind, &str)> = HashSet::new();
     let mut unique_paths: Vec<&(ComponentKind, String)> = Vec::new();
 
@@ -150,13 +149,11 @@ pub fn filter_components(
         }
     }
 
-    // Build result in input order
     let mut filtered = Vec::new();
     let mut matched_paths: HashSet<(ComponentKind, &str)> = HashSet::new();
 
     for path in &unique_paths {
         let key = (path.0, path.1.as_str());
-        // Find matching component
         if let Some(component) = components
             .iter()
             .find(|c| c.kind == path.0 && c.name == path.1)
@@ -167,7 +164,6 @@ pub fn filter_components(
         }
     }
 
-    // Collect skipped paths (not found in components)
     let mut seen_skipped: HashSet<String> = HashSet::new();
     let mut skipped = Vec::new();
 
@@ -200,6 +196,11 @@ enum DeployOutcome {
     Skipped,
 }
 
+/// # Arguments
+///
+/// * `target` - Target environment adapter to deploy to.
+/// * `component` - Component being prepared for deployment.
+/// * `ctx` - Shared import context (origin, scope, project root).
 fn build_deployment(
     target: &dyn Target,
     component: &Component,
@@ -235,6 +236,12 @@ fn build_deployment(
     builder.build().map(Some).map_err(|e| e.to_string())
 }
 
+/// # Arguments
+///
+/// * `deployment` - Prepared deployment to execute.
+/// * `target` - Target environment adapter receiving the component.
+/// * `ctx` - Shared import context (source repo, git ref, commit sha).
+/// * `import_registry` - Registry that records successful imports.
 fn deploy_one(
     deployment: &ComponentDeployment,
     target: &dyn Target,
@@ -286,6 +293,12 @@ fn deploy_one(
     }
 }
 
+/// # Arguments
+///
+/// * `target_names` - Names of targets to deploy to.
+/// * `components` - Components selected for placement.
+/// * `ctx` - Shared import context.
+/// * `import_registry` - Registry that records successful imports.
 fn place_components(
     target_names: &[String],
     components: &[Component],
@@ -326,15 +339,20 @@ fn place_components(
     Ok((total_success, total_failure))
 }
 
+/// # Arguments
+///
+/// * `args` - Parsed CLI arguments for `plm import`.
 pub async fn run(args: Args) -> Result<(), String> {
-    // 1. Parse component paths (validate early, before download)
+    // Parse component paths up-front so validation errors surface before the
+    // potentially expensive plugin download below.
     let component_paths: Vec<(ComponentKind, String)> = args
         .component
         .iter()
         .map(|p| parse_component_path(p))
         .collect::<Result<Vec<_>, _>>()?;
 
-    // 2. Target selection (before download)
+    // Target and scope selection happen before download so the user can cancel
+    // without paying the download cost.
     let target_names: Vec<String> = match &args.target {
         Some(targets) => targets.iter().map(|t| t.as_str().to_string()).collect(),
         None => {
@@ -350,7 +368,6 @@ pub async fn run(args: Args) -> Result<(), String> {
         return Err("No targets selected".to_string());
     }
 
-    // 3. Scope selection (before download)
     let scope: Scope = match args.scope {
         Some(s) => s,
         None => tui::select_scope().map_err(|e| e.to_string())?,
@@ -359,10 +376,8 @@ pub async fn run(args: Args) -> Result<(), String> {
     println!("\nSelected targets: {}", target_names.join(", "));
     println!("Selected scope: {}", scope);
 
-    // 4. Parse source
     let source = parse_source(&args.source).map_err(|e| e.to_string())?;
 
-    // 5. Download plugin
     println!("\nDownloading plugin...");
     let cache = PackageCache::new().map_err(|e| format!("Failed to access cache: {e}"))?;
     let cached_plugin = source
@@ -381,20 +396,16 @@ pub async fn run(args: Args) -> Result<(), String> {
         println!("  Description: {}", desc);
     }
 
-    // 6. Scan components
     let package = crate::plugin::MarketplaceContent::from(&cached_plugin);
     let components = package.components();
 
-    // 7. Filter components
     let (filtered_components, skipped_paths) =
         filter_components(components, &component_paths, &args.component_type);
 
-    // Show warnings for skipped paths
     for path in &skipped_paths {
         eprintln!("Warning: Component not found: {}", path);
     }
 
-    // Check if any components to import
     if filtered_components.is_empty() {
         return Err("No components to import".to_string());
     }
@@ -404,7 +415,6 @@ pub async fn run(args: Args) -> Result<(), String> {
         println!("  - {}: {}", c.kind, c.name);
     }
 
-    // 8. Build import context
     let project_root = env::current_dir().map_err(|e| e.to_string())?;
     let origin = PluginOrigin::from_cached_plugin(
         cached_plugin.marketplace.as_deref(),
@@ -420,7 +430,6 @@ pub async fn run(args: Args) -> Result<(), String> {
         commit_sha: &cached_plugin.commit_sha,
     };
 
-    // 9. Place components
     println!("\nPlacing to targets...");
     let mut import_registry = ImportRegistry::new().map_err(|e| e.to_string())?;
 
@@ -432,7 +441,6 @@ pub async fn run(args: Args) -> Result<(), String> {
         &mut import_registry,
     )?;
 
-    // 10. Summary
     let summary = CommandSummary::format(total_success, total_failure);
     println!("\n{} {}", summary.prefix, summary.message);
 

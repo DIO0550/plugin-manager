@@ -19,24 +19,23 @@ pub struct Args {
     pub force: bool,
 }
 
+/// # Arguments
+///
+/// * `args` - Parsed CLI arguments for `plm uninstall`.
 pub async fn run(args: Args) -> Result<(), String> {
     let cache = PackageCache::new().map_err(|e| format!("Failed to access cache: {}", e))?;
     let project_root =
         env::current_dir().map_err(|e| format!("Failed to get current dir: {}", e))?;
 
-    // 1. 事前チェック: プラグイン存在確認 & 情報取得
     let info = application::get_uninstall_info(&cache, &args.name, args.marketplace.as_deref())?;
 
-    // 2. 削除対象の情報表示
     display_uninstall_info(&info);
 
-    // 3. 確認プロンプト（--force でスキップ）
     if !args.force && !confirm_uninstall(&args.name)? {
         println!("Uninstall cancelled.");
         return Ok(());
     }
 
-    // 4. 削除実行
     let result = application::uninstall_plugin(
         &cache,
         &args.name,
@@ -44,7 +43,6 @@ pub async fn run(args: Args) -> Result<(), String> {
         &project_root,
     );
 
-    // 5. 結果表示
     if result.success {
         println!(
             "{} Plugin '{}' uninstalled successfully.",
@@ -69,6 +67,10 @@ pub async fn run(args: Args) -> Result<(), String> {
 }
 
 /// 削除対象の情報を表示
+///
+/// # Arguments
+///
+/// * `info` - Uninstall preview collected before deletion.
 fn display_uninstall_info(info: &UninstallInfo) {
     println!(
         "{} Plugin: {} (marketplace: {})",
@@ -94,6 +96,10 @@ fn display_uninstall_info(info: &UninstallInfo) {
 }
 
 /// ユーザーに削除確認を求める
+///
+/// # Arguments
+///
+/// * `plugin_name` - Plugin name shown in the confirmation prompt.
 fn confirm_uninstall(plugin_name: &str) -> Result<bool, String> {
     print!(
         "Are you sure you want to uninstall '{}'? [y/N]: ",

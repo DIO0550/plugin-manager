@@ -16,6 +16,9 @@ pub struct Args {
     pub component_type: ComponentType,
 }
 
+/// # Arguments
+///
+/// * `args` - Parsed CLI arguments for `plm init`.
 pub async fn run(args: Args) -> Result<(), String> {
     println!("init: {:?}", args);
     Err("not implemented".to_string())

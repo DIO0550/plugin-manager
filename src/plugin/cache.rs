@@ -28,6 +28,9 @@ impl From<(Option<String>, String)> for PluginCacheKey {
 }
 
 /// キャッシュ内のマーケットプレイスパッケージを列挙
+///
+/// # Arguments
+/// * `cache` - package cache access used to enumerate stored plugins
 pub(crate) fn list_installed(cache: &dyn PackageCacheAccess) -> Result<Vec<MarketplaceContent>> {
     let packages = cache
         .list()?
@@ -58,6 +61,10 @@ pub trait PackageCacheAccess: Send + Sync {
     fn plugin_path(&self, marketplace: Option<&str>, name: &str) -> PathBuf;
 
     /// キャッシュ済みかチェック
+    ///
+    /// # Arguments
+    /// * `marketplace` - marketplace name (`None` uses `"github"`)
+    /// * `name` - plugin name or repository identifier
     fn is_cached(&self, marketplace: Option<&str>, name: &str) -> bool;
 
     /// zipアーカイブを展開してキャッシュに保存
@@ -79,9 +86,17 @@ pub trait PackageCacheAccess: Send + Sync {
     ) -> Result<PathBuf>;
 
     /// キャッシュからマニフェストを読み込み
+    ///
+    /// # Arguments
+    /// * `marketplace` - marketplace name (`None` uses `"github"`)
+    /// * `name` - plugin name or repository identifier
     fn load_manifest(&self, marketplace: Option<&str>, name: &str) -> Result<PluginManifest>;
 
     /// キャッシュから削除
+    ///
+    /// # Arguments
+    /// * `marketplace` - marketplace name (`None` uses `"github"`)
+    /// * `name` - plugin name or repository identifier
     fn remove(&self, marketplace: Option<&str>, name: &str) -> Result<()>;
 
     /// キャッシュされているプラグイン一覧を取得
@@ -91,18 +106,34 @@ pub trait PackageCacheAccess: Send + Sync {
     ///
     /// 注意: 実行ビット/シンボリックリンクは保持されない。
     /// プラグインは平文ファイルのみを含むことを前提とする。
+    ///
+    /// # Arguments
+    /// * `marketplace` - marketplace name (`None` uses `"github"`)
+    /// * `name` - plugin name or repository identifier
     fn backup(&self, marketplace: Option<&str>, name: &str) -> Result<PathBuf>;
 
     /// バックアップからリストア
+    ///
+    /// # Arguments
+    /// * `marketplace` - marketplace name (`None` uses `"github"`)
+    /// * `name` - plugin name or repository identifier
     fn restore(&self, marketplace: Option<&str>, name: &str) -> Result<()>;
 
     /// バックアップを削除
+    ///
+    /// # Arguments
+    /// * `marketplace` - marketplace name (`None` uses `"github"`)
+    /// * `name` - plugin name or repository identifier
     fn remove_backup(&self, marketplace: Option<&str>, name: &str) -> Result<()>;
 
     /// キャッシュからCachedPackageを生成
     ///
     /// plugin_path + load_manifest + load_meta を組み合わせて
     /// CachedPackage を構築する。
+    ///
+    /// # Arguments
+    /// * `marketplace` - marketplace name (`None` uses `"github"`)
+    /// * `name` - plugin name or repository identifier
     fn load_package(&self, marketplace: Option<&str>, name: &str) -> Result<CachedPackage> {
         use super::cached_package::UNKNOWN_GIT_VALUE;
 
@@ -175,6 +206,9 @@ impl PackageCache {
     }
 
     /// カスタムキャッシュディレクトリで初期化（テスト用）
+    ///
+    /// # Arguments
+    /// * `cache_dir` - custom cache root directory
     pub fn with_cache_dir(cache_dir: PathBuf) -> Result<Self> {
         let fs = RealFs;
         fs.create_dir_all(&cache_dir)?;
@@ -195,6 +229,10 @@ impl PackageCache {
     }
 
     /// バックアップパスを取得
+    ///
+    /// # Arguments
+    /// * `marketplace` - marketplace name (`None` uses `"github"`)
+    /// * `name` - plugin name or repository identifier
     fn backup_path(&self, marketplace: Option<&str>, name: &str) -> PathBuf {
         let marketplace_dir = marketplace.unwrap_or("github");
         self.cache_dir
@@ -204,6 +242,10 @@ impl PackageCache {
     }
 
     /// 一時パスを取得
+    ///
+    /// # Arguments
+    /// * `marketplace` - marketplace name (`None` uses `"github"`)
+    /// * `name` - plugin name or repository identifier
     fn temp_path(&self, marketplace: Option<&str>, name: &str) -> PathBuf {
         let marketplace_dir = marketplace.unwrap_or("github");
         self.cache_dir
@@ -413,6 +455,9 @@ impl PackageCacheAccess for PackageCache {
 }
 
 /// source_path の防御的検証
+///
+/// # Arguments
+/// * `source_path` - optional normalized sub-path inside the archive
 fn validate_source_path(source_path: Option<&str>) -> Result<()> {
     let sp = match source_path {
         Some(s) => s,
@@ -444,6 +489,9 @@ fn validate_source_path(source_path: Option<&str>) -> Result<()> {
 }
 
 /// zipアーカイブのプレフィックス（トップディレクトリ）を取得
+///
+/// # Arguments
+/// * `zip` - open zip archive to inspect
 fn get_archive_prefix(zip: &mut ZipArchive<Cursor<&[u8]>>) -> Result<String> {
     if zip.is_empty() {
         return Ok(String::new());
@@ -459,6 +507,11 @@ fn get_archive_prefix(zip: &mut ZipArchive<Cursor<&[u8]>>) -> Result<String> {
 }
 
 /// アーカイブを展開（source_path 指定対応）
+///
+/// # Arguments
+/// * `dest` - destination directory to extract into
+/// * `archive` - zip archive bytes
+/// * `source_path` - optional normalized sub-path to extract
 fn extract_archive_with_source_path(
     dest: &Path,
     archive: &[u8],
@@ -476,22 +529,18 @@ fn extract_archive_with_source_path(
         let mut file = zip.by_index(i)?;
         let file_path = file.name();
 
-        // バックスラッシュをスラッシュに正規化
         let file_path_normalized = file_path.replace('\\', "/");
 
-        // プレフィックスを除去
         let relative_path = if !prefix.is_empty() && file_path_normalized.starts_with(&prefix) {
             &file_path_normalized[prefix.len()..]
         } else {
             &file_path_normalized[..]
         };
 
-        // 空のパス（ルートディレクトリ）はスキップ
         if relative_path.is_empty() {
             continue;
         }
 
-        // source_path が指定されている場合、そのパス配下のみを抽出
         let final_path = match source_path {
             Some(sp) => {
                 match extract_with_source_path_filter(
@@ -511,7 +560,6 @@ fn extract_archive_with_source_path(
         write_zip_entry(&mut file, &dest.join(&final_path))?;
     }
 
-    // source_path 指定時のエラーチェック
     if let Some(sp) = source_path {
         if entries_skipped_for_security > 0 {
             return Err(PlmError::InvalidSource(format!(
@@ -531,6 +579,13 @@ fn extract_archive_with_source_path(
 }
 
 /// source_path フィルタを適用し、展開すべきパスを返す（None = スキップ）
+///
+/// # Arguments
+/// * `relative_path` - archive entry path after prefix removal
+/// * `source_path` - normalized sub-path being extracted
+/// * `file` - current zip entry (used for unix mode inspection)
+/// * `source_path_hit` - updated to `true` when a matching entry is seen
+/// * `entries_skipped` - incremented when an entry is skipped for security
 fn extract_with_source_path_filter(
     relative_path: &str,
     source_path: &str,
@@ -544,7 +599,6 @@ fn extract_with_source_path_filter(
     let stripped = relative_path_obj.strip_prefix(source_path_obj).ok()?;
     *source_path_hit = true;
 
-    // strip_prefix 後の空パス（ディレクトリエントリ自体）はスキップ
     if stripped.as_os_str().is_empty() {
         return None;
     }
@@ -576,6 +630,10 @@ fn extract_with_source_path_filter(
 }
 
 /// zipエントリをファイルシステムに書き込み
+///
+/// # Arguments
+/// * `file` - current zip entry
+/// * `target_path` - destination path on the local filesystem
 fn write_zip_entry(file: &mut zip::read::ZipFile, target_path: &Path) -> Result<()> {
     let fs = RealFs;
     if file.is_dir() {

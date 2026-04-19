@@ -85,6 +85,10 @@ pub enum UpgradeState {
 
 impl UpgradeState {
     /// `PluginMeta` と `VersionQueryResult` から更新可否を判定する。
+    ///
+    /// # Arguments
+    /// * `meta` - プラグインのローカルメタデータ
+    /// * `result` - リモートバージョン取得結果
     pub fn from_query(meta: &PluginMeta, result: &VersionQueryResult) -> Self {
         let current_sha = meta.commit_sha.clone();
         match result {
@@ -151,6 +155,10 @@ impl UpgradeState {
 /// - ローカルSHAがNoneの場合: 更新が必要（インストール時にSHAが記録されていない）
 /// - ローカルSHAとリモートSHAが異なる場合: 更新が必要
 /// - ローカルSHAとリモートSHAが同じ場合: 更新不要
+///
+/// # Arguments
+/// * `local_sha` - ローカルに記録されているコミット SHA（未記録なら `None`）
+/// * `remote_sha` - リモートの最新コミット SHA
 pub fn needs_update(local_sha: Option<&str>, remote_sha: &str) -> bool {
     match local_sha {
         Some(local) => local != remote_sha,
@@ -159,6 +167,9 @@ pub fn needs_update(local_sha: Option<&str>, remote_sha: &str) -> bool {
 }
 
 /// PlmErrorからエラーメッセージを生成
+///
+/// # Arguments
+/// * `error` - 変換対象の `PlmError`
 fn error_message(error: &PlmError) -> String {
     match error {
         PlmError::RepoApi {
@@ -183,11 +194,14 @@ fn error_message(error: &PlmError) -> String {
 ///
 /// 1. `meta.git_ref` を取得（未記録時は `client.get_default_branch()` を使用）
 /// 2. `client.get_commit_sha()` で最新 SHA を取得
+///
+/// # Arguments
+/// * `meta` - プラグインのローカルメタデータ
+/// * `client` - ホストクライアント（GitHub API 等）
 pub async fn fetch_remote_version(
     meta: &PluginMeta,
     client: &dyn HostClient,
 ) -> VersionQueryResult {
-    // リポジトリ情報がなければエラー
     let (owner, name) = match meta.get_source_repo() {
         Some(repo) => repo,
         None => {
@@ -197,7 +211,7 @@ pub async fn fetch_remote_version(
         }
     };
 
-    // git_ref を取得（未記録時はデフォルトブランチを取得）
+    // git_ref 未記録時はリモートのデフォルトブランチにフォールバックする
     let repo_for_default = Repo::new(HostKind::GitHub, owner, name, None);
     let git_ref = match &meta.git_ref {
         Some(r) => r.clone(),
@@ -211,10 +225,8 @@ pub async fn fetch_remote_version(
         },
     };
 
-    // リポジトリ情報を構築
     let repo = Repo::new(HostKind::GitHub, owner, name, Some(git_ref.clone()));
 
-    // 最新 SHA を取得
     match client.get_commit_sha(&repo, &git_ref).await {
         Ok(sha) => VersionQueryResult::Found(RemoteVersion { sha, git_ref }),
         Err(e) => VersionQueryResult::Failed {
@@ -227,6 +239,10 @@ pub async fn fetch_remote_version(
 ///
 /// 各プラグインに対して `fetch_remote_version()` を呼び出し、結果を集約する。
 /// エラーが発生しても後続の処理を継続する。
+///
+/// # Arguments
+/// * `plugins` - `(プラグイン名, メタデータ)` のリスト
+/// * `client` - ホストクライアント（GitHub API 等）
 pub async fn fetch_remote_versions(
     plugins: &[(String, PluginMeta)],
     client: &dyn HostClient,

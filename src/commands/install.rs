@@ -38,12 +38,15 @@ pub struct Args {
     pub force: bool,
 }
 
+/// # Arguments
+///
+/// * `args` - Parsed CLI arguments for `plm install`.
 pub async fn run(args: Args) -> std::result::Result<(), String> {
-    // 1. ターゲット選択（ダウンロード前）
+    // Target and scope selection happen before download so the user can cancel
+    // without paying the download cost.
     let target_names: Vec<String> = match &args.target {
         Some(targets) => targets.iter().map(|t| t.as_str().to_string()).collect(),
         None => {
-            // TUIでターゲット選択
             let available = all_targets();
             let available_refs: Vec<&dyn crate::target::Target> =
                 available.iter().map(|t| t.as_ref()).collect();
@@ -57,19 +60,14 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
         return Err("No targets selected".to_string());
     }
 
-    // 2. スコープ選択（ダウンロード前）
     let scope: Scope = match args.scope {
         Some(s) => s,
-        None => {
-            // TUIでスコープ選択
-            tui::select_scope().map_err(|e| e.to_string())?
-        }
+        None => tui::select_scope().map_err(|e| e.to_string())?,
     };
 
     println!("\nSelected targets: {}", target_names.join(", "));
     println!("Selected scope: {}", scope);
 
-    // 3. ダウンロード
     println!("\nDownloading plugin...");
     let package = install::download_plugin(&args.source, args.force)
         .await
@@ -92,7 +90,6 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
         println!("  Description: {}", desc);
     }
 
-    // コンポーネント情報
     println!("\nComponents:");
     if let Some(ref skills) = package.manifest().skills {
         println!("  - Skills: {}", skills);
@@ -104,17 +101,14 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
         println!("  - Commands: {}", commands);
     }
 
-    // 4. コンポーネントをスキャン
     let type_filter = args.component_type.as_deref();
     let scanned = install::scan_plugin(&package, type_filter)?;
 
-    // 5. ターゲットを解決
     let targets: Vec<Box<dyn crate::target::Target>> = target_names
         .iter()
         .map(|name| parse_target(name).map_err(|e| e.to_string()))
         .collect::<Result<Vec<_>, _>>()?;
 
-    // 6. 配置
     println!("\nPlacing to targets...");
 
     let project_root = env::current_dir().map_err(|e| e.to_string())?;
@@ -126,13 +120,12 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
         project_root: &project_root,
     });
 
-    // 7. 結果表示（ターゲット単位でグループ化、旧実装互換）
+    // Results are grouped by target to stay compatible with the legacy layout.
     println!("\nPlacement Results:");
 
     for target_name in &target_names {
         let mut target_success = true;
 
-        // このターゲットの成功結果を表示
         for success in result.successes.iter().filter(|s| &s.target == target_name) {
             let suffix = match (&success.source_format, &success.dest_format) {
                 (Some(src), Some(dst)) => format!(" (Converted: {} → {})", src, dst),
@@ -147,13 +140,11 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
                 suffix
             );
 
-            // Hook 変換警告を表示
             for warning in &success.hook_warnings {
                 eprintln!("Warning: {}", warning);
             }
         }
 
-        // このターゲットの失敗結果を表示
         for failure in result.failures.iter().filter(|f| &f.target == target_name) {
             println!(
                 "  x {} {}: {} - {}",
@@ -167,7 +158,6 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
         }
     }
 
-    // 結果サマリー
     let summary = CommandSummary::format(result.successes.len(), result.failures.len());
     println!("\n{} {}", summary.prefix, summary.message);
 

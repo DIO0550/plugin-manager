@@ -37,10 +37,12 @@ pub struct Args {
     pub marketplace: String,
 }
 
+/// # Arguments
+///
+/// * `args` - Parsed CLI arguments for `plm enable`.
 pub async fn run(args: Args) -> Result<(), String> {
     let cache = PackageCache::new().map_err(|e| format!("Failed to access cache: {}", e))?;
 
-    // プラグインがキャッシュに存在するか確認
     if !cache.is_cached(Some(&args.marketplace), &args.name) {
         return Err(format!(
             "Error: Plugin '{}' not found in cache (marketplace: {})",
@@ -51,7 +53,6 @@ pub async fn run(args: Args) -> Result<(), String> {
     let project_root = env::current_dir().unwrap_or_else(|_| ".".into());
     let target_filter = args.target.as_ref().map(|t| t.as_str());
 
-    // enable_plugin を実行
     let result = enable_plugin(
         &cache,
         &args.name,
@@ -60,16 +61,13 @@ pub async fn run(args: Args) -> Result<(), String> {
         target_filter,
     );
 
-    // 結果に基づいてステータスを更新
     let plugin_path = cache.plugin_path(Some(&args.marketplace), &args.name);
     update_status_after_enable(&plugin_path, &result);
 
-    // 結果表示と終了コード
     if result.success {
         display_result(&args.name, &result, target_filter);
         Ok(())
     } else {
-        // 部分成功の場合は先に表示
         let successful_targets = result.affected_targets.target_names();
         if !successful_targets.is_empty() {
             println!(
@@ -77,7 +75,6 @@ pub async fn run(args: Args) -> Result<(), String> {
                 successful_targets.len()
             );
         }
-        // エラーメッセージを Err に格納
         if let Some(error) = &result.error {
             Err(format!(
                 "Error: Failed to enable plugin '{}': {}",
@@ -90,26 +87,34 @@ pub async fn run(args: Args) -> Result<(), String> {
 }
 
 /// enable 後のステータス更新
+///
+/// # Arguments
+///
+/// * `plugin_path` - Filesystem path of the cached plugin.
+/// * `result` - Outcome returned by `enable_plugin`.
 fn update_status_after_enable(plugin_path: &std::path::Path, result: &OperationResult) {
-    // 既存のメタデータを読み込む（なければデフォルト）
     let mut plugin_meta = meta::load_meta(plugin_path).unwrap_or_default();
 
-    // 成功したターゲットのステータスを更新（部分成功の場合も）
     let target_names = result.affected_targets.target_names();
     for target_name in target_names {
         plugin_meta.set_status(target_name, "enabled");
     }
 
-    // フィルタ指定時、対象ターゲットがサポートされていない場合はスキップ扱い
-    // （affected_targets にも含まれないので何もしない）
+    // When a filter is given and the target is unsupported, it is not present
+    // in `affected_targets`, so nothing needs to be updated for it.
 
-    // メタデータを書き込み
     if let Err(e) = meta::write_meta(plugin_path, &plugin_meta) {
         eprintln!("Warning: Failed to update .plm-meta.json: {}", e);
     }
 }
 
 /// 成功時の結果を表示
+///
+/// # Arguments
+///
+/// * `plugin_name` - Plugin identifier shown in the output.
+/// * `result` - Outcome returned by `enable_plugin`.
+/// * `target_filter` - Optional target name filter that was requested.
 fn display_result(plugin_name: &str, result: &OperationResult, target_filter: Option<&str>) {
     let targets = result.affected_targets.target_names();
     if targets.is_empty() {

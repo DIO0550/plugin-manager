@@ -68,6 +68,10 @@ impl CopilotToolMap {
     /// Reverse lookup: Copilot tool name -> Claude Code tool name.
     /// Searches both the main table and reverse-only entries.
     /// Unknown names are passed through.
+    ///
+    /// # Arguments
+    ///
+    /// * `tool` - Copilot-side tool name to translate back to Claude Code
     pub fn reverse_map_tool(&self, tool: &str) -> String {
         let trimmed = tool.trim();
         if let Some(hook_tool) = to_source_tool(COPILOT_TOOL_ENTRIES, trimmed) {

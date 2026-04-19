@@ -21,6 +21,11 @@ pub(crate) enum HookType {
 }
 
 impl HookType {
+    /// Parse a hook type string into a `HookType`.
+    ///
+    /// # Arguments
+    ///
+    /// * `s` - raw hook type string from hook configuration
     pub fn parse(s: &str) -> Option<Self> {
         match s {
             "command" => Some(Self::Command),
@@ -39,6 +44,12 @@ pub(crate) struct CommandHook<'a> {
 }
 
 impl<'a> CommandHook<'a> {
+    /// Validate and construct a `CommandHook` from a raw hook object.
+    ///
+    /// # Arguments
+    ///
+    /// * `hook_obj` - raw hook object map holding the `command` field
+    /// * `hook` - original hook JSON value retained for later access
     pub fn new(
         hook_obj: &'a serde_json::Map<String, Value>,
         hook: &'a Value,
@@ -74,6 +85,12 @@ pub(crate) struct HttpHook<'a> {
 }
 
 impl<'a> HttpHook<'a> {
+    /// Validate and construct an `HttpHook` from a raw hook object.
+    ///
+    /// # Arguments
+    ///
+    /// * `hook_obj` - raw hook object map holding `url`, `method`, and `headers`
+    /// * `hook` - original hook JSON value retained for later access
     pub fn new(
         hook_obj: &'a serde_json::Map<String, Value>,
         hook: &'a Value,
@@ -114,6 +131,11 @@ impl<'a> HttpHook<'a> {
         })
     }
 
+    /// Validate the optional `headers` map and return its entries.
+    ///
+    /// # Arguments
+    ///
+    /// * `hook_obj` - raw hook object map possibly containing a `headers` field
     fn validate_headers(
         hook_obj: &'a serde_json::Map<String, Value>,
     ) -> Result<Vec<(&'a str, &'a str)>, PlmError> {
@@ -177,6 +199,12 @@ pub(crate) struct StubHook<'a> {
 }
 
 impl<'a> StubHook<'a> {
+    /// Construct a `StubHook` for prompt/agent hook types.
+    ///
+    /// # Arguments
+    ///
+    /// * `hook_type` - hook type string to record on the stub
+    /// * `hook` - original hook JSON value retained for later access
     pub fn new(hook_type: &'a str, hook: &'a Value) -> Self {
         Self {
             hook_type,
@@ -195,6 +223,12 @@ pub(crate) enum HookDefinition<'a> {
 impl<'a> HookDefinition<'a> {
     /// Parse a raw JSON hook object into a HookDefinition.
     /// Returns `Ok(None)` for unknown hook types.
+    ///
+    /// # Arguments
+    ///
+    /// * `hook_type` - hook type string identifying the variant to build
+    /// * `hook_obj` - raw hook object map carrying the hook fields
+    /// * `hook` - original hook JSON value retained for later access
     pub fn parse(
         hook_type: &'a str,
         hook_obj: &'a serde_json::Map<String, Value>,
