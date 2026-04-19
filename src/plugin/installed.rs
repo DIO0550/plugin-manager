@@ -22,7 +22,7 @@ impl InstalledPlugin {
     /// # Arguments
     ///
     /// * `plugin` - cached plugin data (manifest, path, components)
-    /// * `id` - optional install identifier (falls back to `plugin.name()`)
+    /// * `id` - optional identifier (falls back to `plugin.name()`)
     /// * `marketplace` - optional marketplace name of origin
     /// * `enabled` - whether the plugin is currently deployed
     pub(crate) fn from_cached_package(

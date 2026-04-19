@@ -234,7 +234,7 @@ fn build_plugin_info(content: MarketplaceContent) -> Result<PluginInfo> {
 ///
 /// * `cache_path` - Path to the plugin's cache directory.
 /// * `marketplace` - Marketplace key (e.g. `"github"`).
-/// * `id` - Install identifier used to match deployed entries.
+/// * `id` - identifier used to match deployed entries.
 fn resolve_enabled(cache_path: &Path, marketplace: &str, id: &str) -> bool {
     let project_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let deployed = list_all_placed(&project_root);
