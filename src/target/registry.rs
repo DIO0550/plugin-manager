@@ -178,6 +178,7 @@ impl TargetRegistry {
     /// ターゲットを追加（load → modify → normalize → save）
     ///
     /// # Arguments
+    ///
     /// * `target` - Target kind to add to the registry.
     pub fn add(&mut self, target: TargetKind) -> Result<AddResult> {
         if self.state == State::Idle {

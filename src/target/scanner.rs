@@ -49,6 +49,7 @@ pub fn scan_components(base_dir: &Path) -> Result<Vec<ScannedComponent>> {
 /// 再帰的にディレクトリを走査してコンポーネントを収集
 ///
 /// # Arguments
+///
 /// * `dir` - Directory currently being traversed.
 /// * `path_parts` - Accumulated path segments from the scan root down to `dir`.
 /// * `results` - Output buffer that receives discovered components.
