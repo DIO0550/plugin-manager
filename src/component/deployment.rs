@@ -55,6 +55,11 @@ impl ComponentDeployment {
     }
 
     /// JSON 内の hooks[].bash パスを名前空間付きに書き換える
+    ///
+    /// # Arguments
+    /// * `json` - Hook definition JSON whose `hooks[].bash` paths should be rewritten in place.
+    /// * `original_paths` - Set of original `./<SCRIPTS_DIR>/...` paths eligible for rewriting.
+    /// * `safe_name` - Sanitized hook name used as the namespace segment in the new path.
     fn rewrite_script_paths_in_json(
         json: &mut serde_json::Value,
         original_paths: &HashSet<String>,
@@ -88,16 +93,15 @@ impl ComponentDeployment {
 
     /// Hook 変換デプロイを実行
     fn deploy_hook_converted(&self) -> Result<DeploymentResult> {
-        // 1. ソース JSON を読み込み
         let input = fs::read_to_string(&self.source_path)?;
 
-        // 2. converter で変換（target_kind は build() で検証済み）
+        // target_kind は build() で検証済み
         let target_kind = self.target_kind.unwrap();
         let mut convert_result = converter::convert(&input, target_kind)?;
 
-        // 3. ソース形式が既にターゲット形式（passthrough）で、script/warning が不要な場合はファイルコピー
-        //    変換後 JSON の version フィールドではなく、converter が検出した source_format で判定する。
-        //    これにより Claude Code 入力が誤って passthrough 扱いされることを防ぐ。
+        // ソース形式が既にターゲット形式（passthrough）で、script/warning が不要な場合はファイルコピー。
+        // 変換後 JSON の version フィールドではなく、converter が検出した source_format で判定する。
+        // これにより Claude Code 入力が誤って passthrough 扱いされることを防ぐ。
         if convert_result.source_format == SourceFormat::TargetFormat
             && convert_result.scripts.is_empty()
             && convert_result.warnings.is_empty()
@@ -110,7 +114,6 @@ impl ComponentDeployment {
         let hook_name = HookName::new(&self.name);
         let safe_name = hook_name.as_safe();
 
-        // 4. script パスを名前空間付きに書き換え（生成された script がある場合のみ）
         if !convert_result.scripts.is_empty() {
             let original_paths: HashSet<String> = convert_result
                 .scripts
@@ -129,19 +132,15 @@ impl ComponentDeployment {
             }
         }
 
-        // 5. JSON をシリアライズ
         let json_str = serde_json::to_string_pretty(&convert_result.json)
             .map_err(|e| PlmError::HookConversion(format!("Failed to serialize JSON: {}", e)))?;
 
-        // 6. ターゲットディレクトリを作成
         if let Some(parent) = self.target_path.parent() {
             fs::create_dir_all(parent)?;
         }
 
-        // 7. 変換済み JSON を書き出し
         fs::write(&self.target_path, &json_str)?;
 
-        // 8. スクリプトを配置
         let script_count = convert_result.scripts.len();
         if script_count == 0 {
             return Ok(DeploymentResult::HookConverted(HookConvertResult {
@@ -203,7 +202,6 @@ impl ComponentDeployment {
                 Ok(DeploymentResult::Copied)
             }
             ComponentKind::Command => {
-                // Command は変換の可能性がある
                 if let (Some(src_fmt), Some(dest_fmt)) = (self.source_format, self.dest_format) {
                     let result = convert::convert_and_write(
                         &self.source_path,
@@ -218,7 +216,6 @@ impl ComponentDeployment {
                 }
             }
             ComponentKind::Agent => {
-                // Agent は変換の可能性がある
                 if let (Some(src_fmt), Some(dest_fmt)) =
                     (self.source_agent_format, self.dest_agent_format)
                 {
@@ -377,6 +374,9 @@ impl ComponentDeploymentBuilder {
     }
 
     /// Component から kind, name, source_path を設定
+    ///
+    /// # Arguments
+    /// * `component` - Component whose `kind`, `name`, and `path` are copied into the builder.
     pub fn component(mut self, component: &Component) -> Self {
         self.kind = Some(component.kind);
         self.name = Some(component.name.clone());
@@ -385,72 +385,108 @@ impl ComponentDeploymentBuilder {
     }
 
     /// コンポーネント種別を設定
+    ///
+    /// # Arguments
+    /// * `kind` - Component kind (`Skill`, `Agent`, `Command`, `Instruction`, `Hook`).
     pub fn kind(mut self, kind: ComponentKind) -> Self {
         self.kind = Some(kind);
         self
     }
 
     /// コンポーネント名を設定
+    ///
+    /// # Arguments
+    /// * `name` - Component name.
     pub fn name(mut self, name: impl Into<String>) -> Self {
         self.name = Some(name.into());
         self
     }
 
     /// スコープを設定
+    ///
+    /// # Arguments
+    /// * `scope` - Deployment scope (`Personal` or `Project`).
     pub fn scope(mut self, scope: Scope) -> Self {
         self.scope = Some(scope);
         self
     }
 
     /// ソースパスを設定
+    ///
+    /// # Arguments
+    /// * `path` - Source path to read the component from.
     pub fn source_path(mut self, path: impl Into<PathBuf>) -> Self {
         self.source_path = Some(path.into());
         self
     }
 
     /// ターゲットパスを設定
+    ///
+    /// # Arguments
+    /// * `path` - Target path to deploy the component to.
     pub fn target_path(mut self, path: impl Into<PathBuf>) -> Self {
         self.target_path = Some(path.into());
         self
     }
 
     /// ソースの Command フォーマットを設定
+    ///
+    /// # Arguments
+    /// * `format` - Source command format.
     pub fn source_format(mut self, format: CommandFormat) -> Self {
         self.source_format = Some(format);
         self
     }
 
     /// ターゲットの Command フォーマットを設定
+    ///
+    /// # Arguments
+    /// * `format` - Destination command format.
     pub fn dest_format(mut self, format: CommandFormat) -> Self {
         self.dest_format = Some(format);
         self
     }
 
     /// ソースの Agent フォーマットを設定
+    ///
+    /// # Arguments
+    /// * `format` - Source agent format.
     pub fn source_agent_format(mut self, format: AgentFormat) -> Self {
         self.source_agent_format = Some(format);
         self
     }
 
     /// ターゲットの Agent フォーマットを設定
+    ///
+    /// # Arguments
+    /// * `format` - Destination agent format.
     pub fn dest_agent_format(mut self, format: AgentFormat) -> Self {
         self.dest_agent_format = Some(format);
         self
     }
 
     /// Hook 変換を有効化
+    ///
+    /// # Arguments
+    /// * `convert` - Whether to run the hook converter during deployment.
     pub fn hook_convert(mut self, convert: bool) -> Self {
         self.hook_convert = Some(convert);
         self
     }
 
     /// Hook 変換のターゲット種別を設定
+    ///
+    /// # Arguments
+    /// * `kind` - Target kind that drives hook conversion rules.
     pub fn target_kind(mut self, kind: TargetKind) -> Self {
         self.target_kind = Some(kind);
         self
     }
 
     /// プラグインルートパスを設定（@@PLUGIN_ROOT@@ 置換用）
+    ///
+    /// # Arguments
+    /// * `path` - Plugin cache root substituted for the `@@PLUGIN_ROOT@@` placeholder in scripts.
     pub fn plugin_root(mut self, path: impl Into<PathBuf>) -> Self {
         self.plugin_root = Some(path.into());
         self
@@ -500,6 +536,10 @@ impl ComponentDeploymentBuilder {
 }
 
 /// スクリプトファイルを書き出し、Unix では実行権限 (0o755) を設定する。
+///
+/// # Arguments
+/// * `path` - File path to write the script to.
+/// * `content` - Script contents to write.
 fn write_executable_script(path: &Path, content: &str) -> Result<()> {
     fs::write(path, content)?;
     #[cfg(unix)]
@@ -514,6 +554,9 @@ fn write_executable_script(path: &Path, content: &str) -> Result<()> {
 ///
 /// 対象文字: `\`, `"`, `$`, `` ` ``, `\n`
 /// 用途: `@@PLUGIN_ROOT@@` プレースホルダーの置換値として使用
+///
+/// # Arguments
+/// * `s` - Raw string to escape for safe interpolation inside bash double quotes.
 fn escape_for_bash_double_quote(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for ch in s.chars() {

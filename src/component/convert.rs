@@ -88,13 +88,18 @@ pub struct AgentConversionResult {
 /// ## アトミック書き込み
 ///
 /// 変換成功時のみファイルを配置するため、一時ファイル経由で書き込む。
+///
+/// # Arguments
+/// * `source_path` - Path to the source command file to read.
+/// * `dest_path` - Destination path to write the (possibly converted) command file to.
+/// * `source_format` - Format of the source file.
+/// * `dest_format` - Desired format of the destination file.
 pub fn convert_and_write(
     source_path: &Path,
     dest_path: &Path,
     source_format: CommandFormat,
     dest_format: CommandFormat,
 ) -> Result<ConversionResult> {
-    // 同一形式ならコピーのみ
     if source_format == dest_format {
         copy_file(source_path, dest_path)?;
         return Ok(ConversionResult {
@@ -104,13 +109,8 @@ pub fn convert_and_write(
         });
     }
 
-    // 1. ソース読み込み
     let content = fs::read_to_string(source_path)?;
-
-    // 2. パース & 変換 & シリアライズ
     let markdown = convert_content(&content, source_format, dest_format)?;
-
-    // 3. アトミック書き込み
     atomic_write(dest_path, &markdown)?;
 
     Ok(ConversionResult {
@@ -123,12 +123,16 @@ pub fn convert_and_write(
 /// コンテンツを変換する（内部用）
 ///
 /// ClaudeCode からのみ変換可能。他の形式からの変換は UnsupportedConversion エラー。
+///
+/// # Arguments
+/// * `content` - Raw markdown content to convert.
+/// * `source_format` - Format of the provided `content`.
+/// * `dest_format` - Target format to convert into.
 fn convert_content(
     content: &str,
     source_format: CommandFormat,
     dest_format: CommandFormat,
 ) -> Result<String> {
-    // ClaudeCode からのみ変換可能
     if source_format != CommandFormat::ClaudeCode {
         return Err(PlmError::UnsupportedConversion {
             from: source_format.to_string(),
@@ -158,13 +162,18 @@ fn convert_content(
 ///
 /// - `ClaudeCode → Copilot`
 /// - `ClaudeCode → Codex`
+///
+/// # Arguments
+/// * `source_path` - Path to the source agent file to read.
+/// * `dest_path` - Destination path to write the (possibly converted) agent file to.
+/// * `source_format` - Format of the source file.
+/// * `dest_format` - Desired format of the destination file.
 pub fn convert_agent_and_write(
     source_path: &Path,
     dest_path: &Path,
     source_format: AgentFormat,
     dest_format: AgentFormat,
 ) -> Result<AgentConversionResult> {
-    // 同一形式ならコピーのみ
     if source_format == dest_format {
         copy_file(source_path, dest_path)?;
         return Ok(AgentConversionResult {
@@ -174,13 +183,8 @@ pub fn convert_agent_and_write(
         });
     }
 
-    // 1. ソース読み込み
     let content = fs::read_to_string(source_path)?;
-
-    // 2. パース & 変換 & シリアライズ
     let markdown = convert_agent_content(&content, source_format, dest_format)?;
-
-    // 3. アトミック書き込み
     atomic_write(dest_path, &markdown)?;
 
     Ok(AgentConversionResult {
@@ -193,12 +197,16 @@ pub fn convert_agent_and_write(
 /// Agent コンテンツを変換する（内部用）
 ///
 /// ClaudeCode からのみ変換可能。他の形式からの変換は UnsupportedConversion エラー。
+///
+/// # Arguments
+/// * `content` - Raw markdown content to convert.
+/// * `source_format` - Format of the provided `content`.
+/// * `dest_format` - Target format to convert into.
 fn convert_agent_content(
     content: &str,
     source_format: AgentFormat,
     dest_format: AgentFormat,
 ) -> Result<String> {
-    // ClaudeCode からのみ変換可能
     if source_format != AgentFormat::ClaudeCode {
         return Err(PlmError::UnsupportedConversion {
             from: source_format.to_string(),
@@ -217,6 +225,10 @@ fn convert_agent_content(
 }
 
 /// ファイルをコピー（親ディレクトリを作成）
+///
+/// # Arguments
+/// * `source` - Source file to copy from.
+/// * `dest` - Destination path to copy to; parent directories are created as needed.
 fn copy_file(source: &Path, dest: &Path) -> Result<()> {
     if let Some(parent) = dest.parent() {
         fs::create_dir_all(parent)?;
@@ -229,24 +241,24 @@ fn copy_file(source: &Path, dest: &Path) -> Result<()> {
 ///
 /// ターゲットと同一ディレクトリに一時ファイルを作成し、
 /// 書き込み成功後に rename でアトミックに移動する。
+///
+/// # Arguments
+/// * `dest_path` - Final destination path where the content should end up.
+/// * `content` - Content to write atomically.
 fn atomic_write(dest_path: &Path, content: &str) -> Result<()> {
-    // 親ディレクトリを作成
     if let Some(parent) = dest_path.parent() {
         fs::create_dir_all(parent)?;
     }
 
-    // 一時ファイル名: <filename>.tmp
     let tmp_path = dest_path.with_extension(format!(
         "{}.tmp",
         dest_path.extension().unwrap_or_default().to_string_lossy()
     ));
 
-    // 一時ファイルに書き込み
     if let Err(e) = fs::write(&tmp_path, content) {
         return Err(PlmError::Io(e));
     }
 
-    // アトミックに移動
     if let Err(e) = fs::rename(&tmp_path, dest_path) {
         // 失敗時は一時ファイルを削除
         let _ = fs::remove_file(&tmp_path);

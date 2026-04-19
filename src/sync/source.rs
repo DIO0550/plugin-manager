@@ -26,6 +26,10 @@ impl std::fmt::Debug for SyncSource {
 
 impl SyncSource {
     /// 本番用コンストラクタ
+    ///
+    /// # Arguments
+    /// * `kind` - Target environment kind to read components from.
+    /// * `project_root` - Project root directory used when resolving placement paths.
     pub fn new(kind: TargetKind, project_root: &Path) -> Result<Self> {
         let target = parse_target(kind.as_str())?;
         Ok(Self {
@@ -35,6 +39,10 @@ impl SyncSource {
     }
 
     /// テスト用コンストラクタ（Target を注入）
+    ///
+    /// # Arguments
+    /// * `target` - Injected target implementation to use in tests.
+    /// * `project_root` - Project root directory used when resolving placement paths.
     pub fn with_target(target: Box<dyn Target>, project_root: &Path) -> Self {
         Self {
             target,
@@ -55,6 +63,9 @@ impl SyncSource {
     /// 配置済みコンポーネントを取得
     ///
     /// 重複 identity がある場合はエラー
+    ///
+    /// # Arguments
+    /// * `options` - Options selecting which kinds and scopes to include.
     pub fn placed_components(&self, options: &SyncOptions) -> Result<Vec<PlacedComponent>> {
         let mut components = Vec::new();
         let mut seen_identities = HashSet::new();
@@ -71,7 +82,6 @@ impl SyncSource {
                 for name in placed {
                     let identity = ComponentIdentity::new(kind, name.clone(), *scope);
 
-                    // 重複チェック
                     if !seen_identities.insert(identity.clone()) {
                         return Err(PlmError::InvalidArgument(format!(
                             "Duplicate component identity: {:?}",
@@ -89,11 +99,17 @@ impl SyncSource {
     }
 
     /// コンポーネントのパスを取得
+    ///
+    /// # Arguments
+    /// * `component` - Placed component whose source path should be resolved.
     pub fn path_for(&self, component: &PlacedComponent) -> Result<PathBuf> {
         self.resolve_path(component.kind(), component.name(), component.scope())
     }
 
     /// 対象の SyncableKind リストを取得
+    ///
+    /// # Arguments
+    /// * `options` - Options whose `component_type` filter is applied.
     fn target_kinds(&self, options: &SyncOptions) -> Vec<SyncableKind> {
         match options.component_type {
             Some(kind) => vec![kind],
@@ -102,6 +118,9 @@ impl SyncSource {
     }
 
     /// 対象の Scope リストを取得
+    ///
+    /// # Arguments
+    /// * `options` - Options whose `scope` filter is applied.
     fn target_scopes(&self, options: &SyncOptions) -> Vec<Scope> {
         match options.scope {
             Some(scope) => vec![scope],
@@ -110,6 +129,11 @@ impl SyncSource {
     }
 
     /// パスを解決
+    ///
+    /// # Arguments
+    /// * `kind` - Component kind to resolve.
+    /// * `name` - Fully-qualified component name (e.g. `marketplace/plugin/component`).
+    /// * `scope` - Placement scope (personal or project).
     fn resolve_path(&self, kind: ComponentKind, name: &str, scope: Scope) -> Result<PathBuf> {
         let (origin, component_name) = parse_component_name(name)?;
 
@@ -134,6 +158,9 @@ impl SyncSource {
 }
 
 /// コンポーネント名をパース (marketplace/plugin/component)
+///
+/// # Arguments
+/// * `name` - Component name in `marketplace/plugin/component` form, or a bare instruction file name.
 pub fn parse_component_name(name: &str) -> Result<(PluginOrigin, &str)> {
     // Instruction の特別扱い
     if name == "AGENTS.md" || name == "copilot-instructions.md" || name == "GEMINI.md" {

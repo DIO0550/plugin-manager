@@ -24,6 +24,13 @@ pub struct SyncResult {
 
 impl SyncResult {
     /// dry_run 用の結果を作成
+    ///
+    /// # Arguments
+    /// * `created` - Components that would be created.
+    /// * `updated` - Components that would be updated.
+    /// * `deleted` - Components that would be deleted.
+    /// * `skipped` - Components skipped because no change was detected.
+    /// * `unsupported` - Components skipped because the destination does not support them.
     pub fn dry_run(
         created: Vec<PlacedComponent>,
         updated: Vec<PlacedComponent>,
@@ -105,6 +112,12 @@ pub struct SyncFailure {
 }
 
 impl SyncFailure {
+    /// Create a new `SyncFailure` record.
+    ///
+    /// # Arguments
+    /// * `component` - Component whose action failed.
+    /// * `action` - Sync action that was attempted.
+    /// * `error` - Error message describing the failure.
     pub fn new(component: PlacedComponent, action: SyncAction, error: impl Into<String>) -> Self {
         Self {
             component,

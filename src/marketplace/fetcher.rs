@@ -18,6 +18,12 @@ impl MarketplaceFetcher {
     }
 
     /// GitHubリポジトリから marketplace.json を取得
+    ///
+    /// # Arguments
+    ///
+    /// * `repo` - The repository to fetch the manifest from.
+    /// * `source_path` - Optional subdirectory under the repository root that
+    ///   contains the `.claude-plugin/marketplace.json` file.
     pub async fn fetch(
         &self,
         repo: &Repo,
@@ -37,6 +43,13 @@ impl MarketplaceFetcher {
     }
 
     /// マーケットプレイスを取得してキャッシュ形式に変換
+    ///
+    /// # Arguments
+    ///
+    /// * `repo` - The repository to fetch the marketplace from.
+    /// * `name` - Marketplace name to assign to the resulting cache entry.
+    /// * `source_path` - Optional subdirectory under the repository root that
+    ///   contains the `.claude-plugin/marketplace.json` file.
     pub async fn fetch_as_cache(
         &self,
         repo: &Repo,

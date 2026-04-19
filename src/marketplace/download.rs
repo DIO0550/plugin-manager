@@ -11,6 +11,13 @@ use crate::source::{MarketplaceSource, PackageSource};
 /// キャッシュを注入可能なマーケットプレイス経由のプラグインダウンロード
 ///
 /// テストや DI が必要な場面で使用する。
+///
+/// # Arguments
+///
+/// * `plugin_name` - Name of the plugin to download.
+/// * `marketplace_name` - Name of the marketplace that hosts the plugin.
+/// * `force` - Whether to bypass the cache and force a fresh download.
+/// * `cache` - Package cache accessor used to read and write cached downloads.
 pub async fn download_marketplace_plugin_with_cache(
     plugin_name: &str,
     marketplace_name: &str,

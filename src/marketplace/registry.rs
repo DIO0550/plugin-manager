@@ -92,17 +92,29 @@ impl MarketplaceRegistry {
     }
 
     /// カスタムキャッシュディレクトリで初期化（テスト用）
+    ///
+    /// # Arguments
+    ///
+    /// * `cache_dir` - Custom cache directory to use instead of the default.
     pub fn with_cache_dir(cache_dir: PathBuf) -> Result<Self> {
         fs::create_dir_all(&cache_dir)?;
         Ok(Self { cache_dir })
     }
 
     /// キャッシュファイルパスを取得
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - Marketplace name whose cache path is requested.
     fn cache_path(&self, name: &str) -> PathBuf {
         self.cache_dir.join(format!("{}.json", name))
     }
 
     /// キャッシュを取得
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - Marketplace name whose cache should be loaded.
     pub fn get(&self, name: &str) -> Result<Option<MarketplaceCache>> {
         let path = self.cache_path(name);
         if !path.exists() {
@@ -115,6 +127,10 @@ impl MarketplaceRegistry {
     }
 
     /// キャッシュを保存
+    ///
+    /// # Arguments
+    ///
+    /// * `cache` - Marketplace cache entry to persist to disk.
     pub fn store(&self, cache: &MarketplaceCache) -> Result<()> {
         let path = self.cache_path(&cache.name);
         let content = serde_json::to_string_pretty(cache)?;
@@ -123,6 +139,10 @@ impl MarketplaceRegistry {
     }
 
     /// キャッシュを削除
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - Marketplace name whose cache file should be removed.
     pub fn remove(&self, name: &str) -> Result<()> {
         let path = self.cache_path(name);
         if path.exists() {
@@ -152,7 +172,11 @@ impl MarketplaceRegistry {
 
     /// 全マーケットプレイスからプラグインを検索（最初の1件のみ）
     ///
-    /// 注意: 競合検出には find_plugins() を使用してください
+    /// 注意: 競合検出には `find_plugins()` を使用してください
+    ///
+    /// # Arguments
+    ///
+    /// * `plugin_name` - Plugin name to search for across marketplaces.
     pub fn find_plugin(&self, plugin_name: &str) -> Result<Option<(String, MarketplacePlugin)>> {
         for marketplace_name in self.list()? {
             if let Some(cache) = self.get(&marketplace_name)? {
@@ -169,6 +193,10 @@ impl MarketplaceRegistry {
     /// 全マーケットプレイスからプラグインを検索（全マッチを返す）
     ///
     /// 同名プラグインが複数のマーケットプレイスに存在する場合、全てを返す
+    ///
+    /// # Arguments
+    ///
+    /// * `plugin_name` - Plugin name to search for across marketplaces.
     pub fn find_plugins(&self, plugin_name: &str) -> Result<Vec<PluginMatch>> {
         let mut matches = Vec::new();
 
@@ -189,6 +217,10 @@ impl MarketplaceRegistry {
     }
 
     /// 同名プラグインが複数マーケットプレイスに存在するか確認
+    ///
+    /// # Arguments
+    ///
+    /// * `plugin_name` - Plugin name to check for conflicts.
     pub fn has_conflict(&self, plugin_name: &str) -> Result<bool> {
         Ok(self.find_plugins(plugin_name)?.len() > 1)
     }

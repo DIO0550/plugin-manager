@@ -16,6 +16,11 @@ pub struct ComponentRef {
 }
 
 impl ComponentRef {
+    /// Create a new `ComponentRef`.
+    ///
+    /// # Arguments
+    /// * `kind` - Component kind.
+    /// * `name` - Component name.
     pub fn new(kind: ComponentKind, name: impl Into<String>) -> Self {
         Self {
             kind,
@@ -59,6 +64,10 @@ pub struct ProjectContext<'a> {
 }
 
 impl<'a> ProjectContext<'a> {
+    /// Create a new `ProjectContext`.
+    ///
+    /// # Arguments
+    /// * `project_root` - Absolute or canonicalized path to the project root directory.
     pub fn new(project_root: &'a Path) -> Self {
         Self { project_root }
     }
@@ -110,11 +119,17 @@ pub enum PlacementLocation {
 
 impl PlacementLocation {
     /// ファイル配置を作成
+    ///
+    /// # Arguments
+    /// * `path` - Target file path.
     pub fn file(path: impl Into<PathBuf>) -> Self {
         Self::File(path.into())
     }
 
     /// ディレクトリ配置を作成
+    ///
+    /// # Arguments
+    /// * `path` - Target directory path.
     pub fn dir(path: impl Into<PathBuf>) -> Self {
         Self::Dir(path.into())
     }

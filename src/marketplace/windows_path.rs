@@ -3,6 +3,10 @@
 /// Windows ドライブレターで始まるか（例: "C:", "a:"）
 ///
 /// クロスプラットフォームの一貫性のため、Unix 上でも使用する。
+///
+/// # Arguments
+///
+/// * `path` - Path string to inspect.
 pub fn starts_with_drive_letter(path: &str) -> bool {
     let bytes = path.as_bytes();
     if bytes.len() < 2 {
@@ -14,6 +18,10 @@ pub fn starts_with_drive_letter(path: &str) -> bool {
 /// Windows UNC パスで始まるか（例: "//server/share"）
 ///
 /// 元の形式は `\\server\share` だが、バックスラッシュ正規化後は `//` になる。
+///
+/// # Arguments
+///
+/// * `path` - Path string to inspect.
 pub fn starts_with_unc(path: &str) -> bool {
     path.starts_with("//")
 }

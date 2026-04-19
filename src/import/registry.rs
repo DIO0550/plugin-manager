@@ -102,6 +102,9 @@ impl ImportRegistry {
     }
 
     /// カスタムパスで作成（テスト用）
+    ///
+    /// # Arguments
+    /// * `path` - Registry file path to use instead of the default location.
     pub fn with_path(path: PathBuf) -> Self {
         Self {
             config_path: path,
@@ -133,12 +136,10 @@ impl ImportRegistry {
             .as_ref()
             .ok_or_else(|| PlmError::ImportRegistry("No config loaded".to_string()))?;
 
-        // 親ディレクトリを作成
         if let Some(parent) = self.config_path.parent() {
             fs::create_dir_all(parent)?;
         }
 
-        // 同じディレクトリに一時ファイルを作成
         let parent = self
             .config_path
             .parent()
@@ -146,11 +147,9 @@ impl ImportRegistry {
         let mut temp_file = NamedTempFile::new_in(parent)
             .map_err(|e| PlmError::ImportRegistry(format!("Failed to create temp file: {}", e)))?;
 
-        // JSONを書き込み
         let content = serde_json::to_string_pretty(config)?;
         temp_file.write_all(content.as_bytes())?;
 
-        // アトミックに置換
         temp_file
             .persist(&self.config_path)
             .map_err(|e| PlmError::ImportRegistry(format!("Failed to persist config: {}", e)))?;
@@ -168,6 +167,9 @@ impl ImportRegistry {
     }
 
     /// インポートを記録（Loaded → Modified → save → Idle）
+    ///
+    /// # Arguments
+    /// * `record` - Import history entry to append and persist.
     pub fn record(&mut self, record: ImportRecord) -> Result<()> {
         if self.state == State::Idle {
             self.load()?;
@@ -182,6 +184,9 @@ impl ImportRegistry {
     }
 
     /// 特定ソースからのインポート履歴を取得
+    ///
+    /// # Arguments
+    /// * `source_repo` - Source repository in `owner/repo` form to filter by.
     pub fn list_by_source(&mut self, source_repo: &str) -> Result<Vec<ImportRecord>> {
         if self.state == State::Idle {
             self.load()?;
