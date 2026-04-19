@@ -38,7 +38,7 @@ pub enum Source {
 /// プラグイン詳細情報を取得
 ///
 /// # Arguments
-/// * `cache` - Package cache accessor used to look up the plugin.
+/// * `cache` - プラグインを検索するためのパッケージキャッシュアクセサ
 /// * `name` - プラグイン名（"plugin" または "marketplace/plugin" 形式）
 pub fn get_plugin_info(cache: &dyn PackageCacheAccess, name: &str) -> Result<PluginInfo> {
     let (marketplace_filter, plugin_name) = parse_plugin_name(name)?;
