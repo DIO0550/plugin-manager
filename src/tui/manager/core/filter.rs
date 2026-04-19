@@ -11,8 +11,8 @@ use crate::application::InstalledPlugin;
 ///
 /// # Arguments
 ///
-/// * `plugins` - the full slice of installed plugins to filter
-/// * `filter_text` - the query string; empty returns all plugins unchanged
+/// * `plugins` - 絞り込み対象のインストール済みプラグイン一覧
+/// * `filter_text` - 検索クエリ文字列。空なら全件をそのまま返す
 pub fn filter_plugins<'a>(
     plugins: &'a [InstalledPlugin],
     filter_text: &str,
