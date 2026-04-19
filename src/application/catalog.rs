@@ -13,7 +13,7 @@ use std::path::PathBuf;
 ///
 /// # Arguments
 ///
-/// * `cache` - Package cache accessor used to enumerate installed plugins.
+/// * `cache` - インストール済みプラグインを列挙するためのパッケージキャッシュアクセサ
 pub fn list_installed_plugins(cache: &dyn PackageCacheAccess) -> Result<Vec<InstalledPlugin>> {
     // デプロイ済みプラグイン集合を事前取得（パフォーマンス改善）
     let project_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
