@@ -37,6 +37,11 @@ const PROMPT_TOOL_MAP: &[(&str, &str)] = &[
 ///
 /// N:1 reverse lookups return the first table entry as the representative value
 /// (e.g., "codebase" -> "Read", "search/codebase" -> "Grep").
+///
+/// # Arguments
+/// * `tool` - Tool name to convert (leading/trailing whitespace is trimmed).
+/// * `from` - Source format of the input tool name.
+/// * `to` - Destination format to convert the tool name into.
 pub(crate) fn map_tool(tool: &str, from: Format, to: Format) -> String {
     let trimmed = tool.trim();
     match (from, to) {
@@ -63,6 +68,11 @@ pub(crate) fn map_tool(tool: &str, from: Format, to: Format) -> String {
 }
 
 /// Convert tool array with deduplication.
+///
+/// # Arguments
+/// * `tools` - Tool names to convert.
+/// * `from` - Source format of the input tool names.
+/// * `to` - Destination format to convert the tool names into.
 pub(crate) fn map_tools(tools: &[String], from: Format, to: Format) -> Vec<String> {
     let mut result: Vec<String> = tools.iter().map(|t| map_tool(t, from, to)).collect();
     result.sort();
@@ -97,6 +107,11 @@ const MODEL_CLAUDE_CODEX_MAP: &[(&str, &str)] = &[
 /// for the given `(from, to)` pair, the normalized name is looked up there; if
 /// no table exists (unsupported format pair) or the key is missing, the
 /// normalized (lowercase) value is returned unchanged.
+///
+/// # Arguments
+/// * `model` - Model name to convert (normalized to lowercase before lookup).
+/// * `from` - Source format of the input model name.
+/// * `to` - Destination format to convert the model name into.
 pub(crate) fn map_model(model: &str, from: Format, to: Format) -> String {
     let normalized = model.to_lowercase();
     let table = match (from, to) {
@@ -118,6 +133,9 @@ pub(crate) fn map_model(model: &str, from: Format, to: Format) -> String {
 ///
 /// Converts `$ARGUMENTS` to `${arguments}` and `$1`-`$9` to `${arg1}`-`${arg9}`.
 /// Note: Replaces from $9 to $1 to avoid partial replacement issues.
+///
+/// # Arguments
+/// * `body` - Claude Code prompt body containing `$ARGUMENTS` / `$1`-`$9` placeholders.
 pub fn body_claude_to_copilot(body: &str) -> String {
     body.replace("$ARGUMENTS", "${arguments}")
         .replace("$9", "${arg9}")
@@ -135,6 +153,9 @@ pub fn body_claude_to_copilot(body: &str) -> String {
 ///
 /// Converts `${arguments}` to `$ARGUMENTS` and `${arg1}`-`${arg9}` to `$1`-`$9`.
 /// Note: Replaces from ${arg9} to ${arg1} to avoid partial replacement issues.
+///
+/// # Arguments
+/// * `body` - Copilot prompt body containing `${arguments}` / `${arg1}`-`${arg9}` placeholders.
 pub fn body_copilot_to_claude(body: &str) -> String {
     body.replace("${arguments}", "$ARGUMENTS")
         .replace("${arg9}", "$9")
@@ -149,6 +170,9 @@ pub fn body_copilot_to_claude(body: &str) -> String {
 }
 
 /// Parse allowed-tools string (comma-separated).
+///
+/// # Arguments
+/// * `tools` - Comma-separated tool list (e.g. `"Bash(git:*), Read"`).
 pub fn parse_allowed_tools(tools: &str) -> Vec<String> {
     tools
         .split(',')
@@ -158,6 +182,9 @@ pub fn parse_allowed_tools(tools: &str) -> Vec<String> {
 }
 
 /// Format tool array as allowed-tools string.
+///
+/// # Arguments
+/// * `tools` - Tool names to join into a comma-separated list.
 pub fn format_allowed_tools(tools: &[String]) -> String {
     tools.join(", ")
 }
@@ -165,6 +192,9 @@ pub fn format_allowed_tools(tools: &[String]) -> String {
 /// Escape YAML string value.
 ///
 /// Wraps in double quotes and escapes special characters if needed.
+///
+/// # Arguments
+/// * `s` - String value to be embedded as a YAML scalar.
 pub fn escape_yaml_string(s: &str) -> String {
     let needs_quote = s.contains(':')
         || s.contains('"')

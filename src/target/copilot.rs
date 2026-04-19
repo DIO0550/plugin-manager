@@ -24,6 +24,10 @@ impl CopilotTarget {
     }
 
     /// スコープに応じたベースディレクトリを取得
+    ///
+    /// # Arguments
+    /// * `scope` - Scope (`Personal` or `Project`) that selects the base directory.
+    /// * `project_root` - Project root directory used for project scope.
     fn base_dir(scope: Scope, project_root: &Path) -> PathBuf {
         match scope {
             Scope::Personal => Self::home_dir().join(".copilot"),
@@ -32,6 +36,10 @@ impl CopilotTarget {
     }
 
     /// この組み合わせで配置できるか
+    ///
+    /// # Arguments
+    /// * `kind` - Component kind to check.
+    /// * `scope` - Scope (`Personal` or `Project`) to check.
     fn can_place(kind: ComponentKind, scope: Scope) -> bool {
         matches!(
             (kind, scope),
@@ -40,6 +48,10 @@ impl CopilotTarget {
     }
 
     /// コンポーネント種別に応じたフィルタリング（Command対応含む）
+    ///
+    /// # Arguments
+    /// * `c` - Scanned component entry.
+    /// * `kind` - Component kind expected for the entry.
     fn filter_component(c: &ScannedComponent, kind: ComponentKind) -> Option<String> {
         let qualified = format!("{}/{}/{}", c.origin.marketplace, c.origin.plugin, c.name);
         match kind {
@@ -155,7 +167,6 @@ impl Target for CopilotTarget {
             return Ok(vec![]);
         }
 
-        // Instruction は単一ファイル
         if kind == ComponentKind::Instruction {
             let dummy_origin = PluginOrigin::from_marketplace("", "");
             let ctx = PlacementContext {
@@ -181,7 +192,6 @@ impl Target for CopilotTarget {
             _ => return Ok(vec![]),
         };
 
-        // scan_components を使用して3層構造を走査
         let names = scan_components(&dir_path)?
             .into_iter()
             .filter_map(|c| Self::filter_component(&c, kind))

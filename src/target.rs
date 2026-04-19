@@ -67,6 +67,10 @@ pub struct PluginOrigin {
 
 impl PluginOrigin {
     /// マーケットプレイス経由のプラグイン
+    ///
+    /// # Arguments
+    /// * `marketplace` - Marketplace name.
+    /// * `plugin` - Plugin name within the marketplace.
     pub fn from_marketplace(marketplace: &str, plugin: &str) -> Self {
         Self {
             marketplace: marketplace.to_string(),
@@ -75,6 +79,10 @@ impl PluginOrigin {
     }
 
     /// 直接GitHub経由のプラグイン
+    ///
+    /// # Arguments
+    /// * `owner` - GitHub owner (user or organization).
+    /// * `repo` - GitHub repository name.
     pub fn from_github(owner: &str, repo: &str) -> Self {
         Self {
             marketplace: "github".to_string(),
@@ -86,6 +94,10 @@ impl PluginOrigin {
     ///
     /// `marketplace` が `None` の場合は `"github"` を既定値として使用し、
     /// `plugin_name` はキャッシュキー（ディレクトリ名）としてそのまま保持する。
+    ///
+    /// # Arguments
+    /// * `marketplace` - Optional marketplace name; falls back to `"github"` when `None`.
+    /// * `plugin_name` - Cache key (directory name) used as the plugin identifier.
     pub fn from_cached_plugin(marketplace: Option<&str>, plugin_name: &str) -> Self {
         Self {
             marketplace: marketplace.unwrap_or("github").to_string(),
@@ -170,11 +182,18 @@ pub trait Target: Send + Sync {
     fn supported_components(&self) -> &[ComponentKind];
 
     /// 指定コンポーネント種別をサポートするか
+    ///
+    /// # Arguments
+    /// * `kind` - Component kind to check for support.
     fn supports(&self, kind: ComponentKind) -> bool {
         self.supported_components().contains(&kind)
     }
 
     /// 指定コンポーネント・スコープの組み合わせをサポートするか
+    ///
+    /// # Arguments
+    /// * `kind` - Component kind to check.
+    /// * `scope` - Scope (`Personal` or `Project`) to check.
     fn supports_scope(&self, kind: ComponentKind, scope: Scope) -> bool {
         let dummy_origin = PluginOrigin::from_marketplace("test", "test");
         let ctx = PlacementContext {
@@ -190,9 +209,15 @@ pub trait Target: Send + Sync {
     ///
     /// `PlacementContext` を受け取り、`PlacementLocation` を返す。
     /// サポートしていない組み合わせの場合は `None` を返す。
+    ///
+    /// # Arguments
+    /// * `context` - Placement context describing the component, origin, scope and project.
     fn placement_location(&self, context: &PlacementContext) -> Option<PlacementLocation>;
 
     /// コンポーネントを削除
+    ///
+    /// # Arguments
+    /// * `context` - Placement context identifying the component to remove.
     fn remove(&self, context: &PlacementContext) -> Result<()> {
         let fs = RealFs;
         let location = self.placement_location(context).ok_or_else(|| {
@@ -217,6 +242,11 @@ pub trait Target: Send + Sync {
     }
 
     /// 配置済みコンポーネント一覧を取得
+    ///
+    /// # Arguments
+    /// * `kind` - Component kind to enumerate.
+    /// * `scope` - Scope (`Personal` or `Project`) to inspect.
+    /// * `project_root` - Project root directory used for project-scope lookups.
     fn list_placed(
         &self,
         kind: ComponentKind,
@@ -228,6 +258,9 @@ pub trait Target: Send + Sync {
 /// ターゲット名をパースしてTarget traitオブジェクトを返す
 ///
 /// parse_sourceと同じパターンで、使う側は具体的なターゲットを意識しない。
+///
+/// # Arguments
+/// * `name` - Target name (`"antigravity"`, `"codex"`, `"copilot"`, or `"gemini"`).
 pub fn parse_target(name: &str) -> Result<Box<dyn Target>> {
     match name {
         "antigravity" => Ok(Box::new(AntigravityTarget::new())),

@@ -5,6 +5,10 @@
 pub struct TargetId(String);
 
 impl TargetId {
+    /// Create a new target identifier.
+    ///
+    /// # Arguments
+    /// * `name` - Target name (for example, `"codex"` or `"copilot"`).
     pub fn new(name: impl Into<String>) -> Self {
         Self(name.into())
     }

@@ -62,6 +62,9 @@ impl CopilotPrompt {
     /// Parses a Copilot Prompt from content string.
     ///
     /// The name field is taken directly from frontmatter (no filename fallback).
+    ///
+    /// # Arguments
+    /// * `content` - Raw markdown content including optional YAML frontmatter.
     pub fn parse(content: &str) -> Result<Self> {
         let ParsedDocument { frontmatter, body } =
             parse_frontmatter::<CopilotPromptFrontmatter>(content)?;
@@ -82,11 +85,13 @@ impl CopilotPrompt {
     /// Loads and parses a Copilot Prompt from a file.
     ///
     /// If the frontmatter doesn't specify a name, the filename is used as fallback.
+    ///
+    /// # Arguments
+    /// * `path` - Path to the `.github/prompts/<name>.prompt.md` file to load.
     pub fn load(path: &Path) -> Result<Self> {
         let content = fs::read_to_string(path)?;
         let mut prompt = Self::parse(&content)?;
 
-        // Fallback to filename if name is not specified
         if prompt.name.is_none() {
             prompt.name = extract_name_from_path(path);
         }
@@ -133,6 +138,9 @@ impl TargetFormat for CopilotPrompt {
 }
 
 /// Normalizes name: empty or whitespace-only string becomes None.
+///
+/// # Arguments
+/// * `name` - Optional raw name string from frontmatter.
 fn normalize_name(name: Option<String>) -> Option<String> {
     name.map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
 }
@@ -140,6 +148,9 @@ fn normalize_name(name: Option<String>) -> Option<String> {
 /// Extracts prompt name from file path.
 ///
 /// Removes `.prompt.md` or `.md` extension from the filename.
+///
+/// # Arguments
+/// * `path` - File path whose stem will be used as the prompt name.
 fn extract_name_from_path(path: &Path) -> Option<String> {
     path.file_name()
         .and_then(|s| s.to_str())

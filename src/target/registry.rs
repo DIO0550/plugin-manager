@@ -112,6 +112,9 @@ impl TargetRegistry {
     }
 
     /// カスタムパスで作成（テスト用）
+    ///
+    /// # Arguments
+    /// * `path` - Absolute path to the `targets.json` file to manage.
     pub fn with_path(path: PathBuf) -> Self {
         Self {
             config_path: path,
@@ -144,21 +147,18 @@ impl TargetRegistry {
             .as_ref()
             .ok_or_else(|| PlmError::TargetRegistry("No config loaded".to_string()))?;
 
-        // 親ディレクトリを作成
         if let Some(parent) = self.config_path.parent() {
             fs::create_dir_all(parent)?;
         }
 
-        // 同じディレクトリに一時ファイルを作成
         let parent = self.config_path.parent().unwrap_or(Path::new("."));
         let mut temp_file = NamedTempFile::new_in(parent)
             .map_err(|e| PlmError::TargetRegistry(format!("Failed to create temp file: {}", e)))?;
 
-        // JSONを書き込み
         let content = serde_json::to_string_pretty(config)?;
         temp_file.write_all(content.as_bytes())?;
 
-        // アトミックに置換
+        // Atomically replace the target file to avoid partial writes on crash.
         temp_file
             .persist(&self.config_path)
             .map_err(|e| PlmError::TargetRegistry(format!("Failed to persist config: {}", e)))?;
@@ -176,6 +176,9 @@ impl TargetRegistry {
     }
 
     /// ターゲットを追加（load → modify → normalize → save）
+    ///
+    /// # Arguments
+    /// * `target` - Target kind to add to the registry.
     pub fn add(&mut self, target: TargetKind) -> Result<AddResult> {
         if self.state == State::Idle {
             self.load()?;
@@ -196,6 +199,9 @@ impl TargetRegistry {
     }
 
     /// ターゲットを削除（load → modify → normalize → save）
+    ///
+    /// # Arguments
+    /// * `target` - Target kind to remove from the registry.
     pub fn remove(&mut self, target: TargetKind) -> Result<RemoveResult> {
         if self.state == State::Idle {
             self.load()?;

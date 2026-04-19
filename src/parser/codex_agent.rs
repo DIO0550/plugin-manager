@@ -35,6 +35,9 @@ impl CodexAgent {
     ///
     /// Note: Codex frontmatter doesn't have a name field, so name is always None
     /// when using parse(). Use load() to get the name from the filename.
+    ///
+    /// # Arguments
+    /// * `content` - Raw markdown content including optional YAML frontmatter.
     pub fn parse(content: &str) -> Result<Self> {
         let ParsedDocument { frontmatter, body } =
             parse_frontmatter::<CodexAgentFrontmatter>(content)?;
@@ -51,6 +54,9 @@ impl CodexAgent {
     /// Loads and parses a Codex Agent from a file.
     ///
     /// The filename (without extension) is used as the agent name.
+    ///
+    /// # Arguments
+    /// * `path` - Path to the `.codex/agents/<name>.agent.md` file to load.
     pub fn load(path: &Path) -> Result<Self> {
         let content = fs::read_to_string(path)?;
         let mut agent = Self::parse(&content)?;
@@ -81,6 +87,9 @@ impl TargetFormat for CodexAgent {
 /// Extracts agent name from file path.
 ///
 /// Removes `.agent.md` or `.md` extension from the filename.
+///
+/// # Arguments
+/// * `path` - File path whose stem will be used as the agent name.
 fn extract_name_from_path(path: &Path) -> Option<String> {
     path.file_name()
         .and_then(|s| s.to_str())
