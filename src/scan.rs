@@ -16,7 +16,6 @@ mod components;
 mod constants;
 mod placement;
 
-// Re-exports
 pub use components::{
     file_stem_name, list_agent_names, list_command_names, list_hook_names, list_markdown_names,
     list_skill_names,

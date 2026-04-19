@@ -20,6 +20,7 @@ use std::path::Path;
 /// プラグインを Disable（デプロイ先から削除、キャッシュは残す）
 ///
 /// # Arguments
+/// * `cache` - プラグインキャッシュアクセサ
 /// * `plugin_name` - プラグイン名
 /// * `marketplace` - マーケットプレイス名（任意）
 /// * `project_root` - プロジェクトルートパス
@@ -31,7 +32,6 @@ pub fn disable_plugin(
     project_root: &Path,
     target_filter: Option<&str>,
 ) -> OperationResult {
-    // プラグインがキャッシュに存在するか確認
     if !cache.is_cached(marketplace, plugin_name) {
         return OperationResult::error(format!("Plugin '{}' not found in cache", plugin_name));
     }
@@ -77,6 +77,7 @@ pub fn disable_plugin(
 /// プラグインを Enable（キャッシュからデプロイ先に配置）
 ///
 /// # Arguments
+/// * `cache` - プラグインキャッシュアクセサ
 /// * `plugin_name` - プラグイン名
 /// * `marketplace` - マーケットプレイス名（任意）
 /// * `project_root` - プロジェクトルートパス
@@ -88,7 +89,6 @@ pub fn enable_plugin(
     project_root: &Path,
     target_filter: Option<&str>,
 ) -> OperationResult {
-    // プラグインがキャッシュに存在するか確認
     if !cache.is_cached(marketplace, plugin_name) {
         return OperationResult::error(format!("Plugin '{}' not found in cache", plugin_name));
     }
@@ -120,6 +120,7 @@ pub fn enable_plugin(
 /// プラグインの存在確認と、削除対象の情報を取得する。
 ///
 /// # Arguments
+/// * `cache` - プラグインキャッシュアクセサ
 /// * `plugin_name` - プラグイン名
 /// * `marketplace` - マーケットプレイス名（任意、デフォルト: "github"）
 ///
@@ -133,7 +134,6 @@ pub fn get_uninstall_info(
 ) -> Result<UninstallInfo, String> {
     let marketplace_str = marketplace.unwrap_or("github");
 
-    // 存在確認
     if !cache.is_cached(Some(marketplace_str), plugin_name) {
         return Err(format!(
             "Plugin '{}' not found in cache (marketplace: {})",
@@ -141,11 +141,9 @@ pub fn get_uninstall_info(
         ));
     }
 
-    // コンポーネント情報取得
     let plugin = load_plugin_deployment(cache, Some(marketplace_str), plugin_name)?;
     let components = plugin.components();
 
-    // 影響を受けるターゲット
     let affected_targets = all_targets()
         .iter()
         .filter(|t| components.iter().any(|c| t.supports(c.kind)))
@@ -176,6 +174,7 @@ pub struct UninstallInfo {
 /// プラグインを Uninstall（デプロイ先 + キャッシュ削除）
 ///
 /// # Arguments
+/// * `cache` - プラグインキャッシュアクセサ
 /// * `plugin_name` - プラグイン名
 /// * `marketplace` - マーケットプレイス名（任意）
 /// * `project_root` - プロジェクトルートパス
@@ -191,7 +190,6 @@ pub fn uninstall_plugin(
         return disable_result;
     }
 
-    // キャッシュから削除
     if let Err(e) = cache.remove(marketplace, plugin_name) {
         return OperationResult::error(format!("Failed to remove from cache: {}", e));
     }

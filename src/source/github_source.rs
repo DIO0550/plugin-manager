@@ -22,6 +22,10 @@ pub struct GitHubSource {
 }
 
 impl GitHubSource {
+    /// Create a direct Git repository source with no marketplace association.
+    ///
+    /// # Arguments
+    /// * `repo` - Repository descriptor identifying the Git host, owner, name, and optional ref.
     pub fn new(repo: Repo) -> Self {
         Self {
             repo,
@@ -31,6 +35,10 @@ impl GitHubSource {
     }
 
     /// マーケットプレイス経由でのソースを作成
+    ///
+    /// # Arguments
+    /// * `repo` - Repository descriptor for the underlying Git source.
+    /// * `marketplace` - Name of the marketplace that surfaced this plugin.
     pub fn with_marketplace(repo: Repo, marketplace: String) -> Self {
         Self {
             repo,
@@ -41,6 +49,11 @@ impl GitHubSource {
 
     /// マーケットプレイス経由 + ソースパス指定でのソース作成
     /// Local プラグイン専用: marketplace と source_path は両方必須
+    ///
+    /// # Arguments
+    /// * `repo` - Repository descriptor for the underlying Git source.
+    /// * `marketplace` - Name of the marketplace that surfaced this plugin.
+    /// * `source_path` - Normalized sub-path within the repository pointing at the local plugin.
     pub fn with_marketplace_and_source_path(
         repo: Repo,
         marketplace: String,
@@ -73,7 +86,6 @@ impl PackageSource for GitHubSource {
                 plugin_name.to_string()
             };
 
-            // キャッシュチェック
             if !force && cache.is_cached(marketplace, &cache_name) {
                 println!(
                     "Using cached plugin: {} (cache key: {})",
@@ -82,7 +94,6 @@ impl PackageSource for GitHubSource {
                 return cache.load_package(marketplace, &cache_name);
             }
 
-            // ダウンロード
             println!(
                 "Downloading plugin from {}/{}...",
                 self.repo.owner(),
@@ -91,7 +102,6 @@ impl PackageSource for GitHubSource {
             let (archive, git_ref, commit_sha) =
                 client.download_archive_with_sha(&self.repo).await?;
 
-            // キャッシュに保存
             println!("Extracting to cache...");
             let plugin_path = cache.store_from_archive(
                 marketplace,
@@ -100,10 +110,8 @@ impl PackageSource for GitHubSource {
                 self.source_path.as_deref(),
             )?;
 
-            // マニフェスト読み込み
             let manifest = cache.load_manifest(marketplace, &cache_name)?;
 
-            // メタデータ保存（source_repo, git_ref, commit_sha, marketplace）
             // store_from_archive で installedAt は既に書き込まれているので、追加フィールドのみ更新
             let mut plugin_meta = meta::load_meta(&plugin_path).unwrap_or_default();
             plugin_meta.set_source_repo(self.repo.owner(), self.repo.name());

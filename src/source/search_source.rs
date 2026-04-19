@@ -14,6 +14,10 @@ pub struct SearchSource {
 }
 
 impl SearchSource {
+    /// Create a source that searches all registered marketplaces for a plugin name.
+    ///
+    /// # Arguments
+    /// * `query` - Plugin name to look up across every registered marketplace.
     pub fn new(query: &str) -> Self {
         Self {
             query: query.to_string(),
@@ -30,14 +34,12 @@ impl PackageSource for SearchSource {
         Box::pin(async move {
             let registry = MarketplaceRegistry::new()?;
 
-            // Get registered marketplace names from config
             let config = MarketplaceConfig::load().map_err(|e| {
                 PlmError::Cache(format!("Failed to load marketplace config: {}", e))
             })?;
             let registered_names: Vec<&str> =
                 config.list().iter().map(|e| e.name.as_str()).collect();
 
-            // Check if any marketplaces are registered
             if registered_names.is_empty() {
                 return Err(PlmError::PluginNotFound(format!(
                     "{} (no marketplaces registered; use 'plm marketplace add <owner/repo>' to add one)",
@@ -45,16 +47,13 @@ impl PackageSource for SearchSource {
                 )));
             }
 
-            // Search for plugin only in registered marketplaces
             let matches = registry.find_plugins(&self.query)?;
             let matches: Vec<_> = matches
                 .into_iter()
                 .filter(|m| registered_names.contains(&m.marketplace.as_str()))
                 .collect();
 
-            // Handle no matches
             if matches.is_empty() {
-                // Check if any registered marketplace has no cache
                 let mut uncached: Vec<&str> = Vec::new();
                 for name in &registered_names {
                     if registry.get(name)?.is_none() {
@@ -73,7 +72,6 @@ impl PackageSource for SearchSource {
                 return Err(PlmError::PluginNotFound(self.query.clone()));
             }
 
-            // Handle multiple matches (conflict)
             if matches.len() > 1 {
                 let marketplace_names: Vec<_> =
                     matches.iter().map(|m| m.marketplace.as_str()).collect();
@@ -85,7 +83,6 @@ impl PackageSource for SearchSource {
                 )));
             }
 
-            // Single match - proceed
             let plugin_match = &matches[0];
             MarketplaceSource::new(&self.query, &plugin_match.marketplace)
                 .download(cache, force)
