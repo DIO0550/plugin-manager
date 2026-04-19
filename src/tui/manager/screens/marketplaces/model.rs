@@ -9,10 +9,6 @@ use crossterm::event::KeyCode;
 use ratatui::widgets::ListState;
 use std::collections::HashSet;
 
-// ============================================================================
-// OperationStatus（非同期操作の状態）
-// ============================================================================
-
 /// 非同期操作の状態
 pub enum OperationStatus {
     Updating(String),
@@ -20,19 +16,11 @@ pub enum OperationStatus {
     Removing(String),
 }
 
-// ============================================================================
-// CacheState（タブ切替時の保持状態）
-// ============================================================================
-
 /// キャッシュ状態（タブ切替時に保持）
 #[derive(Debug, Default)]
 pub struct CacheState {
     pub selected_id: Option<String>,
 }
-
-// ============================================================================
-// DetailAction（詳細画面のアクション）
-// ============================================================================
 
 /// マーケットプレイス詳細画面のアクション
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -75,10 +63,6 @@ impl DetailAction {
     }
 }
 
-// ============================================================================
-// AddFormModel（追加フォームの内部状態）
-// ============================================================================
-
 /// AddForm の内部状態
 pub enum AddFormModel {
     /// source（owner/repo）入力画面
@@ -100,10 +84,6 @@ pub enum AddFormModel {
         error_message: Option<String>,
     },
 }
-
-// ============================================================================
-// BrowsePlugin / PluginInstallResult / InstallSummary
-// ============================================================================
 
 /// マーケットプレイスのプラグイン情報（ブラウズ画面用）
 pub struct BrowsePlugin {
@@ -128,10 +108,6 @@ pub struct InstallSummary {
     pub succeeded: usize,
     pub failed: usize,
 }
-
-// ============================================================================
-// Model（画面状態）
-// ============================================================================
 
 /// Marketplaces タブの画面状態
 pub enum Model {
@@ -208,6 +184,10 @@ pub enum Model {
 
 impl Model {
     /// 新しいモデルを作成
+    ///
+    /// # Arguments
+    ///
+    /// * `data` - Data store providing the marketplace list.
     pub fn new(data: &DataStore) -> Self {
         let selected_id = data.marketplaces.first().map(|m| m.name.clone());
         let mut state = ListState::default();
@@ -222,6 +202,11 @@ impl Model {
     }
 
     /// キャッシュから復元
+    ///
+    /// # Arguments
+    ///
+    /// * `data` - Data store providing the marketplace list.
+    /// * `cache` - Previously saved cache state to restore from.
     pub fn from_cache(data: &DataStore, cache: &CacheState) -> Self {
         let selected_id = cache
             .selected_id
@@ -299,10 +284,6 @@ impl Model {
     }
 }
 
-// ============================================================================
-// Msg（メッセージ）
-// ============================================================================
-
 /// Marketplaces タブへのメッセージ
 pub enum Msg {
     Up,
@@ -324,6 +305,11 @@ pub enum Msg {
 }
 
 /// キーコードをメッセージに変換
+///
+/// # Arguments
+///
+/// * `key` - Raw key code received from crossterm.
+/// * `model` - Current marketplaces model used to disambiguate bindings.
 pub fn key_to_msg(key: KeyCode, model: &Model) -> Option<Msg> {
     if model.is_form_active() {
         // AddForm 状態ではフォーム入力として処理

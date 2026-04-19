@@ -9,6 +9,11 @@ use crate::tui::dialog::{multi_select, SelectItem};
 ///
 /// プラグインのコンポーネント種別に基づき、対応するターゲットをプリセレクトする。
 /// サポートしていないターゲットはグレーアウトして無効化する。
+///
+/// # Arguments
+///
+/// * `available_targets` - Target adapters offered in the dialog.
+/// * `plugin_components` - Component kinds declared by the plugin; used to preselect supporting targets.
 pub fn select_targets(
     available_targets: &[&dyn Target],
     plugin_components: &[ComponentKind],
@@ -16,7 +21,6 @@ pub fn select_targets(
     let mut items: Vec<SelectItem<String>> = available_targets
         .iter()
         .map(|target| {
-            // このターゲットがサポートするプラグインコンポーネントを確認
             let supported: Vec<&str> = plugin_components
                 .iter()
                 .filter(|k| target.supports(**k))

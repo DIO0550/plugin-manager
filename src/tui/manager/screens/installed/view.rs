@@ -19,6 +19,10 @@ struct ViewCtx<'a> {
 }
 
 /// ComponentKind の表示用タイトルを取得（複数形）
+///
+/// # Arguments
+///
+/// * `kind` - Component kind to format.
 fn component_kind_title(kind: ComponentKind) -> &'static str {
     match kind {
         ComponentKind::Skill => "Skills",
@@ -30,6 +34,14 @@ fn component_kind_title(kind: ComponentKind) -> &'static str {
 }
 
 /// 画面を描画
+///
+/// # Arguments
+///
+/// * `f` - Ratatui frame to draw into.
+/// * `model` - Installed tab model to render.
+/// * `data` - Shared data store for plugins.
+/// * `filter_text` - Current filter input text.
+/// * `filter_focused` - Whether the filter bar currently has focus.
 pub fn view(
     f: &mut Frame,
     model: &Model,
@@ -73,6 +85,10 @@ pub fn view(
 }
 
 /// reason テキストをリスト行表示用にサニタイズ（改行除去・長さ制限）
+///
+/// # Arguments
+///
+/// * `reason` - Raw reason text to normalize for list display.
 fn sanitize_reason(reason: &str) -> String {
     let single_line: String = reason
         .chars()
@@ -89,6 +105,10 @@ fn sanitize_reason(reason: &str) -> String {
 }
 
 /// 更新ステータスの表示文字列とスタイルを取得
+///
+/// # Arguments
+///
+/// * `status` - Update status to format as a `Span`.
 fn update_status_span(status: &UpdateStatusDisplay) -> Span<'_> {
     match status {
         UpdateStatusDisplay::Updating => {
@@ -110,6 +130,14 @@ fn update_status_span(status: &UpdateStatusDisplay) -> Span<'_> {
 }
 
 /// プラグイン一覧画面を描画
+///
+/// # Arguments
+///
+/// * `f` - Ratatui frame to draw into.
+/// * `state` - List state used for highlight/selection.
+/// * `ctx` - Shared view context (data store + filter state).
+/// * `marked_ids` - Plugin ids currently marked for batch actions.
+/// * `update_statuses` - Per-plugin update status for indicator display.
 fn view_plugin_list(
     f: &mut Frame,
     mut state: ListState,
@@ -241,6 +269,13 @@ fn view_plugin_list(
 }
 
 /// プラグイン詳細画面を描画
+///
+/// # Arguments
+///
+/// * `f` - Ratatui frame to draw into.
+/// * `plugin_id` - Plugin id whose detail should be shown.
+/// * `state` - List state used for action menu highlight.
+/// * `ctx` - Shared view context (data store + filter state).
 fn view_plugin_detail(
     f: &mut Frame,
     plugin_id: &PluginId,
@@ -341,6 +376,13 @@ fn view_plugin_detail(
 }
 
 /// コンポーネント種別選択画面を描画
+///
+/// # Arguments
+///
+/// * `f` - Ratatui frame to draw into.
+/// * `plugin_id` - Plugin id whose component kinds should be listed.
+/// * `state` - List state used for kind selection.
+/// * `ctx` - Shared view context (data store + filter state).
 fn view_component_types(
     f: &mut Frame,
     plugin_id: &PluginId,
@@ -422,6 +464,14 @@ fn view_component_types(
 }
 
 /// コンポーネント一覧画面を描画
+///
+/// # Arguments
+///
+/// * `f` - Ratatui frame to draw into.
+/// * `plugin_id` - Plugin id the components belong to.
+/// * `kind` - Component kind to list.
+/// * `state` - List state used for component selection.
+/// * `ctx` - Shared view context (data store + filter state).
 fn view_component_list(
     f: &mut Frame,
     plugin_id: &PluginId,

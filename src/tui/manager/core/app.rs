@@ -11,10 +11,6 @@ use crate::tui::manager::screens::{discover, errors, installed, marketplaces};
 use crossterm::event::KeyCode;
 use ratatui::prelude::*;
 
-// ============================================================================
-// Screen Cache（タブ切替時の状態保持）
-// ============================================================================
-
 /// タブ切替時に保持する軽量な状態
 #[derive(Debug, Default)]
 pub struct ScreenCache {
@@ -22,10 +18,6 @@ pub struct ScreenCache {
     pub discover: discover::CacheState,
     pub marketplaces: marketplaces::CacheState,
 }
-
-// ============================================================================
-// Tab（タブ種別）
-// ============================================================================
 
 /// タブ種別
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -65,6 +57,9 @@ impl Tab {
         }
     }
 
+    /// # Arguments
+    ///
+    /// * `index` - zero-based tab index (wrapped modulo the number of tabs)
     pub fn from_index(index: usize) -> Self {
         match index % 4 {
             0 => Tab::Discover,
@@ -82,10 +77,6 @@ impl Tab {
         Self::from_index(self.index() + 3)
     }
 }
-
-// ============================================================================
-// Screen（アクティブ画面の状態）
-// ============================================================================
 
 /// アクティブ画面の状態
 pub enum Screen {
@@ -117,10 +108,6 @@ impl Screen {
     }
 }
 
-// ============================================================================
-// Msg（アプリケーションへのメッセージ）
-// ============================================================================
-
 /// アプリケーションへのメッセージ
 pub enum Msg {
     /// 終了
@@ -148,10 +135,6 @@ pub enum Msg {
     /// Errors タブのメッセージ
     Errors(errors::Msg),
 }
-
-// ============================================================================
-// Model（アプリケーション全体の状態）
-// ============================================================================
 
 /// アプリケーション全体の状態
 pub struct Model {
@@ -186,6 +169,10 @@ impl Model {
     }
 
     /// キー入力をメッセージに変換
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - the key code received from the terminal
     pub fn key_to_msg(&self, key: KeyCode) -> Option<Msg> {
         let is_top_level = self.screen.is_top_level();
 
@@ -225,10 +212,6 @@ impl Model {
     }
 }
 
-// ============================================================================
-// update（状態更新）
-// ============================================================================
-
 /// app::update() の戻り値
 pub struct AppUpdateEffect {
     /// 描画後に実行すべきフォローアップメッセージ
@@ -242,6 +225,11 @@ impl AppUpdateEffect {
 }
 
 /// メッセージに応じて状態を更新
+///
+/// # Arguments
+///
+/// * `model` - the application model to mutate in place
+/// * `msg` - the message produced by a key press or completed task
 pub fn update(model: &mut Model, msg: Msg) -> AppUpdateEffect {
     match msg {
         Msg::Quit => {
@@ -327,6 +315,10 @@ pub fn update(model: &mut Model, msg: Msg) -> AppUpdateEffect {
 }
 
 /// フィルタ変更後に選択状態を整合させる
+///
+/// # Arguments
+///
+/// * `model` - the application model whose Installed screen selection is clamped
 fn clamp_selection(model: &mut Model) {
     if let Screen::Installed(m) = &mut model.screen {
         let filtered = filter_plugins(&model.data.plugins, &model.filter_text);
@@ -335,7 +327,6 @@ fn clamp_selection(model: &mut Model) {
         } = m
         {
             if let Some(id) = selected_id.as_ref() {
-                // 現在の選択が絞り込み結果に含まれるか
                 if let Some(idx) = filtered.iter().position(|p| p.install_id() == id.as_str()) {
                     state.select(Some(idx));
                 } else if !filtered.is_empty() {
@@ -356,8 +347,12 @@ fn clamp_selection(model: &mut Model) {
 }
 
 /// タブを切り替え
+///
+/// # Arguments
+///
+/// * `model` - the application model whose screen and cache are updated
+/// * `new_tab` - the tab to activate
 fn switch_tab(model: &mut Model, new_tab: Tab) {
-    // 現在の画面状態をキャッシュに保存
     match &model.screen {
         Screen::Installed(m) => {
             model.cache.installed = m.to_cache();
@@ -373,7 +368,6 @@ fn switch_tab(model: &mut Model, new_tab: Tab) {
         }
     }
 
-    // 新しい画面を作成（キャッシュから復元）
     model.screen = match new_tab {
         Tab::Installed => Screen::Installed(installed::Model::from_cache(
             &model.data,
@@ -396,11 +390,12 @@ fn switch_tab(model: &mut Model, new_tab: Tab) {
     }
 }
 
-// ============================================================================
-// view（描画）
-// ============================================================================
-
 /// 画面を描画
+///
+/// # Arguments
+///
+/// * `f` - the `ratatui` frame to draw into
+/// * `model` - the application model providing screen and data to render
 pub fn view(f: &mut Frame, model: &Model) {
     match &model.screen {
         Screen::Installed(m) => {

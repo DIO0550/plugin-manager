@@ -35,6 +35,11 @@ fn new_cache() -> Result<PackageCache, String> {
 }
 
 /// プラグインを Disable（デプロイ先から削除、キャッシュは残す）
+///
+/// # Arguments
+///
+/// * `plugin_name` - Target plugin install id.
+/// * `marketplace` - Optional marketplace name the plugin belongs to.
 pub fn disable_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionResult {
     let cache = match new_cache() {
         Ok(c) => c,
@@ -45,6 +50,11 @@ pub fn disable_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionRes
 }
 
 /// プラグインを Uninstall（デプロイ先 + キャッシュ削除）
+///
+/// # Arguments
+///
+/// * `plugin_name` - Target plugin install id.
+/// * `marketplace` - Optional marketplace name the plugin belongs to.
 pub fn uninstall_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionResult {
     let cache = match new_cache() {
         Ok(c) => c,
@@ -55,6 +65,11 @@ pub fn uninstall_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionR
 }
 
 /// プラグインを Enable（キャッシュからデプロイ先に配置）
+///
+/// # Arguments
+///
+/// * `plugin_name` - Target plugin install id.
+/// * `marketplace` - Optional marketplace name the plugin belongs to.
 pub fn enable_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionResult {
     let cache = match new_cache() {
         Ok(c) => c,
@@ -68,6 +83,10 @@ pub fn enable_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionResu
 ///
 /// 各プラグインを順次 `update_plugin()` で更新し、結果を返す。
 /// stdout/stderr をリダイレクトして TUI 画面の乱れを防ぐ。
+///
+/// # Arguments
+///
+/// * `plugin_names` - Plugin install ids to update in order.
 pub fn batch_update_plugins(plugin_names: &[String]) -> Vec<(String, UpdateStatusDisplay)> {
     let project_root = env::current_dir().unwrap_or_else(|_| ".".into());
 
@@ -86,6 +105,11 @@ pub fn batch_update_plugins(plugin_names: &[String]) -> Vec<(String, UpdateStatu
 }
 
 /// 単一プラグインの更新を同期的に実行
+///
+/// # Arguments
+///
+/// * `plugin_name` - Target plugin install id.
+/// * `project_root` - Project root directory used for deployment paths.
 fn run_update_plugin(plugin_name: &str, project_root: &Path) -> UpdateStatusDisplay {
     let handle = match tokio::runtime::Handle::try_current() {
         Ok(h) => h,

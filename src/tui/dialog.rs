@@ -26,6 +26,11 @@ pub struct SelectItem<T: Clone> {
 
 impl<T: Clone> SelectItem<T> {
     /// 新しい選択項目を作成
+    ///
+    /// # Arguments
+    ///
+    /// * `label` - Display label shown to the user.
+    /// * `value` - Underlying value associated with the item.
     pub fn new(label: impl Into<String>, value: T) -> Self {
         Self {
             label: label.into(),
@@ -37,18 +42,30 @@ impl<T: Clone> SelectItem<T> {
     }
 
     /// 説明文を設定
+    ///
+    /// # Arguments
+    ///
+    /// * `desc` - Description text appended next to the label.
     pub fn with_description(mut self, desc: impl Into<String>) -> Self {
         self.description = Some(desc.into());
         self
     }
 
     /// 選択状態を設定
+    ///
+    /// # Arguments
+    ///
+    /// * `selected` - Whether the item starts selected.
     pub fn with_selected(mut self, selected: bool) -> Self {
         self.selected = selected;
         self
     }
 
     /// 有効状態を設定
+    ///
+    /// # Arguments
+    ///
+    /// * `enabled` - Whether the item is selectable (disabled items are grayed out).
     pub fn with_enabled(mut self, enabled: bool) -> Self {
         self.enabled = enabled;
         self
@@ -74,11 +91,15 @@ pub struct SingleSelectResult<T> {
 }
 
 /// 複数選択ダイアログを表示
+///
+/// # Arguments
+///
+/// * `title` - Title shown in the dialog border.
+/// * `items` - Items to display; `selected` flags are mutated in place.
 pub fn multi_select<T: Clone>(
     title: &str,
     items: &mut [SelectItem<T>],
 ) -> io::Result<MultiSelectResult<T>> {
-    // ターミナル設定
     terminal::enable_raw_mode()?;
     stdout().execute(EnterAlternateScreen)?;
 
@@ -96,7 +117,6 @@ pub fn multi_select<T: Clone>(
                 .constraints([Constraint::Min(3), Constraint::Length(2)])
                 .split(f.area());
 
-            // リスト表示
             let list_items: Vec<ListItem> = items
                 .iter()
                 .map(|item| {
@@ -122,7 +142,6 @@ pub fn multi_select<T: Clone>(
 
             f.render_stateful_widget(list, chunks[0], &mut state);
 
-            // ヘルプ表示
             let help = Paragraph::new("↑/↓: move  space: toggle  enter: confirm  q/esc: cancel")
                 .style(Style::default().fg(Color::DarkGray));
             f.render_widget(help, chunks[1]);
@@ -168,7 +187,6 @@ pub fn multi_select<T: Clone>(
         }
     };
 
-    // ターミナルを復元
     terminal::disable_raw_mode()?;
     stdout().execute(LeaveAlternateScreen)?;
 
@@ -176,18 +194,21 @@ pub fn multi_select<T: Clone>(
 }
 
 /// 単一選択ダイアログを表示
+///
+/// # Arguments
+///
+/// * `title` - Title shown in the dialog border.
+/// * `items` - Items to display; initial cursor starts at the first `selected` entry.
 pub fn single_select<T: Clone>(
     title: &str,
     items: &[SelectItem<T>],
 ) -> io::Result<SingleSelectResult<T>> {
-    // ターミナル設定
     terminal::enable_raw_mode()?;
     stdout().execute(EnterAlternateScreen)?;
 
     let backend = CrosstermBackend::new(stdout());
     let mut terminal = Terminal::new(backend)?;
 
-    // 初期選択位置を探す
     let initial_index = items.iter().position(|i| i.selected).unwrap_or(0);
     let mut state = ListState::default();
     state.select(Some(initial_index));
@@ -200,7 +221,6 @@ pub fn single_select<T: Clone>(
                 .constraints([Constraint::Min(3), Constraint::Length(2)])
                 .split(f.area());
 
-            // リスト表示
             let list_items: Vec<ListItem> = items
                 .iter()
                 .enumerate()
@@ -228,7 +248,6 @@ pub fn single_select<T: Clone>(
 
             f.render_stateful_widget(list, chunks[0], &mut state);
 
-            // ヘルプ表示
             let help = Paragraph::new("↑/↓: move  enter: select  q/esc: cancel")
                 .style(Style::default().fg(Color::DarkGray));
             f.render_widget(help, chunks[1]);
@@ -267,7 +286,6 @@ pub fn single_select<T: Clone>(
         }
     };
 
-    // ターミナルを復元
     terminal::disable_raw_mode()?;
     stdout().execute(LeaveAlternateScreen)?;
 

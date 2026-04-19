@@ -9,10 +9,6 @@ use ratatui::prelude::*;
 use ratatui::widgets::ListState;
 use std::collections::{HashMap, HashSet};
 
-// ============================================================================
-// UpdateStatusDisplay（バッチ更新ステータス表示用）
-// ============================================================================
-
 /// バッチ更新時の各プラグインの更新ステータス
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum UpdateStatusDisplay {
@@ -28,20 +24,12 @@ pub enum UpdateStatusDisplay {
     Failed(String),
 }
 
-// ============================================================================
-// CacheState（タブ切替時の保持状態）
-// ============================================================================
-
 /// キャッシュ状態（タブ切替時に保持）
 #[derive(Debug, Default)]
 pub struct CacheState {
     pub selected_plugin_id: Option<PluginId>,
     pub marked_ids: HashSet<PluginId>,
 }
-
-// ============================================================================
-// DetailAction（プラグイン詳細画面のアクション）
-// ============================================================================
 
 /// プラグイン詳細画面のアクション
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -80,6 +68,10 @@ impl DetailAction {
     }
 
     /// プラグインの enabled 状態に応じたアクション一覧を取得
+    ///
+    /// # Arguments
+    ///
+    /// * `enabled` - Whether the target plugin is currently enabled.
     pub fn for_plugin(enabled: bool) -> Vec<DetailAction> {
         if enabled {
             Self::for_enabled()
@@ -109,10 +101,6 @@ impl DetailAction {
         }
     }
 }
-
-// ============================================================================
-// Model（画面状態）
-// ============================================================================
 
 /// Installed タブの画面状態
 pub enum Model {
@@ -157,6 +145,10 @@ pub enum Model {
 
 impl Model {
     /// 新しいモデルを作成
+    ///
+    /// # Arguments
+    ///
+    /// * `data` - Data store providing the installed plugin list.
     pub fn new(data: &DataStore) -> Self {
         let selected_id = data.plugins.first().map(|p| p.install_id().to_string());
         let mut state = ListState::default();
@@ -172,6 +164,11 @@ impl Model {
     }
 
     /// キャッシュから復元
+    ///
+    /// # Arguments
+    ///
+    /// * `data` - Data store providing the installed plugin list.
+    /// * `cache` - Previously saved cache state to restore from.
     pub fn from_cache(data: &DataStore, cache: &CacheState) -> Self {
         let selected_id = cache
             .selected_plugin_id
@@ -261,10 +258,6 @@ impl Model {
     }
 }
 
-// ============================================================================
-// Msg（メッセージ）
-// ============================================================================
-
 /// Installed タブへのメッセージ
 pub enum Msg {
     Up,
@@ -284,6 +277,10 @@ pub enum Msg {
 /// j/k キーバインドはフィルタ入力と競合しない。
 /// Esc はフィルタフォーカス中は app.rs 側で FilterClear として処理されるが、
 /// フィルタがフォーカスされていない通常状態では、トップレベルか否かに関わらず Back を返す。
+///
+/// # Arguments
+///
+/// * `key` - Raw key code received from crossterm.
 pub fn key_to_msg(key: KeyCode) -> Option<Msg> {
     match key {
         KeyCode::Up | KeyCode::Char('k') => Some(Msg::Up),

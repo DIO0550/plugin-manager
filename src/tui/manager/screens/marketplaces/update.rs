@@ -31,6 +31,12 @@ impl UpdateEffect {
 }
 
 /// メッセージに応じて状態を更新
+///
+/// # Arguments
+///
+/// * `model` - Marketplaces tab model to mutate.
+/// * `msg` - Incoming message to apply.
+/// * `data` - Shared data store for marketplaces and plugins.
 pub fn update(model: &mut Model, msg: Msg, data: &mut DataStore) -> UpdateEffect {
     match msg {
         Msg::Up => {
@@ -818,6 +824,13 @@ fn execute_install(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
 }
 
 /// ExecuteInstall の実装本体（依存関数注入パターン）
+///
+/// # Arguments
+///
+/// * `model` - Marketplaces tab model to mutate.
+/// * `data` - Shared data store for plugins and marketplaces.
+/// * `run_install` - Injected install routine (real or test double).
+/// * `reload` - Injected data store reload routine.
 pub(super) fn execute_install_with(
     model: &mut Model,
     data: &mut DataStore,

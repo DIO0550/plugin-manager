@@ -7,19 +7,11 @@ use crossterm::event::KeyCode;
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Clear, ListState, Paragraph, Tabs};
 
-// ============================================================================
-// CacheState（タブ切替時の保持状態）
-// ============================================================================
-
 /// キャッシュ状態（タブ切替時に保持）
 #[derive(Debug, Default)]
 pub struct CacheState {
     pub selected_id: Option<PluginId>,
 }
-
-// ============================================================================
-// Model（画面状態）
-// ============================================================================
 
 /// Discover タブの画面状態
 pub struct Model {
@@ -29,6 +21,10 @@ pub struct Model {
 
 impl Model {
     /// 新しいモデルを作成
+    ///
+    /// # Arguments
+    ///
+    /// * `_data` - shared data store (currently unused on this tab)
     pub fn new(_data: &DataStore) -> Self {
         Self {
             selected_id: None,
@@ -37,6 +33,11 @@ impl Model {
     }
 
     /// キャッシュから復元
+    ///
+    /// # Arguments
+    ///
+    /// * `_data` - shared data store (currently unused on this tab)
+    /// * `cache` - cached state carried across tab switches
     pub fn from_cache(_data: &DataStore, cache: &CacheState) -> Self {
         Self {
             selected_id: cache.selected_id.clone(),
@@ -52,34 +53,40 @@ impl Model {
     }
 }
 
-// ============================================================================
-// Msg（メッセージ）
-// ============================================================================
-
 /// Discover タブへのメッセージ
 pub enum Msg {
     // 将来の拡張用
 }
 
 /// キーコードをメッセージに変換
+///
+/// # Arguments
+///
+/// * `_key` - pressed key code
 pub fn key_to_msg(_key: KeyCode) -> Option<Msg> {
     None
 }
 
-// ============================================================================
-// update（状態更新）
-// ============================================================================
-
 /// メッセージに応じて状態を更新
+///
+/// # Arguments
+///
+/// * `_model` - mutable screen state
+/// * `_msg` - incoming message
+/// * `_data` - shared data store
 pub fn update(_model: &mut Model, _msg: Msg, _data: &DataStore) {
     // 将来の拡張用
 }
 
-// ============================================================================
-// view（描画）
-// ============================================================================
-
 /// 画面を描画
+///
+/// # Arguments
+///
+/// * `f` - ratatui frame to render into
+/// * `_model` - current screen state
+/// * `_data` - shared data store
+/// * `filter_text` - current filter input text
+/// * `filter_focused` - whether the filter bar has focus
 pub fn view(
     f: &mut Frame,
     _model: &Model,
@@ -103,7 +110,6 @@ pub fn view(
         ])
         .split(dialog_area);
 
-    // タブバー
     let tab_titles: Vec<&str> = Tab::all().iter().map(|t| t.title()).collect();
     let tabs = Tabs::new(tab_titles)
         .select(Tab::Discover.index())
@@ -119,13 +125,11 @@ pub fn view(
     // フィルタバー（Discover タブではフィルタ機能は未対応、UI のみ表示）
     render_filter_bar(f, chunks[1], filter_text, filter_focused);
 
-    // プレースホルダーコンテンツ
     let content = Paragraph::new("\n  Browse available plugins")
         .block(Block::default().title(" Discover ").borders(Borders::ALL))
         .style(Style::default().fg(Color::DarkGray));
     f.render_widget(content, chunks[2]);
 
-    // ヘルプ
     let help = Paragraph::new(" Tab: switch | q: quit").style(Style::default().fg(Color::DarkGray));
     f.render_widget(help, chunks[3]);
 }

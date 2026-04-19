@@ -6,6 +6,13 @@ use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Paragraph};
 
 /// フィルタ入力欄を描画（ボーダー付き、高さ3行）
+///
+/// # Arguments
+///
+/// * `f` - the `ratatui` frame to draw into
+/// * `area` - the rectangle to render the filter bar in
+/// * `filter_text` - the current filter query text
+/// * `focused` - `true` when the filter input currently has focus
 pub fn render_filter_bar(f: &mut Frame, area: Rect, filter_text: &str, focused: bool) {
     let (border_color, text_content) = if focused {
         let cursor = "\u{2502}"; // │ カーソル
@@ -40,6 +47,12 @@ pub fn render_filter_bar(f: &mut Frame, area: Rect, filter_text: &str, focused: 
 }
 
 /// コンテンツに合わせたダイアログ領域を計算（左寄せ）
+///
+/// # Arguments
+///
+/// * `width` - desired dialog width in cells (clamped to `area.width`)
+/// * `height` - desired dialog height in cells (clamped to `area.height`)
+/// * `area` - the containing rectangle the dialog is anchored to
 pub fn dialog_rect(width: u16, height: u16, area: Rect) -> Rect {
     Rect::new(
         area.x,
