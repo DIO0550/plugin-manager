@@ -1,6 +1,9 @@
+mod action;
 mod cache;
 mod cached_package;
+mod deployment;
 mod installed;
+mod intent;
 mod manifest;
 mod manifest_resolve;
 mod marketplace_content;
@@ -9,8 +12,12 @@ mod plugin_content;
 mod update;
 mod version;
 
+pub use action::PluginAction;
+pub(crate) use cache::list_installed;
 pub use cache::{CachedPackage, PackageCache, PackageCacheAccess};
+pub(crate) use deployment::{cleanup_plugin_directories, load_plugin_deployment};
 pub use installed::InstalledPlugin;
+pub use intent::PluginIntent;
 pub use manifest::{Author, PluginManifest};
 
 /// cache_key フォールバック: cache_key が None なら name を返す

@@ -5,14 +5,15 @@
 
 // Re-exported for tests
 #[cfg(test)]
-pub use super::plugin_action::PluginAction;
+pub use super::action::PluginAction;
 #[cfg(not(test))]
-use super::plugin_action::PluginAction;
-use super::plugin_action_types::{FileOperation, ScopedPath, TargetId};
+use super::action::PluginAction;
 use crate::component::{
-    Component, ComponentKind, ComponentRef, PlacementContext, PlacementScope, ProjectContext, Scope,
+    Component, ComponentKind, ComponentRef, FileOperation, PlacementContext, PlacementScope,
+    ProjectContext, Scope, ScopedPath,
 };
 use crate::fs::{FileSystem, RealFs};
+use crate::target::TargetId;
 use crate::target::{all_targets, AffectedTargets, OperationResult, PluginOrigin, Target};
 use std::path::{Path, PathBuf};
 
@@ -236,5 +237,5 @@ fn execute_file_operations(expand_result: ExpandResult, _project_root: &Path) ->
 }
 
 #[cfg(test)]
-#[path = "plugin_intent_test.rs"]
+#[path = "intent_test.rs"]
 mod tests;

@@ -2,9 +2,11 @@
 //!
 //! 特定のプラグインの詳細情報を取得するユースケースを提供する。
 
-use super::plugin_catalog::{list_all_placed, list_installed};
 use crate::error::{PlmError, Result};
-use crate::plugin::{meta, InstalledPlugin, MarketplaceContent, PackageCacheAccess, Plugin};
+use crate::plugin::{
+    list_installed, meta, InstalledPlugin, MarketplaceContent, PackageCacheAccess, Plugin,
+};
+use crate::target::list_all_placed;
 use std::path::{Path, PathBuf};
 
 /// プラグイン詳細情報（composition）
@@ -216,5 +218,5 @@ fn resolve_enabled(cache_path: &Path, marketplace: &str, install_id: &str) -> bo
 }
 
 #[cfg(test)]
-#[path = "plugin_info_test.rs"]
+#[path = "info_test.rs"]
 mod tests;
