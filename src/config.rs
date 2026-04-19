@@ -53,18 +53,30 @@ impl AuthProvider {
     }
 
     /// GitHubトークンを設定
+    ///
+    /// # Arguments
+    ///
+    /// * `token` - GitHub personal access token or installation token.
     pub fn with_github_token(mut self, token: impl Into<String>) -> Self {
         self.github_token = Some(token.into());
         self
     }
 
     /// GitLabトークンを設定
+    ///
+    /// # Arguments
+    ///
+    /// * `token` - GitLab personal or project access token.
     pub fn with_gitlab_token(mut self, token: impl Into<String>) -> Self {
         self.gitlab_token = Some(token.into());
         self
     }
 
     /// Bitbucketトークンを設定
+    ///
+    /// # Arguments
+    ///
+    /// * `token` - Bitbucket app password or access token.
     pub fn with_bitbucket_token(mut self, token: impl Into<String>) -> Self {
         self.bitbucket_token = Some(token.into());
         self

@@ -17,12 +17,25 @@ pub trait PathExt {
     ///
     /// `custom` が `Some` の場合はそのパスを、`None` の場合は `default` を
     /// ベースパスに結合して返す。
+    ///
+    /// # Arguments
+    ///
+    /// * `custom` - Optional custom path segment that overrides `default`.
+    /// * `default` - Fallback path segment used when `custom` is `None`.
     fn join_or(&self, custom: Option<&str>, default: &str) -> PathBuf;
 
     /// ディレクトリを再帰的にコピー
+    ///
+    /// # Arguments
+    ///
+    /// * `target` - Destination directory to copy into.
     fn copy_dir_to(&self, target: &Path) -> Result<()>;
 
     /// ファイルをコピー（親ディレクトリも作成）
+    ///
+    /// # Arguments
+    ///
+    /// * `target` - Destination file path. Parent directories are created as needed.
     fn copy_file_to(&self, target: &Path) -> Result<()>;
 }
 

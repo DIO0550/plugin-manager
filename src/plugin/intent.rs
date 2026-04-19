@@ -41,6 +41,12 @@ pub struct PluginIntent {
 
 impl PluginIntent {
     /// 計画を構築
+    ///
+    /// # Arguments
+    ///
+    /// * `action` - high-level plugin action to plan for
+    /// * `components` - pre-scanned components participating in the action
+    /// * `project_root` - project root used for path scoping
     pub fn new(action: PluginAction, components: Vec<Component>, project_root: PathBuf) -> Self {
         Self {
             action,
@@ -51,6 +57,13 @@ impl PluginIntent {
     }
 
     /// ターゲットフィルタ付きで計画を構築
+    ///
+    /// # Arguments
+    ///
+    /// * `action` - high-level plugin action to plan for
+    /// * `components` - pre-scanned components participating in the action
+    /// * `project_root` - project root used for path scoping
+    /// * `target_filter` - optional target name restricting expansion to a single target
     pub fn with_target_filter(
         action: PluginAction,
         components: Vec<Component>,
@@ -115,6 +128,11 @@ impl PluginIntent {
     }
 
     /// FileOperation を構築
+    ///
+    /// # Arguments
+    ///
+    /// * `component` - component whose source path feeds the operation
+    /// * `scoped` - validated destination path for the operation
     fn build_file_operation(&self, component: &Component, scoped: ScopedPath) -> FileOperation {
         match (self.action.is_deploy(), component.kind) {
             (true, ComponentKind::Skill) => FileOperation::CopyDir {
@@ -135,6 +153,12 @@ impl PluginIntent {
     /// - `Ok(None)`: ターゲットがこのコンポーネントの配置場所を持たない（正常）
     /// - `Ok(Some(...))`: 操作を正常に生成
     /// - `Err(...)`: パス検証エラー（ディレクトリトラバーサル等）
+    ///
+    /// # Arguments
+    ///
+    /// * `target` - target environment whose placement rules are consulted
+    /// * `component` - component to be placed on the target
+    /// * `origin` - plugin origin used to build the placement context
     fn create_operation(
         &self,
         target: &dyn Target,
@@ -172,18 +196,21 @@ impl PluginIntent {
 }
 
 /// ファイル操作を実行
+///
+/// # Arguments
+///
+/// * `expand_result` - pre-computed operations and validation errors from `expand`
+/// * `_project_root` - project root (currently unused but retained for future scoping needs)
 fn execute_file_operations(expand_result: ExpandResult, _project_root: &Path) -> OperationResult {
     use crate::path_ext::PathExt;
 
     let fs = RealFs;
     let mut affected = AffectedTargets::new();
 
-    // 検証エラーを記録
     for (target_id, msg) in expand_result.validation_errors {
         affected.record_error(target_id.as_str(), msg);
     }
 
-    // ターゲットごとにグループ化
     let mut by_target: std::collections::HashMap<TargetId, Vec<FileOperation>> =
         std::collections::HashMap::new();
 

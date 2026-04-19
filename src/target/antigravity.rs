@@ -21,6 +21,11 @@ impl AntigravityTarget {
     }
 
     /// スコープに応じたベースディレクトリを取得
+    ///
+    /// # Arguments
+    ///
+    /// * `scope` - Scope (`Personal` or `Project`) that selects the base directory.
+    /// * `project_root` - Project root directory used for project scope.
     fn base_dir(scope: Scope, project_root: &Path) -> PathBuf {
         match scope {
             Scope::Personal => Self::home_dir().join(".gemini").join("antigravity"),
@@ -29,15 +34,23 @@ impl AntigravityTarget {
     }
 
     /// この組み合わせで配置できるか（Skillのみサポート）
+    ///
+    /// # Arguments
+    ///
+    /// * `kind` - Component kind to check.
     fn can_place(kind: ComponentKind) -> bool {
         kind == ComponentKind::Skill
     }
 
     /// コンポーネント種別に応じたフィルタリング（SKILL.md存在チェック維持）
+    ///
+    /// # Arguments
+    ///
+    /// * `c` - Scanned component entry.
+    /// * `kind` - Component kind expected for the entry.
     fn filter_component(c: &ScannedComponent, kind: ComponentKind) -> Option<String> {
         match kind {
             ComponentKind::Skill if c.is_dir => {
-                // SKILL.mdが存在する場合のみ有効なSkillとして認識
                 let skill_md = c.path.join("SKILL.md");
                 if skill_md.exists() {
                     Some(format!(
@@ -113,7 +126,6 @@ impl Target for AntigravityTarget {
         let base = Self::base_dir(scope, project_root);
         let dir_path = base.join("skills");
 
-        // scan_components を使用して3層構造を走査
         let names = scan_components(&dir_path)?
             .into_iter()
             .filter_map(|c| Self::filter_component(&c, kind))

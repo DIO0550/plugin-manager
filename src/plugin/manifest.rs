@@ -59,12 +59,20 @@ pub struct PluginManifest {
 
 impl PluginManifest {
     /// JSONからパース
+    ///
+    /// # Arguments
+    ///
+    /// * `content` - JSON string representing the plugin manifest.
     pub fn parse(content: &str) -> Result<Self> {
         serde_json::from_str(content)
             .map_err(|e| PlmError::InvalidManifest(format!("Failed to parse plugin.json: {}", e)))
     }
 
     /// ファイルから読み込み
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Filesystem path to the `plugin.json` manifest.
     pub fn load(path: &Path) -> Result<Self> {
         let content = std::fs::read_to_string(path)?;
         Self::parse(&content)
@@ -90,36 +98,56 @@ impl PluginManifest {
         self.instructions.is_some()
     }
 
-    // =========================================================================
-    // パス解決メソッド
-    // =========================================================================
-
     /// スキルディレクトリのパスを解決
+    ///
+    /// # Arguments
+    ///
+    /// * `base` - Plugin root directory used as the base for resolution.
     pub fn skills_dir(&self, base: &Path) -> PathBuf {
         base.join_or(self.skills.as_deref(), DEFAULT_SKILLS_DIR)
     }
 
     /// エージェントディレクトリのパスを解決
+    ///
+    /// # Arguments
+    ///
+    /// * `base` - Plugin root directory used as the base for resolution.
     pub fn agents_dir(&self, base: &Path) -> PathBuf {
         base.join_or(self.agents.as_deref(), DEFAULT_AGENTS_DIR)
     }
 
     /// コマンドディレクトリのパスを解決
+    ///
+    /// # Arguments
+    ///
+    /// * `base` - Plugin root directory used as the base for resolution.
     pub fn commands_dir(&self, base: &Path) -> PathBuf {
         base.join_or(self.commands.as_deref(), DEFAULT_COMMANDS_DIR)
     }
 
     /// インストラクションパスを解決（ファイルまたはディレクトリ）
+    ///
+    /// # Arguments
+    ///
+    /// * `base` - Plugin root directory used as the base for resolution.
     pub fn instructions_path(&self, base: &Path) -> PathBuf {
         base.join_or(self.instructions.as_deref(), DEFAULT_INSTRUCTIONS_FILE)
     }
 
     /// インストラクションディレクトリのパスを解決（デフォルトディレクトリ用）
+    ///
+    /// # Arguments
+    ///
+    /// * `base` - Plugin root directory used as the base for resolution.
     pub fn instructions_dir(&self, base: &Path) -> PathBuf {
         base.join_or(self.instructions.as_deref(), DEFAULT_INSTRUCTIONS_DIR)
     }
 
     /// フックディレクトリのパスを解決
+    ///
+    /// # Arguments
+    ///
+    /// * `base` - Plugin root directory used as the base for resolution.
     pub fn hooks_dir(&self, base: &Path) -> PathBuf {
         base.join_or(self.hooks.as_deref(), DEFAULT_HOOKS_DIR)
     }

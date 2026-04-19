@@ -38,6 +38,8 @@ pub enum Source {
 /// プラグイン詳細情報を取得
 ///
 /// # Arguments
+///
+/// * `cache` - プラグインを検索するためのパッケージキャッシュアクセサ
 /// * `name` - プラグイン名（"plugin" または "marketplace/plugin" 形式）
 pub fn get_plugin_info(cache: &dyn PackageCacheAccess, name: &str) -> Result<PluginInfo> {
     let (marketplace_filter, plugin_name) = parse_plugin_name(name)?;
@@ -48,24 +50,25 @@ pub fn get_plugin_info(cache: &dyn PackageCacheAccess, name: &str) -> Result<Plu
 
 /// 入力名をパースしバリデーション
 ///
+/// # Arguments
+///
+/// * `name` - Raw plugin name string, either `"plugin"` or `"marketplace/plugin"`.
+///
 /// # Returns
-/// * `Ok((None, "plugin"))` - プラグイン名のみ
-/// * `Ok((Some("marketplace"), "plugin"))` - マーケットプレイス指定
-/// * `Err` - 不正な形式
+/// * `Ok((None, "plugin"))` - Plugin name only.
+/// * `Ok((Some("marketplace"), "plugin"))` - Marketplace-qualified plugin name.
+/// * `Err` - Invalid format.
 fn parse_plugin_name(name: &str) -> Result<(Option<String>, String)> {
-    // 空文字チェック
     if name.is_empty() {
         return Err(PlmError::InvalidArgument("plugin name is empty".into()));
     }
 
-    // 先頭がスラッシュの場合
     if name.starts_with('/') {
         return Err(PlmError::InvalidArgument(
             "plugin name cannot start with '/'".into(),
         ));
     }
 
-    // 末尾がスラッシュの場合
     if name.ends_with('/') {
         return Err(PlmError::InvalidArgument(
             "plugin name cannot end with '/'".into(),
@@ -81,7 +84,6 @@ fn parse_plugin_name(name: &str) -> Result<(Option<String>, String)> {
             let marketplace = parts[0].to_string();
             let plugin = parts[1].to_string();
 
-            // 空のパートがないかチェック
             if marketplace.is_empty() || plugin.is_empty() {
                 return Err(PlmError::InvalidArgument(
                     "marketplace and plugin name cannot be empty".into(),
@@ -97,6 +99,11 @@ fn parse_plugin_name(name: &str) -> Result<(Option<String>, String)> {
 }
 
 /// キャッシュ全体をスキャンし、manifest.name が一致するプラグインを列挙
+///
+/// # Arguments
+///
+/// * `cache` - Package cache accessor to enumerate installed plugins.
+/// * `name` - Plugin name to match against each manifest.
 fn find_plugin_candidates(
     cache: &dyn PackageCacheAccess,
     name: &str,
@@ -110,12 +117,17 @@ fn find_plugin_candidates(
 }
 
 /// 候補から単一プラグインを解決
+///
+/// # Arguments
+///
+/// * `candidates` - Plugin candidates returned by `find_plugin_candidates`.
+/// * `marketplace_filter` - Optional marketplace name to narrow candidates.
+/// * `name` - Plugin name used in error messages when resolution fails.
 fn resolve_single_plugin(
     candidates: Vec<MarketplaceContent>,
     marketplace_filter: Option<&str>,
     name: &str,
 ) -> Result<MarketplaceContent> {
-    // マーケットプレイスフィルタがある場合は絞り込み
     let filtered: Vec<_> = if let Some(mp) = marketplace_filter {
         candidates
             .into_iter()
@@ -129,7 +141,6 @@ fn resolve_single_plugin(
         0 => Err(PlmError::PluginNotFound(name.to_string())),
         1 => Ok(filtered.into_iter().next().unwrap()),
         _ => {
-            // 複数候補がある場合
             let candidate_names: Vec<String> = filtered
                 .iter()
                 .map(|c| {
@@ -149,6 +160,11 @@ fn resolve_single_plugin(
 }
 
 /// マーケットプレイスとディレクトリ名からソース情報を判定
+///
+/// # Arguments
+///
+/// * `marketplace` - Marketplace key (e.g. `"github"`).
+/// * `dir_name` - Cache directory name associated with the plugin.
 fn determine_source(marketplace: &str, dir_name: &str) -> Source {
     if marketplace == "github" {
         // owner--repo → owner/repo
@@ -162,18 +178,24 @@ fn determine_source(marketplace: &str, dir_name: &str) -> Source {
 }
 
 /// owner--repo → owner/repo に変換
+///
+/// # Arguments
+///
+/// * `dir_name` - Cache directory name in the `owner--repo` form.
 fn restore_github_repo(dir_name: &str) -> String {
-    // "--" を "/" に置換（最初の1つのみ）
     if let Some(pos) = dir_name.find("--") {
         let (owner, repo) = dir_name.split_at(pos);
         format!("{}/{}", owner, &repo[2..])
     } else {
-        // "--" がない場合はそのまま返す
         dir_name.to_string()
     }
 }
 
 /// PluginInfo を構築
+///
+/// # Arguments
+///
+/// * `content` - Marketplace content resolved from cache.
 fn build_plugin_info(content: MarketplaceContent) -> Result<PluginInfo> {
     let marketplace_opt = content.marketplace().map(str::to_string);
     let dir_name = content
@@ -186,13 +208,10 @@ fn build_plugin_info(content: MarketplaceContent) -> Result<PluginInfo> {
     // GitHub の場合は marketplace() == None。source / enabled 判定用に "github" を既定値とする
     let marketplace_key = marketplace_opt.as_deref().unwrap_or("github");
 
-    // ソース判定
     let source = determine_source(marketplace_key, &dir_name);
 
-    // インストール時刻
     let installed_at = meta::resolve_installed_at(&cache_path, Some(&manifest));
 
-    // デプロイ状態判定（キャッシュディレクトリ名で判定）
     let enabled = resolve_enabled(&cache_path, marketplace_key, &dir_name);
 
     // InstalledPlugin を組み立てる（list_installed_plugins と同じく marketplace は Option<String> を保つ）
@@ -211,6 +230,12 @@ fn build_plugin_info(content: MarketplaceContent) -> Result<PluginInfo> {
 /// デプロイ状態を判定
 ///
 /// `meta::is_enabled()` に委譲する。
+///
+/// # Arguments
+///
+/// * `cache_path` - Path to the plugin's cache directory.
+/// * `marketplace` - Marketplace key (e.g. `"github"`).
+/// * `install_id` - Install identifier used to match deployed entries.
 fn resolve_enabled(cache_path: &Path, marketplace: &str, install_id: &str) -> bool {
     let project_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let deployed = list_all_placed(&project_root);

@@ -7,7 +7,6 @@ mod model;
 mod update;
 mod view;
 
-// Re-exports
 pub use model::{key_to_msg, CacheState, Model, Msg};
 pub use update::update;
 pub use view::view;

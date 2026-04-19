@@ -37,6 +37,9 @@ pub struct Args {
     pub outdated: bool,
 }
 
+/// # Arguments
+///
+/// * `args` - Parsed CLI arguments for `plm list`.
 pub async fn run(args: Args) -> Result<(), String> {
     let cache = PackageCache::new().map_err(|e| format!("Failed to access cache: {e}"))?;
     let mut plugins = list_installed_plugins(&cache)
@@ -64,6 +67,10 @@ pub async fn run(args: Args) -> Result<(), String> {
 /// 空のプラグイン一覧表示時のメッセージを出力する
 ///
 /// simple / table / outdated の各フォーマットで共通利用。
+///
+/// # Arguments
+///
+/// * `total_count` - Total number of installed plugins before filtering.
 pub(super) fn print_empty_list(total_count: usize) {
     let msg = match total_count {
         0 => "No plugins installed",
@@ -72,6 +79,10 @@ pub(super) fn print_empty_list(total_count: usize) {
     println!("{msg}");
 }
 
+/// # Arguments
+///
+/// * `plugins` - Installed plugins to filter.
+/// * `args` - CLI arguments containing the filter criteria.
 fn filter_plugins(plugins: Vec<InstalledPlugin>, args: &Args) -> Vec<InstalledPlugin> {
     plugins
         .into_iter()
@@ -80,6 +91,10 @@ fn filter_plugins(plugins: Vec<InstalledPlugin>, args: &Args) -> Vec<InstalledPl
         .collect()
 }
 
+/// # Arguments
+///
+/// * `plugin` - Plugin being checked against the filter.
+/// * `component_type` - Requested component kind, or `None` to allow any.
 fn filter_by_type(plugin: &InstalledPlugin, component_type: Option<&ComponentKind>) -> bool {
     match component_type {
         None => true,
@@ -87,6 +102,10 @@ fn filter_by_type(plugin: &InstalledPlugin, component_type: Option<&ComponentKin
     }
 }
 
+/// # Arguments
+///
+/// * `plugin` - Plugin being checked against the filter.
+/// * `target` - Requested target kind, or `None` to allow any.
 fn filter_by_target(plugin: &InstalledPlugin, target: Option<&TargetKind>) -> bool {
     // Phase 1: シンプルにenabled状態でフィルタ
     // ターゲット指定時は、そのターゲットで有効なプラグインのみ表示

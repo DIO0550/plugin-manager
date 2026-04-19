@@ -28,6 +28,11 @@ use std::pin::Pin;
 /// 使う側は具体的なソースタイプを意識せず `download()` を呼ぶだけ。
 pub trait PackageSource: Send + Sync {
     /// プラグインをダウンロードする
+    ///
+    /// # Arguments
+    ///
+    /// * `cache` - Package cache accessor used to read or store the downloaded package.
+    /// * `force` - When `true`, bypass any cached copy and re-download.
     fn download<'a>(
         &'a self,
         cache: &'a dyn PackageCacheAccess,
@@ -36,26 +41,25 @@ pub trait PackageSource: Send + Sync {
 }
 
 /// 入力文字列をパースして適切な PackageSource を返す
+///
+/// # Arguments
+///
+/// * `input` - Source specifier such as `owner/repo`, `owner/repo@ref`, `plugin@marketplace`, or a bare plugin name.
 pub fn parse_source(input: &str) -> Result<Box<dyn PackageSource>> {
-    // "@" を含む場合
     if let Some((left, right)) = input.split_once('@') {
-        // "owner/repo@ref" の場合（Gitリポジトリ）
         if left.contains('/') {
             let repo = repo::from_url(input)?;
             return Ok(Box::new(GitHubSource::new(repo)));
         }
 
-        // "plugin@marketplace" の場合
         return Ok(Box::new(MarketplaceSource::new(left, right)));
     }
 
-    // "/" を含む場合はGitリポジトリ
     if input.contains('/') {
         let repo = repo::from_url(input)?;
         return Ok(Box::new(GitHubSource::new(repo)));
     }
 
-    // それ以外はMarketplace検索
     Ok(Box::new(SearchSource::new(input)))
 }
 

@@ -21,6 +21,11 @@ pub struct GitHubClient {
 
 impl GitHubClient {
     /// 新しいGitHubClientを作成
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - HTTP configuration used to build the reqwest client.
+    /// * `auth` - Authentication provider supplying the GitHub token.
     pub fn new(config: &HttpConfig, auth: &AuthProvider) -> Self {
         Self {
             http: config.build_client(),
@@ -35,17 +40,14 @@ impl GitHubClient {
     /// 2. 環境変数 GITHUB_TOKEN
     /// 3. gh CLI から取得
     fn get_token(&self) -> Option<String> {
-        // 1. AuthProviderから取得
         if let Some(token) = self.auth.github_token() {
             return Some(token.to_string());
         }
 
-        // 2. 環境変数から取得
         if let Some(token) = EnvVar::get("GITHUB_TOKEN") {
             return Some(token);
         }
 
-        // 3. gh CLIから取得
         self.get_token_from_cli()
     }
 
@@ -67,11 +69,20 @@ impl GitHubClient {
     }
 
     /// リポジトリAPI URL
+    ///
+    /// # Arguments
+    ///
+    /// * `repo` - Repository whose API URL is built.
     fn repo_api_url(&self, repo: &Repo) -> String {
         format!("{}/repos/{}/{}", API_BASE, repo.owner(), repo.name())
     }
 
     /// Zipball URL
+    ///
+    /// # Arguments
+    ///
+    /// * `repo` - Target repository.
+    /// * `git_ref` - Branch, tag, or commit SHA to archive.
     fn zipball_url(&self, repo: &Repo, git_ref: &str) -> String {
         format!(
             "{}/repos/{}/{}/zipball/{}",
@@ -83,6 +94,11 @@ impl GitHubClient {
     }
 
     /// コミットURL
+    ///
+    /// # Arguments
+    ///
+    /// * `repo` - Target repository.
+    /// * `git_ref` - Branch, tag, or commit SHA to resolve.
     fn commit_url(&self, repo: &Repo, git_ref: &str) -> String {
         format!(
             "{}/repos/{}/{}/commits/{}",
@@ -94,6 +110,12 @@ impl GitHubClient {
     }
 
     /// コンテンツURL
+    ///
+    /// # Arguments
+    ///
+    /// * `repo` - Target repository.
+    /// * `path` - File path within the repository.
+    /// * `git_ref` - Branch, tag, or commit SHA to fetch from.
     fn contents_url(&self, repo: &Repo, path: &str, git_ref: &str) -> String {
         format!(
             "{}/repos/{}/{}/contents/{}?ref={}",
@@ -252,22 +274,23 @@ impl HostClient for GitHubClient {
 /// - `owner/repo`
 /// - `https://github.com/owner/repo`
 /// - `github.com/owner/repo`
+///
+/// # Arguments
+///
+/// * `input` - GitHub-shaped source locator to parse into `(owner, repo)`.
 pub fn parse_repo_path(input: &str) -> Result<(String, String)> {
     let input = input.trim();
 
-    // GitHub URLのプレフィックスを削除
     let without_prefix = input
         .strip_prefix("https://github.com/")
         .or_else(|| input.strip_prefix("http://github.com/"))
         .or_else(|| input.strip_prefix("github.com/"))
         .unwrap_or(input);
 
-    // .git サフィックスを削除
     let without_suffix = without_prefix
         .strip_suffix(".git")
         .unwrap_or(without_prefix);
 
-    // /tree/branch や /blob/branch などのパスを削除
     let parts: Vec<&str> = without_suffix.split('/').collect();
     if parts.len() >= 2 {
         let owner = parts[0].trim();

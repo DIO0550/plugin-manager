@@ -35,6 +35,10 @@ impl CodexPrompt {
     ///
     /// Note: Codex frontmatter doesn't have a name field, so name is always None
     /// when using parse(). Use load() to get the name from the filename.
+    ///
+    /// # Arguments
+    ///
+    /// * `content` - Raw markdown content including optional YAML frontmatter.
     pub fn parse(content: &str) -> Result<Self> {
         let ParsedDocument { frontmatter, body } =
             parse_frontmatter::<CodexPromptFrontmatter>(content)?;
@@ -51,11 +55,14 @@ impl CodexPrompt {
     /// Loads and parses a Codex Prompt from a file.
     ///
     /// The filename (without .md extension) is used as the prompt name.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path to the `~/.codex/prompts/<name>.md` file to load.
     pub fn load(path: &Path) -> Result<Self> {
         let content = fs::read_to_string(path)?;
         let mut prompt = Self::parse(&content)?;
 
-        // Always use filename as name for Codex prompts
         prompt.name = extract_name_from_path(path);
 
         Ok(prompt)
@@ -82,6 +89,10 @@ impl TargetFormat for CodexPrompt {
 /// Extracts prompt name from file path.
 ///
 /// Removes the `.md` extension from the filename.
+///
+/// # Arguments
+///
+/// * `path` - File path whose stem will be used as the prompt name.
 fn extract_name_from_path(path: &Path) -> Option<String> {
     path.file_name()
         .and_then(|s| s.to_str())

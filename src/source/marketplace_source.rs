@@ -18,6 +18,12 @@ pub struct MarketplaceSource {
 }
 
 impl MarketplaceSource {
+    /// Create a source that resolves a plugin through a specific marketplace.
+    ///
+    /// # Arguments
+    ///
+    /// * `plugin` - Name of the plugin to resolve inside the marketplace.
+    /// * `marketplace` - Name of the registered marketplace to query.
     pub fn new(plugin: &str, marketplace: &str) -> Self {
         Self {
             plugin: plugin.to_string(),
@@ -35,7 +41,6 @@ impl PackageSource for MarketplaceSource {
         Box::pin(async move {
             let registry = MarketplaceRegistry::new()?;
 
-            // マーケットプレイスからプラグイン情報を取得
             let mp_cache = registry
                 .get(&self.marketplace)?
                 .ok_or_else(|| PlmError::MarketplaceNotFound(self.marketplace.clone()))?;
@@ -54,7 +59,6 @@ impl PackageSource for MarketplaceSource {
                 },
             ));
 
-            // プラグインソースをRepoに変換してダウンロード
             let mut cached = match &plugin_entry.source {
                 MpPluginSource::Local(path) => {
                     let parts: Vec<&str> = mp_cache
@@ -72,10 +76,8 @@ impl PackageSource for MarketplaceSource {
                     let repo_name = parts[1];
                     let repo = repo::from_url(&format!("{}/{}", owner, repo_name))?;
 
-                    // path を正規化・検証
                     let source_path: PluginSourcePath = path.parse()?;
 
-                    // Git ソースに委譲（marketplace + source_path 情報を渡す）
                     GitHubSource::with_marketplace_and_source_path(
                         repo,
                         self.marketplace.clone(),
@@ -86,7 +88,6 @@ impl PackageSource for MarketplaceSource {
                 }
                 MpPluginSource::External { repo: repo_url, .. } => {
                     let repo = repo::from_url(repo_url)?;
-                    // Git ソースに委譲（marketplace 情報を渡す）
                     GitHubSource::with_marketplace(repo, self.marketplace.clone())
                         .download(cache, force)
                         .await?

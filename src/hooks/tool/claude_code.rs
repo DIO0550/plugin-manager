@@ -19,6 +19,10 @@ pub(crate) enum HookTool {
 impl HookTool {
     /// Parse a Claude Code tool name string into a `HookTool`.
     /// Unknown tools become `Other(s)`.
+    ///
+    /// # Arguments
+    ///
+    /// * `s` - raw tool name string from the hook payload
     pub fn from_str(s: &str) -> Self {
         match s {
             "Bash" => Self::Bash,
@@ -60,6 +64,11 @@ pub(crate) struct ToolBridge {
 
 /// Forward lookup: HookTool -> target tool name.
 /// Returns `None` for `Other` variants (not in table).
+///
+/// # Arguments
+///
+/// * `table` - tool bridge table to search
+/// * `tool` - Claude Code side hook tool to look up
 pub(crate) fn to_target_tool(table: &[ToolBridge], tool: &HookTool) -> Option<&'static str> {
     table
         .iter()
@@ -68,6 +77,11 @@ pub(crate) fn to_target_tool(table: &[ToolBridge], tool: &HookTool) -> Option<&'
 }
 
 /// Reverse lookup: target tool name -> representative HookTool.
+///
+/// # Arguments
+///
+/// * `table` - tool bridge table to search
+/// * `target_name` - target-side tool name to resolve
 pub(crate) fn to_source_tool<'a>(
     table: &'a [ToolBridge],
     target_name: &str,

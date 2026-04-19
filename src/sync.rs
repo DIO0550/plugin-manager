@@ -44,6 +44,12 @@ use std::collections::HashMap;
 ///
 /// `dry_run: true` の場合は実際のファイル操作を行わず、
 /// 何が行われるかを `SyncResult` で返す。
+///
+/// # Arguments
+///
+/// * `source` - Source target to read placed components from.
+/// * `dest` - Destination target to synchronize into.
+/// * `options` - Options controlling scope, component type and dry-run behavior.
 pub fn sync(
     source: &SyncSource,
     dest: &SyncDestination,
@@ -53,17 +59,22 @@ pub fn sync(
 }
 
 /// テスト用エントリポイント（FileSystem を注入）
+///
+/// # Arguments
+///
+/// * `source` - Source target to read placed components from.
+/// * `dest` - Destination target to synchronize into.
+/// * `options` - Options controlling scope, component type and dry-run behavior.
+/// * `fs` - File system abstraction used for existence, mtime and content-hash checks.
 pub(crate) fn sync_with_fs(
     source: &SyncSource,
     dest: &SyncDestination,
     options: &SyncOptions,
     fs: &dyn FileSystem,
 ) -> Result<SyncResult> {
-    // 1. コンポーネント取得（重複チェック込み）
     let source_components = source.placed_components(options)?;
     let dest_components = dest.placed_components(options)?;
 
-    // 2. HashMap で O(n) 差分計算
     let source_map: HashMap<&ComponentIdentity, &PlacedComponent> = source_components
         .iter()
         .map(|c| (c.identity(), c))
@@ -76,9 +87,7 @@ pub(crate) fn sync_with_fs(
     let mut skipped = Vec::new();
     let mut unsupported = Vec::new();
 
-    // 3. Source にあるものを処理
     for (identity, src_component) in &source_map {
-        // サポートチェック
         if !dest.supports(identity) {
             unsupported.push((*src_component).clone());
             continue;
@@ -87,7 +96,6 @@ pub(crate) fn sync_with_fs(
         match dest_map.get(identity) {
             None => to_create.push((*src_component).clone()),
             Some(dest_component) => {
-                // 変更判定
                 if needs_update(src_component, dest_component, fs)? {
                     to_update.push((*src_component).clone());
                 } else {
@@ -97,7 +105,6 @@ pub(crate) fn sync_with_fs(
         }
     }
 
-    // 4. Destination にしかないものを削除対象に
     let to_delete: Vec<PlacedComponent> = dest_map
         .iter()
         .filter(|(id, _)| !source_map.contains_key(*id))
@@ -114,7 +121,6 @@ pub(crate) fn sync_with_fs(
         ));
     }
 
-    // 5. 実行
     let plan = SyncPlan {
         to_create,
         to_update,
@@ -124,6 +130,12 @@ pub(crate) fn sync_with_fs(
 }
 
 /// 更新が必要かを判定（mtime または内容比較）
+///
+/// # Arguments
+///
+/// * `src` - Source-side placed component to compare.
+/// * `dest` - Destination-side placed component to compare.
+/// * `fs` - File system abstraction used to query mtime and content hash.
 fn needs_update(
     src: &PlacedComponent,
     dest: &PlacedComponent,
@@ -134,7 +146,6 @@ fn needs_update(
         return Ok(true);
     }
 
-    // mtime 比較（高速）
     let src_mtime = fs.mtime(&src.path)?;
     let dest_mtime = fs.mtime(&dest.path)?;
 
@@ -154,6 +165,13 @@ struct SyncPlan {
 }
 
 /// 同期を実行
+///
+/// # Arguments
+///
+/// * `source` - Source target used to resolve source paths.
+/// * `dest` - Destination target used to resolve destination paths.
+/// * `plan` - Precomputed plan containing create/update/delete component sets.
+/// * `fs` - File system abstraction used to perform copy, remove and directory operations.
 fn execute_sync(
     source: &SyncSource,
     dest: &SyncDestination,
@@ -162,7 +180,6 @@ fn execute_sync(
 ) -> Result<SyncResult> {
     let mut result = SyncResult::default();
 
-    // Create
     for component in plan.to_create {
         match execute_create(source, dest, &component, fs) {
             Ok(()) => result.created.push(component),
@@ -174,7 +191,6 @@ fn execute_sync(
         }
     }
 
-    // Update
     for component in plan.to_update {
         match execute_update(source, dest, &component, fs) {
             Ok(()) => result.updated.push(component),
@@ -186,7 +202,6 @@ fn execute_sync(
         }
     }
 
-    // Delete
     for component in plan.to_delete {
         match execute_delete(&component, fs) {
             Ok(()) => result.deleted.push(component),
@@ -202,6 +217,13 @@ fn execute_sync(
 }
 
 /// 新規作成を実行
+///
+/// # Arguments
+///
+/// * `source` - Source target used to resolve the source path.
+/// * `dest` - Destination target used to resolve the destination path.
+/// * `component` - Component to create on the destination.
+/// * `fs` - File system abstraction used for copy operations.
 fn execute_create(
     source: &SyncSource,
     dest: &SyncDestination,
@@ -228,6 +250,13 @@ fn execute_create(
 }
 
 /// 更新を実行
+///
+/// # Arguments
+///
+/// * `source` - Source target used to resolve the source path.
+/// * `dest` - Destination target used to resolve the destination path.
+/// * `component` - Component to update on the destination.
+/// * `fs` - File system abstraction used for copy operations.
 fn execute_update(
     source: &SyncSource,
     dest: &SyncDestination,
@@ -239,6 +268,11 @@ fn execute_update(
 }
 
 /// 削除を実行
+///
+/// # Arguments
+///
+/// * `component` - Component whose destination path should be removed.
+/// * `fs` - File system abstraction used to check existence and remove the entry.
 fn execute_delete(component: &PlacedComponent, fs: &dyn FileSystem) -> Result<()> {
     if fs.exists(&component.path) {
         fs.remove(&component.path)

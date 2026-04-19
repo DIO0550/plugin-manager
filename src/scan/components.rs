@@ -15,6 +15,7 @@ use std::path::{Path, PathBuf};
 /// 依存しない厳密一致で行う。
 ///
 /// # Arguments
+///
 /// * `skills_dir` - スキルディレクトリのパス
 ///
 /// # Returns
@@ -61,6 +62,7 @@ fn has_exact_skill_manifest(dir: &Path) -> bool {
 /// ディレクトリの場合は .agent.md / .md ファイルを列挙する。
 ///
 /// # Arguments
+///
 /// * `agents_path` - エージェントファイルまたはディレクトリのパス
 ///
 /// # Returns
@@ -101,6 +103,7 @@ pub fn list_agent_names(agents_path: &Path) -> Vec<(String, PathBuf)> {
 /// ディレクトリ内の .prompt.md / .md ファイルを列挙する。
 ///
 /// # Arguments
+///
 /// * `commands_dir` - コマンドディレクトリのパス
 ///
 /// # Returns
@@ -133,6 +136,7 @@ pub fn list_command_names(commands_dir: &Path) -> Vec<(String, PathBuf)> {
 /// ディレクトリ内のファイルを列挙し、拡張子を除去した名前を返す。
 ///
 /// # Arguments
+///
 /// * `hooks_dir` - フックディレクトリのパス
 ///
 /// # Returns
@@ -162,6 +166,7 @@ pub fn list_hook_names(hooks_dir: &Path) -> Vec<(String, PathBuf)> {
 /// ディレクトリ内の .md ファイルを列挙し、拡張子を除去した名前を返す。
 ///
 /// # Arguments
+///
 /// * `dir` - 対象ディレクトリのパス
 ///
 /// # Returns
@@ -189,6 +194,7 @@ pub fn list_markdown_names(dir: &Path) -> Vec<(String, PathBuf)> {
 /// パスからファイル名（拡張子除去）を取得
 ///
 /// # Arguments
+///
 /// * `path` - ファイルパス
 ///
 /// # Returns

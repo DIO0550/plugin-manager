@@ -24,6 +24,12 @@ pub struct AddResult {
 }
 
 /// マーケットプレイスを追加
+///
+/// # Arguments
+///
+/// * `source` - Marketplace source URL or `owner/repo` spec.
+/// * `name` - Local name used to reference the marketplace.
+/// * `source_path` - Optional subdirectory path inside the source repository.
 pub fn add_marketplace(
     source: &str,
     name: &str,
@@ -49,7 +55,6 @@ pub fn add_marketplace(
 
     config.add(entry)?;
 
-    // フェッチしてキャッシュ
     let fetcher = MarketplaceFetcher::new();
     let cache = tokio::task::block_in_place(|| {
         handle.block_on(fetcher.fetch_as_cache(&repo, name, source_path))
@@ -74,6 +79,10 @@ pub fn add_marketplace(
 }
 
 /// マーケットプレイスを削除
+///
+/// # Arguments
+///
+/// * `name` - Local marketplace name to remove.
 pub fn remove_marketplace(name: &str) -> Result<(), String> {
     let mut config = MarketplaceConfig::load()?;
     config.remove(name)?;
@@ -88,6 +97,10 @@ pub fn remove_marketplace(name: &str) -> Result<(), String> {
 }
 
 /// マーケットプレイスを更新
+///
+/// # Arguments
+///
+/// * `name` - Local marketplace name to refresh.
 pub fn update_marketplace(name: &str) -> Result<MarketplaceItem, String> {
     let config = MarketplaceConfig::load()?;
     let entry = config
@@ -99,6 +112,10 @@ pub fn update_marketplace(name: &str) -> Result<MarketplaceItem, String> {
 }
 
 /// マーケットプレイス登録情報を更新（config再読み込み不要）
+///
+/// # Arguments
+///
+/// * `entry` - Registration entry to re-fetch and store.
 fn update_marketplace_registration(
     entry: &MarketplaceRegistration,
 ) -> Result<MarketplaceItem, String> {
@@ -143,6 +160,10 @@ pub fn update_all_marketplaces() -> Vec<(String, Result<MarketplaceItem, String>
 }
 
 /// マーケットプレイスのプラグイン一覧を取得
+///
+/// # Arguments
+///
+/// * `name` - Local marketplace name to query.
 pub fn get_marketplace_plugins(name: &str) -> Vec<(String, Option<String>)> {
     let registry = match MarketplaceRegistry::new() {
         Ok(r) => r,
@@ -160,6 +181,11 @@ pub fn get_marketplace_plugins(name: &str) -> Vec<(String, Option<String>)> {
 }
 
 /// マーケットプレイスのブラウズ用プラグイン一覧を取得
+///
+/// # Arguments
+///
+/// * `marketplace_name` - Local marketplace name to browse.
+/// * `installed_plugins` - Currently installed plugins used to flag `installed`.
 pub(super) fn get_browse_plugins(
     marketplace_name: &str,
     installed_plugins: &[InstalledPlugin],
@@ -173,6 +199,12 @@ pub(super) fn get_browse_plugins(
 }
 
 /// Registry を引数で受ける内部ヘルパー（I/O テスト用）
+///
+/// # Arguments
+///
+/// * `registry` - Marketplace registry to query (injected for tests).
+/// * `marketplace_name` - Local marketplace name to browse.
+/// * `installed_plugins` - Currently installed plugins used to flag `installed`.
 fn get_browse_plugins_with_registry(
     registry: &MarketplaceRegistry,
     marketplace_name: &str,
@@ -185,6 +217,11 @@ fn get_browse_plugins_with_registry(
 }
 
 /// 純粋変換: MarketplaceCache -> Vec<BrowsePlugin>
+///
+/// # Arguments
+///
+/// * `cache` - Marketplace cache snapshot to convert.
+/// * `installed_plugins` - Currently installed plugins used to flag `installed`.
 fn build_browse_plugins(
     cache: &MarketplaceCache,
     installed_plugins: &[InstalledPlugin],
@@ -203,6 +240,11 @@ fn build_browse_plugins(
 }
 
 /// 前提条件エラー時に全プラグインを失敗として記録
+///
+/// # Arguments
+///
+/// * `plugin_names` - Plugin names that are all marked as failed.
+/// * `error` - Error message shared across every failure entry.
 fn make_all_failed_summary(plugin_names: &[String], error: &str) -> InstallSummary {
     let results: Vec<PluginInstallResult> = plugin_names
         .iter()
@@ -225,6 +267,12 @@ struct InstallCtx<'a> {
 }
 
 /// 個別プラグインの download -> scan -> place パイプライン
+///
+/// # Arguments
+///
+/// * `ctx` - Shared install context (runtime handle, targets, scope, cache).
+/// * `marketplace_name` - Marketplace the plugin is downloaded from.
+/// * `plugin_name` - Plugin to install.
 fn install_single_plugin(
     ctx: &InstallCtx<'_>,
     marketplace_name: &str,
@@ -249,7 +297,6 @@ fn install_single_plugin(
         }
     };
 
-    // Scan
     let scanned = match install::scan_plugin(&package, None) {
         Ok(s) => s,
         Err(e) => {
@@ -261,7 +308,6 @@ fn install_single_plugin(
         }
     };
 
-    // Place
     let place_result = install::place_plugin(&PlaceRequest {
         scanned: &scanned,
         targets: ctx.targets,
@@ -300,6 +346,13 @@ fn install_single_plugin(
 }
 
 /// マーケットプレイスから複数プラグインを一括インストール
+///
+/// # Arguments
+///
+/// * `marketplace_name` - Marketplace plugins are downloaded from.
+/// * `plugin_names` - Plugins to install in order.
+/// * `target_names` - Target environment names to deploy into.
+/// * `scope` - Personal/Project scope used by every target.
 pub fn install_plugins(
     marketplace_name: &str,
     plugin_names: &[String],
@@ -332,7 +385,6 @@ pub fn install_plugins(
     // stdout/stderr 抑制（TUI代替スクリーンの保護）
     let _guard = OutputSuppressGuard::new();
 
-    // Tokio runtime handle 取得
     let handle = match tokio::runtime::Handle::try_current() {
         Ok(h) => h,
         Err(_) => return make_all_failed_summary(plugin_names, "No Tokio runtime available"),
@@ -363,6 +415,10 @@ pub fn install_plugins(
 }
 
 /// 純粋変換: Vec<PluginInstallResult> -> InstallSummary
+///
+/// # Arguments
+///
+/// * `results` - Individual install results to aggregate.
 fn build_install_summary(results: Vec<PluginInstallResult>) -> InstallSummary {
     let total = results.len();
     let succeeded = results.iter().filter(|r| r.success).count();

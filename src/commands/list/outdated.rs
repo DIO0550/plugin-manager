@@ -10,6 +10,11 @@ use crate::plugin::{
 };
 use comfy_table::{presets::UTF8_FULL, Table};
 
+/// Serializes outdated plugin entries into a pretty-printed JSON string.
+///
+/// # Arguments
+///
+/// * `entries` - Pairs of installed plugin and its upgrade state.
 pub(super) fn render_outdated_json(
     entries: &[(&InstalledPlugin, &UpgradeState)],
 ) -> Result<String, String> {
@@ -20,6 +25,14 @@ pub(super) fn render_outdated_json(
     serde_json::to_string_pretty(&wires).map_err(|e| format!("Failed to serialize plugins: {}", e))
 }
 
+/// Fetches remote versions for installed plugins and prints the outdated report.
+///
+/// # Arguments
+///
+/// * `cache` - Package cache used to resolve plugin paths.
+/// * `plugins` - Installed plugins to check for updates.
+/// * `json` - When true, emits JSON; otherwise prints a table.
+/// * `total_count` - Total number of installed plugins (for empty-state messages).
 pub(super) async fn run_outdated(
     cache: &dyn PackageCacheAccess,
     plugins: &[InstalledPlugin],
@@ -60,6 +73,11 @@ pub(super) async fn run_outdated(
     Ok(())
 }
 
+/// Prints outdated plugin results as JSON to stdout.
+///
+/// # Arguments
+///
+/// * `results` - Plugins paired with their resolved upgrade state.
 fn print_outdated_json(results: &[(&InstalledPlugin, UpgradeState)]) -> Result<(), String> {
     let entries: Vec<(&InstalledPlugin, &UpgradeState)> =
         results.iter().map(|(p, c)| (*p, c)).collect();
@@ -68,6 +86,12 @@ fn print_outdated_json(results: &[(&InstalledPlugin, UpgradeState)]) -> Result<(
     Ok(())
 }
 
+/// Prints outdated plugin results as a table to stdout.
+///
+/// # Arguments
+///
+/// * `results` - Plugins paired with their resolved upgrade state.
+/// * `total_count` - Total number of installed plugins (for empty-state messages).
 fn print_outdated_table(results: &[(&InstalledPlugin, UpgradeState)], total_count: usize) {
     let with_updates = results
         .iter()
@@ -89,6 +113,11 @@ fn print_outdated_table(results: &[(&InstalledPlugin, UpgradeState)], total_coun
     }
 }
 
+/// Prints the appropriate message when no updates are available.
+///
+/// # Arguments
+///
+/// * `total_count` - Total number of installed plugins.
 fn print_no_updates_message(total_count: usize) {
     let msg = match total_count {
         0 => "No plugins installed",
@@ -97,6 +126,11 @@ fn print_no_updates_message(total_count: usize) {
     println!("{msg}");
 }
 
+/// Prints a table summarizing plugins that have updates available.
+///
+/// # Arguments
+///
+/// * `with_updates` - Plugins known to have an upgrade available.
 fn print_updates_table(with_updates: &[&(&InstalledPlugin, UpgradeState)]) {
     let mut table = Table::new();
     table
@@ -108,6 +142,11 @@ fn print_updates_table(with_updates: &[&(&InstalledPlugin, UpgradeState)]) {
     println!("{} plugin(s) have updates available", with_updates.len());
 }
 
+/// Builds a table row for a plugin that has an update available.
+///
+/// # Arguments
+///
+/// * `(plugin, check)` - Borrowed tuple of the installed plugin and its upgrade state.
 fn update_row((plugin, check): &(&InstalledPlugin, UpgradeState)) -> Vec<String> {
     vec![
         plugin.name().to_string(),
@@ -123,6 +162,11 @@ fn update_row((plugin, check): &(&InstalledPlugin, UpgradeState)) -> Vec<String>
     ]
 }
 
+/// Truncates a SHA to its first 7 characters for compact display.
+///
+/// # Arguments
+///
+/// * `sha` - Full-length SHA string.
 fn truncate_sha(sha: &str) -> String {
     sha.get(..7).unwrap_or(sha).to_string()
 }

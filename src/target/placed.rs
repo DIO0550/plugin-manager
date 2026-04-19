@@ -13,6 +13,10 @@ use std::path::Path;
 ///
 /// 全ターゲット・全コンポーネント種別のデプロイ済みコンポーネントを走査し、
 /// プラグインの (marketplace, plugin_name) の集合を返す。
+///
+/// # Arguments
+///
+/// * `project_root` - Project root directory used for project-scope lookups.
 pub(crate) fn list_all_placed(project_root: &Path) -> HashSet<(String, String)> {
     let targets = all_targets();
     let mut all_items = Vec::new();

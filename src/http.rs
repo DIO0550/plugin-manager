@@ -7,6 +7,12 @@ use std::future::Future;
 use std::time::Duration;
 
 /// プログレスバー付きダウンロード
+///
+/// # Arguments
+///
+/// * `client` - HTTP client used to issue the download request.
+/// * `url` - URL of the resource to download.
+/// * `auth_header` - Optional `(name, value)` pair appended as an HTTP header.
 pub async fn download_with_progress(
     client: &Client,
     url: &str,
@@ -16,6 +22,13 @@ pub async fn download_with_progress(
 }
 
 /// ホスト名付きプログレスバーダウンロード
+///
+/// # Arguments
+///
+/// * `client` - HTTP client used to issue the download request.
+/// * `url` - URL of the resource to download.
+/// * `auth_header` - Optional `(name, value)` pair appended as an HTTP header.
+/// * `_host` - Host label for future telemetry; currently unused.
 #[allow(dead_code)]
 pub async fn download_with_progress_and_host(
     client: &Client,
@@ -27,6 +40,13 @@ pub async fn download_with_progress_and_host(
 }
 
 /// プログレスバー付きダウンロード実装
+///
+/// # Arguments
+///
+/// * `client` - HTTP client used to issue the download request.
+/// * `url` - URL of the resource to download.
+/// * `auth_header` - Optional `(name, value)` pair appended as an HTTP header.
+/// * `_host` - Host label for future telemetry; currently unused.
 async fn download_with_progress_impl(
     client: &Client,
     url: &str,
@@ -61,6 +81,10 @@ async fn download_with_progress_impl(
 }
 
 /// サイズに応じたプログレスバーを作成
+///
+/// # Arguments
+///
+/// * `total_size` - Expected total byte count; `0` selects a spinner style.
 fn create_progress_bar(total_size: u64) -> ProgressBar {
     if total_size > 0 {
         let pb = ProgressBar::new(total_size);
@@ -82,19 +106,18 @@ fn create_progress_bar(total_size: u64) -> ProgressBar {
     }
 }
 
-// =========================================================================
-// リトライ機能
-// =========================================================================
-
 /// リトライ可能なエラーかどうかを判定
 ///
 /// PlmError::is_retryable の判定に加え、レート制限エラー（429, 403 rate limit）も対象とする。
+///
+/// # Arguments
+///
+/// * `e` - Error to classify for retry eligibility.
 pub fn is_retriable_error(e: &PlmError) -> bool {
     if e.is_retryable() {
         return true;
     }
 
-    // レート制限エラーの追加判定
     match e {
         PlmError::RepoApi { status: 429, .. } => true,
         PlmError::RepoApi {
@@ -108,8 +131,13 @@ pub fn is_retriable_error(e: &PlmError) -> bool {
 
 /// リトライ付きで非同期処理を実行
 ///
-/// 指数バックオフ（1s, 2s, 4s）で最大 `max_retries` 回再試行する。
+/// 指数バックオフ（1s, 2s, 4s, ... = 2^(attempt-1) 秒）で最大 `max_retries` 回再試行する。
 /// 初回 + max_retries 回 = 最大 (max_retries + 1) 回試行。
+///
+/// # Arguments
+///
+/// * `f` - Closure that produces the future to execute on each attempt.
+/// * `max_retries` - Maximum additional retries after the initial attempt.
 pub async fn with_retry<F, Fut, T>(mut f: F, max_retries: u32) -> Result<T>
 where
     F: FnMut() -> Fut,
@@ -118,7 +146,6 @@ where
     let mut last_error: Option<PlmError> = None;
 
     for attempt in 0..=max_retries {
-        // リトライ時は待機
         if attempt > 0 {
             let delay = Duration::from_secs(1 << (attempt - 1));
             warn_if_rate_limited(&last_error, delay.as_secs(), attempt, max_retries);
@@ -143,6 +170,13 @@ where
 }
 
 /// レート制限時の警告表示
+///
+/// # Arguments
+///
+/// * `last_error` - Previous error used to detect rate-limit status codes.
+/// * `delay_secs` - Number of seconds the next retry will wait.
+/// * `attempt` - Current retry attempt index (1-based).
+/// * `max` - Total number of retries permitted.
 fn warn_if_rate_limited(last_error: &Option<PlmError>, delay_secs: u64, attempt: u32, max: u32) {
     if let Some(PlmError::RepoApi { status, .. }) = last_error {
         if *status == 403 || *status == 429 {

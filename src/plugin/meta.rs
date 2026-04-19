@@ -66,17 +66,30 @@ pub struct PluginMeta {
 
 impl PluginMeta {
     /// 指定ターゲットのステータスを取得
+    ///
+    /// # Arguments
+    ///
+    /// * `target` - Target name (e.g. `"codex"`, `"copilot"`).
     pub fn get_status(&self, target: &str) -> Option<&str> {
         self.status_by_target.get(target).map(|s| s.as_str())
     }
 
     /// 指定ターゲットのステータスを設定
+    ///
+    /// # Arguments
+    ///
+    /// * `target` - Target name.
+    /// * `status` - Status string (`"enabled"` or `"disabled"`).
     pub fn set_status(&mut self, target: &str, status: &str) {
         self.status_by_target
             .insert(target.to_string(), status.to_string());
     }
 
     /// 指定ターゲットが有効化されているか
+    ///
+    /// # Arguments
+    ///
+    /// * `target` - Target name.
     pub fn is_enabled(&self, target: &str) -> bool {
         self.get_status(target) == Some("enabled")
     }
@@ -87,6 +100,11 @@ impl PluginMeta {
     }
 
     /// Git参照情報を更新
+    ///
+    /// # Arguments
+    ///
+    /// * `git_ref` - Git reference (branch name or tag).
+    /// * `commit_sha` - Commit SHA to record.
     pub fn set_git_info(&mut self, git_ref: &str, commit_sha: &str) {
         self.git_ref = Some(git_ref.to_string());
         self.commit_sha = Some(commit_sha.to_string());
@@ -103,6 +121,11 @@ impl PluginMeta {
     }
 
     /// ソースリポジトリを設定
+    ///
+    /// # Arguments
+    ///
+    /// * `owner` - Repository owner name.
+    /// * `repo` - Repository name.
     pub fn set_source_repo(&mut self, owner: &str, repo: &str) {
         self.source_repo = Some(format!("{}/{}", owner, repo));
     }
@@ -120,6 +143,10 @@ impl PluginMeta {
 
 /// installedAt の正規化
 /// 空文字/空白のみ → None、それ以外 → Some(trimmed)
+///
+/// # Arguments
+///
+/// * `value` - Optional string to normalize (`None` when unset).
 fn normalize_installed_at(value: Option<&str>) -> Option<String> {
     value
         .map(|s| s.trim())
@@ -131,25 +158,26 @@ fn normalize_installed_at(value: Option<&str>) -> Option<String> {
 ///
 /// 同一ディレクトリに一時ファイルを作成し、persist() でリネームする。
 /// 書き込み失敗時は Err を返す（呼び出し側で警告ログ + 継続を判断）。
+///
+/// # Arguments
+///
+/// * `plugin_dir` - Plugin root directory where the metadata file lives.
+/// * `meta` - `PluginMeta` value to serialize and persist.
 pub fn write_meta(plugin_dir: &Path, meta: &PluginMeta) -> Result<()> {
     let meta_path = plugin_dir.join(META_FILE);
 
-    // 同一ディレクトリに一時ファイルを作成
     let mut temp_file = NamedTempFile::new_in(plugin_dir)?;
 
-    // JSON を書き込み
     let json = serde_json::to_string_pretty(meta)?;
     temp_file.write_all(json.as_bytes())?;
     temp_file.flush()?;
 
-    // persist() で置き換え
-    // Windows では既存ファイルがあると失敗する可能性があるため、
-    // エラー時は既存ファイルを削除してから再試行
+    // Windows では既存ファイルがあると persist が失敗する可能性があるため、
+    // エラー時は既存ファイルを削除してから再試行する
     match temp_file.persist(&meta_path) {
         Ok(_) => Ok(()),
         Err(e) => {
             if e.error.kind() == std::io::ErrorKind::AlreadyExists {
-                // 既存ファイルを削除して再試行
                 let fs = RealFs;
                 let _ = fs.remove_file(&meta_path);
                 e.file.persist(&meta_path).map_err(|e| e.error)?;
@@ -162,6 +190,10 @@ pub fn write_meta(plugin_dir: &Path, meta: &PluginMeta) -> Result<()> {
 }
 
 /// 現在時刻で installedAt を設定したメタデータを書き込む
+///
+/// # Arguments
+///
+/// * `plugin_dir` - Plugin root directory where the metadata file lives.
 pub fn write_installed_at(plugin_dir: &Path) -> Result<()> {
     let now = Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
     let meta = PluginMeta {
@@ -175,6 +207,10 @@ pub fn write_installed_at(plugin_dir: &Path) -> Result<()> {
 ///
 /// 欠損時は None、破損時は警告ログを出力して None を返す。
 /// 読み取り時は副作用なし（`.bak` 退避などを行わない）。
+///
+/// # Arguments
+///
+/// * `plugin_dir` - Plugin root directory where the metadata file lives.
 pub fn load_meta(plugin_dir: &Path) -> Option<PluginMeta> {
     let fs = RealFs;
     let meta_path = plugin_dir.join(META_FILE);
@@ -213,23 +249,26 @@ pub fn load_meta(plugin_dir: &Path) -> Option<PluginMeta> {
 /// 3. 両方無い → `None`
 ///
 /// manifest が None の場合は plugin.json を読み込んでフォールバック
+///
+/// # Arguments
+///
+/// * `plugin_dir` - Plugin root directory where the metadata file lives.
+/// * `manifest` - Pre-loaded `PluginManifest`, or `None` to load it on demand.
 pub fn resolve_installed_at(
     plugin_dir: &Path,
     manifest: Option<&PluginManifest>,
 ) -> Option<String> {
-    // 1. .plm-meta.json から取得を試みる
     if let Some(meta) = load_meta(plugin_dir) {
         if let Some(installed_at) = normalize_installed_at(meta.installed_at.as_deref()) {
             return Some(installed_at);
         }
     }
 
-    // 2. plugin.json からフォールバック
     if let Some(m) = manifest {
         return normalize_installed_at(m.installed_at.as_deref());
     }
 
-    // manifest が渡されていない場合は読み込みを試みる
+    // manifest が渡されていない場合は plugin.json から直接読み込む
     let loaded_manifest =
         resolve_manifest_path(plugin_dir).and_then(|path| PluginManifest::load(&path).ok());
 
@@ -249,6 +288,7 @@ pub fn resolve_installed_at(
 ///    実デプロイ状態から判定（後方互換）
 ///
 /// # Arguments
+///
 /// * `cache_path` - プラグインのキャッシュパス
 /// * `marketplace` - マーケットプレイス名
 /// * `plugin_name` - プラグイン名
@@ -262,14 +302,13 @@ pub fn is_enabled(
     plugin_name: &str,
     deployed: &HashSet<(String, String)>,
 ) -> bool {
-    // 1. .plm-meta.json の statusByTarget を確認
     if let Some(plugin_meta) = load_meta(cache_path) {
         if !plugin_meta.status_by_target.is_empty() {
             return plugin_meta.any_enabled();
         }
     }
 
-    // 2. 後方互換: 実デプロイ状態から判定
+    // 後方互換: statusByTarget が無い古いプラグインは実デプロイ状態から判定
     let origin = PluginOrigin::from_cached_plugin(
         if marketplace == "github" {
             None

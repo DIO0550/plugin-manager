@@ -46,20 +46,36 @@ pub struct SyncOptions {
 }
 
 impl SyncOptions {
+    /// Create a default `SyncOptions` with no filters and `dry_run` disabled.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Set the component type filter.
+    ///
+    /// # Arguments
+    ///
+    /// * `kind` - Component kind to restrict synchronization to.
     pub fn with_component_type(mut self, kind: SyncableKind) -> Self {
         self.component_type = Some(kind);
         self
     }
 
+    /// Set the scope filter.
+    ///
+    /// # Arguments
+    ///
+    /// * `scope` - Placement scope (personal or project) to restrict synchronization to.
     pub fn with_scope(mut self, scope: Scope) -> Self {
         self.scope = Some(scope);
         self
     }
 
+    /// Set the dry-run flag.
+    ///
+    /// # Arguments
+    ///
+    /// * `dry_run` - When `true`, no file-system mutations are performed.
     pub fn with_dry_run(mut self, dry_run: bool) -> Self {
         self.dry_run = dry_run;
         self

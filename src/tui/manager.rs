@@ -34,7 +34,6 @@ use std::io::{self, stdout};
 
 /// TUI を実行
 pub fn run() -> io::Result<()> {
-    // ターミナル設定
     terminal::enable_raw_mode()?;
     stdout().execute(EnterAlternateScreen)?;
 
@@ -43,7 +42,6 @@ pub fn run() -> io::Result<()> {
 
     let mut model = Model::new()?;
 
-    // メインループ
     while !model.should_quit {
         terminal.draw(|f| view(f, &model))?;
 
@@ -74,7 +72,6 @@ pub fn run() -> io::Result<()> {
         }
     }
 
-    // ターミナルを復元
     terminal::disable_raw_mode()?;
     stdout().execute(LeaveAlternateScreen)?;
 

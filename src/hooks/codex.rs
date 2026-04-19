@@ -12,10 +12,6 @@ use crate::hooks::hook_definition::{CommandHook, HttpHook, StubHook};
 
 use super::converter::{KeyMap, ScriptGenerator, StructureConverter};
 
-// ============================================================================
-// KeyMap
-// ============================================================================
-
 pub(crate) struct CodexKeyMap;
 
 impl KeyMap for CodexKeyMap {
@@ -23,10 +19,6 @@ impl KeyMap for CodexKeyMap {
         (hook.clone(), vec![])
     }
 }
-
-// ============================================================================
-// StructureConverter
-// ============================================================================
 
 pub(crate) struct CodexStructureConverter;
 
@@ -46,10 +38,6 @@ impl StructureConverter for CodexStructureConverter {
         (value.clone(), vec![])
     }
 }
-
-// ============================================================================
-// ScriptGenerator
-// ============================================================================
 
 pub(crate) struct CodexScriptGenerator;
 

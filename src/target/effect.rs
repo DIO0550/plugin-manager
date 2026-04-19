@@ -11,6 +11,11 @@ pub struct TargetEffect {
 
 impl TargetEffect {
     /// 新規作成
+    ///
+    /// # Arguments
+    ///
+    /// * `target_name` - Target identifier the effect is recorded against.
+    /// * `component_count` - Number of components affected on the target.
     pub fn new(target_name: impl Into<String>, component_count: usize) -> Self {
         Self {
             target_name: target_name.into(),
@@ -38,6 +43,11 @@ pub struct TargetError {
 
 impl TargetError {
     /// 新規作成
+    ///
+    /// # Arguments
+    ///
+    /// * `target_name` - Target identifier that produced the error.
+    /// * `message` - Human-readable error message.
     pub fn new(target_name: impl Into<String>, message: impl Into<String>) -> Self {
         Self {
             target_name: target_name.into(),
@@ -72,6 +82,11 @@ impl AffectedTargets {
     }
 
     /// 成功を記録
+    ///
+    /// # Arguments
+    ///
+    /// * `target_name` - Target identifier for which success is recorded.
+    /// * `component_count` - Number of affected components; zero entries are ignored.
     pub fn record_success(&mut self, target_name: &str, component_count: usize) {
         if component_count > 0 {
             self.effects
@@ -80,6 +95,11 @@ impl AffectedTargets {
     }
 
     /// エラーを記録
+    ///
+    /// # Arguments
+    ///
+    /// * `target_name` - Target identifier that produced the error.
+    /// * `message` - Human-readable error message.
     pub fn record_error(&mut self, target_name: &str, message: impl Into<String>) {
         self.errors.push(TargetError::new(target_name, message));
     }
@@ -151,6 +171,10 @@ pub struct OperationResult {
 
 impl OperationResult {
     /// エラー結果を生成（事前検証失敗用）
+    ///
+    /// # Arguments
+    ///
+    /// * `message` - Error message describing the pre-validation failure.
     pub fn error(message: impl Into<String>) -> Self {
         Self {
             success: false,

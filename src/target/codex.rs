@@ -24,6 +24,11 @@ impl CodexTarget {
     }
 
     /// スコープに応じたベースディレクトリを取得
+    ///
+    /// # Arguments
+    ///
+    /// * `scope` - Scope (`Personal` or `Project`) that selects the base directory.
+    /// * `project_root` - Project root directory used for project scope.
     fn base_dir(scope: Scope, project_root: &Path) -> PathBuf {
         match scope {
             Scope::Personal => Self::home_dir().join(".codex"),
@@ -32,11 +37,20 @@ impl CodexTarget {
     }
 
     /// この組み合わせで配置できるか
+    ///
+    /// # Arguments
+    ///
+    /// * `kind` - Component kind to check.
     fn can_place(kind: ComponentKind) -> bool {
         kind != ComponentKind::Command && kind != ComponentKind::Hook
     }
 
     /// コンポーネント種別に応じたフィルタリング
+    ///
+    /// # Arguments
+    ///
+    /// * `c` - Scanned component entry.
+    /// * `kind` - Component kind expected for the entry.
     fn filter_component(c: &ScannedComponent, kind: ComponentKind) -> Option<String> {
         let qualified = format!("{}/{}/{}", c.origin.marketplace, c.origin.plugin, c.name);
         match kind {
@@ -126,7 +140,6 @@ impl Target for CodexTarget {
             return Ok(vec![]);
         }
 
-        // Instruction は単一ファイル
         if kind == ComponentKind::Instruction {
             let dummy_origin = PluginOrigin::from_marketplace("", "");
             let ctx = PlacementContext {
@@ -150,7 +163,6 @@ impl Target for CodexTarget {
             _ => return Ok(vec![]),
         };
 
-        // scan_components を使用して3層構造を走査
         let names = scan_components(&dir_path)?
             .into_iter()
             .filter_map(|c| Self::filter_component(&c, kind))

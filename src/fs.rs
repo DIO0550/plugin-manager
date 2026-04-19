@@ -49,6 +49,11 @@ pub trait FileSystem: Send + Sync {
     /// - 宛先が存在すれば上書き
     /// - 親ディレクトリは自動作成
     /// - シンボリックリンクは追従（実体をコピー）
+    ///
+    /// # Arguments
+    ///
+    /// * `src` - Source file path.
+    /// * `dst` - Destination file path.
     fn copy_file(&self, src: &Path, dst: &Path) -> Result<()>;
 
     /// ディレクトリを再帰的にコピー
@@ -56,47 +61,93 @@ pub trait FileSystem: Send + Sync {
     /// - 宛先ディレクトリにマージ（既存ファイルは上書き）
     /// - シンボリックリンクは追従
     /// - 同一/子孫パスへのコピーは Err
+    ///
+    /// # Arguments
+    ///
+    /// * `src` - Source directory path.
+    /// * `dst` - Destination directory path.
     fn copy_dir(&self, src: &Path, dst: &Path) -> Result<()>;
 
     /// ファイルまたはディレクトリを削除
     ///
     /// - ファイルなら削除、ディレクトリなら再帰削除
     /// - 存在しない場合は Ok(())
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path to remove.
     fn remove(&self, path: &Path) -> Result<()>;
 
     /// ファイルのみを削除
     ///
     /// - 存在しない場合は Ok(())
     /// - ディレクトリの場合は Err
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - File path to remove.
     fn remove_file(&self, path: &Path) -> Result<()>;
 
     /// ディレクトリを再帰削除
     ///
     /// - 存在しない場合は Ok(())
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Directory path to remove recursively.
     fn remove_dir_all(&self, path: &Path) -> Result<()>;
 
     /// ファイルまたはディレクトリを移動（リネーム）
     ///
     /// - 同一ファイルシステム内でのリネーム
     /// - クロスデバイス時は Err（呼び出し側で copy+remove 対応）
+    ///
+    /// # Arguments
+    ///
+    /// * `src` - Current path.
+    /// * `dst` - New path.
     fn rename(&self, src: &Path, dst: &Path) -> Result<()>;
 
     /// パスが存在するか（シンボリックリンク追従）
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path to test.
     fn exists(&self, path: &Path) -> bool;
 
     /// ディレクトリかどうか（シンボリックリンク追従）
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path to test.
     fn is_dir(&self, path: &Path) -> bool;
 
     /// ディレクトリを再帰的に作成
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Directory path to create, including any missing parents.
     fn create_dir_all(&self, path: &Path) -> Result<()>;
 
     /// 最終更新時刻を取得
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path to query.
     fn mtime(&self, path: &Path) -> Result<SystemTime>;
 
     /// ファイル内容のハッシュを計算（DefaultHasher 使用）
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - File path whose content is hashed.
     fn content_hash(&self, path: &Path) -> Result<u64>;
 
     /// ファイル内容を読み込み
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - File path to read into a `String`.
     fn read_to_string(&self, path: &Path) -> Result<String>;
 
     /// ファイルに書き込み
@@ -104,6 +155,11 @@ pub trait FileSystem: Send + Sync {
     /// - 親ディレクトリは自動作成
     /// - 既存ファイルは上書き
     /// - アトミック性は保証しない
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Destination file path.
+    /// * `content` - Raw bytes to write.
     fn write(&self, path: &Path, content: &[u8]) -> Result<()>;
 
     /// ディレクトリ内のエントリを取得
@@ -112,6 +168,10 @@ pub trait FileSystem: Send + Sync {
     /// - 順序は未定義
     /// - symlink_metadata を使用（シンボリックリンク非追従）
     /// - 引数がディレクトリでない場合は Err
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Directory path to enumerate.
     fn read_dir(&self, path: &Path) -> Result<Vec<FsNode>>;
 }
 
@@ -120,7 +180,6 @@ pub struct RealFs;
 
 impl FileSystem for RealFs {
     fn copy_file(&self, src: &Path, dst: &Path) -> Result<()> {
-        // 親ディレクトリを作成
         if let Some(parent) = dst.parent() {
             std::fs::create_dir_all(parent)?;
         }
@@ -129,7 +188,6 @@ impl FileSystem for RealFs {
     }
 
     fn copy_dir(&self, src: &Path, dst: &Path) -> Result<()> {
-        // 同一/子孫パスチェック
         if let (Ok(src_canonical), Ok(dst_canonical)) = (src.canonicalize(), dst.canonicalize()) {
             if dst_canonical.starts_with(&src_canonical) {
                 return Err(crate::error::PlmError::Io(std::io::Error::new(
@@ -223,7 +281,6 @@ impl FileSystem for RealFs {
     }
 
     fn write(&self, path: &Path, content: &[u8]) -> Result<()> {
-        // 親ディレクトリを作成
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
@@ -253,6 +310,11 @@ impl FileSystem for RealFs {
 }
 
 /// ディレクトリを再帰的にコピー
+///
+/// # Arguments
+///
+/// * `src` - Source directory to traverse.
+/// * `dst` - Destination directory created via `create_dir_all`.
 fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
     std::fs::create_dir_all(dst)?;
 

@@ -14,11 +14,20 @@ pub struct ErrorFormatter {
 
 impl ErrorFormatter {
     /// Creates a new ErrorFormatter with default TTY detection
+    ///
+    /// # Arguments
+    ///
+    /// * `verbose` - When true, include cause, remediation, and source chain.
     pub fn new(verbose: bool) -> Self {
         Self::with_color_detection(verbose, Self::default_should_use_color)
     }
 
     /// Creates a new ErrorFormatter with injectable TTY detection for testing
+    ///
+    /// # Arguments
+    ///
+    /// * `verbose` - When true, include cause, remediation, and source chain.
+    /// * `detect_color` - Function returning whether ANSI color should be applied.
     pub fn with_color_detection(verbose: bool, detect_color: fn() -> bool) -> Self {
         let use_color = detect_color();
         Self { verbose, use_color }
@@ -29,6 +38,10 @@ impl ErrorFormatter {
     }
 
     /// Formats the error for display
+    ///
+    /// # Arguments
+    ///
+    /// * `error` - Rich error to render as a user-facing string.
     pub fn format(&self, error: &RichError) -> String {
         let plain = if self.verbose {
             self.format_verbose_plain(error)
@@ -36,7 +49,8 @@ impl ErrorFormatter {
             self.format_simple_plain(error)
         };
 
-        // Apply masking before color
+        // Masking must run before color codes are inserted so ANSI escapes
+        // cannot accidentally be counted as part of a token/query value.
         let masked = self.mask_sensitive(&plain);
 
         if self.use_color {
@@ -46,10 +60,14 @@ impl ErrorFormatter {
         }
     }
 
+    /// Render the simple (non-verbose) error layout.
+    ///
+    /// # Arguments
+    ///
+    /// * `error` - Rich error to render.
     fn format_simple_plain(&self, error: &RichError) -> String {
         let mut output = format!("error[{}]: {}", error.code().as_str(), error.message());
 
-        // Add context
         let context_lines = self.format_context(error);
         if !context_lines.is_empty() {
             output.push('\n');
@@ -59,28 +77,29 @@ impl ErrorFormatter {
         output
     }
 
+    /// Render the verbose error layout (cause, remediation, source chain).
+    ///
+    /// # Arguments
+    ///
+    /// * `error` - Rich error to render.
     fn format_verbose_plain(&self, error: &RichError) -> String {
         let mut output = format!("error[{}]: {}", error.code().as_str(), error.message());
 
-        // Add context
         let context_lines = self.format_context(error);
         if !context_lines.is_empty() {
             output.push('\n');
             output.push_str(&context_lines);
         }
 
-        // Add cause
         output.push_str("\n  |");
         output.push_str(&format!("\n  | Cause: {}", error.code().cause()));
 
-        // Add remediation
         output.push_str("\n  |");
         output.push_str("\n  | Remediation:");
         for line in error.code().remediation().lines() {
             output.push_str(&format!("\n  |   {}", line));
         }
 
-        // Add source chain if available
         let source_chain = self.format_source_chain(error);
         if !source_chain.is_empty() {
             output.push_str("\n  |");
@@ -93,6 +112,11 @@ impl ErrorFormatter {
         output
     }
 
+    /// Render the context block lines for the error.
+    ///
+    /// # Arguments
+    ///
+    /// * `error` - Rich error whose context is rendered.
     fn format_context(&self, error: &RichError) -> String {
         let ctx = error.context();
         let mut lines = Vec::new();
@@ -118,6 +142,11 @@ impl ErrorFormatter {
         lines.join("\n")
     }
 
+    /// Render the `std::error::Error` source chain for the error.
+    ///
+    /// # Arguments
+    ///
+    /// * `error` - Rich error whose source chain is traversed.
     fn format_source_chain(&self, error: &RichError) -> String {
         let mut chain = Vec::new();
         let mut current: Option<&(dyn std::error::Error + 'static)> = error.source();
@@ -131,37 +160,44 @@ impl ErrorFormatter {
     }
 
     /// Masks sensitive data in the text
+    ///
+    /// # Arguments
+    ///
+    /// * `text` - Text to redact.
     fn mask_sensitive(&self, text: &str) -> String {
         let mut result = text.to_string();
 
-        // Mask query parameter values: ?foo=xxx&bar=yyy -> ?foo=***&bar=***
         result = Self::mask_query_params(&result);
-
-        // Mask token= patterns
         result = Self::mask_pattern(&result, "token=", "token=***");
-
-        // Mask Authorization headers
         result = Self::mask_authorization(&result);
-
-        // Mask sensitive file paths
         result = Self::mask_sensitive_paths(&result);
 
         result
     }
 
+    /// Mask values of URL query parameters (`?k=v&k=v`).
+    ///
+    /// # Arguments
+    ///
+    /// * `text` - Text containing potential query parameter pairs.
     fn mask_query_params(text: &str) -> String {
         use regex::Regex;
 
-        // Match query parameters: key=value patterns after ? or &
         let re = Regex::new(r"([?&])([^=&]+)=([^&\s]+)").unwrap();
         re.replace_all(text, "$1$2=***").to_string()
     }
 
+    /// Replace the value following `pattern` up to the next delimiter.
+    ///
+    /// # Arguments
+    ///
+    /// * `text` - Text containing the pattern and value.
+    /// * `pattern` - Literal marker preceding the value.
+    /// * `replacement` - Replacement written in place of `pattern` plus its value.
     fn mask_pattern(text: &str, pattern: &str, replacement: &str) -> String {
         if let Some(pos) = text.find(pattern) {
             let before = &text[..pos];
             let after_pattern = &text[pos + pattern.len()..];
-            // Find the end of the value (space or end of string)
             let end = after_pattern
                 .find(|c: char| c.is_whitespace() || c == '&' || c == '"' || c == '\'')
                 .unwrap_or(after_pattern.len());
@@ -172,6 +208,11 @@ impl ErrorFormatter {
         }
     }
 
+    /// Mask `Authorization: Bearer ...` header values.
+    ///
+    /// # Arguments
+    ///
+    /// * `text` - Text containing potential Authorization headers.
     fn mask_authorization(text: &str) -> String {
         use regex::Regex;
 
@@ -179,6 +220,11 @@ impl ErrorFormatter {
         re.replace_all(text, "$1***").to_string()
     }
 
+    /// Mask file paths that commonly carry secrets (`.env`, `credentials*`).
+    ///
+    /// # Arguments
+    ///
+    /// * `text` - Text that may embed sensitive file paths.
     fn mask_sensitive_paths(text: &str) -> String {
         // Only mask file-like patterns, not URLs
         // File patterns: /.env, /path/to/credentials.json, etc.
@@ -192,7 +238,6 @@ impl ErrorFormatter {
             Regex::new(r"(?:^|[^:/])(/(?:[^/\s]+/)*\.env(?:\.[^\s]*)?)").unwrap();
         let mut result = sensitive_file_re
             .replace_all(text, |caps: &regex::Captures| {
-                // Keep the prefix character (if any) and replace the path
                 let full = caps.get(0).unwrap().as_str();
                 let path = caps.get(1).unwrap().as_str();
                 full.replace(path, "<sensitive-path>")
@@ -212,6 +257,12 @@ impl ErrorFormatter {
         result
     }
 
+    /// Apply ANSI color codes to rendered error lines.
+    ///
+    /// # Arguments
+    ///
+    /// * `text` - Plain rendered error text.
+    /// * `code` - Error code (currently unused; reserved for future per-code styling).
     fn apply_color(&self, text: &str, code: ErrorCode) -> String {
         let mut result = String::new();
 
@@ -221,13 +272,11 @@ impl ErrorFormatter {
             }
 
             if line.starts_with("error[") {
-                // Color the error line red
                 let bracket_end = line.find(']').unwrap_or(0) + 1;
                 let error_prefix = &line[..bracket_end];
                 let rest = &line[bracket_end..];
                 result.push_str(&format!("{}{}", error_prefix.red().bold(), rest.bold()));
             } else if line.starts_with("  -->") {
-                // Color the location line blue
                 result.push_str(&line.blue().to_string());
             } else if line.starts_with("  | Cause:") {
                 result.push_str(&line.yellow().to_string());
@@ -236,7 +285,6 @@ impl ErrorFormatter {
             } else if line.starts_with("  = note:") {
                 result.push_str(&line.dimmed().to_string());
             } else if line.starts_with("  |   -") {
-                // Source chain items
                 result.push_str(&line.dimmed().to_string());
             } else {
                 result.push_str(line);

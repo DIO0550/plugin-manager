@@ -13,6 +13,13 @@ pub struct ComponentIdentity {
 }
 
 impl ComponentIdentity {
+    /// Create a new `ComponentIdentity`.
+    ///
+    /// # Arguments
+    ///
+    /// * `kind` - Component kind identified.
+    /// * `name` - Fully-qualified component name.
+    /// * `scope` - Placement scope of the component.
     pub fn new(kind: ComponentKind, name: impl Into<String>, scope: Scope) -> Self {
         Self {
             kind,
@@ -30,6 +37,14 @@ pub struct PlacedComponent {
 }
 
 impl PlacedComponent {
+    /// Create a new `PlacedComponent`.
+    ///
+    /// # Arguments
+    ///
+    /// * `kind` - Component kind.
+    /// * `name` - Fully-qualified component name.
+    /// * `scope` - Placement scope of the component.
+    /// * `path` - File-system path where the component is placed.
     pub fn new(
         kind: ComponentKind,
         name: impl Into<String>,
@@ -63,6 +78,10 @@ impl PlacedComponent {
     }
 
     /// パスが project_root 配下かを検証
+    ///
+    /// # Arguments
+    ///
+    /// * `project_root` - Project root directory that the path must be contained within.
     pub fn validate_path(&self, project_root: &Path) -> Result<()> {
         // パスが存在しない場合は検証をスキップ（これから作成される場合）
         if !self.path.exists() {

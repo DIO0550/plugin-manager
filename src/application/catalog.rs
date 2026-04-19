@@ -10,6 +10,10 @@ use std::path::PathBuf;
 /// インストール済みプラグインの一覧を取得
 ///
 /// キャッシュディレクトリをスキャンし、有効なプラグインの一覧を返す。
+///
+/// # Arguments
+///
+/// * `cache` - インストール済みプラグインを列挙するためのパッケージキャッシュアクセサ
 pub fn list_installed_plugins(cache: &dyn PackageCacheAccess) -> Result<Vec<InstalledPlugin>> {
     // デプロイ済みプラグイン集合を事前取得（パフォーマンス改善）
     let project_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));

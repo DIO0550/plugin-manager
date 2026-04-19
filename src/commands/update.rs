@@ -36,8 +36,10 @@ pub struct Args {
     pub target: Option<TargetKind>,
 }
 
+/// # Arguments
+///
+/// * `args` - Parsed CLI arguments for `plm update`.
 pub async fn run(args: Args) -> Result<(), String> {
-    // 排他チェック（どちらも未指定の場合）
     if args.name.is_none() && !args.all {
         return Err("Specify plugin name or --all".to_string());
     }
@@ -50,7 +52,7 @@ pub async fn run(args: Args) -> Result<(), String> {
         let results = update_all_plugins(&cache, &project_root, target_filter).await;
         display_batch_results(&results);
 
-        // 全失敗時のみエラー終了
+        // Exit with an error only when every plugin failed.
         if !results.is_empty()
             && results
                 .iter()
@@ -70,6 +72,9 @@ pub async fn run(args: Args) -> Result<(), String> {
     Ok(())
 }
 
+/// # Arguments
+///
+/// * `result` - Single-plugin update outcome to render.
 fn display_single_result(result: &UpdateResult) {
     match &result.status {
         UpdateStatus::Updated { from_sha, to_sha } => {
@@ -101,6 +106,9 @@ fn display_single_result(result: &UpdateResult) {
     }
 }
 
+/// # Arguments
+///
+/// * `results` - Update outcomes from a batch run to summarize.
 fn display_batch_results(results: &[UpdateResult]) {
     let updated = results
         .iter()

@@ -41,6 +41,10 @@ pub struct ParsedDocument<T> {
 ///
 /// - `T`: The type to deserialize the frontmatter into. Must implement
 ///   `DeserializeOwned` and `Default` (for empty frontmatter handling).
+///
+/// # Arguments
+///
+/// * `content` - Document text whose optional YAML frontmatter should be parsed.
 pub fn parse_frontmatter<T: DeserializeOwned + Default>(
     content: &str,
 ) -> Result<ParsedDocument<T>> {
@@ -49,7 +53,6 @@ pub fn parse_frontmatter<T: DeserializeOwned + Default>(
 
     let lines: Vec<&str> = content.lines().collect();
 
-    // Check if first line starts with ---
     let first_line = lines.first().map(|s| s.trim()).unwrap_or("");
     if !first_line.starts_with("---") {
         // No frontmatter - entire content is body
@@ -59,7 +62,6 @@ pub fn parse_frontmatter<T: DeserializeOwned + Default>(
         });
     }
 
-    // Find closing ---
     let closing_index = lines
         .iter()
         .enumerate()
@@ -75,10 +77,8 @@ pub fn parse_frontmatter<T: DeserializeOwned + Default>(
         });
     };
 
-    // Extract frontmatter YAML (between opening and closing ---)
     let yaml_content: String = lines[1..closing_index].join("\n");
 
-    // Parse frontmatter
     let frontmatter: T = if yaml_content.trim().is_empty() {
         // Empty frontmatter - use default
         T::default()
@@ -89,7 +89,6 @@ pub fn parse_frontmatter<T: DeserializeOwned + Default>(
     // Extract body (everything after closing ---)
     // Preserve exact content including leading newlines
     let body = if closing_index + 1 < lines.len() {
-        // Calculate byte offset of the body start
         let mut offset = 0;
         for (i, line) in lines.iter().enumerate() {
             if i <= closing_index {
@@ -98,7 +97,6 @@ pub fn parse_frontmatter<T: DeserializeOwned + Default>(
                 break;
             }
         }
-        // Handle case where content doesn't end with newline
         if offset <= content.len() {
             content[offset..].to_string()
         } else {

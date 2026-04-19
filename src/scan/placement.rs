@@ -18,6 +18,7 @@ use std::collections::HashSet;
 /// `target.list_placed()` の戻り値をパースし、プラグイン単位で集約する。
 ///
 /// # Arguments
+///
 /// * `placed_items` - `target.list_placed()` の戻り値リスト
 ///
 /// # Returns
@@ -32,6 +33,7 @@ pub fn list_placed_plugins(placed_items: &[String]) -> HashSet<(String, String)>
 /// "marketplace/plugin/..." 形式をパース
 ///
 /// # Arguments
+///
 /// * `item` - パース対象の文字列
 ///
 /// # Returns

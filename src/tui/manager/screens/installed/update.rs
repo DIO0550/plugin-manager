@@ -42,6 +42,13 @@ impl UpdateEffect {
 }
 
 /// メッセージに応じて状態を更新
+///
+/// # Arguments
+///
+/// * `model` - Installed tab model to mutate.
+/// * `msg` - Incoming message to apply.
+/// * `data` - Shared data store for plugins.
+/// * `filter_text` - Current filter input text.
 pub fn update(
     model: &mut Model,
     msg: Msg,
@@ -112,12 +119,10 @@ fn toggle_all_marks(model: &mut Model, data: &DataStore, filter_text: &str) {
                 .all(|plugin| marked_ids.contains(plugin.install_id()));
 
         if all_marked {
-            // フィルタ済み分のみ解除
             for plugin in &filtered {
                 marked_ids.remove(plugin.install_id());
             }
         } else {
-            // フィルタ済みプラグインを全マーク
             for plugin in &filtered {
                 marked_ids.insert(plugin.install_id().to_string());
             }
@@ -213,21 +218,17 @@ fn execute_batch_with(
             .filter(|name| existing_names.contains(name.as_str()))
             .collect();
 
-        // バッチ更新実行
         let results = run_updates(&plugin_names);
 
-        // 結果を update_statuses に反映
         let mut new_statuses = HashMap::new();
         let mut batch_errors: Vec<String> = Vec::new();
         for (name, status) in results {
-            // Failed の詳細を収集
             if let UpdateStatusDisplay::Failed(ref reason) = status {
                 batch_errors.push(format!("Update failed for {}: {}", name, reason));
             }
             new_statuses.insert(name, status);
         }
 
-        // 収集したエラーを last_error に集約
         if !batch_errors.is_empty() {
             let aggregated = if batch_errors.len() == 1 {
                 batch_errors.into_iter().next().unwrap()
@@ -242,7 +243,6 @@ fn execute_batch_with(
         }
         *update_statuses = new_statuses;
 
-        // DataStore を全体リロード
         if let Err(e) = reload(data) {
             let reload_msg = format!("Failed to reload plugins: {}", e);
             data.last_error = Some(match data.last_error.take() {
@@ -297,7 +297,6 @@ fn select_prev(model: &mut Model, data: &DataStore, filter_text: &str) -> bool {
     let prev = current.saturating_sub(1);
     state.select(Some(prev));
 
-    // selected_id を更新
     update_selected_id(model, data, filter_text);
     false
 }
@@ -313,7 +312,6 @@ fn select_next(model: &mut Model, data: &DataStore, filter_text: &str) {
     let next = (current + 1).min(len.saturating_sub(1));
     state.select(Some(next));
 
-    // selected_id を更新
     update_selected_id(model, data, filter_text);
 }
 
@@ -366,7 +364,6 @@ fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) -> UpdateEf
                     let result = actions::disable_plugin(plugin_id, marketplace.as_deref());
                     match result {
                         actions::ActionResult::Success => {
-                            // 成功 - プラグインを disabled 状態に更新
                             data.set_plugin_enabled(plugin_id, false);
                         }
                         actions::ActionResult::Error(e) => {
@@ -379,7 +376,6 @@ fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) -> UpdateEf
                     let result = actions::enable_plugin(plugin_id, marketplace.as_deref());
                     match result {
                         actions::ActionResult::Success => {
-                            // 成功 - プラグインを enabled 状態に更新
                             data.set_plugin_enabled(plugin_id, true);
                         }
                         actions::ActionResult::Error(e) => {
@@ -392,7 +388,6 @@ fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) -> UpdateEf
                     let result = actions::uninstall_plugin(plugin_id, marketplace.as_deref());
                     match result {
                         actions::ActionResult::Success => {
-                            // 成功 - プラグインを一覧から削除して PluginList に戻る
                             let uninstalled_id = plugin_id.clone();
                             let mut restored_marks = std::mem::take(saved_marked_ids);
                             let mut restored_statuses = std::mem::take(saved_update_statuses);

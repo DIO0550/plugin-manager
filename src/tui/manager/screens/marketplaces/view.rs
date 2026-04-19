@@ -31,6 +31,14 @@ struct BrowseData<'a> {
 }
 
 /// 画面を描画
+///
+/// # Arguments
+///
+/// * `f` - Ratatui frame to draw into.
+/// * `model` - Marketplaces tab model to render.
+/// * `data` - Shared data store for marketplaces.
+/// * `filter_text` - Current filter input text.
+/// * `filter_focused` - Whether the filter bar currently has focus.
 pub fn view(
     f: &mut Frame,
     model: &Model,
@@ -119,6 +127,11 @@ pub fn view(
 }
 
 /// タブバーを描画
+///
+/// # Arguments
+///
+/// * `f` - Ratatui frame to draw into.
+/// * `area` - Target rectangle for the tab bar.
 fn render_tab_bar(f: &mut Frame, area: Rect) {
     let tab_titles: Vec<&str> = Tab::all().iter().map(|t| t.title()).collect();
     let tabs = Tabs::new(tab_titles)
@@ -134,6 +147,14 @@ fn render_tab_bar(f: &mut Frame, area: Rect) {
 }
 
 /// マーケットプレイス一覧画面を描画
+///
+/// # Arguments
+///
+/// * `f` - Ratatui frame to draw into.
+/// * `state` - List state used for highlight/selection.
+/// * `ctx` - Shared view context (data store + filter state).
+/// * `operation_status` - In-flight operation status shown below the list.
+/// * `error_message` - Latest error message shown below the list.
 fn view_market_list(
     f: &mut Frame,
     mut state: ListState,
@@ -252,6 +273,14 @@ fn view_market_list(
 }
 
 /// マーケットプレイス詳細画面を描画
+///
+/// # Arguments
+///
+/// * `f` - Ratatui frame to draw into.
+/// * `marketplace_name` - Marketplace whose detail should be shown.
+/// * `state` - List state used for action menu highlight.
+/// * `ctx` - Shared view context (data store + filter state).
+/// * `error_message` - Latest error message shown below the menu.
 fn view_market_detail(
     f: &mut Frame,
     marketplace_name: &str,
@@ -356,6 +385,14 @@ fn view_market_detail(
 }
 
 /// プラグイン一覧画面を描画
+///
+/// # Arguments
+///
+/// * `f` - Ratatui frame to draw into.
+/// * `marketplace_name` - Marketplace owning the plugins.
+/// * `state` - List state used for plugin selection.
+/// * `plugins` - Cached plugin name/description pairs.
+/// * `filter` - Filter input context for the read-only filter bar.
 fn view_plugin_list(
     f: &mut Frame,
     marketplace_name: &str,
@@ -427,6 +464,13 @@ fn view_plugin_list(
 }
 
 /// 追加フォーム画面を描画
+///
+/// # Arguments
+///
+/// * `f` - Ratatui frame to draw into.
+/// * `form` - Current add-form sub-state.
+/// * `filter_text` - Current filter input text.
+/// * `filter_focused` - Whether the filter bar currently has focus.
 fn view_add_form(f: &mut Frame, form: &AddFormModel, filter_text: &str, filter_focused: bool) {
     let dialog_width = 65u16;
     let dialog_height = 15u16;
@@ -568,6 +612,14 @@ fn view_add_form(f: &mut Frame, form: &AddFormModel, filter_text: &str, filter_f
 }
 
 /// プラグインブラウズ画面を描画
+///
+/// # Arguments
+///
+/// * `f` - Ratatui frame to draw into.
+/// * `marketplace_name` - Marketplace being browsed.
+/// * `browse` - Browse data (plugin list, current selection, highlight).
+/// * `state` - List state used for plugin highlight.
+/// * `filter` - Filter input context for the filter bar.
 fn view_plugin_browse(
     f: &mut Frame,
     marketplace_name: &str,
@@ -640,6 +692,13 @@ fn view_plugin_browse(
 }
 
 /// ターゲット選択画面を描画
+///
+/// # Arguments
+///
+/// * `f` - Ratatui frame to draw into.
+/// * `targets` - Target list as `(name, display_name, selected)` tuples.
+/// * `_highlighted_idx` - Currently highlighted index (unused; kept for symmetry).
+/// * `state` - List state used for target highlight.
 fn view_target_select(
     f: &mut Frame,
     targets: &[(String, String, bool)],
@@ -679,6 +738,12 @@ fn view_target_select(
 }
 
 /// スコープ選択画面を描画
+///
+/// # Arguments
+///
+/// * `f` - Ratatui frame to draw into.
+/// * `highlighted_idx` - Currently highlighted scope index.
+/// * `state` - List state used for scope highlight.
 fn view_scope_select(f: &mut Frame, highlighted_idx: usize, mut state: ListState) {
     let dialog_width = 45u16;
     let dialog_height = 8u16;
@@ -713,6 +778,13 @@ fn view_scope_select(f: &mut Frame, highlighted_idx: usize, mut state: ListState
 }
 
 /// インストール実行中画面を描画
+///
+/// # Arguments
+///
+/// * `f` - Ratatui frame to draw into.
+/// * `plugin_names` - Plugin names being installed in order.
+/// * `current_idx` - Index of the plugin currently being processed.
+/// * `total` - Total number of plugins in this install batch.
 fn view_installing(f: &mut Frame, plugin_names: &[String], current_idx: usize, total: usize) {
     let dialog_width = 45u16;
     let dialog_height = 7u16;
@@ -765,6 +837,11 @@ fn view_installing(f: &mut Frame, plugin_names: &[String], current_idx: usize, t
 }
 
 /// インストール結果画面を描画
+///
+/// # Arguments
+///
+/// * `f` - Ratatui frame to draw into.
+/// * `summary` - Aggregated install summary to display.
 fn view_install_result(f: &mut Frame, summary: &InstallSummary) {
     let content_height = (summary.results.len() as u16 + 5).min(20);
     let dialog_width = 50u16;
@@ -820,6 +897,13 @@ fn view_install_result(f: &mut Frame, summary: &InstallSummary) {
 }
 
 /// 右パネルにプラグイン詳細を描画
+///
+/// # Arguments
+///
+/// * `f` - Ratatui frame to draw into.
+/// * `plugins` - Browse plugin list the detail panel reads from.
+/// * `highlighted_idx` - Index of the plugin whose detail is shown.
+/// * `area` - Target rectangle for the detail panel.
 fn render_plugin_detail(
     f: &mut Frame,
     plugins: &[BrowsePlugin],
@@ -880,11 +964,19 @@ fn render_plugin_detail(
 /// 水平分割レイアウトを使用すべきかを判定
 ///
 /// 端末幅が60未満の場合はリストのみ表示にフォールバックする。
+///
+/// # Arguments
+///
+/// * `width` - Current terminal width in cells.
 fn should_split_layout(width: u16) -> bool {
     width >= 60
 }
 
 /// ターゲット選択のチェックボックスマークとスタイルを決定
+///
+/// # Arguments
+///
+/// * `selected` - Whether the target is currently selected.
 fn target_checkbox(selected: bool) -> (&'static str, Style) {
     if selected {
         ("[x] ", Style::default().fg(Color::Yellow))
@@ -894,6 +986,10 @@ fn target_checkbox(selected: bool) -> (&'static str, Style) {
 }
 
 /// TargetSelect 用のリストアイテムを構築
+///
+/// # Arguments
+///
+/// * `targets` - Target list as `(name, display_name, selected)` tuples.
 fn build_target_list_items(targets: &[(String, String, bool)]) -> Vec<ListItem<'static>> {
     targets
         .iter()
@@ -905,6 +1001,10 @@ fn build_target_list_items(targets: &[(String, String, bool)]) -> Vec<ListItem<'
 }
 
 /// スコープ選択のラジオボタンマークとスタイルを決定
+///
+/// # Arguments
+///
+/// * `is_current` - Whether this scope is the currently highlighted one.
 fn scope_radio(is_current: bool) -> (&'static str, Style) {
     if is_current {
         ("(x) ", Style::default().fg(Color::Yellow))
@@ -914,6 +1014,10 @@ fn scope_radio(is_current: bool) -> (&'static str, Style) {
 }
 
 /// ScopeSelect 用のリストアイテムを構築
+///
+/// # Arguments
+///
+/// * `highlighted_idx` - Currently highlighted scope index.
 fn build_scope_list_items(highlighted_idx: usize) -> Vec<ListItem<'static>> {
     let scopes = [(Scope::Personal, "(~/.plm/)"), (Scope::Project, "(./)")];
     let clamped = highlighted_idx.min(scopes.len() - 1);
@@ -929,6 +1033,11 @@ fn build_scope_list_items(highlighted_idx: usize) -> Vec<ListItem<'static>> {
 }
 
 /// チェックボックスのマークとスタイルを決定
+///
+/// # Arguments
+///
+/// * `installed` - Whether the plugin is already installed.
+/// * `selected` - Whether the plugin is currently selected for install.
 fn browse_checkbox(installed: bool, selected: bool) -> (&'static str, Style) {
     if installed {
         ("[x] ", Style::default().fg(Color::DarkGray))
@@ -940,6 +1049,11 @@ fn browse_checkbox(installed: bool, selected: bool) -> (&'static str, Style) {
 }
 
 /// PluginBrowse 用のリストアイテムを構築
+///
+/// # Arguments
+///
+/// * `plugins` - Browse plugin list to render.
+/// * `selected_plugins` - Plugin names currently selected for install.
 fn build_browse_list_items<'a>(
     plugins: &'a [BrowsePlugin],
     selected_plugins: &HashSet<String>,

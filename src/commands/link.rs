@@ -16,6 +16,9 @@ pub struct Args {
     pub force: bool,
 }
 
+/// # Arguments
+///
+/// * `args` - Parsed CLI arguments for `plm link`.
 pub async fn run(args: Args) -> Result<(), String> {
     if !cfg!(unix) {
         return Err("Symbolic links are not supported on Windows".to_string());
@@ -24,16 +27,14 @@ pub async fn run(args: Args) -> Result<(), String> {
     let abs_src = absolutize(&args.src);
     let abs_dest = absolutize(&args.dest);
 
-    // Validate src exists (using symlink_metadata so we don't follow symlinks)
+    // Use `symlink_metadata` to avoid following symlinks when validating src.
     fs::symlink_metadata(&abs_src)
         .map_err(|_| format!("Source not found: {}", args.src.display()))?;
 
-    // Same path check
     if abs_src == abs_dest {
         return Err("Source and dest are the same path".to_string());
     }
 
-    // Validate dest
     if abs_dest.exists() || abs_dest.symlink_metadata().is_ok() {
         if !args.force {
             return Err(format!(
@@ -42,7 +43,6 @@ pub async fn run(args: Args) -> Result<(), String> {
             ));
         }
 
-        // --force: remove existing dest
         let meta = fs::symlink_metadata(&abs_dest)
             .map_err(|e| format!("Failed to read dest metadata: {}", e))?;
 
@@ -50,7 +50,6 @@ pub async fn run(args: Args) -> Result<(), String> {
             fs::remove_file(&abs_dest)
                 .map_err(|e| format!("Failed to remove existing dest: {}", e))?;
         } else if meta.is_dir() {
-            // Check if directory is empty
             let is_empty = fs::read_dir(&abs_dest)
                 .map_err(|e| format!("Failed to read dest directory: {}", e))?
                 .next()
@@ -65,19 +64,16 @@ pub async fn run(args: Args) -> Result<(), String> {
         }
     }
 
-    // Ensure dest parent directory exists
     if let Some(parent) = abs_dest.parent() {
         fs::create_dir_all(parent)
             .map_err(|e| format!("Failed to create parent directory: {}", e))?;
     }
 
-    // Compute relative path from dest's parent to src
     let dest_parent = abs_dest
         .parent()
         .ok_or_else(|| "Dest has no parent directory".to_string())?;
     let relative_path = relative_path_from(&abs_src, dest_parent);
 
-    // Create symlink
     #[cfg(unix)]
     {
         std::os::unix::fs::symlink(&relative_path, &abs_dest)
@@ -97,6 +93,10 @@ pub async fn run(args: Args) -> Result<(), String> {
 ///
 /// Unlike `canonicalize()`, this function does not resolve symlinks or require
 /// the path to exist. It cleans up `.` and `..` components.
+///
+/// # Arguments
+///
+/// * `path` - Path to absolutize. May be relative or absolute.
 pub(crate) fn absolutize(path: &Path) -> PathBuf {
     let abs = if path.is_relative() {
         match std::env::current_dir() {
@@ -140,8 +140,14 @@ pub(crate) fn absolutize(path: &Path) -> PathBuf {
 
 /// Compute a relative path from `dest_parent` to `src`.
 ///
-/// Both `src` and `dest_parent` must be absolute paths. The result is a
-/// relative path that, when resolved from `dest_parent`, points to `src`.
+/// Both `src` and `dest_parent` are assumed to be absolute paths; behavior with
+/// relative paths is unspecified. The result is a relative path that, when
+/// resolved from `dest_parent`, points to `src`.
+///
+/// # Arguments
+///
+/// * `src` - Path the symlink should target. Assumed to be absolute.
+/// * `dest_parent` - Directory that contains the symlink. Assumed to be absolute.
 ///
 /// # Examples
 ///
@@ -153,7 +159,6 @@ pub(crate) fn relative_path_from(src: &Path, dest_parent: &Path) -> PathBuf {
     let src_components: Vec<_> = src.components().collect();
     let dest_components: Vec<_> = dest_parent.components().collect();
 
-    // Find the length of the common prefix
     let common_len = src_components
         .iter()
         .zip(dest_components.iter())
@@ -162,12 +167,10 @@ pub(crate) fn relative_path_from(src: &Path, dest_parent: &Path) -> PathBuf {
 
     let mut result = PathBuf::new();
 
-    // For each remaining component in dest_parent, add `..`
     for _ in common_len..dest_components.len() {
         result.push("..");
     }
 
-    // Append remaining components from src
     for component in &src_components[common_len..] {
         result.push(component.as_os_str());
     }

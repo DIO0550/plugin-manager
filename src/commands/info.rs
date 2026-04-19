@@ -29,6 +29,9 @@ pub struct Args {
     pub format: OutputFormat,
 }
 
+/// # Arguments
+///
+/// * `args` - Parsed CLI arguments for `plm info`.
 pub async fn run(args: Args) -> Result<(), String> {
     let cache = PackageCache::new().map_err(|e| format!("Failed to access cache: {e}"))?;
     let detail = get_plugin_info(&cache, &args.name)

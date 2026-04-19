@@ -21,6 +21,11 @@ pub(super) struct Wire<'a> {
 }
 
 impl<'a> Wire<'a> {
+    /// Builds a `Wire` borrowing fields from an installed plugin.
+    ///
+    /// # Arguments
+    ///
+    /// * `plugin` - Installed plugin to borrow from.
     pub(super) fn from_installed(plugin: &'a InstalledPlugin) -> Self {
         Self {
             name: plugin.name(),
@@ -67,6 +72,12 @@ pub(super) struct OutdatedWire<'a> {
 }
 
 impl<'a> OutdatedWire<'a> {
+    /// Builds an `OutdatedWire` from a plugin and its upgrade state.
+    ///
+    /// # Arguments
+    ///
+    /// * `plugin` - Installed plugin to embed.
+    /// * `check` - Upgrade state paired with the plugin.
     pub(super) fn from_entry(plugin: &'a InstalledPlugin, check: &'a UpgradeState) -> Self {
         Self {
             plugin: Wire::from_installed(plugin),

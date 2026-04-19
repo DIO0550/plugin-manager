@@ -9,16 +9,8 @@ use crate::marketplace::{to_display_source, MarketplaceConfig, MarketplaceRegist
 use crate::plugin::PackageCache;
 use std::io;
 
-// ============================================================================
-// ID 型（安定したIDでの参照用）
-// ============================================================================
-
-/// プラグインID（リポジトリ名で識別）
+/// プラグインID（`InstalledPlugin::install_id()` の値で識別。リポジトリ名と異なる場合あり）
 pub type PluginId = String;
-
-// ============================================================================
-// MarketplaceItem（TUI表示用）
-// ============================================================================
 
 /// マーケットプレイスアイテム（TUI表示用）
 #[derive(Debug, Clone)]
@@ -29,10 +21,6 @@ pub struct MarketplaceItem {
     pub plugin_count: Option<usize>,
     pub last_updated: Option<String>,
 }
-
-// ============================================================================
-// DataStore（共有データストア）
-// ============================================================================
 
 /// 共有データストア
 pub struct DataStore {
@@ -74,6 +62,10 @@ impl DataStore {
     }
 
     /// プラグインIDでプラグインを検索
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - the plugin install id to look up
     pub fn find_plugin(&self, id: &PluginId) -> Option<&InstalledPlugin> {
         self.plugins.iter().find(|p| p.install_id() == id.as_str())
     }
@@ -81,11 +73,19 @@ impl DataStore {
     /// `plugin_id` は `InstalledPlugin.install_id()`（= 操作用キー）と完全一致で比較される。
     /// marketplace の区別はしない（既存の `find_plugin` と同じ設計）。
     /// `enabled` の状態に関わらず、`plugins` に存在すれば `true` を返す。
+    ///
+    /// # Arguments
+    ///
+    /// * `plugin_id` - the install id to match exactly against `InstalledPlugin.install_id()`
     pub fn is_plugin_installed(&self, plugin_id: &str) -> bool {
         self.plugins.iter().any(|p| p.install_id() == plugin_id)
     }
 
     /// プラグインIDでインデックスを検索
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - the plugin install id to look up
     pub fn plugin_index(&self, id: &PluginId) -> Option<usize> {
         self.plugins
             .iter()
@@ -93,6 +93,10 @@ impl DataStore {
     }
 
     /// プラグインの空でないコンポーネント種別を取得
+    ///
+    /// # Arguments
+    ///
+    /// * `plugin` - the plugin whose non-empty component kinds are reported
     pub fn available_component_kinds(
         &self,
         plugin: &InstalledPlugin,
@@ -101,17 +105,31 @@ impl DataStore {
     }
 
     /// コンポーネント種別に応じたコンポーネント名一覧を取得
+    ///
+    /// # Arguments
+    ///
+    /// * `plugin` - the plugin whose components are enumerated
+    /// * `kind` - the component kind to filter by
     pub fn component_names(&self, plugin: &InstalledPlugin, kind: ComponentKind) -> Vec<String> {
         plugin.component_names(kind)
     }
 
     /// プラグインを一覧から削除
+    ///
+    /// # Arguments
+    ///
+    /// * `plugin_id` - the install id of the plugin to remove
     pub fn remove_plugin(&mut self, plugin_id: &PluginId) {
         self.plugins
             .retain(|p| p.install_id() != plugin_id.as_str());
     }
 
     /// プラグインの有効状態を更新
+    ///
+    /// # Arguments
+    ///
+    /// * `plugin_id` - the install id of the plugin to update
+    /// * `enabled` - the new enabled state to apply
     pub fn set_plugin_enabled(&mut self, plugin_id: &PluginId, enabled: bool) {
         if let Some(plugin) = self
             .plugins
@@ -131,16 +149,28 @@ impl DataStore {
     }
 
     /// マーケットプレイス名で検索
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - the marketplace name to look up
     pub fn find_marketplace(&self, name: &str) -> Option<&MarketplaceItem> {
         self.marketplaces.iter().find(|m| m.name == name)
     }
 
     /// マーケットプレイス名でインデックスを検索
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - the marketplace name to look up
     pub fn marketplace_index(&self, name: &str) -> Option<usize> {
         self.marketplaces.iter().position(|m| m.name == name)
     }
 
     /// マーケットプレイスを一覧から削除
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - the marketplace name to remove
     pub fn remove_marketplace(&mut self, name: &str) {
         self.marketplaces.retain(|m| m.name != name);
     }
@@ -211,6 +241,11 @@ fn load_marketplaces() -> LoadMarketplacesResult {
 }
 
 /// 2つのエラーをマージする（既存エラーを保持しつつ新しいエラーを追記）
+///
+/// # Arguments
+///
+/// * `existing` - the previously recorded error message, if any
+/// * `new` - the newly encountered error message to append, if any
 fn merge_errors(existing: Option<String>, new: Option<String>) -> Option<String> {
     match (existing, new) {
         (Some(prev), Some(next)) => Some(format!("{}\n{}", prev, next)),

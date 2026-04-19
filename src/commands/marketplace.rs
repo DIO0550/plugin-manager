@@ -65,6 +65,9 @@ pub enum Command {
     },
 }
 
+/// # Arguments
+///
+/// * `args` - Parsed CLI arguments for `plm marketplace`.
 pub async fn run(args: Args) -> Result<(), String> {
     match args.command {
         Command::List => run_list().await,
@@ -113,17 +116,18 @@ async fn run_list() -> Result<(), String> {
     Ok(())
 }
 
+/// # Arguments
+///
+/// * `source` - GitHub repository source (`owner/repo` or full URL).
+/// * `name` - Optional marketplace name override.
+/// * `path` - Optional subdirectory containing `marketplace.json`.
 async fn run_add(source: String, name: Option<String>, path: Option<String>) -> Result<(), String> {
-    // 1. Parse source as owner/repo
     let parsed_repo = repo::from_url(&source).map_err(|e| e.to_string())?;
 
-    // 2. Determine name (--name or repository name)
     let raw_name = name.unwrap_or_else(|| parsed_repo.name().to_string());
 
-    // 3. Normalize name
     let normalized_name = normalize_name(&raw_name)?;
 
-    // 4. Load config and check for duplicates
     let mut config = MarketplaceConfig::load()?;
     if config.exists(&normalized_name) {
         return Err(format!(
@@ -132,13 +136,11 @@ async fn run_add(source: String, name: Option<String>, path: Option<String>) -> 
         ));
     }
 
-    // 5. Normalize source_path
     let source_path = match path {
         Some(p) => normalize_source_path(&p)?,
         None => None,
     };
 
-    // 6. Fetch marketplace.json from GitHub
     println!(
         "Fetching marketplace.json from {}...",
         parsed_repo.full_name()
@@ -151,7 +153,6 @@ async fn run_add(source: String, name: Option<String>, path: Option<String>) -> 
 
     let plugin_count = cache.plugins.len();
 
-    // 7. Add to config
     let entry = MarketplaceRegistration {
         name: normalized_name.clone(),
         source: parsed_repo.full_name(),
@@ -160,7 +161,6 @@ async fn run_add(source: String, name: Option<String>, path: Option<String>) -> 
     config.add(entry)?;
     config.save()?;
 
-    // 8. Save cache
     let registry = MarketplaceRegistry::new().map_err(|e| e.to_string())?;
     registry.store(&cache).map_err(|e| e.to_string())?;
 
@@ -171,18 +171,18 @@ async fn run_add(source: String, name: Option<String>, path: Option<String>) -> 
     Ok(())
 }
 
+/// # Arguments
+///
+/// * `name` - Marketplace name to remove.
 async fn run_remove(name: String) -> Result<(), String> {
-    // 1. Load config and check if exists
     let mut config = MarketplaceConfig::load()?;
     if !config.exists(&name) {
         return Err(format!("Marketplace '{}' not found.", name));
     }
 
-    // 2. Remove from config
     config.remove(&name)?;
     config.save()?;
 
-    // 3. Remove cache file (warn if not exists)
     let registry = MarketplaceRegistry::new().map_err(|e| e.to_string())?;
     if let Err(e) = registry.remove(&name) {
         eprintln!("Warning: Failed to remove cache file: {}", e);
@@ -192,12 +192,14 @@ async fn run_remove(name: String) -> Result<(), String> {
     Ok(())
 }
 
+/// # Arguments
+///
+/// * `name` - Specific marketplace to update, or `None` to update all.
 async fn run_update(name: Option<String>) -> Result<(), String> {
     let config = MarketplaceConfig::load()?;
     let registry = MarketplaceRegistry::new().map_err(|e| e.to_string())?;
     let fetcher = MarketplaceFetcher::new();
 
-    // Determine which marketplaces to update
     let entries: Vec<_> = match &name {
         Some(n) => {
             let entry = config
@@ -247,7 +249,6 @@ async fn run_update(name: Option<String>) -> Result<(), String> {
         }
     }
 
-    // Report results
     if successes > 0 {
         println!("\nUpdated {} marketplace(s).", successes);
     }
@@ -265,24 +266,23 @@ async fn run_update(name: Option<String>) -> Result<(), String> {
     Ok(())
 }
 
+/// # Arguments
+///
+/// * `name` - Marketplace name whose details should be displayed.
 async fn run_show(name: String) -> Result<(), String> {
     let config = MarketplaceConfig::load()?;
     let registry = MarketplaceRegistry::new().map_err(|e| e.to_string())?;
 
-    // Get entry from config
     let entry = config
         .get(&name)
         .ok_or_else(|| format!("Marketplace '{}' not found.", name))?;
 
-    // Header
     println!("Marketplace: {}", entry.name);
     println!("Source: {}", to_display_source(&entry.source));
     println!("Path: {}", entry.source_path.as_deref().unwrap_or("(root)"));
 
-    // Get cache
     match registry.get(&name) {
         Ok(Some(cache)) => {
-            // Owner info
             if let Some(owner) = &cache.owner {
                 let email = owner
                     .email
@@ -292,14 +292,12 @@ async fn run_show(name: String) -> Result<(), String> {
                 println!("Owner: {}{}", owner.name, email);
             }
 
-            // Last updated
             println!(
                 "Last Updated: {}",
                 cache.fetched_at.format("%Y-%m-%d %H:%M:%S UTC")
             );
             println!();
 
-            // Plugins table
             println!("Plugins ({}):", cache.plugins.len());
             let mut table = Table::new();
             table.load_preset(UTF8_FULL_CONDENSED);

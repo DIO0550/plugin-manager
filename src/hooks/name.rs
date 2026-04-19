@@ -17,6 +17,10 @@ pub(crate) struct HookName {
 
 impl HookName {
     /// 生の名前からサニタイズ済み HookName を生成
+    ///
+    /// # Arguments
+    ///
+    /// * `raw` - raw hook name to sanitize into a safe path segment
     pub fn new(raw: &str) -> Self {
         let sanitized: String = raw
             .chars()

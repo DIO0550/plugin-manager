@@ -7,10 +7,6 @@ use crossterm::event::KeyCode;
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Tabs};
 
-// ============================================================================
-// Model（画面状態）
-// ============================================================================
-
 /// Errors タブの画面状態
 pub struct Model {
     // エラー一覧は DataStore.last_error から取得
@@ -18,14 +14,14 @@ pub struct Model {
 
 impl Model {
     /// 新しいモデルを作成
+    ///
+    /// # Arguments
+    ///
+    /// * `_data` - Shared data store (currently unused on this tab).
     pub fn new(_data: &DataStore) -> Self {
         Self {}
     }
 }
-
-// ============================================================================
-// Msg（メッセージ）
-// ============================================================================
 
 /// Errors タブへのメッセージ
 pub enum Msg {
@@ -33,24 +29,34 @@ pub enum Msg {
 }
 
 /// キーコードをメッセージに変換
+///
+/// # Arguments
+///
+/// * `_key` - Pressed key code.
 pub fn key_to_msg(_key: KeyCode) -> Option<Msg> {
     None
 }
 
-// ============================================================================
-// update（状態更新）
-// ============================================================================
-
 /// メッセージに応じて状態を更新
+///
+/// # Arguments
+///
+/// * `_model` - Mutable screen state.
+/// * `_msg` - Incoming message.
+/// * `_data` - Shared data store.
 pub fn update(_model: &mut Model, _msg: Msg, _data: &DataStore) {
     // 将来の拡張用
 }
 
-// ============================================================================
-// view（描画）
-// ============================================================================
-
 /// 画面を描画
+///
+/// # Arguments
+///
+/// * `f` - Ratatui frame to render into.
+/// * `_model` - Current screen state.
+/// * `data` - Shared data store providing the last error.
+/// * `filter_text` - Current filter input text.
+/// * `filter_focused` - Whether the filter bar has focus.
 pub fn view(
     f: &mut Frame,
     _model: &Model,
@@ -74,7 +80,6 @@ pub fn view(
         ])
         .split(dialog_area);
 
-    // タブバー
     let tab_titles: Vec<&str> = Tab::all().iter().map(|t| t.title()).collect();
     let tabs = Tabs::new(tab_titles)
         .select(Tab::Errors.index())
@@ -90,7 +95,6 @@ pub fn view(
     // フィルタバー（Errors タブではフィルタ機能は未対応、UI のみ表示）
     render_filter_bar(f, chunks[1], filter_text, filter_focused);
 
-    // エラー表示またはプレースホルダー
     let message = if let Some(error) = &data.last_error {
         format!("\n  {}", error)
     } else {
@@ -102,7 +106,6 @@ pub fn view(
         .style(Style::default().fg(Color::DarkGray));
     f.render_widget(content, chunks[2]);
 
-    // ヘルプ
     let help = Paragraph::new(" Tab: switch | q: quit").style(Style::default().fg(Color::DarkGray));
     f.render_widget(help, chunks[3]);
 }

@@ -21,6 +21,11 @@ pub use intent::PluginIntent;
 pub use manifest::{Author, PluginManifest};
 
 /// cache_key フォールバック: cache_key が None なら name を返す
+///
+/// # Arguments
+///
+/// * `cache_key` - optional cache directory key
+/// * `name` - plugin name used as fallback when `cache_key` is `None`
 pub(crate) fn resolve_cache_key<'a>(cache_key: Option<&'a str>, name: &'a str) -> &'a str {
     cache_key.unwrap_or(name)
 }

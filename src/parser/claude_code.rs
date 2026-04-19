@@ -70,6 +70,10 @@ impl ClaudeCodeCommand {
     /// Parses a Claude Code Command from content string.
     ///
     /// The name field is taken directly from frontmatter (no filename fallback).
+    ///
+    /// # Arguments
+    ///
+    /// * `content` - Raw markdown content including optional YAML frontmatter.
     pub fn parse(content: &str) -> Result<Self> {
         let ParsedDocument { frontmatter, body } =
             parse_frontmatter::<ClaudeCodeCommandFrontmatter>(content)?;
@@ -91,11 +95,14 @@ impl ClaudeCodeCommand {
     /// Loads and parses a Claude Code Command from a file.
     ///
     /// If the frontmatter doesn't specify a name, the filename is used as fallback.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path to the `.claude/commands/<name>.md` file to load.
     pub fn load(path: &Path) -> Result<Self> {
         let content = fs::read_to_string(path)?;
         let mut command = Self::parse(&content)?;
 
-        // Fallback to filename if name is not specified
         if command.name.is_none() {
             command.name = extract_name_from_path(path);
         }
@@ -139,6 +146,10 @@ impl ClaudeCodeCommand {
     /// Converts to the specified target format.
     ///
     /// Returns a boxed trait object implementing `TargetFormat`.
+    ///
+    /// # Arguments
+    ///
+    /// * `target` - Destination format to convert this command into.
     pub fn to_format(&self, target: TargetType) -> Result<Box<dyn TargetFormat>> {
         match target {
             TargetType::Copilot => Ok(Box::new(self.to_copilot())),
@@ -187,6 +198,10 @@ impl ClaudeCodeCommand {
 }
 
 /// Normalizes name: empty or whitespace-only string becomes None.
+///
+/// # Arguments
+///
+/// * `name` - Optional raw name string from frontmatter.
 fn normalize_name(name: Option<String>) -> Option<String> {
     name.map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
 }
@@ -194,6 +209,10 @@ fn normalize_name(name: Option<String>) -> Option<String> {
 /// Extracts command name from file path.
 ///
 /// Removes the `.md` extension from the filename.
+///
+/// # Arguments
+///
+/// * `path` - File path whose stem will be used as the command name.
 fn extract_name_from_path(path: &Path) -> Option<String> {
     path.file_name()
         .and_then(|s| s.to_str())

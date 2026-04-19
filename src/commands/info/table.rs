@@ -6,6 +6,11 @@ use crate::plugin::Author;
 use comfy_table::{presets::UTF8_FULL, Table};
 use std::fmt::Write;
 
+/// Render `PluginInfo` as a human-readable table string.
+///
+/// # Arguments
+///
+/// * `info` - Plugin information to render.
 pub(super) fn render_table(info: &PluginInfo) -> String {
     let mut out = render_basic_info(info);
     if let Some(author) = info.installed.author() {
@@ -17,10 +22,20 @@ pub(super) fn render_table(info: &PluginInfo) -> String {
     out
 }
 
+/// Print `PluginInfo` as a table to stdout.
+///
+/// # Arguments
+///
+/// * `info` - Plugin information to print.
 pub(super) fn print_table(info: &PluginInfo) {
     print!("{}", render_table(info));
 }
 
+/// Format a slice of string items as a comma-separated list, or `"none"` when empty.
+///
+/// # Arguments
+///
+/// * `items` - Items to join.
 pub(super) fn format_list(items: &[&str]) -> String {
     if items.is_empty() {
         "none".to_string()
@@ -29,6 +44,11 @@ pub(super) fn format_list(items: &[&str]) -> String {
     }
 }
 
+/// Render the "Plugin Information" section (name/version/description).
+///
+/// # Arguments
+///
+/// * `info` - Plugin information to render.
 fn render_basic_info(info: &PluginInfo) -> String {
     let mut out = String::new();
     writeln!(out, "Plugin Information").unwrap();
@@ -51,6 +71,11 @@ fn render_basic_info(info: &PluginInfo) -> String {
     out
 }
 
+/// Render the "Author" section.
+///
+/// # Arguments
+///
+/// * `author` - Author information to render.
 fn render_author(author: &Author) -> String {
     let mut out = String::new();
     writeln!(out, "Author").unwrap();
@@ -73,6 +98,11 @@ fn render_author(author: &Author) -> String {
     out
 }
 
+/// Render the "Installation" section (installed-at timestamp and source).
+///
+/// # Arguments
+///
+/// * `info` - Plugin information to render.
 fn render_installation(info: &PluginInfo) -> String {
     let mut out = String::new();
     writeln!(out, "Installation").unwrap();
@@ -98,6 +128,11 @@ fn render_installation(info: &PluginInfo) -> String {
     out
 }
 
+/// Render the "Components" section grouped by `ComponentKind`.
+///
+/// # Arguments
+///
+/// * `info` - Plugin information to render.
 fn render_components(info: &PluginInfo) -> String {
     let mut out = String::new();
     writeln!(out, "Components").unwrap();
@@ -132,6 +167,11 @@ fn render_components(info: &PluginInfo) -> String {
     out
 }
 
+/// Render the "Deployment" section (enabled status and cache path).
+///
+/// # Arguments
+///
+/// * `info` - Plugin information to render.
 fn render_deployment(info: &PluginInfo) -> String {
     let mut out = String::new();
     writeln!(out, "Deployment").unwrap();
