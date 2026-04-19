@@ -131,7 +131,7 @@ pub fn is_retriable_error(e: &PlmError) -> bool {
 
 /// リトライ付きで非同期処理を実行
 ///
-/// 指数バックオフ（1s, 2s, 4s）で最大 `max_retries` 回再試行する。
+/// 指数バックオフ（1s, 2s, 4s, ... = 2^(attempt-1) 秒）で最大 `max_retries` 回再試行する。
 /// 初回 + max_retries 回 = 最大 (max_retries + 1) 回試行。
 ///
 /// # Arguments
