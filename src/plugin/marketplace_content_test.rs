@@ -35,7 +35,7 @@ fn create_test_marketplace_content() -> (TempDir, MarketplaceContent) {
     let temp = TempDir::new().unwrap();
     let cached = CachedPackage {
         name: "test-plugin".to_string(),
-        cache_key: None,
+        id: None,
         marketplace: Some("test-marketplace".to_string()),
         path: temp.path().to_path_buf(),
         manifest: make_manifest("test-plugin"),
@@ -47,11 +47,11 @@ fn create_test_marketplace_content() -> (TempDir, MarketplaceContent) {
     (temp, content)
 }
 
-fn create_test_marketplace_content_with_cache_key(key: &str) -> (TempDir, MarketplaceContent) {
+fn create_test_marketplace_content_with_id(key: &str) -> (TempDir, MarketplaceContent) {
     let temp = TempDir::new().unwrap();
     let cached = CachedPackage {
         name: "test-plugin".to_string(),
-        cache_key: Some(key.to_string()),
+        id: Some(key.to_string()),
         marketplace: Some("test-marketplace".to_string()),
         path: temp.path().to_path_buf(),
         manifest: make_manifest("test-plugin"),
@@ -67,7 +67,7 @@ fn create_test_marketplace_content_no_marketplace() -> (TempDir, MarketplaceCont
     let temp = TempDir::new().unwrap();
     let cached = CachedPackage {
         name: "test-plugin".to_string(),
-        cache_key: None,
+        id: None,
         marketplace: None,
         path: temp.path().to_path_buf(),
         manifest: make_manifest("test-plugin"),
@@ -87,16 +87,16 @@ fn test_name_returns_package_name() {
 }
 
 #[test]
-fn test_cache_key_returns_some_when_present() {
-    let (_temp, pkg) = create_test_marketplace_content_with_cache_key("owner--repo");
-    let key: Option<&str> = pkg.cache_key();
+fn test_id_returns_some_when_present() {
+    let (_temp, pkg) = create_test_marketplace_content_with_id("owner--repo");
+    let key: Option<&str> = pkg.id();
     assert_eq!(key, Some("owner--repo"));
 }
 
 #[test]
-fn test_cache_key_returns_none_when_absent() {
+fn test_id_returns_none_when_absent() {
     let (_temp, pkg) = create_test_marketplace_content();
-    let key: Option<&str> = pkg.cache_key();
+    let key: Option<&str> = pkg.id();
     assert_eq!(key, None);
 }
 
@@ -139,7 +139,7 @@ fn test_marketplace_manifest_returns_some_when_present() {
     };
     let cached = CachedPackage {
         name: "test-plugin".to_string(),
-        cache_key: None,
+        id: None,
         marketplace: Some("test-marketplace".to_string()),
         path: temp.path().to_path_buf(),
         manifest: make_manifest("test-plugin"),
@@ -169,7 +169,7 @@ fn test_marketplace_content_components_from_cached_package() {
 
     let cached = CachedPackage {
         name: "test-plugin".to_string(),
-        cache_key: None,
+        id: None,
         marketplace: Some("test-marketplace".to_string()),
         path: plugin_path.clone(),
         manifest: make_manifest("test-plugin"),

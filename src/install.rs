@@ -22,9 +22,9 @@ impl ScannedPlugin {
         self.package.name()
     }
 
-    /// キャッシュディレクトリ名を返す（`cache_key` が `None` の場合は `name` にフォールバック）
-    pub fn cache_key(&self) -> &str {
-        crate::plugin::resolve_cache_key(self.package.cache_key(), self.package.name())
+    /// キャッシュディレクトリ名を返す（`id` が `None` の場合は `name` にフォールバック）
+    pub fn id(&self) -> &str {
+        crate::plugin::resolve_id(self.package.id(), self.package.name())
     }
 
     /// マーケットプレイス名を取得
@@ -162,10 +162,8 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
     let mut successes = Vec::new();
     let mut failures = Vec::new();
 
-    let origin = PluginOrigin::from_cached_plugin(
-        request.scanned.marketplace(),
-        request.scanned.cache_key(),
-    );
+    let origin =
+        PluginOrigin::from_cached_plugin(request.scanned.marketplace(), request.scanned.id());
 
     for target in request.targets {
         for component in &request.scanned.components {

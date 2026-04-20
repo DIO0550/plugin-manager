@@ -182,7 +182,7 @@ fn disabled_plugin_still_counts_as_installed() {
 }
 
 #[test]
-fn installed_detected_by_install_id_when_name_differs() {
+fn installed_detected_by_id_when_name_differs() {
     let cache = make_cache("test-mp", vec![make_marketplace_plugin("owner--repo")]);
     let plugin = InstalledPlugin::new_for_test(
         "Display Name",

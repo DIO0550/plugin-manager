@@ -9,7 +9,7 @@ use crate::marketplace::{to_display_source, MarketplaceConfig, MarketplaceRegist
 use crate::plugin::PackageCache;
 use std::io;
 
-/// プラグインID（`InstalledPlugin::install_id()` の値で識別。リポジトリ名と異なる場合あり）
+/// プラグインID（`InstalledPlugin::id()` の値で識別。リポジトリ名と異なる場合あり）
 pub type PluginId = String;
 
 /// マーケットプレイスアイテム（TUI表示用）
@@ -65,31 +65,29 @@ impl DataStore {
     ///
     /// # Arguments
     ///
-    /// * `id` - the plugin install id to look up
+    /// * `id` - the plugin id to look up
     pub fn find_plugin(&self, id: &PluginId) -> Option<&InstalledPlugin> {
-        self.plugins.iter().find(|p| p.install_id() == id.as_str())
+        self.plugins.iter().find(|p| p.id() == id.as_str())
     }
 
-    /// `plugin_id` は `InstalledPlugin.install_id()`（= 操作用キー）と完全一致で比較される。
+    /// `plugin_id` は `InstalledPlugin.id()`（= 操作用キー）と完全一致で比較される。
     /// marketplace の区別はしない（既存の `find_plugin` と同じ設計）。
     /// `enabled` の状態に関わらず、`plugins` に存在すれば `true` を返す。
     ///
     /// # Arguments
     ///
-    /// * `plugin_id` - the install id to match exactly against `InstalledPlugin.install_id()`
+    /// * `plugin_id` - the id to match exactly against `InstalledPlugin.id()`
     pub fn is_plugin_installed(&self, plugin_id: &str) -> bool {
-        self.plugins.iter().any(|p| p.install_id() == plugin_id)
+        self.plugins.iter().any(|p| p.id() == plugin_id)
     }
 
     /// プラグインIDでインデックスを検索
     ///
     /// # Arguments
     ///
-    /// * `id` - the plugin install id to look up
+    /// * `id` - the plugin id to look up
     pub fn plugin_index(&self, id: &PluginId) -> Option<usize> {
-        self.plugins
-            .iter()
-            .position(|p| p.install_id() == id.as_str())
+        self.plugins.iter().position(|p| p.id() == id.as_str())
     }
 
     /// プラグインの空でないコンポーネント種別を取得
@@ -118,23 +116,22 @@ impl DataStore {
     ///
     /// # Arguments
     ///
-    /// * `plugin_id` - the install id of the plugin to remove
+    /// * `plugin_id` - the id of the plugin to remove
     pub fn remove_plugin(&mut self, plugin_id: &PluginId) {
-        self.plugins
-            .retain(|p| p.install_id() != plugin_id.as_str());
+        self.plugins.retain(|p| p.id() != plugin_id.as_str());
     }
 
     /// プラグインの有効状態を更新
     ///
     /// # Arguments
     ///
-    /// * `plugin_id` - the install id of the plugin to update
+    /// * `plugin_id` - the id of the plugin to update
     /// * `enabled` - the new enabled state to apply
     pub fn set_plugin_enabled(&mut self, plugin_id: &PluginId, enabled: bool) {
         if let Some(plugin) = self
             .plugins
             .iter_mut()
-            .find(|p| p.install_id() == plugin_id.as_str())
+            .find(|p| p.id() == plugin_id.as_str())
         {
             plugin.set_enabled(enabled);
         }

@@ -416,10 +416,8 @@ pub async fn run(args: Args) -> Result<(), String> {
     }
 
     let project_root = env::current_dir().map_err(|e| e.to_string())?;
-    let origin = PluginOrigin::from_cached_plugin(
-        cached_plugin.marketplace.as_deref(),
-        cached_plugin.cache_key(),
-    );
+    let origin =
+        PluginOrigin::from_cached_plugin(cached_plugin.marketplace.as_deref(), cached_plugin.id());
 
     let ctx = ImportContext {
         origin: &origin,

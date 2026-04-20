@@ -23,10 +23,10 @@ fn make_manifest(name: &str) -> PluginManifest {
 }
 
 #[test]
-fn cache_key_returns_some_value_when_set() {
+fn id_returns_some_value_when_set() {
     let pkg = CachedPackage {
         name: "my-plugin".to_string(),
-        cache_key: Some("owner--repo".to_string()),
+        id: Some("owner--repo".to_string()),
         marketplace: None,
         path: PathBuf::from("/tmp/test"),
         manifest: make_manifest("my-plugin"),
@@ -34,14 +34,14 @@ fn cache_key_returns_some_value_when_set() {
         commit_sha: "abc123".to_string(),
         marketplace_manifest: None,
     };
-    assert_eq!(pkg.cache_key(), "owner--repo");
+    assert_eq!(pkg.id(), "owner--repo");
 }
 
 #[test]
-fn cache_key_falls_back_to_name_when_none() {
+fn id_falls_back_to_name_when_none() {
     let pkg = CachedPackage {
         name: "my-plugin".to_string(),
-        cache_key: None,
+        id: None,
         marketplace: None,
         path: PathBuf::from("/tmp/test"),
         manifest: make_manifest("my-plugin"),
@@ -49,5 +49,5 @@ fn cache_key_falls_back_to_name_when_none() {
         commit_sha: "abc123".to_string(),
         marketplace_manifest: None,
     };
-    assert_eq!(pkg.cache_key(), "my-plugin");
+    assert_eq!(pkg.id(), "my-plugin");
 }

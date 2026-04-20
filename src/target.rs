@@ -95,12 +95,12 @@ impl PluginOrigin {
     /// キャッシュされたプラグイン情報から PluginOrigin を生成する
     ///
     /// `marketplace` が `None` の場合は `"github"` を既定値として使用し、
-    /// `plugin_name` はキャッシュキー（ディレクトリ名）としてそのまま保持する。
+    /// `plugin_name` は id（ディレクトリ名）としてそのまま保持する。
     ///
     /// # Arguments
     ///
     /// * `marketplace` - Optional marketplace name; falls back to `"github"` when `None`.
-    /// * `plugin_name` - Cache key (directory name) used as the plugin identifier.
+    /// * `plugin_name` - id (directory name) used as the plugin identifier.
     pub fn from_cached_plugin(marketplace: Option<&str>, plugin_name: &str) -> Self {
         Self {
             marketplace: marketplace.unwrap_or("github").to_string(),

@@ -1,7 +1,7 @@
 //! インストール済みプラグイン DTO
 //!
 //! `Plugin`（manifest + path + components）を内部に所有し、
-//! 起源情報（marketplace / install_id）とデプロイ状態（enabled）を追加で保持する。
+//! 起源情報（marketplace / id）とデプロイ状態（enabled）を追加で保持する。
 //! serde 属性は持たず、wire format は commands 層が責任を持つ。
 
 use crate::component::{Component, ComponentKind};
@@ -11,7 +11,7 @@ use std::path::Path;
 #[derive(Debug, Clone)]
 pub struct InstalledPlugin {
     plugin: Plugin,
-    install_id: Option<String>,
+    id: Option<String>,
     marketplace: Option<String>,
     enabled: bool,
 }
@@ -22,18 +22,18 @@ impl InstalledPlugin {
     /// # Arguments
     ///
     /// * `plugin` - cached plugin data (manifest, path, components)
-    /// * `install_id` - optional install identifier (falls back to `plugin.name()`)
+    /// * `id` - optional identifier (falls back to `plugin.name()`)
     /// * `marketplace` - optional marketplace name of origin
     /// * `enabled` - whether the plugin is currently deployed
     pub(crate) fn from_cached_package(
         plugin: Plugin,
-        install_id: Option<String>,
+        id: Option<String>,
         marketplace: Option<String>,
         enabled: bool,
     ) -> Self {
         Self {
             plugin,
-            install_id,
+            id,
             marketplace,
             enabled,
         }
@@ -73,9 +73,9 @@ impl InstalledPlugin {
         self.enabled = enabled;
     }
 
-    /// インストール識別子（`install_id` が `None` の場合は `name` にフォールバック）
-    pub fn install_id(&self) -> &str {
-        crate::plugin::resolve_cache_key(self.install_id.as_deref(), self.plugin.name())
+    /// プラグインID（`id` が `None` の場合は `name` にフォールバック）
+    pub fn id(&self) -> &str {
+        crate::plugin::resolve_id(self.id.as_deref(), self.plugin.name())
     }
 
     /// コンポーネント種別ごとの件数を取得（空でないもののみ）
@@ -128,7 +128,7 @@ impl InstalledPlugin {
         name: &str,
         version: &str,
         components: Vec<Component>,
-        install_id: Option<String>,
+        id: Option<String>,
         marketplace: Option<String>,
         enabled: bool,
     ) -> Self {
@@ -155,7 +155,7 @@ impl InstalledPlugin {
         let plugin = Plugin::new_for_test(manifest, PathBuf::from("/test"), components);
         Self {
             plugin,
-            install_id,
+            id,
             marketplace,
             enabled,
         }
@@ -168,14 +168,14 @@ impl InstalledPlugin {
         manifest: crate::plugin::PluginManifest,
         cache_path: std::path::PathBuf,
         components: Vec<Component>,
-        install_id: Option<String>,
+        id: Option<String>,
         marketplace: Option<String>,
         enabled: bool,
     ) -> Self {
         let plugin = Plugin::new_for_test(manifest, cache_path, components);
         Self {
             plugin,
-            install_id,
+            id,
             marketplace,
             enabled,
         }

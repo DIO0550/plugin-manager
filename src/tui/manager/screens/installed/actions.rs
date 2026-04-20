@@ -38,7 +38,7 @@ fn new_cache() -> Result<PackageCache, String> {
 ///
 /// # Arguments
 ///
-/// * `plugin_name` - Target plugin install id.
+/// * `plugin_name` - Target plugin id.
 /// * `marketplace` - Optional marketplace name the plugin belongs to.
 pub fn disable_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionResult {
     let cache = match new_cache() {
@@ -53,7 +53,7 @@ pub fn disable_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionRes
 ///
 /// # Arguments
 ///
-/// * `plugin_name` - Target plugin install id.
+/// * `plugin_name` - Target plugin id.
 /// * `marketplace` - Optional marketplace name the plugin belongs to.
 pub fn uninstall_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionResult {
     let cache = match new_cache() {
@@ -68,7 +68,7 @@ pub fn uninstall_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionR
 ///
 /// # Arguments
 ///
-/// * `plugin_name` - Target plugin install id.
+/// * `plugin_name` - Target plugin id.
 /// * `marketplace` - Optional marketplace name the plugin belongs to.
 pub fn enable_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionResult {
     let cache = match new_cache() {
@@ -86,7 +86,7 @@ pub fn enable_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionResu
 ///
 /// # Arguments
 ///
-/// * `plugin_names` - Plugin install ids to update in order.
+/// * `plugin_names` - Plugin ids to update in order.
 pub fn batch_update_plugins(plugin_names: &[String]) -> Vec<(String, UpdateStatusDisplay)> {
     let project_root = env::current_dir().unwrap_or_else(|_| ".".into());
 
@@ -108,7 +108,7 @@ pub fn batch_update_plugins(plugin_names: &[String]) -> Vec<(String, UpdateStatu
 ///
 /// # Arguments
 ///
-/// * `plugin_name` - Target plugin install id.
+/// * `plugin_name` - Target plugin id.
 /// * `project_root` - Project root directory used for deployment paths.
 fn run_update_plugin(plugin_name: &str, project_root: &Path) -> UpdateStatusDisplay {
     let handle = match tokio::runtime::Handle::try_current() {

@@ -34,7 +34,7 @@ impl PluginDeployment {
 ///
 /// * `cache` - package cache access used to read the manifest and path
 /// * `marketplace` - marketplace name (`None` defaults to `"github"`)
-/// * `plugin_name` - cache key / install id (cache directory name; e.g. `owner--repo` for GitHub)
+/// * `plugin_name` - id (cache directory name; e.g. `owner--repo` for GitHub)
 pub(crate) fn load_plugin_deployment(
     cache: &dyn PackageCacheAccess,
     marketplace: Option<&str>,

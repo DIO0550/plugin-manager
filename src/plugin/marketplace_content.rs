@@ -18,7 +18,7 @@ use super::plugin_content::Plugin;
 #[derive(Debug, Clone)]
 pub struct MarketplaceContent {
     /// キャッシュディレクトリ名（ファイル操作用、CachedPackage から伝搬）
-    pub(crate) cache_key: Option<String>,
+    pub(crate) id: Option<String>,
     pub(crate) marketplace: Option<String>,
     pub(crate) marketplace_manifest: Option<MarketplaceManifest>,
     /// 代表プラグイン（型レベルで非空を保証）
@@ -33,9 +33,9 @@ impl MarketplaceContent {
         self.primary.name()
     }
 
-    /// キャッシュキーを取得
-    pub fn cache_key(&self) -> Option<&str> {
-        self.cache_key.as_deref()
+    /// id を取得
+    pub fn id(&self) -> Option<&str> {
+        self.id.as_deref()
     }
 
     /// マーケットプレイス名を取得
@@ -117,7 +117,7 @@ impl From<CachedPackage> for MarketplaceContent {
     fn from(cached: CachedPackage) -> Self {
         let primary = Plugin::new(cached.manifest, cached.path);
         Self {
-            cache_key: cached.cache_key,
+            id: cached.id,
             marketplace: cached.marketplace,
             marketplace_manifest: cached.marketplace_manifest,
             primary,
@@ -130,7 +130,7 @@ impl From<&CachedPackage> for MarketplaceContent {
     fn from(cached: &CachedPackage) -> Self {
         let primary = Plugin::new(cached.manifest.clone(), cached.path.clone());
         Self {
-            cache_key: cached.cache_key.clone(),
+            id: cached.id.clone(),
             marketplace: cached.marketplace.clone(),
             marketplace_manifest: cached.marketplace_manifest.clone(),
             primary,

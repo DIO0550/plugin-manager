@@ -20,14 +20,14 @@ pub const UNKNOWN_GIT_VALUE: &str = "unknown";
 /// ドメインロジックは `MarketplaceContent` に委譲。
 ///
 /// **`name` フィールド**: 表示用のプラグイン名（`manifest.name`）。
-/// **`cache_key` フィールド**: ファイル操作用のキャッシュディレクトリ名。
-/// `cache_key` が `None` の場合は `name` にフォールバックする。
+/// **`id` フィールド**: ファイル操作用のキャッシュディレクトリ名。
+/// `id` が `None` の場合は `name` にフォールバックする。
 #[derive(Debug, Clone)]
 pub struct CachedPackage {
     pub name: String,
     /// キャッシュディレクトリ名（ファイル操作用）
     /// `None` の場合は `name` にフォールバック
-    pub cache_key: Option<String>,
+    pub id: Option<String>,
     /// マーケットプレイス名（marketplace経由の場合）
     /// None の場合は直接GitHubからインストール
     pub marketplace: Option<String>,
@@ -40,9 +40,9 @@ pub struct CachedPackage {
 }
 
 impl CachedPackage {
-    /// キャッシュディレクトリ名を返す（`cache_key` が `None` の場合は `name` にフォールバック）
-    pub fn cache_key(&self) -> &str {
-        super::resolve_cache_key(self.cache_key.as_deref(), &self.name)
+    /// キャッシュディレクトリ名を返す（`id` が `None` の場合は `name` にフォールバック）
+    pub fn id(&self) -> &str {
+        super::resolve_id(self.id.as_deref(), &self.name)
     }
 
     /// プラグインのバージョンを取得

@@ -47,9 +47,9 @@ pub(super) async fn run_outdated(
     let plugin_metas: Vec<(String, PluginMeta)> = plugins
         .iter()
         .map(|plugin| {
-            let plugin_path = cache.plugin_path(plugin.marketplace(), plugin.install_id());
+            let plugin_path = cache.plugin_path(plugin.marketplace(), plugin.id());
             let plugin_meta = meta::load_meta(&plugin_path).unwrap_or_default();
-            (plugin.install_id().to_string(), plugin_meta)
+            (plugin.id().to_string(), plugin_meta)
         })
         .collect();
 

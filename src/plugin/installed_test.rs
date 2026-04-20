@@ -37,11 +37,11 @@ fn create_full_summary() -> InstalledPlugin {
 }
 
 // ========================================
-// install_id tests
+// id tests
 // ========================================
 
 #[test]
-fn test_installed_plugin_install_id_returns_some_value() {
+fn test_installed_plugin_id_returns_some_value() {
     let summary = InstalledPlugin::new_for_test(
         "test-plugin",
         "1.0.0",
@@ -50,13 +50,13 @@ fn test_installed_plugin_install_id_returns_some_value() {
         None,
         true,
     );
-    assert_eq!(summary.install_id(), "owner--repo");
+    assert_eq!(summary.id(), "owner--repo");
 }
 
 #[test]
-fn test_installed_plugin_install_id_falls_back_to_name() {
+fn test_installed_plugin_id_falls_back_to_name() {
     let summary = create_empty_summary();
-    assert_eq!(summary.install_id(), "test-plugin");
+    assert_eq!(summary.id(), "test-plugin");
 }
 
 // ========================================
