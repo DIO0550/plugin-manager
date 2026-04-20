@@ -225,9 +225,12 @@ fn get_browse_plugins_with_registry(
 ///
 /// # Note
 ///
-/// `installed` 判定は `InstalledPlugin::id()`（キャッシュディレクトリ名、
-/// GitHub 経由では `repo.name`）と `MarketplacePlugin.name`（marketplace.json
-/// 登録名）が一致することを前提とする。両者が乖離する marketplace 定義では
+/// `installed` 判定は `InstalledPlugin::id()`（キャッシュディレクトリ名）と
+/// `MarketplacePlugin.name`（marketplace.json 登録名）が一致することを前提とする。
+/// GitHub ソースでは marketplace 経由のプラグインは登録名と同じ ID になる一方、
+/// 直接 GitHub から入れたプラグインは `owner--repo` 形式の別 ID になる。
+/// そのため marketplace の登録名が `owner--repo` と乖離するケースや、
+/// 同名プラグインを直接 GitHub からインストールしたケースでは、
 /// インストール済みでも `installed=false` となり得る。
 fn build_browse_plugins(
     cache: &MarketplaceCache,
