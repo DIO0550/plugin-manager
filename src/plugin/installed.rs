@@ -73,7 +73,7 @@ impl InstalledPlugin {
         self.enabled = enabled;
     }
 
-    /// インストール識別子（`id` が `None` の場合は `name` にフォールバック）
+    /// プラグインID（`id` が `None` の場合は `name` にフォールバック）
     pub fn id(&self) -> &str {
         crate::plugin::resolve_id(self.id.as_deref(), self.plugin.name())
     }
