@@ -205,17 +205,17 @@ fn execute_batch_with(
         state,
     } = model
     {
-        // update_statuses から Updating のプラグイン名を収集
+        // update_statuses から Updating のプラグイン ID を収集
         // O(n) の HashSet で存在チェックし、find_plugin の線形探索 O(n^2) を回避
-        let existing_names: HashSet<&str> = data.plugins.iter().map(|p| p.id()).collect();
-        let plugin_names: Vec<String> = update_statuses
+        let existing_ids: HashSet<&str> = data.plugins.iter().map(|p| p.id()).collect();
+        let plugin_ids: Vec<String> = update_statuses
             .iter()
             .filter(|(_, status)| matches!(status, UpdateStatusDisplay::Updating))
-            .map(|(name, _)| name.clone())
-            .filter(|name| existing_names.contains(name.as_str()))
+            .map(|(id, _)| id.clone())
+            .filter(|id| existing_ids.contains(id.as_str()))
             .collect();
 
-        let results = run_updates(&plugin_names);
+        let results = run_updates(&plugin_ids);
 
         let mut new_statuses = HashMap::new();
         let mut batch_errors: Vec<String> = Vec::new();
