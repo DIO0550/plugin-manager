@@ -222,6 +222,13 @@ fn get_browse_plugins_with_registry(
 ///
 /// * `cache` - Marketplace cache snapshot to convert.
 /// * `installed_plugins` - Currently installed plugins used to flag `installed`.
+///
+/// # Note
+///
+/// `installed` 判定は `InstalledPlugin::id()`（キャッシュディレクトリ名、
+/// GitHub 経由では `repo.name`）と `MarketplacePlugin.name`（marketplace.json
+/// 登録名）が一致することを前提とする。両者が乖離する marketplace 定義では
+/// インストール済みでも `installed=false` となり得る。
 fn build_browse_plugins(
     cache: &MarketplaceCache,
     installed_plugins: &[InstalledPlugin],
