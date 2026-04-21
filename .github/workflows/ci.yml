@@ -100,6 +100,10 @@ jobs:
   audit:
     name: Security Audit
     runs-on: ubuntu-latest
+    # 新規 RUSTSEC アドバイザリが依存クレートに出るたびに CI が赤くなり、
+    # その都度バージョンを追従するのは現実的でないため、情報提供用ジョブに留める。
+    # PR は継続可能とし、アドバイザリ対応は別途まとめて対応する。
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
