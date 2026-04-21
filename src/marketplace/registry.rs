@@ -263,8 +263,12 @@ impl MarketplaceRegistry {
     /// * `client` - HTTP クライアント。`HostClientFactory::create()` などで生成された実装を渡す。
     /// * `name` - 登録するマーケットプレイス名（`MarketplaceCache.name` に設定される）。
     /// * `repo` - 取得元リポジトリ。`source = "github:{repo_owner}/{repo_name}"` に反映される。
-    /// * `source_path` - 正規化済みのサブディレクトリパス（`normalize_source_path` の結果）。
+    /// * `source_path` - サブディレクトリパス。`Some(dir)` の場合は、互換性のため
+    ///   正規化の有無にかかわらず入力値をそのまま
+    ///   `"{dir}/.claude-plugin/marketplace.json"` として結合して参照する
+    ///   （例: `Some("")` → `"/.claude-plugin/..."`、`Some("subdir/")` → `"subdir//.claude-plugin/..."`）。
     ///   `None` のときはリポジトリ直下の `.claude-plugin/marketplace.json` を参照する。
+    ///   通常は `normalize_source_path` の結果を渡す。
     pub async fn fetch_cache(
         &self,
         client: &dyn HostClient,
