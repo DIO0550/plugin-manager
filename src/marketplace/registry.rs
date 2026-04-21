@@ -70,7 +70,7 @@ pub struct MarketplaceCache {
 impl MarketplaceCache {
     /// MarketplaceManifest とメタ情報から MarketplaceCache を構築する。
     ///
-    /// - `source` は `"github:{owner}/{name}"` 形式で構築
+    /// - `source` は `"github:{repo_owner}/{repo_name}"` 形式で構築（`repo` 引数の owner / name を使用）
     /// - `fetched_at` は現在時刻（`Utc::now()`）
     /// - `original_manifest` は `None`（呼び出し元で必要なら後から付ける）
     ///
@@ -262,7 +262,7 @@ impl MarketplaceRegistry {
     ///
     /// * `client` - HTTP クライアント。`HostClientFactory::create()` などで生成された実装を渡す。
     /// * `name` - 登録するマーケットプレイス名（`MarketplaceCache.name` に設定される）。
-    /// * `repo` - 取得元リポジトリ。`source = "github:{owner}/{name}"` に反映される。
+    /// * `repo` - 取得元リポジトリ。`source = "github:{repo_owner}/{repo_name}"` に反映される。
     /// * `source_path` - 正規化済みのサブディレクトリパス（`normalize_source_path` の結果）。
     ///   `None` のときはリポジトリ直下の `.claude-plugin/marketplace.json` を参照する。
     pub async fn fetch_cache(
