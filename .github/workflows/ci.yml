@@ -100,10 +100,6 @@ jobs:
   audit:
     name: Security Audit
     runs-on: ubuntu-latest
-    # 新規 RUSTSEC アドバイザリが依存クレートに出るたびに CI が赤くなり、
-    # その都度バージョンを追従するのは現実的でないため、情報提供用ジョブに留める。
-    # PR は継続可能とし、アドバイザリ対応は別途まとめて対応する。
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
@@ -112,4 +108,8 @@ jobs:
           curl -L https://github.com/EmbarkStudios/cargo-deny/releases/download/0.18.9/cargo-deny-0.18.9-x86_64-unknown-linux-musl.tar.gz | tar xzf -
           mv cargo-deny-0.18.9-x86_64-unknown-linux-musl/cargo-deny ~/.cargo/bin/
 
-      - run: cargo deny check
+      # 新規 RUSTSEC アドバイザリが依存クレートに出るたびに CI が赤くなり、
+      # その都度バージョンを追従するのは現実的でないため、情報提供用ステップに留める。
+      # ログで結果は確認できるが、終了ステータスはチェックの conclusion に反映させない。
+      - name: cargo deny check (informational)
+        run: cargo deny check || true
