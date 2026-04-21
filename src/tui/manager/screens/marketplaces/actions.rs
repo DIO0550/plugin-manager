@@ -5,11 +5,11 @@
 use super::model::{BrowsePlugin, InstallSummary, PluginInstallResult};
 use crate::application::InstalledPlugin;
 use crate::component::Scope;
+use crate::host::HostClientFactory;
 use crate::install::{self, PlaceRequest};
 use crate::marketplace::{
     download_marketplace_plugin_with_cache, to_display_source, to_internal_source,
-    MarketplaceCache, MarketplaceConfig, MarketplaceFetcher, MarketplaceRegistration,
-    MarketplaceRegistry,
+    MarketplaceCache, MarketplaceConfig, MarketplaceRegistration, MarketplaceRegistry,
 };
 use crate::plugin::{PackageCache, PackageCacheAccess};
 use crate::repo;
@@ -55,16 +55,17 @@ pub fn add_marketplace(
 
     config.add(entry)?;
 
-    let fetcher = MarketplaceFetcher::new();
+    let factory = HostClientFactory::with_defaults();
+    let client = factory.create(repo.host());
+    let registry = MarketplaceRegistry::new().map_err(|e| e.to_string())?;
     let cache = tokio::task::block_in_place(|| {
-        handle.block_on(fetcher.fetch_as_cache(&repo, name, source_path))
+        handle.block_on(registry.fetch_cache(&*client, name, &repo, source_path))
     })
     .map_err(|e| e.to_string())?;
 
     // config.save() を先に実行し、失敗時に孤立キャッシュが残らないようにする
     config.save()?;
 
-    let registry = MarketplaceRegistry::new().map_err(|e| e.to_string())?;
     registry.store(&cache).map_err(|e| e.to_string())?;
 
     Ok(AddResult {
@@ -124,13 +125,19 @@ fn update_marketplace_registration(
 
     let display_source = to_display_source(&entry.source);
     let repo = repo::from_url(&display_source).map_err(|e| e.to_string())?;
-    let fetcher = MarketplaceFetcher::new();
+    let factory = HostClientFactory::with_defaults();
+    let client = factory.create(repo.host());
+    let registry = MarketplaceRegistry::new().map_err(|e| e.to_string())?;
     let cache = tokio::task::block_in_place(|| {
-        handle.block_on(fetcher.fetch_as_cache(&repo, &entry.name, entry.source_path.as_deref()))
+        handle.block_on(registry.fetch_cache(
+            &*client,
+            &entry.name,
+            &repo,
+            entry.source_path.as_deref(),
+        ))
     })
     .map_err(|e| e.to_string())?;
 
-    let registry = MarketplaceRegistry::new().map_err(|e| e.to_string())?;
     registry.store(&cache).map_err(|e| e.to_string())?;
 
     Ok(MarketplaceItem {

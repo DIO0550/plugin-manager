@@ -1,8 +1,12 @@
 use crate::error::{PlmError, Result};
+use crate::host::HostClient;
+use crate::repo::Repo;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+
+const MARKETPLACE_MANIFEST_FILE: &str = ".claude-plugin/marketplace.json";
 
 /// マーケットプレイスオーナー情報
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -61,6 +65,30 @@ pub struct MarketplaceCache {
     /// 元の marketplace.json マニフェスト（旧キャッシュ互換のため読込のみ許可）
     #[serde(default, skip_serializing)]
     pub original_manifest: Option<MarketplaceManifest>,
+}
+
+impl MarketplaceCache {
+    /// MarketplaceManifest とメタ情報から MarketplaceCache を構築する。
+    ///
+    /// - `source` は `"github:{repo_owner}/{repo_name}"` 形式で構築（`repo` 引数の owner / name を使用）
+    /// - `fetched_at` は現在時刻（`Utc::now()`）
+    /// - `original_manifest` は `None`（呼び出し元で必要なら後から付ける）
+    ///
+    /// # Arguments
+    ///
+    /// * `manifest` - Source manifest to convert (consumes `owner` / `plugins`).
+    /// * `name` - Marketplace name assigned to the resulting cache entry.
+    /// * `repo` - Source repository used to compose the `source` field.
+    pub fn from_manifest(manifest: MarketplaceManifest, name: &str, repo: &Repo) -> Self {
+        Self {
+            name: name.to_string(),
+            fetched_at: Utc::now(),
+            source: format!("github:{}/{}", repo.owner(), repo.name()),
+            owner: manifest.owner,
+            plugins: manifest.plugins,
+            original_manifest: None,
+        }
+    }
 }
 
 /// マーケットプレイスレジストリ
@@ -224,6 +252,42 @@ impl MarketplaceRegistry {
     pub fn has_conflict(&self, plugin_name: &str) -> Result<bool> {
         Ok(self.find_plugins(plugin_name)?.len() > 1)
     }
+
+    /// リモートリポジトリから marketplace.json を取得し、
+    /// MarketplaceCache に変換して返す。永続化（store）はしない。
+    ///
+    /// 呼び出し元が必要なタイミングで `self.store(&cache)` を呼ぶ。
+    ///
+    /// # Arguments
+    ///
+    /// * `client` - HTTP クライアント。`HostClientFactory::create()` などで生成された実装を渡す。
+    /// * `name` - 登録するマーケットプレイス名（`MarketplaceCache.name` に設定される）。
+    /// * `repo` - 取得元リポジトリ。`source = "github:{repo_owner}/{repo_name}"` に反映される。
+    /// * `source_path` - サブディレクトリパス。`Some(dir)` の場合は、互換性のため
+    ///   正規化の有無にかかわらず入力値をそのまま
+    ///   `"{dir}/.claude-plugin/marketplace.json"` として結合して参照する
+    ///   （例: `Some("")` → `"/.claude-plugin/..."`、`Some("subdir/")` → `"subdir//.claude-plugin/..."`）。
+    ///   `None` のときはリポジトリ直下の `.claude-plugin/marketplace.json` を参照する。
+    ///   通常は `normalize_source_path` の結果を渡す。
+    pub async fn fetch_cache(
+        &self,
+        client: &dyn HostClient,
+        name: &str,
+        repo: &Repo,
+        source_path: Option<&str>,
+    ) -> Result<MarketplaceCache> {
+        let path = match source_path {
+            Some(dir) => format!("{}/{}", dir, MARKETPLACE_MANIFEST_FILE),
+            None => MARKETPLACE_MANIFEST_FILE.to_string(),
+        };
+
+        let content = client.fetch_file(repo, &path).await?;
+        let manifest: MarketplaceManifest = serde_json::from_str(&content).map_err(|e| {
+            PlmError::InvalidManifest(format!("Failed to parse marketplace.json: {}", e))
+        })?;
+
+        Ok(MarketplaceCache::from_manifest(manifest, name, repo))
+    }
 }
 
 impl Default for MarketplaceRegistry {
@@ -231,3 +295,7 @@ impl Default for MarketplaceRegistry {
         Self::new().expect("Failed to initialize marketplace registry")
     }
 }
+
+#[cfg(test)]
+#[path = "registry_test.rs"]
+mod tests;

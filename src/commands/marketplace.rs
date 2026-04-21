@@ -1,6 +1,7 @@
+use crate::host::HostClientFactory;
 use crate::marketplace::{
     normalize_name, normalize_source_path, to_display_source, MarketplaceConfig,
-    MarketplaceFetcher, MarketplaceRegistration, MarketplaceRegistry,
+    MarketplaceRegistration, MarketplaceRegistry,
 };
 use crate::repo;
 use clap::{Parser, Subcommand};
@@ -145,9 +146,16 @@ async fn run_add(source: String, name: Option<String>, path: Option<String>) -> 
         "Fetching marketplace.json from {}...",
         parsed_repo.full_name()
     );
-    let fetcher = MarketplaceFetcher::new();
-    let cache = fetcher
-        .fetch_as_cache(&parsed_repo, &normalized_name, source_path.as_deref())
+    let factory = HostClientFactory::with_defaults();
+    let client = factory.create(parsed_repo.host());
+    let registry = MarketplaceRegistry::new().map_err(|e| e.to_string())?;
+    let cache = registry
+        .fetch_cache(
+            &*client,
+            &normalized_name,
+            &parsed_repo,
+            source_path.as_deref(),
+        )
         .await
         .map_err(|e| e.to_string())?;
 
@@ -161,7 +169,6 @@ async fn run_add(source: String, name: Option<String>, path: Option<String>) -> 
     config.add(entry)?;
     config.save()?;
 
-    let registry = MarketplaceRegistry::new().map_err(|e| e.to_string())?;
     registry.store(&cache).map_err(|e| e.to_string())?;
 
     println!(
@@ -198,7 +205,7 @@ async fn run_remove(name: String) -> Result<(), String> {
 async fn run_update(name: Option<String>) -> Result<(), String> {
     let config = MarketplaceConfig::load()?;
     let registry = MarketplaceRegistry::new().map_err(|e| e.to_string())?;
-    let fetcher = MarketplaceFetcher::new();
+    let factory = HostClientFactory::with_defaults();
 
     let entries: Vec<_> = match &name {
         Some(n) => {
@@ -229,8 +236,9 @@ async fn run_update(name: Option<String>) -> Result<(), String> {
             }
         };
 
-        match fetcher
-            .fetch_as_cache(&repo, &entry.name, entry.source_path.as_deref())
+        let client = factory.create(repo.host());
+        match registry
+            .fetch_cache(&*client, &entry.name, &repo, entry.source_path.as_deref())
             .await
         {
             Ok(cache) => {
