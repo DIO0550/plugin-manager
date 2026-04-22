@@ -1,13 +1,16 @@
 //! Gemini CLI ターゲット実装
 
-use crate::component::{ComponentKind, Scope};
 use crate::component::{
-    ComponentRef, PlacementContext, PlacementLocation, PlacementScope, ProjectContext,
+    ComponentIdentity, ComponentKind, PlacementContext, PlacementLocation, Scope,
 };
 use crate::error::Result;
+use crate::target::paths::base_dir;
+use crate::target::placed_common;
 use crate::target::scanner::{scan_components, ScannedComponent};
-use crate::target::{PluginOrigin, Target, TargetKind};
+use crate::target::{Target, TargetKind};
 use std::path::{Path, PathBuf};
+
+const GEMINI_SUBDIR: &str = ".gemini";
 
 /// Gemini CLI ターゲット
 pub struct GeminiCliTarget;
@@ -17,12 +20,6 @@ impl GeminiCliTarget {
         Self
     }
 
-    fn home_dir() -> PathBuf {
-        std::env::var("HOME")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| PathBuf::from("~"))
-    }
-
     /// スコープに応じたベースディレクトリを取得
     ///
     /// # Arguments
@@ -30,10 +27,7 @@ impl GeminiCliTarget {
     /// * `scope` - Scope (`Personal` or `Project`) that selects the base directory.
     /// * `project_root` - Project root directory used for project scope.
     fn base_dir(scope: Scope, project_root: &Path) -> PathBuf {
-        match scope {
-            Scope::Personal => Self::home_dir().join(".gemini"),
-            Scope::Project => project_root.join(".gemini"),
-        }
+        base_dir(scope, project_root, GEMINI_SUBDIR, GEMINI_SUBDIR)
     }
 
     /// この組み合わせで配置できるか（Skill + Instruction のみサポート）
@@ -56,10 +50,7 @@ impl GeminiCliTarget {
             ComponentKind::Skill if c.is_dir => {
                 let skill_md = c.path.join("SKILL.md");
                 if skill_md.exists() {
-                    Some(format!(
-                        "{}/{}/{}",
-                        c.origin.marketplace, c.origin.plugin, c.name
-                    ))
+                    Some(ComponentIdentity::new(kind, c.name.as_str()).qualified_name(&c.origin))
                 } else {
                     None
                 }
@@ -130,19 +121,12 @@ impl Target for GeminiCliTarget {
         }
 
         if kind == ComponentKind::Instruction {
-            let dummy_origin = PluginOrigin::from_marketplace("", "");
-            let ctx = PlacementContext {
-                component: ComponentRef::new(kind, ""),
-                origin: &dummy_origin,
-                scope: PlacementScope(scope),
-                project: ProjectContext::new(project_root),
-            };
-            let location = self.placement_location(&ctx).unwrap();
-            return if location.as_path().exists() {
-                Ok(vec!["GEMINI.md".to_string()])
-            } else {
-                Ok(vec![])
-            };
+            return Ok(placed_common::list_instruction(
+                self,
+                scope,
+                project_root,
+                "GEMINI.md",
+            ));
         }
 
         let base = Self::base_dir(scope, project_root);

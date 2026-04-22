@@ -1,10 +1,17 @@
 //! Google Antigravity ターゲット実装
 
-use crate::component::{ComponentKind, PlacementContext, PlacementLocation, Scope};
+use crate::component::{
+    ComponentIdentity, ComponentKind, PlacementContext, PlacementLocation, Scope,
+};
 use crate::error::Result;
+use crate::target::paths::home_dir;
 use crate::target::scanner::{scan_components, ScannedComponent};
 use crate::target::{Target, TargetKind};
 use std::path::{Path, PathBuf};
+
+const ANTIGRAVITY_PERSONAL_PARENT: &str = ".gemini";
+const ANTIGRAVITY_PERSONAL_CHILD: &str = "antigravity";
+const ANTIGRAVITY_PROJECT_SUBDIR: &str = ".agent";
 
 /// Google Antigravity ターゲット
 pub struct AntigravityTarget;
@@ -12,12 +19,6 @@ pub struct AntigravityTarget;
 impl AntigravityTarget {
     pub fn new() -> Self {
         Self
-    }
-
-    fn home_dir() -> PathBuf {
-        std::env::var("HOME")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| PathBuf::from("~"))
     }
 
     /// スコープに応じたベースディレクトリを取得
@@ -28,8 +29,10 @@ impl AntigravityTarget {
     /// * `project_root` - Project root directory used for project scope.
     fn base_dir(scope: Scope, project_root: &Path) -> PathBuf {
         match scope {
-            Scope::Personal => Self::home_dir().join(".gemini").join("antigravity"),
-            Scope::Project => project_root.join(".agent"),
+            Scope::Personal => home_dir()
+                .join(ANTIGRAVITY_PERSONAL_PARENT)
+                .join(ANTIGRAVITY_PERSONAL_CHILD),
+            Scope::Project => project_root.join(ANTIGRAVITY_PROJECT_SUBDIR),
         }
     }
 
@@ -53,10 +56,7 @@ impl AntigravityTarget {
             ComponentKind::Skill if c.is_dir => {
                 let skill_md = c.path.join("SKILL.md");
                 if skill_md.exists() {
-                    Some(format!(
-                        "{}/{}/{}",
-                        c.origin.marketplace, c.origin.plugin, c.name
-                    ))
+                    Some(ComponentIdentity::new(kind, c.name.as_str()).qualified_name(&c.origin))
                 } else {
                     None
                 }

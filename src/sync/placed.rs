@@ -1,33 +1,8 @@
 //! 配置済みコンポーネントの定義
 
-use crate::component::{ComponentKind, Scope};
+use crate::component::{ComponentIdentity, ComponentKind, Scope};
 use crate::error::{PlmError, Result};
 use std::path::{Path, PathBuf};
-
-/// コンポーネントを一意に識別するキー
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ComponentIdentity {
-    pub kind: ComponentKind,
-    pub name: String,
-    pub scope: Scope,
-}
-
-impl ComponentIdentity {
-    /// Create a new `ComponentIdentity`.
-    ///
-    /// # Arguments
-    ///
-    /// * `kind` - Component kind identified.
-    /// * `name` - Fully-qualified component name.
-    /// * `scope` - Placement scope of the component.
-    pub fn new(kind: ComponentKind, name: impl Into<String>, scope: Scope) -> Self {
-        Self {
-            kind,
-            name: name.into(),
-            scope,
-        }
-    }
-}
 
 /// ターゲット上に配置されているコンポーネント
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -52,7 +27,7 @@ impl PlacedComponent {
         path: impl Into<PathBuf>,
     ) -> Self {
         Self {
-            identity: ComponentIdentity::new(kind, name, scope),
+            identity: ComponentIdentity::new(kind, name).with_scope(scope),
             path: path.into(),
         }
     }
@@ -74,7 +49,9 @@ impl PlacedComponent {
 
     /// scope を取得
     pub fn scope(&self) -> Scope {
-        self.identity.scope
+        self.identity
+            .scope
+            .expect("PlacedComponent identity must carry a scope")
     }
 
     /// パスが project_root 配下かを検証

@@ -1,10 +1,11 @@
 use super::*;
+use crate::component::ComponentIdentity;
 
 #[test]
 fn test_component_identity_eq() {
-    let id1 = ComponentIdentity::new(ComponentKind::Skill, "test", Scope::Personal);
-    let id2 = ComponentIdentity::new(ComponentKind::Skill, "test", Scope::Personal);
-    let id3 = ComponentIdentity::new(ComponentKind::Skill, "test", Scope::Project);
+    let id1 = ComponentIdentity::new(ComponentKind::Skill, "test").with_scope(Scope::Personal);
+    let id2 = ComponentIdentity::new(ComponentKind::Skill, "test").with_scope(Scope::Personal);
+    let id3 = ComponentIdentity::new(ComponentKind::Skill, "test").with_scope(Scope::Project);
 
     assert_eq!(id1, id2);
     assert_ne!(id1, id3);

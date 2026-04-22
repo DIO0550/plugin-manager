@@ -1,7 +1,7 @@
 //! AntigravityTarget unit tests
 
 use super::*;
-use crate::component::{ComponentRef, PlacementScope, ProjectContext};
+use crate::component::{ComponentIdentity, PlacementScope, ProjectContext};
 use crate::target::PluginOrigin;
 use std::path::Path;
 use tempfile::TempDir;
@@ -75,9 +75,9 @@ fn test_antigravity_placement_location_skill_personal() {
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
+        component: ComponentIdentity::new(ComponentKind::Skill, "my-skill"),
         origin: &origin,
-        scope: PlacementScope(Scope::Personal),
+        scope: PlacementScope::new(Scope::Personal),
         project: ProjectContext::new(project_root),
     };
     let location = target.placement_location(&ctx).unwrap();
@@ -99,9 +99,9 @@ fn test_antigravity_placement_location_skill_project() {
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
+        component: ComponentIdentity::new(ComponentKind::Skill, "my-skill"),
         origin: &origin,
-        scope: PlacementScope(Scope::Project),
+        scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
     };
     let location = target.placement_location(&ctx).unwrap();
@@ -121,9 +121,9 @@ fn test_antigravity_placement_location_agent_returns_none() {
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Agent, "my-agent"),
+        component: ComponentIdentity::new(ComponentKind::Agent, "my-agent"),
         origin: &origin,
-        scope: PlacementScope(Scope::Project),
+        scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
     };
     assert!(target.placement_location(&ctx).is_none());
@@ -136,9 +136,9 @@ fn test_antigravity_placement_with_hierarchy() {
     let origin = PluginOrigin::from_github("owner", "repo");
 
     let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
+        component: ComponentIdentity::new(ComponentKind::Skill, "my-skill"),
         origin: &origin,
-        scope: PlacementScope(Scope::Project),
+        scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
     };
     let location = target.placement_location(&ctx).unwrap();

@@ -1,10 +1,12 @@
 //! 同期先の定義
 
 use super::options::{SyncOptions, SyncableKind};
-use super::placed::{ComponentIdentity, PlacedComponent};
+use super::placed::PlacedComponent;
 use super::source::parse_component_name;
-use crate::component::{CommandFormat, ComponentKind, Scope};
-use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
+use crate::component::{
+    CommandFormat, ComponentIdentity, ComponentKind, PlacementContext, PlacementScope,
+    ProjectContext, Scope,
+};
 use crate::error::{PlmError, Result};
 use crate::target::{parse_target, Target, TargetKind};
 use std::collections::HashSet;
@@ -84,7 +86,7 @@ impl SyncDestination {
                 let placed = self.target.list_placed(kind, *scope, &self.project_root)?;
 
                 for name in placed {
-                    let identity = ComponentIdentity::new(kind, name.clone(), *scope);
+                    let identity = ComponentIdentity::new(kind, name.clone()).with_scope(*scope);
 
                     if !seen_identities.insert(identity.clone()) {
                         return Err(PlmError::InvalidArgument(format!(
@@ -117,8 +119,10 @@ impl SyncDestination {
     ///
     /// * `identity` - Component identity whose kind and scope support is checked.
     pub fn supports(&self, identity: &ComponentIdentity) -> bool {
-        self.target.supports(identity.kind)
-            && self.target.supports_scope(identity.kind, identity.scope)
+        let Some(scope) = identity.scope else {
+            return false;
+        };
+        self.target.supports(identity.kind) && self.target.supports_scope(identity.kind, scope)
     }
 
     /// 対象の SyncableKind リストを取得
@@ -156,9 +160,9 @@ impl SyncDestination {
         let (origin, component_name) = parse_component_name(name)?;
 
         let ctx = PlacementContext {
-            component: ComponentRef::new(kind, component_name),
+            component: ComponentIdentity::new(kind, component_name),
             origin: &origin,
-            scope: PlacementScope(scope),
+            scope: PlacementScope::new(scope),
             project: ProjectContext::new(&self.project_root),
         };
 

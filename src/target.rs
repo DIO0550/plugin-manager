@@ -6,14 +6,14 @@
 //! ## 使い方
 //!
 //! ```ignore
-//! use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
+//! use crate::component::{ComponentIdentity, PlacementContext, PlacementScope, ProjectContext};
 //!
 //! let target = parse_target("codex")?;
 //! let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 //! let ctx = PlacementContext {
-//!     component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
+//!     component: ComponentIdentity::new(ComponentKind::Skill, "my-skill"),
 //!     origin: &origin,
-//!     scope: PlacementScope(Scope::Project),
+//!     scope: PlacementScope::new(Scope::Project),
 //!     project: ProjectContext::new(&project_root),
 //! };
 //! let location = target.placement_location(&ctx);
@@ -25,7 +25,9 @@ mod copilot;
 mod effect;
 mod gemini_cli;
 mod id;
+pub(crate) mod paths;
 mod placed;
+pub(crate) mod placed_common;
 mod registry;
 pub mod scanner;
 
@@ -45,7 +47,7 @@ use crate::component::{AgentFormat, CommandFormat, ComponentKind};
 // componentモジュールから再エクスポート
 pub use crate::component::Scope;
 use crate::component::{
-    ComponentRef, PlacementContext, PlacementLocation, PlacementScope, ProjectContext,
+    ComponentIdentity, PlacementContext, PlacementLocation, PlacementScope, ProjectContext,
 };
 use crate::error::{PlmError, Result};
 use crate::fs::{FileSystem, RealFs};
@@ -202,9 +204,9 @@ pub trait Target: Send + Sync {
     fn supports_scope(&self, kind: ComponentKind, scope: Scope) -> bool {
         let dummy_origin = PluginOrigin::from_marketplace("test", "test");
         let ctx = PlacementContext {
-            component: ComponentRef::new(kind, "test"),
+            component: ComponentIdentity::new(kind, "test"),
             origin: &dummy_origin,
-            scope: PlacementScope(scope),
+            scope: PlacementScope::new(scope),
             project: ProjectContext::new(Path::new(".")),
         };
         self.placement_location(&ctx).is_some()

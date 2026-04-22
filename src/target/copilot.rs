@@ -1,13 +1,17 @@
 //! GitHub Copilot ターゲット実装
 
-use crate::component::{ComponentKind, Scope};
 use crate::component::{
-    ComponentRef, PlacementContext, PlacementLocation, PlacementScope, ProjectContext,
+    ComponentIdentity, ComponentKind, PlacementContext, PlacementLocation, Scope,
 };
 use crate::error::Result;
+use crate::target::paths::base_dir;
+use crate::target::placed_common;
 use crate::target::scanner::{scan_components, ScannedComponent};
-use crate::target::{PluginOrigin, Target, TargetKind};
+use crate::target::{Target, TargetKind};
 use std::path::{Path, PathBuf};
+
+const COPILOT_PERSONAL_SUBDIR: &str = ".copilot";
+const COPILOT_PROJECT_SUBDIR: &str = ".github";
 
 /// GitHub Copilot ターゲット
 pub struct CopilotTarget;
@@ -17,12 +21,6 @@ impl CopilotTarget {
         Self
     }
 
-    fn home_dir() -> PathBuf {
-        std::env::var("HOME")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| PathBuf::from("~"))
-    }
-
     /// スコープに応じたベースディレクトリを取得
     ///
     /// # Arguments
@@ -30,10 +28,12 @@ impl CopilotTarget {
     /// * `scope` - Scope (`Personal` or `Project`) that selects the base directory.
     /// * `project_root` - Project root directory used for project scope.
     fn base_dir(scope: Scope, project_root: &Path) -> PathBuf {
-        match scope {
-            Scope::Personal => Self::home_dir().join(".copilot"),
-            Scope::Project => project_root.join(".github"),
-        }
+        base_dir(
+            scope,
+            project_root,
+            COPILOT_PERSONAL_SUBDIR,
+            COPILOT_PROJECT_SUBDIR,
+        )
     }
 
     /// この組み合わせで配置できるか
@@ -56,29 +56,18 @@ impl CopilotTarget {
     /// * `c` - Scanned component entry.
     /// * `kind` - Component kind expected for the entry.
     fn filter_component(c: &ScannedComponent, kind: ComponentKind) -> Option<String> {
-        let qualified = format!("{}/{}/{}", c.origin.marketplace, c.origin.plugin, c.name);
+        let make_qualified =
+            |name: &str| ComponentIdentity::new(kind, name).qualified_name(&c.origin);
         match kind {
-            ComponentKind::Skill if c.is_dir => Some(qualified),
+            ComponentKind::Skill if c.is_dir => Some(make_qualified(&c.name)),
             ComponentKind::Agent if !c.is_dir && c.name.ends_with(".agent.md") => {
-                let name = c.name.trim_end_matches(".agent.md");
-                Some(format!(
-                    "{}/{}/{}",
-                    c.origin.marketplace, c.origin.plugin, name
-                ))
+                Some(make_qualified(c.name.trim_end_matches(".agent.md")))
             }
             ComponentKind::Command if !c.is_dir && c.name.ends_with(".prompt.md") => {
-                let name = c.name.trim_end_matches(".prompt.md");
-                Some(format!(
-                    "{}/{}/{}",
-                    c.origin.marketplace, c.origin.plugin, name
-                ))
+                Some(make_qualified(c.name.trim_end_matches(".prompt.md")))
             }
             ComponentKind::Hook if !c.is_dir && c.name.ends_with(".json") => {
-                let name = c.name.trim_end_matches(".json");
-                Some(format!(
-                    "{}/{}/{}",
-                    c.origin.marketplace, c.origin.plugin, name
-                ))
+                Some(make_qualified(c.name.trim_end_matches(".json")))
             }
             _ => None,
         }
@@ -171,19 +160,12 @@ impl Target for CopilotTarget {
         }
 
         if kind == ComponentKind::Instruction {
-            let dummy_origin = PluginOrigin::from_marketplace("", "");
-            let ctx = PlacementContext {
-                component: ComponentRef::new(kind, ""),
-                origin: &dummy_origin,
-                scope: PlacementScope(scope),
-                project: ProjectContext::new(project_root),
-            };
-            let location = self.placement_location(&ctx).unwrap();
-            return if location.as_path().exists() {
-                Ok(vec!["copilot-instructions.md".to_string()])
-            } else {
-                Ok(vec![])
-            };
+            return Ok(placed_common::list_instruction(
+                self,
+                scope,
+                project_root,
+                "copilot-instructions.md",
+            ));
         }
 
         let base = Self::base_dir(scope, project_root);

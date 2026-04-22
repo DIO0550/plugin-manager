@@ -28,11 +28,12 @@ mod placed;
 mod result;
 mod source;
 
+pub use crate::component::ComponentIdentity;
 pub use crate::fs::{FileSystem, RealFs};
 pub use action::SyncAction;
 pub use destination::SyncDestination;
 pub use options::{SyncOptions, SyncableKind};
-pub use placed::{ComponentIdentity, PlacedComponent};
+pub use placed::PlacedComponent;
 pub use result::{SyncFailure, SyncResult};
 pub use source::SyncSource;
 

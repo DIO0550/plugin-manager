@@ -9,7 +9,7 @@ pub use super::action::PluginAction;
 #[cfg(not(test))]
 use super::action::PluginAction;
 use crate::component::{
-    Component, ComponentKind, ComponentRef, FileOperation, PlacementContext, PlacementScope,
+    Component, ComponentIdentity, ComponentKind, FileOperation, PlacementContext, PlacementScope,
     ProjectContext, Scope, ScopedPath,
 };
 use crate::fs::{FileSystem, RealFs};
@@ -166,9 +166,9 @@ impl PluginIntent {
         origin: &PluginOrigin,
     ) -> CreateOperationResult {
         let context = PlacementContext {
-            component: ComponentRef::new(component.kind, &component.name),
+            component: ComponentIdentity::new(component.kind, &component.name),
             origin,
-            scope: PlacementScope(Scope::Project),
+            scope: PlacementScope::new(Scope::Project),
             project: ProjectContext::new(&self.project_root),
         };
 

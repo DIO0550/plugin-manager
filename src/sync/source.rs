@@ -1,9 +1,11 @@
 //! 同期元の定義
 
 use super::options::{SyncOptions, SyncableKind};
-use super::placed::{ComponentIdentity, PlacedComponent};
-use crate::component::{CommandFormat, ComponentKind, Scope};
-use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
+use super::placed::PlacedComponent;
+use crate::component::{
+    CommandFormat, ComponentIdentity, ComponentKind, PlacementContext, PlacementScope,
+    ProjectContext, Scope,
+};
 use crate::error::{PlmError, Result};
 use crate::target::{parse_target, PluginOrigin, Target, TargetKind};
 use std::collections::HashSet;
@@ -83,7 +85,7 @@ impl SyncSource {
                 let placed = self.target.list_placed(kind, *scope, &self.project_root)?;
 
                 for name in placed {
-                    let identity = ComponentIdentity::new(kind, name.clone(), *scope);
+                    let identity = ComponentIdentity::new(kind, name.clone()).with_scope(*scope);
 
                     if !seen_identities.insert(identity.clone()) {
                         return Err(PlmError::InvalidArgument(format!(
@@ -145,9 +147,9 @@ impl SyncSource {
         let (origin, component_name) = parse_component_name(name)?;
 
         let ctx = PlacementContext {
-            component: ComponentRef::new(kind, component_name),
+            component: ComponentIdentity::new(kind, component_name),
             origin: &origin,
-            scope: PlacementScope(scope),
+            scope: PlacementScope::new(scope),
             project: ProjectContext::new(&self.project_root),
         };
 
