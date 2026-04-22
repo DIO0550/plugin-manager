@@ -41,7 +41,7 @@ use tempfile::NamedTempFile;
 
 /// ターゲット設定
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TargetsConfig {
+pub(crate) struct TargetsConfig {
     pub targets: Vec<TargetKind>,
 }
 
@@ -59,7 +59,7 @@ impl Default for TargetsConfig {
 
 impl TargetsConfig {
     /// 正規化（重複排除 + ソート）
-    pub fn normalize(&mut self) {
+    pub(crate) fn normalize(&mut self) {
         self.targets.sort();
         self.targets.dedup();
     }
@@ -125,7 +125,7 @@ impl TargetRegistry {
     }
 
     /// 設定を読み込み（Idle → Loaded）
-    pub fn load(&mut self) -> Result<&TargetsConfig> {
+    pub(crate) fn load(&mut self) -> Result<&TargetsConfig> {
         let mut config = match fs::read_to_string(&self.config_path) {
             Ok(content) => serde_json::from_str(&content).map_err(|e| {
                 PlmError::TargetRegistry(format!("Failed to parse targets.json: {}", e))
