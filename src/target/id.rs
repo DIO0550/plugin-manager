@@ -19,18 +19,6 @@ impl TargetId {
     }
 }
 
-impl From<&str> for TargetId {
-    fn from(s: &str) -> Self {
-        Self::new(s)
-    }
-}
-
-impl std::fmt::Display for TargetId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
 #[cfg(test)]
 #[path = "id_test.rs"]
 mod tests;

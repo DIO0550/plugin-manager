@@ -20,15 +20,6 @@ impl SyncAction {
             SyncAction::Delete => "Delete",
         }
     }
-
-    /// アイコンを取得
-    pub fn icon(&self) -> &'static str {
-        match self {
-            SyncAction::Create => "+",
-            SyncAction::Update => "~",
-            SyncAction::Delete => "-",
-        }
-    }
 }
 
 #[cfg(test)]

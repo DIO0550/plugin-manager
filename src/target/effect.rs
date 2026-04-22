@@ -119,11 +119,6 @@ impl AffectedTargets {
         !self.errors.is_empty()
     }
 
-    /// エラー一覧
-    pub fn errors(&self) -> &[TargetError] {
-        &self.errors
-    }
-
     /// エラーメッセージを結合
     fn error_message(&self) -> Option<String> {
         if self.errors.is_empty() {
