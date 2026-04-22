@@ -1,45 +1,26 @@
-//! プラグインデプロイメント支援
+//! プラグインのロードとディレクトリクリーンアップ
 //!
-//! デプロイ操作に必要な PluginDeployment DTO と、
-//! キャッシュ読み込み・ディレクトリクリーンアップのヘルパー関数。
+//! キャッシュからのマニフェスト読み込み (`load_plugin`) と、
+//! アンインストール後の空ディレクトリ整理 (`cleanup_plugin_directories`) を提供する。
 
-use crate::component::Component;
 use crate::fs::{FileSystem, RealFs};
-use crate::plugin::{PackageCacheAccess, Plugin, PluginManifest};
-use crate::target::PluginOrigin;
+use crate::plugin::{PackageCacheAccess, Plugin};
+use crate::target::paths::home_dir;
+use crate::target::{PluginOrigin, TargetKind};
 use std::path::{Path, PathBuf};
 
-/// デプロイ用プラグイン情報（Application層DTO）
-///
-/// デプロイ操作に必要な origin, manifest, path を保持。
-pub struct PluginDeployment {
-    pub origin: PluginOrigin,
-    pub manifest: PluginManifest,
-    pub path: PathBuf,
-}
-
-impl PluginDeployment {
-    /// プラグイン内のコンポーネントを取得
-    pub fn components(&self) -> Vec<Component> {
-        let plugin = Plugin::new(self.manifest.clone(), self.path.clone());
-        plugin.components().to_vec()
-    }
-}
-
-/// キャッシュから PluginDeployment を読み込む
-///
-/// マニフェストとパス情報を含む PluginDeployment を構築する。
+/// キャッシュから Plugin を読み込む
 ///
 /// # Arguments
 ///
 /// * `cache` - package cache access used to read the manifest and path
 /// * `marketplace` - marketplace name (`None` defaults to `"github"`)
 /// * `plugin_name` - id (cache directory name; e.g. `owner--repo` for GitHub)
-pub(crate) fn load_plugin_deployment(
+pub(crate) fn load_plugin(
     cache: &dyn PackageCacheAccess,
     marketplace: Option<&str>,
     plugin_name: &str,
-) -> Result<PluginDeployment, String> {
+) -> Result<Plugin, String> {
     let manifest = cache
         .load_manifest(marketplace, plugin_name)
         .map_err(|e| format!("Failed to load manifest: {}", e))?;
@@ -51,11 +32,7 @@ pub(crate) fn load_plugin_deployment(
 
     let plugin_path = cache.plugin_path(marketplace, plugin_name);
 
-    Ok(PluginDeployment {
-        origin,
-        manifest,
-        path: plugin_path,
-    })
+    Ok(Plugin::new(manifest, plugin_path, origin))
 }
 
 /// プラグインディレクトリをクリーンアップ
@@ -64,62 +41,94 @@ pub(crate) fn load_plugin_deployment(
 ///
 /// # Arguments
 ///
-/// * `target_name` - target environment identifier (e.g. `"codex"`, `"copilot"`)
+/// * `kind` - target environment kind determining directory layout
 /// * `origin` - plugin origin providing marketplace and plugin segments
-/// * `project_root` - project root under which deploy directories live
+/// * `project_root` - project root under which project-scope deploy directories live
 pub(crate) fn cleanup_plugin_directories(
-    target_name: &str,
+    kind: TargetKind,
     origin: &PluginOrigin,
     project_root: &Path,
 ) {
     let fs = RealFs;
+    let home = home_dir();
+    cleanup_plugin_directories_impl(&fs, kind, &home, origin, project_root);
+}
 
-    let dirs_to_check: Vec<(&str, &str)> = match target_name {
-        "codex" => vec![("agents", ".codex"), ("skills", ".codex")],
-        "copilot" => vec![
-            ("agents", ".github"),
-            ("prompts", ".github"),
-            ("skills", ".github"),
+/// 内部実装 — `home` と `fs` を注入可能にし、テストから直接呼ぶ。
+pub(crate) fn cleanup_plugin_directories_impl(
+    fs: &dyn FileSystem,
+    kind: TargetKind,
+    home: &Path,
+    origin: &PluginOrigin,
+    project_root: &Path,
+) {
+    for (base, kind_subdir) in cleanup_specs(kind, home, project_root) {
+        cleanup_one(fs, &base, kind_subdir, origin);
+    }
+}
+
+/// TargetKind ごとに (base_dir, kind_subdir) のリストを返す。
+///
+/// base_dir は Personal / Project それぞれのディレクトリ、
+/// kind_subdir は `"agents"` / `"skills"` / `"prompts"` / `"hooks"` などの
+/// コンポーネント種別配下ディレクトリ名。
+fn cleanup_specs(
+    kind: TargetKind,
+    home: &Path,
+    project_root: &Path,
+) -> Vec<(PathBuf, &'static str)> {
+    match kind {
+        TargetKind::Codex => vec![
+            (home.join(".codex"), "agents"),
+            (home.join(".codex"), "skills"),
+            (project_root.join(".codex"), "agents"),
+            (project_root.join(".codex"), "skills"),
         ],
-        _ => vec![],
-    };
+        TargetKind::Copilot => vec![
+            (home.join(".copilot"), "agents"),
+            (home.join(".copilot"), "prompts"),
+            (home.join(".copilot"), "skills"),
+            (home.join(".copilot"), "hooks"),
+            (project_root.join(".github"), "agents"),
+            (project_root.join(".github"), "prompts"),
+            (project_root.join(".github"), "skills"),
+            (project_root.join(".github"), "hooks"),
+        ],
+        TargetKind::Antigravity => vec![
+            (home.join(".gemini").join("antigravity"), "skills"),
+            (project_root.join(".agent"), "skills"),
+        ],
+        TargetKind::GeminiCli => vec![
+            (home.join(".gemini"), "skills"),
+            (project_root.join(".gemini"), "skills"),
+        ],
+    }
+}
 
-    for (kind_dir, base_dir) in dirs_to_check {
-        let plugin_dir = project_root
-            .join(base_dir)
-            .join(kind_dir)
-            .join(&origin.marketplace)
-            .join(&origin.plugin);
+fn cleanup_one(fs: &dyn FileSystem, base: &Path, kind_subdir: &str, origin: &PluginOrigin) {
+    let plugin_dir = base
+        .join(kind_subdir)
+        .join(&origin.marketplace)
+        .join(&origin.plugin);
+    remove_if_empty(fs, &plugin_dir);
 
-        if fs.is_dir(&plugin_dir) {
-            if let Ok(entries) = fs.read_dir(&plugin_dir) {
-                if entries.is_empty() {
-                    let _ = fs.remove_dir_all(&plugin_dir);
-                }
-            }
-        }
+    let marketplace_dir = base.join(kind_subdir).join(&origin.marketplace);
+    remove_if_empty(fs, &marketplace_dir);
 
-        let marketplace_dir = project_root
-            .join(base_dir)
-            .join(kind_dir)
-            .join(&origin.marketplace);
+    let kind_root = base.join(kind_subdir);
+    remove_if_empty(fs, &kind_root);
+}
 
-        if fs.is_dir(&marketplace_dir) {
-            if let Ok(entries) = fs.read_dir(&marketplace_dir) {
-                if entries.is_empty() {
-                    let _ = fs.remove_dir_all(&marketplace_dir);
-                }
-            }
-        }
-
-        let kind_dir_path = project_root.join(base_dir).join(kind_dir);
-
-        if fs.is_dir(&kind_dir_path) {
-            if let Ok(entries) = fs.read_dir(&kind_dir_path) {
-                if entries.is_empty() {
-                    let _ = fs.remove_dir_all(&kind_dir_path);
-                }
+fn remove_if_empty(fs: &dyn FileSystem, path: &Path) {
+    if fs.is_dir(path) {
+        if let Ok(entries) = fs.read_dir(path) {
+            if entries.is_empty() {
+                let _ = fs.remove_dir_all(path);
             }
         }
     }
 }
+
+#[cfg(test)]
+#[path = "loader_test.rs"]
+mod tests;
