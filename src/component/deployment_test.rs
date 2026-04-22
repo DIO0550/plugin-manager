@@ -3,7 +3,6 @@ use crate::component::CommandFormat;
 use crate::hooks::converter::ConversionWarning;
 use crate::hooks::name::HookName;
 use crate::target::TargetKind;
-use std::collections::BTreeMap;
 use std::fs;
 use tempfile::TempDir;
 
@@ -14,10 +13,12 @@ use tempfile::TempDir;
 #[test]
 fn test_builder_builds_with_all_fields() {
     let deployment = ComponentDeployment::builder()
-        .kind(ComponentKind::Agent)
-        .name("test-agent")
+        .component(&Component {
+            kind: ComponentKind::Agent,
+            name: "test-agent".to_string(),
+            path: ("/src/agent.md").into(),
+        })
         .scope(Scope::Project)
-        .source_path("/src/agent.md")
         .target_path("/dest/agent.md")
         .build()
         .unwrap();
@@ -25,7 +26,6 @@ fn test_builder_builds_with_all_fields() {
     assert_eq!(deployment.kind, ComponentKind::Agent);
     assert_eq!(deployment.name, "test-agent");
     assert_eq!(deployment.scope, Scope::Project);
-    assert_eq!(deployment.source_path(), Path::new("/src/agent.md"));
     assert_eq!(deployment.path(), Path::new("/dest/agent.md"));
 }
 
@@ -34,7 +34,6 @@ fn test_builder_fails_without_kind() {
     let result = ComponentDeployment::builder()
         .name("test")
         .scope(Scope::Personal)
-        .source_path("/src")
         .target_path("/dest")
         .build();
 
@@ -46,7 +45,6 @@ fn test_builder_fails_without_name() {
     let result = ComponentDeployment::builder()
         .kind(ComponentKind::Skill)
         .scope(Scope::Personal)
-        .source_path("/src")
         .target_path("/dest")
         .build();
 
@@ -58,7 +56,6 @@ fn test_builder_fails_without_scope() {
     let result = ComponentDeployment::builder()
         .kind(ComponentKind::Skill)
         .name("test")
-        .source_path("/src")
         .target_path("/dest")
         .build();
 
@@ -80,10 +77,12 @@ fn test_builder_fails_without_source_path() {
 #[test]
 fn test_builder_fails_without_target_path() {
     let result = ComponentDeployment::builder()
-        .kind(ComponentKind::Skill)
-        .name("test")
+        .component(&Component {
+            kind: ComponentKind::Skill,
+            name: "test".to_string(),
+            path: ("/src").into(),
+        })
         .scope(Scope::Personal)
-        .source_path("/src")
         .build();
 
     assert!(result.is_err());
@@ -106,10 +105,7 @@ fn test_builder_from_component() {
 
     assert_eq!(deployment.kind, ComponentKind::Command);
     assert_eq!(deployment.name, "my-command");
-    assert_eq!(
-        deployment.source_path(),
-        Path::new("/plugin/commands/my-command.md")
-    );
+    assert_eq!(deployment.path(), Path::new("/target/my-command.md"));
 }
 
 // ========================================
@@ -125,10 +121,12 @@ fn test_execute_copies_file_for_agent() {
     fs::write(&source, "agent content").unwrap();
 
     let deployment = ComponentDeployment::builder()
-        .kind(ComponentKind::Agent)
-        .name("test-agent")
+        .component(&Component {
+            kind: ComponentKind::Agent,
+            name: "test-agent".to_string(),
+            path: (&source).into(),
+        })
         .scope(Scope::Project)
-        .source_path(&source)
         .target_path(&target)
         .build()
         .unwrap();
@@ -148,10 +146,12 @@ fn test_execute_copies_file_for_command() {
     fs::write(&source, "command content").unwrap();
 
     let deployment = ComponentDeployment::builder()
-        .kind(ComponentKind::Command)
-        .name("test-cmd")
+        .component(&Component {
+            kind: ComponentKind::Command,
+            name: "test-cmd".to_string(),
+            path: (&source).into(),
+        })
         .scope(Scope::Project)
-        .source_path(&source)
         .target_path(&target)
         .build()
         .unwrap();
@@ -170,10 +170,12 @@ fn test_execute_copies_file_for_instruction() {
     fs::write(&source, "instruction content").unwrap();
 
     let deployment = ComponentDeployment::builder()
-        .kind(ComponentKind::Instruction)
-        .name("test-instruction")
+        .component(&Component {
+            kind: ComponentKind::Instruction,
+            name: "test-instruction".to_string(),
+            path: (&source).into(),
+        })
         .scope(Scope::Personal)
-        .source_path(&source)
         .target_path(&target)
         .build()
         .unwrap();
@@ -192,10 +194,12 @@ fn test_execute_copies_file_for_hook() {
     fs::write(&source, "#!/bin/bash").unwrap();
 
     let deployment = ComponentDeployment::builder()
-        .kind(ComponentKind::Hook)
-        .name("test-hook")
+        .component(&Component {
+            kind: ComponentKind::Hook,
+            name: "test-hook".to_string(),
+            path: (&source).into(),
+        })
         .scope(Scope::Personal)
-        .source_path(&source)
         .target_path(&target)
         .build()
         .unwrap();
@@ -216,10 +220,12 @@ fn test_execute_copies_directory_for_skill() {
     fs::write(source.join("helper.py"), "print('hello')").unwrap();
 
     let deployment = ComponentDeployment::builder()
-        .kind(ComponentKind::Skill)
-        .name("my-skill")
+        .component(&Component {
+            kind: ComponentKind::Skill,
+            name: "my-skill".to_string(),
+            path: (&source).into(),
+        })
         .scope(Scope::Project)
-        .source_path(&source)
         .target_path(&target)
         .build()
         .unwrap();
@@ -247,10 +253,12 @@ fn test_execute_skill_replaces_existing_directory() {
     fs::write(target.join("old.md"), "old").unwrap();
 
     let deployment = ComponentDeployment::builder()
-        .kind(ComponentKind::Skill)
-        .name("skill")
+        .component(&Component {
+            kind: ComponentKind::Skill,
+            name: "skill".to_string(),
+            path: (&source).into(),
+        })
         .scope(Scope::Project)
-        .source_path(&source)
         .target_path(&target)
         .build()
         .unwrap();
@@ -268,29 +276,17 @@ fn test_execute_skill_replaces_existing_directory() {
 #[test]
 fn test_path_returns_target_path() {
     let deployment = ComponentDeployment::builder()
-        .kind(ComponentKind::Agent)
-        .name("test")
+        .component(&Component {
+            kind: ComponentKind::Agent,
+            name: "test".to_string(),
+            path: ("/src/test.md").into(),
+        })
         .scope(Scope::Project)
-        .source_path("/src/test.md")
         .target_path("/dest/test.md")
         .build()
         .unwrap();
 
     assert_eq!(deployment.path(), Path::new("/dest/test.md"));
-}
-
-#[test]
-fn test_source_path_returns_source() {
-    let deployment = ComponentDeployment::builder()
-        .kind(ComponentKind::Agent)
-        .name("test")
-        .scope(Scope::Project)
-        .source_path("/src/test.md")
-        .target_path("/dest/test.md")
-        .build()
-        .unwrap();
-
-    assert_eq!(deployment.source_path(), Path::new("/src/test.md"));
 }
 
 // ========================================
@@ -319,10 +315,12 @@ fn test_execute_command_with_conversion() {
     fs::write(&source, sample_claude_code_content()).unwrap();
 
     let deployment = ComponentDeployment::builder()
-        .kind(ComponentKind::Command)
-        .name("commit")
+        .component(&Component {
+            kind: ComponentKind::Command,
+            name: "commit".to_string(),
+            path: (&source).into(),
+        })
         .scope(Scope::Project)
-        .source_path(&source)
         .target_path(&target)
         .source_format(CommandFormat::ClaudeCode)
         .dest_format(CommandFormat::Copilot)
@@ -333,7 +331,7 @@ fn test_execute_command_with_conversion() {
 
     // 変換が行われたことを確認
     match result {
-        DeploymentResult::Converted(conv) => {
+        DeploymentResult::CommandConverted(conv) => {
             assert!(conv.converted);
             assert_eq!(conv.source_format, CommandFormat::ClaudeCode);
             assert_eq!(conv.dest_format, CommandFormat::Copilot);
@@ -356,10 +354,12 @@ fn test_execute_command_same_format_copies() {
     fs::write(&source, sample_claude_code_content()).unwrap();
 
     let deployment = ComponentDeployment::builder()
-        .kind(ComponentKind::Command)
-        .name("commit")
+        .component(&Component {
+            kind: ComponentKind::Command,
+            name: "commit".to_string(),
+            path: (&source).into(),
+        })
         .scope(Scope::Project)
-        .source_path(&source)
         .target_path(&target)
         .source_format(CommandFormat::ClaudeCode)
         .dest_format(CommandFormat::ClaudeCode)
@@ -370,7 +370,7 @@ fn test_execute_command_same_format_copies() {
 
     // コピーのみ（変換なし）
     match result {
-        DeploymentResult::Converted(conv) => {
+        DeploymentResult::CommandConverted(conv) => {
             assert!(!conv.converted); // converted = false means copy
         }
         _ => panic!("Expected Converted with converted=false"),
@@ -393,10 +393,12 @@ fn test_execute_command_without_format_copies() {
 
     // source_format と dest_format を設定しない
     let deployment = ComponentDeployment::builder()
-        .kind(ComponentKind::Command)
-        .name("commit")
+        .component(&Component {
+            kind: ComponentKind::Command,
+            name: "commit".to_string(),
+            path: (&source).into(),
+        })
         .scope(Scope::Project)
-        .source_path(&source)
         .target_path(&target)
         .build()
         .unwrap();
@@ -415,10 +417,12 @@ fn test_execute_command_without_format_copies() {
 #[test]
 fn test_builder_source_format() {
     let deployment = ComponentDeployment::builder()
-        .kind(ComponentKind::Command)
-        .name("test")
+        .component(&Component {
+            kind: ComponentKind::Command,
+            name: "test".to_string(),
+            path: ("/src/test.md").into(),
+        })
         .scope(Scope::Project)
-        .source_path("/src/test.md")
         .target_path("/dest/test.md")
         .source_format(CommandFormat::ClaudeCode)
         .dest_format(CommandFormat::Copilot)
@@ -455,10 +459,12 @@ fn test_execute_agent_with_conversion_to_copilot() {
     fs::write(&source, sample_claude_code_agent_content()).unwrap();
 
     let deployment = ComponentDeployment::builder()
-        .kind(ComponentKind::Agent)
-        .name("code-review")
+        .component(&Component {
+            kind: ComponentKind::Agent,
+            name: "code-review".to_string(),
+            path: (&source).into(),
+        })
         .scope(Scope::Project)
-        .source_path(&source)
         .target_path(&target)
         .source_agent_format(AgentFormat::ClaudeCode)
         .dest_agent_format(AgentFormat::Copilot)
@@ -494,10 +500,12 @@ fn test_execute_agent_with_conversion_to_codex() {
     fs::write(&source, sample_claude_code_agent_content()).unwrap();
 
     let deployment = ComponentDeployment::builder()
-        .kind(ComponentKind::Agent)
-        .name("code-review")
+        .component(&Component {
+            kind: ComponentKind::Agent,
+            name: "code-review".to_string(),
+            path: (&source).into(),
+        })
         .scope(Scope::Project)
-        .source_path(&source)
         .target_path(&target)
         .source_agent_format(AgentFormat::ClaudeCode)
         .dest_agent_format(AgentFormat::Codex)
@@ -533,10 +541,12 @@ fn test_execute_agent_same_format_copies() {
     fs::write(&source, sample_claude_code_agent_content()).unwrap();
 
     let deployment = ComponentDeployment::builder()
-        .kind(ComponentKind::Agent)
-        .name("code-review")
+        .component(&Component {
+            kind: ComponentKind::Agent,
+            name: "code-review".to_string(),
+            path: (&source).into(),
+        })
         .scope(Scope::Project)
-        .source_path(&source)
         .target_path(&target)
         .source_agent_format(AgentFormat::ClaudeCode)
         .dest_agent_format(AgentFormat::ClaudeCode)
@@ -570,10 +580,12 @@ fn test_execute_agent_without_format_copies() {
 
     // source_agent_format と dest_agent_format を設定しない
     let deployment = ComponentDeployment::builder()
-        .kind(ComponentKind::Agent)
-        .name("agent")
+        .component(&Component {
+            kind: ComponentKind::Agent,
+            name: "agent".to_string(),
+            path: (&source).into(),
+        })
         .scope(Scope::Project)
-        .source_path(&source)
         .target_path(&target)
         .build()
         .unwrap();
@@ -593,10 +605,12 @@ fn test_execute_agent_without_format_copies() {
 #[test]
 fn test_builder_agent_format() {
     let deployment = ComponentDeployment::builder()
-        .kind(ComponentKind::Agent)
-        .name("test")
+        .component(&Component {
+            kind: ComponentKind::Agent,
+            name: "test".to_string(),
+            path: ("/src/test.md").into(),
+        })
         .scope(Scope::Project)
-        .source_path("/src/test.md")
         .target_path("/dest/test.md")
         .source_agent_format(AgentFormat::ClaudeCode)
         .dest_agent_format(AgentFormat::Copilot)
@@ -616,7 +630,6 @@ fn test_hook_convert_result_has_expected_fields() {
     let result = HookConvertResult {
         warnings: vec![ConversionWarning::MissingVersion],
         script_count: 2,
-        summary: None,
     };
 
     assert_eq!(result.warnings.len(), 1);
@@ -628,7 +641,6 @@ fn test_deployment_result_hook_converted_variant() {
     let hook_result = HookConvertResult {
         warnings: vec![],
         script_count: 0,
-        summary: None,
     };
     let result = DeploymentResult::HookConverted(hook_result);
 
@@ -648,10 +660,12 @@ fn test_deployment_result_hook_converted_variant() {
 #[test]
 fn test_builder_hook_convert() {
     let deployment = ComponentDeployment::builder()
-        .kind(ComponentKind::Hook)
-        .name("test-hook")
+        .component(&Component {
+            kind: ComponentKind::Hook,
+            name: "test-hook".to_string(),
+            path: ("/src/hook.json").into(),
+        })
         .scope(Scope::Project)
-        .source_path("/src/hook.json")
         .target_path("/dest/hook.json")
         .hook_convert(true)
         .target_kind(TargetKind::Copilot)
@@ -665,10 +679,12 @@ fn test_builder_hook_convert() {
 #[test]
 fn test_builder_plugin_root() {
     let deployment = ComponentDeployment::builder()
-        .kind(ComponentKind::Hook)
-        .name("test-hook")
+        .component(&Component {
+            kind: ComponentKind::Hook,
+            name: "test-hook".to_string(),
+            path: ("/src/hook.json").into(),
+        })
         .scope(Scope::Project)
-        .source_path("/src/hook.json")
         .target_path("/dest/hook.json")
         .hook_convert(true)
         .target_kind(TargetKind::Copilot)
@@ -682,10 +698,12 @@ fn test_builder_plugin_root() {
 #[test]
 fn test_builder_hook_convert_default_false() {
     let deployment = ComponentDeployment::builder()
-        .kind(ComponentKind::Hook)
-        .name("test-hook")
+        .component(&Component {
+            kind: ComponentKind::Hook,
+            name: "test-hook".to_string(),
+            path: ("/src/hook.json").into(),
+        })
         .scope(Scope::Project)
-        .source_path("/src/hook.json")
         .target_path("/dest/hook.json")
         .build()
         .unwrap();
@@ -704,10 +722,12 @@ fn test_hook_convert_without_plugin_root_errors_when_wrappers_needed() {
     fs::write(&source, sample_claude_code_hook_json()).unwrap();
 
     let deployment = ComponentDeployment::builder()
-        .kind(ComponentKind::Hook)
-        .name("test-hook")
+        .component(&Component {
+            kind: ComponentKind::Hook,
+            name: "test-hook".to_string(),
+            path: (&source).into(),
+        })
         .scope(Scope::Project)
-        .source_path(&source)
         .target_path(&target)
         .hook_convert(true)
         .target_kind(TargetKind::Copilot)
@@ -729,10 +749,12 @@ fn test_hook_convert_without_plugin_root_ok_for_warnings_only() {
     fs::write(&source, json).unwrap();
 
     let deployment = ComponentDeployment::builder()
-        .kind(ComponentKind::Hook)
-        .name("test-hook")
+        .component(&Component {
+            kind: ComponentKind::Hook,
+            name: "test-hook".to_string(),
+            path: (&source).into(),
+        })
         .scope(Scope::Project)
-        .source_path(&source)
         .target_path(&target)
         .hook_convert(true)
         .target_kind(TargetKind::Copilot)
@@ -780,10 +802,12 @@ fn test_hook_convert_false_copies_file() {
     fs::write(&source, r#"{"hooks":{}}"#).unwrap();
 
     let deployment = ComponentDeployment::builder()
-        .kind(ComponentKind::Hook)
-        .name("test-hook")
+        .component(&Component {
+            kind: ComponentKind::Hook,
+            name: "test-hook".to_string(),
+            path: (&source).into(),
+        })
         .scope(Scope::Project)
-        .source_path(&source)
         .target_path(&target)
         .build()
         .unwrap();
@@ -806,10 +830,12 @@ fn test_hook_convert_true_deploys_converted() {
     fs::write(&source, sample_claude_code_hook_json()).unwrap();
 
     let deployment = ComponentDeployment::builder()
-        .kind(ComponentKind::Hook)
-        .name("my-hook")
+        .component(&Component {
+            kind: ComponentKind::Hook,
+            name: "my-hook".to_string(),
+            path: (&source).into(),
+        })
         .scope(Scope::Project)
-        .source_path(&source)
         .target_path(&target)
         .hook_convert(true)
         .target_kind(TargetKind::Copilot)
@@ -868,10 +894,12 @@ fn test_hook_convert_copilot_format_passthrough() {
     fs::write(&source, copilot_json).unwrap();
 
     let deployment = ComponentDeployment::builder()
-        .kind(ComponentKind::Hook)
-        .name("copilot-hook")
+        .component(&Component {
+            kind: ComponentKind::Hook,
+            name: "copilot-hook".to_string(),
+            path: (&source).into(),
+        })
         .scope(Scope::Project)
-        .source_path(&source)
         .target_path(&target)
         .hook_convert(true)
         .target_kind(TargetKind::Copilot)
@@ -902,10 +930,12 @@ fn test_hook_convert_plugin_root_replacement() {
     fs::write(&source, sample_claude_code_hook_json()).unwrap();
 
     let deployment = ComponentDeployment::builder()
-        .kind(ComponentKind::Hook)
-        .name("test-hook")
+        .component(&Component {
+            kind: ComponentKind::Hook,
+            name: "test-hook".to_string(),
+            path: (&source).into(),
+        })
         .scope(Scope::Project)
-        .source_path(&source)
         .target_path(&target)
         .hook_convert(true)
         .target_kind(TargetKind::Copilot)
@@ -944,10 +974,12 @@ fn test_hook_convert_wrapper_executable_permission() {
     fs::write(&source, sample_claude_code_hook_json()).unwrap();
 
     let deployment = ComponentDeployment::builder()
-        .kind(ComponentKind::Hook)
-        .name("perm-hook")
+        .component(&Component {
+            kind: ComponentKind::Hook,
+            name: "perm-hook".to_string(),
+            path: (&source).into(),
+        })
         .scope(Scope::Project)
-        .source_path(&source)
         .target_path(&target)
         .hook_convert(true)
         .target_kind(TargetKind::Copilot)
@@ -974,10 +1006,12 @@ fn test_hook_convert_missing_source_returns_err() {
     let plugin_root = temp.path().join("cache/plugin");
 
     let deployment = ComponentDeployment::builder()
-        .kind(ComponentKind::Hook)
-        .name("hook")
+        .component(&Component {
+            kind: ComponentKind::Hook,
+            name: "hook".to_string(),
+            path: (&source).into(),
+        })
         .scope(Scope::Project)
-        .source_path(&source)
         .target_path(&target)
         .hook_convert(true)
         .target_kind(TargetKind::Copilot)
@@ -1000,10 +1034,12 @@ fn test_hook_convert_creates_parent_dir() {
     fs::write(&source, sample_claude_code_hook_json()).unwrap();
 
     let deployment = ComponentDeployment::builder()
-        .kind(ComponentKind::Hook)
-        .name("hook")
+        .component(&Component {
+            kind: ComponentKind::Hook,
+            name: "hook".to_string(),
+            path: (&source).into(),
+        })
         .scope(Scope::Project)
-        .source_path(&source)
         .target_path(&target)
         .hook_convert(true)
         .target_kind(TargetKind::Copilot)
@@ -1035,10 +1071,12 @@ fn test_hook_convert_unsupported_events_produce_warnings() {
     fs::write(&source, json).unwrap();
 
     let deployment = ComponentDeployment::builder()
-        .kind(ComponentKind::Hook)
-        .name("hook")
+        .component(&Component {
+            kind: ComponentKind::Hook,
+            name: "hook".to_string(),
+            path: (&source).into(),
+        })
         .scope(Scope::Project)
-        .source_path(&source)
         .target_path(&target)
         .hook_convert(true)
         .target_kind(TargetKind::Copilot)
@@ -1096,10 +1134,12 @@ fn test_hook_convert_original_scripts_not_copied() {
     fs::write(&source, hook_json).unwrap();
 
     let deployment = ComponentDeployment::builder()
-        .kind(ComponentKind::Hook)
-        .name("hook")
+        .component(&Component {
+            kind: ComponentKind::Hook,
+            name: "hook".to_string(),
+            path: (&source).into(),
+        })
         .scope(Scope::Project)
-        .source_path(&source)
         .target_path(&target)
         .hook_convert(true)
         .target_kind(TargetKind::Copilot)
@@ -1137,10 +1177,12 @@ fn test_hook_convert_multiple_hooks_no_name_collision() {
     // Hook A
     let target_a = target_dir.join("hook-a.json");
     let deployment_a = ComponentDeployment::builder()
-        .kind(ComponentKind::Hook)
-        .name("hook-a")
+        .component(&Component {
+            kind: ComponentKind::Hook,
+            name: "hook-a".to_string(),
+            path: (&source).into(),
+        })
         .scope(Scope::Project)
-        .source_path(&source)
         .target_path(&target_a)
         .hook_convert(true)
         .target_kind(TargetKind::Copilot)
@@ -1152,10 +1194,12 @@ fn test_hook_convert_multiple_hooks_no_name_collision() {
     // Hook B
     let target_b = target_dir.join("hook-b.json");
     let deployment_b = ComponentDeployment::builder()
-        .kind(ComponentKind::Hook)
-        .name("hook-b")
+        .component(&Component {
+            kind: ComponentKind::Hook,
+            name: "hook-b".to_string(),
+            path: (&source).into(),
+        })
         .scope(Scope::Project)
-        .source_path(&source)
         .target_path(&target_b)
         .hook_convert(true)
         .target_kind(TargetKind::Copilot)
@@ -1189,10 +1233,12 @@ fn test_hook_convert_with_unsafe_name_uses_sanitized_dir() {
     fs::write(&source, sample_claude_code_hook_json()).unwrap();
 
     let deployment = ComponentDeployment::builder()
-        .kind(ComponentKind::Hook)
-        .name("my hook$name")
+        .component(&Component {
+            kind: ComponentKind::Hook,
+            name: "my hook$name".to_string(),
+            path: (&source).into(),
+        })
         .scope(Scope::Project)
-        .source_path(&source)
         .target_path(&target)
         .hook_convert(true)
         .target_kind(TargetKind::Copilot)
@@ -1213,127 +1259,6 @@ fn test_hook_convert_with_unsafe_name_uses_sanitized_dir() {
 }
 
 // ========================================
-// ExcludeReason / ExcludedItem tests
-// ========================================
-
-#[test]
-fn test_exclude_reason_unsupported_hook_type() {
-    let reason = ExcludeReason::UnsupportedHookType {
-        hook_type: "prompt_agent".into(),
-    };
-    match reason {
-        ExcludeReason::UnsupportedHookType { hook_type } => {
-            assert_eq!(hook_type, "prompt_agent");
-        }
-        _ => panic!("Expected UnsupportedHookType"),
-    }
-}
-
-#[test]
-fn test_excluded_item_has_fields() {
-    let item = ExcludedItem {
-        event_name: "PreToolUse".to_string(),
-        reason: ExcludeReason::UnsupportedEvent,
-    };
-    assert_eq!(item.event_name, "PreToolUse");
-    assert!(matches!(item.reason, ExcludeReason::UnsupportedEvent));
-}
-
-#[test]
-fn test_exclude_reason_display_unsupported_event() {
-    let reason = ExcludeReason::UnsupportedEvent;
-    assert_eq!(reason.to_string(), "Unsupported event");
-}
-
-#[test]
-fn test_exclude_reason_display_no_mapping() {
-    let reason = ExcludeReason::NoMapping;
-    assert_eq!(reason.to_string(), "No mapping available");
-}
-
-#[test]
-fn test_exclude_reason_display_unsupported_hook_type() {
-    let reason = ExcludeReason::UnsupportedHookType {
-        hook_type: "prompt_agent".into(),
-    };
-    assert_eq!(reason.to_string(), "Unsupported hook type: prompt_agent");
-}
-
-// ========================================
-// ConvertedSummaryResult tests
-// ========================================
-
-#[test]
-fn test_converted_summary_result_empty() {
-    let summary = ConvertedSummaryResult {
-        mappings: BTreeMap::new(),
-        excluded: vec![],
-    };
-    assert!(summary.mappings.is_empty());
-    assert!(summary.excluded.is_empty());
-}
-
-#[test]
-fn test_converted_summary_result_with_entries() {
-    let mut mappings = BTreeMap::new();
-    mappings.insert("PreToolUse".to_string(), "preToolUse".to_string());
-    mappings.insert("PostToolUse".to_string(), "postToolUse".to_string());
-
-    let excluded = vec![
-        ExcludedItem {
-            event_name: "UnknownEvent".to_string(),
-            reason: ExcludeReason::UnsupportedEvent,
-        },
-        ExcludedItem {
-            event_name: "CustomEvent".to_string(),
-            reason: ExcludeReason::UnsupportedHookType {
-                hook_type: "prompt_agent".into(),
-            },
-        },
-    ];
-
-    let summary = ConvertedSummaryResult { mappings, excluded };
-    assert_eq!(summary.mappings.len(), 2);
-    assert_eq!(summary.mappings.get("PreToolUse").unwrap(), "preToolUse");
-    assert_eq!(summary.excluded.len(), 2);
-}
-
-// ========================================
-// HookConvertResult.summary tests
-// ========================================
-
-#[test]
-fn test_hook_convert_result_summary_none() {
-    let result = HookConvertResult {
-        warnings: vec![],
-        script_count: 0,
-        summary: None,
-    };
-    assert!(result.summary.is_none());
-}
-
-#[test]
-fn test_hook_convert_result_summary_some() {
-    let mut mappings = BTreeMap::new();
-    mappings.insert("PreToolUse".to_string(), "preToolUse".to_string());
-
-    let summary = ConvertedSummaryResult {
-        mappings,
-        excluded: vec![],
-    };
-
-    let result = HookConvertResult {
-        warnings: vec![],
-        script_count: 1,
-        summary: Some(summary),
-    };
-
-    assert!(result.summary.is_some());
-    let s = result.summary.unwrap();
-    assert_eq!(s.mappings.len(), 1);
-}
-
-// ========================================
 // Display trait tests
 // ========================================
 
@@ -1345,7 +1270,7 @@ fn test_display_copied() {
 
 #[test]
 fn test_display_converted_true() {
-    let result = DeploymentResult::Converted(ConversionResult {
+    let result = DeploymentResult::CommandConverted(ConversionResult {
         converted: true,
         source_format: CommandFormat::ClaudeCode,
         dest_format: CommandFormat::Copilot,
@@ -1355,7 +1280,7 @@ fn test_display_converted_true() {
 
 #[test]
 fn test_display_converted_false() {
-    let result = DeploymentResult::Converted(ConversionResult {
+    let result = DeploymentResult::CommandConverted(ConversionResult {
         converted: false,
         source_format: CommandFormat::ClaudeCode,
         dest_format: CommandFormat::ClaudeCode,
@@ -1388,7 +1313,6 @@ fn test_display_hook_converted() {
     let result = DeploymentResult::HookConverted(HookConvertResult {
         warnings: vec![ConversionWarning::MissingVersion],
         script_count: 3,
-        summary: None,
     });
     assert_eq!(result.to_string(), "Hook converted (3 scripts, 1 warning)");
 }
@@ -1405,10 +1329,12 @@ fn test_hook_convert_output_has_version() {
     fs::write(&source, sample_claude_code_hook_json()).unwrap();
 
     let deployment = ComponentDeployment::builder()
-        .kind(ComponentKind::Hook)
-        .name("hook")
+        .component(&Component {
+            kind: ComponentKind::Hook,
+            name: "hook".to_string(),
+            path: (&source).into(),
+        })
         .scope(Scope::Project)
-        .source_path(&source)
         .target_path(&target)
         .hook_convert(true)
         .target_kind(TargetKind::Copilot)

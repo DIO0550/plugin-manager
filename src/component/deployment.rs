@@ -7,7 +7,7 @@ use crate::hooks::converter::{self, SourceFormat, SCRIPTS_DIR};
 use crate::hooks::name::HookName;
 use crate::path_ext::PathExt;
 use crate::target::TargetKind;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -40,18 +40,13 @@ pub struct ComponentDeployment {
 
 impl ComponentDeployment {
     /// Builderを生成
-    pub fn builder() -> ComponentDeploymentBuilder {
+    pub(crate) fn builder() -> ComponentDeploymentBuilder {
         ComponentDeploymentBuilder::new()
     }
 
     /// 配置先パスを取得
     pub fn path(&self) -> &Path {
         &self.target_path
-    }
-
-    /// ソースパスを取得
-    pub fn source_path(&self) -> &Path {
-        &self.source_path
     }
 
     /// JSON 内の hooks[].bash パスを名前空間付きに書き換える
@@ -147,7 +142,6 @@ impl ComponentDeployment {
             return Ok(DeploymentResult::HookConverted(HookConvertResult {
                 warnings: convert_result.warnings,
                 script_count: 0,
-                summary: None,
             }));
         }
 
@@ -185,7 +179,6 @@ impl ComponentDeployment {
         Ok(DeploymentResult::HookConverted(HookConvertResult {
             warnings: convert_result.warnings,
             script_count,
-            summary: None,
         }))
     }
 
@@ -210,7 +203,7 @@ impl ComponentDeployment {
                         src_fmt,
                         dest_fmt,
                     )?;
-                    Ok(DeploymentResult::Converted(result))
+                    Ok(DeploymentResult::CommandConverted(result))
                 } else {
                     self.source_path.copy_file_to(&self.target_path)?;
                     Ok(DeploymentResult::Copied)
@@ -248,54 +241,13 @@ impl ComponentDeployment {
     }
 }
 
-/// 変換時に除外された理由
-#[derive(Debug)]
-pub enum ExcludeReason {
-    /// サポートされていないイベント
-    UnsupportedEvent,
-    /// マッピングが存在しない
-    NoMapping,
-    /// サポートされていないフック種別
-    UnsupportedHookType { hook_type: String },
-}
-
-impl std::fmt::Display for ExcludeReason {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ExcludeReason::UnsupportedEvent => write!(f, "Unsupported event"),
-            ExcludeReason::NoMapping => write!(f, "No mapping available"),
-            ExcludeReason::UnsupportedHookType { hook_type } => {
-                write!(f, "Unsupported hook type: {}", hook_type)
-            }
-        }
-    }
-}
-
-/// 変換時に除外されたアイテム
-#[derive(Debug)]
-pub struct ExcludedItem {
-    /// 除外されたイベント名
-    pub event_name: String,
-    /// 除外理由
-    pub reason: ExcludeReason,
-}
-
-/// 変換サマリー結果
-#[derive(Debug)]
-pub struct ConvertedSummaryResult {
-    /// 変換マッピング（変換元イベント名 -> 変換先イベント名）
-    pub mappings: BTreeMap<String, String>,
-    /// 除外されたアイテムのリスト
-    pub excluded: Vec<ExcludedItem>,
-}
-
 /// デプロイ結果
 #[derive(Debug)]
 pub enum DeploymentResult {
     /// ファイルコピーのみ
     Copied,
     /// Command フォーマット変換が行われた
-    Converted(ConversionResult),
+    CommandConverted(ConversionResult),
     /// Agent フォーマット変換が行われた
     AgentConverted(AgentConversionResult),
     /// Hook 変換が行われた
@@ -307,15 +259,13 @@ pub enum DeploymentResult {
 pub struct HookConvertResult {
     pub warnings: Vec<crate::hooks::converter::ConversionWarning>,
     pub script_count: usize,
-    /// 変換サマリー（変換マッピング + 除外リスト）
-    pub summary: Option<ConvertedSummaryResult>,
 }
 
 impl std::fmt::Display for DeploymentResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             DeploymentResult::Copied => write!(f, "Copied"),
-            DeploymentResult::Converted(conv) => {
+            DeploymentResult::CommandConverted(conv) => {
                 if conv.converted {
                     write!(
                         f,
@@ -353,7 +303,7 @@ impl std::fmt::Display for DeploymentResult {
 
 /// ComponentDeployment のビルダー
 #[derive(Debug, Default)]
-pub struct ComponentDeploymentBuilder {
+pub(crate) struct ComponentDeploymentBuilder {
     kind: Option<ComponentKind>,
     name: Option<String>,
     scope: Option<Scope>,
@@ -413,16 +363,6 @@ impl ComponentDeploymentBuilder {
     /// * `scope` - Deployment scope (`Personal` or `Project`).
     pub fn scope(mut self, scope: Scope) -> Self {
         self.scope = Some(scope);
-        self
-    }
-
-    /// ソースパスを設定
-    ///
-    /// # Arguments
-    ///
-    /// * `path` - Source path to read the component from.
-    pub fn source_path(mut self, path: impl Into<PathBuf>) -> Self {
-        self.source_path = Some(path.into());
         self
     }
 
