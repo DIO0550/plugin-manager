@@ -8,6 +8,7 @@ use crate::scan::{
     file_stem_name, list_agent_names, list_command_names, list_hook_names, list_markdown_names,
     list_skill_names,
 };
+use crate::target::PluginOrigin;
 use std::path::{Path, PathBuf};
 
 /// パッケージ内の個別プラグイン
@@ -22,6 +23,7 @@ use std::path::{Path, PathBuf};
 pub struct Plugin {
     manifest: PluginManifest,
     path: PathBuf,
+    origin: PluginOrigin,
     components: Vec<Component>,
 }
 
@@ -32,11 +34,13 @@ impl Plugin {
     ///
     /// * `manifest` - Plugin manifest describing the plugin metadata and layout.
     /// * `path` - Root directory path of the plugin on disk.
-    pub fn new(manifest: PluginManifest, path: PathBuf) -> Self {
+    /// * `origin` - Plugin origin (marketplace and plugin identifier).
+    pub fn new(manifest: PluginManifest, path: PathBuf, origin: PluginOrigin) -> Self {
         let components = Self::build_components(&path, &manifest);
         Self {
             manifest,
             path,
+            origin,
             components,
         }
     }
@@ -51,6 +55,7 @@ impl Plugin {
         Self {
             manifest,
             path,
+            origin: PluginOrigin::from_marketplace("test", "test"),
             components,
         }
     }
@@ -68,6 +73,11 @@ impl Plugin {
     /// プラグインのルートパスを取得
     pub fn path(&self) -> &Path {
         &self.path
+    }
+
+    /// プラグインの出自を取得
+    pub fn origin(&self) -> &PluginOrigin {
+        &self.origin
     }
 
     /// プラグインのコンポーネントをスキャンして Vec<Component> に変換する

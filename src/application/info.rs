@@ -6,7 +6,7 @@ use crate::error::{PlmError, Result};
 use crate::plugin::{
     list_installed, meta, InstalledPlugin, MarketplaceContent, PackageCacheAccess, Plugin,
 };
-use crate::target::list_all_placed;
+use crate::target::{list_all_placed, PluginOrigin};
 use std::path::{Path, PathBuf};
 
 /// プラグイン詳細情報（composition）
@@ -215,8 +215,9 @@ fn build_plugin_info(content: MarketplaceContent) -> Result<PluginInfo> {
     let enabled = resolve_enabled(&cache_path, marketplace_key, &dir_name);
 
     // InstalledPlugin を組み立てる（list_installed_plugins と同じく marketplace は Option<String> を保つ）
-    let id = Some(dir_name);
-    let plugin = Plugin::new(manifest, cache_path);
+    let id = Some(dir_name.clone());
+    let origin = PluginOrigin::from_marketplace(marketplace_key, &dir_name);
+    let plugin = Plugin::new(manifest, cache_path, origin);
     let installed = InstalledPlugin::from_cached_package(plugin, id, marketplace_opt, enabled);
 
     Ok(PluginInfo {

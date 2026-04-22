@@ -4,7 +4,7 @@
 
 use crate::error::Result;
 use crate::plugin::{list_installed, meta, InstalledPlugin, PackageCacheAccess, Plugin};
-use crate::target::list_all_placed;
+use crate::target::{list_all_placed, PluginOrigin};
 use std::path::PathBuf;
 
 /// インストール済みプラグインの一覧を取得
@@ -23,9 +23,10 @@ pub fn list_installed_plugins(cache: &dyn PackageCacheAccess) -> Result<Vec<Inst
         .into_iter()
         .map(|pkg| {
             let name = pkg.manifest().name.clone();
-            let plugin = Plugin::new(pkg.manifest().clone(), pkg.path().to_path_buf());
             let marketplace_str = pkg.marketplace().unwrap_or("github");
             let ops_key = pkg.id().unwrap_or(&name);
+            let origin = PluginOrigin::from_marketplace(marketplace_str, ops_key);
+            let plugin = Plugin::new(pkg.manifest().clone(), pkg.path().to_path_buf(), origin);
             let enabled = meta::is_enabled(pkg.path(), marketplace_str, ops_key, &deployed);
 
             InstalledPlugin::from_cached_package(
