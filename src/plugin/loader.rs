@@ -85,10 +85,10 @@ fn cleanup_specs(
             (project_root.join(".codex"), "skills"),
         ],
         TargetKind::Copilot => vec![
+            // Personal scope: CopilotTarget::can_place は Agent / Hook のみサポート
             (home.join(".copilot"), "agents"),
-            (home.join(".copilot"), "prompts"),
-            (home.join(".copilot"), "skills"),
             (home.join(".copilot"), "hooks"),
+            // Project scope: 全コンポーネント種別を受け付ける
             (project_root.join(".github"), "agents"),
             (project_root.join(".github"), "prompts"),
             (project_root.join(".github"), "skills"),
