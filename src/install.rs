@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use crate::component::{AgentFormat, CommandFormat, ComponentKind, Scope};
 use crate::component::{Component, ComponentDeployment, DeploymentResult};
-use crate::component::{ComponentIdentity, PlacementContext, PlacementScope, ProjectContext};
+use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
 use crate::plugin::{MarketplaceContent, PackageCache, PackageCacheAccess};
 use crate::source::parse_source;
 use crate::target::{PluginOrigin, Target, TargetKind};
@@ -172,7 +172,7 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
             }
 
             let ctx = PlacementContext {
-                component: ComponentIdentity::new(component.kind, &component.name),
+                component: ComponentRef::new(component.kind, &component.name),
                 origin: &origin,
                 scope: PlacementScope::new(request.scope),
                 project: ProjectContext::new(request.project_root),

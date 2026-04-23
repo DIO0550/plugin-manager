@@ -1,8 +1,6 @@
 //! Google Antigravity ターゲット実装
 
-use crate::component::{
-    ComponentIdentity, ComponentKind, PlacementContext, PlacementLocation, Scope,
-};
+use crate::component::{ComponentKind, PlacementContext, PlacementLocation, Scope};
 use crate::error::Result;
 use crate::target::paths::home_dir;
 use crate::target::scanner::{scan_components, ScannedComponent};
@@ -56,7 +54,7 @@ impl AntigravityTarget {
             ComponentKind::Skill if c.is_dir => {
                 let skill_md = c.path.join("SKILL.md");
                 if skill_md.exists() {
-                    Some(ComponentIdentity::new(kind, c.name.as_str()).qualified_name(&c.origin))
+                    Some(c.origin.qualify(&c.name))
                 } else {
                     None
                 }

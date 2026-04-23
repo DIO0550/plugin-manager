@@ -2,9 +2,34 @@
 //!
 //! コンポーネントの配置先決定に関するドメインモデルを定義する。
 
-use crate::component::{ComponentIdentity, ComponentKind, Scope};
+use crate::component::{ComponentKind, Scope};
 use crate::target::PluginOrigin;
 use std::path::{Path, PathBuf};
+
+/// コンポーネント参照
+///
+/// 配置先決定に必要な最小の識別子（`kind` + `name`）。
+/// scope は `PlacementContext.scope` 側に保持する。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ComponentRef {
+    pub kind: ComponentKind,
+    pub name: String,
+}
+
+impl ComponentRef {
+    pub fn new(kind: ComponentKind, name: impl Into<String>) -> Self {
+        Self {
+            kind,
+            name: name.into(),
+        }
+    }
+}
+
+impl From<&crate::component::Component> for ComponentRef {
+    fn from(c: &crate::component::Component) -> Self {
+        Self::new(c.kind, c.name.clone())
+    }
+}
 
 /// 配置スコープ
 ///
@@ -46,7 +71,7 @@ impl<'a> ProjectContext<'a> {
 /// 配置先決定に必要な全情報を集約する。
 #[derive(Debug, Clone)]
 pub struct PlacementContext<'a> {
-    pub component: ComponentIdentity,
+    pub component: ComponentRef,
     pub origin: &'a PluginOrigin,
     pub scope: PlacementScope,
     pub project: ProjectContext<'a>,

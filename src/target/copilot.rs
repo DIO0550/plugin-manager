@@ -1,8 +1,6 @@
 //! GitHub Copilot ターゲット実装
 
-use crate::component::{
-    ComponentIdentity, ComponentKind, PlacementContext, PlacementLocation, Scope,
-};
+use crate::component::{ComponentKind, ComponentRef, PlacementContext, PlacementLocation, Scope};
 use crate::error::Result;
 use crate::target::paths::base_dir;
 use crate::target::placed_common;
@@ -56,8 +54,7 @@ impl CopilotTarget {
     /// * `c` - Scanned component entry.
     /// * `kind` - Component kind expected for the entry.
     fn filter_component(c: &ScannedComponent, kind: ComponentKind) -> Option<String> {
-        let make_qualified =
-            |name: &str| ComponentIdentity::new(kind, name).qualified_name(&c.origin);
+        let make_qualified = |name: &str| c.origin.qualify(name);
         match kind {
             ComponentKind::Skill if c.is_dir => Some(make_qualified(&c.name)),
             ComponentKind::Agent if !c.is_dir && c.name.ends_with(".agent.md") => {

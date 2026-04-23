@@ -1,11 +1,11 @@
 //! 同期先の定義
 
 use super::options::{SyncOptions, SyncableKind};
-use super::placed::PlacedComponent;
+use super::placed::{PlacedComponent, PlacedRef};
 use super::source::parse_component_name;
 use crate::component::{
-    CommandFormat, ComponentIdentity, ComponentKind, PlacementContext, PlacementScope,
-    ProjectContext, Scope,
+    CommandFormat, ComponentKind, ComponentRef, PlacementContext, PlacementScope, ProjectContext,
+    Scope,
 };
 use crate::error::{PlmError, Result};
 use crate::target::{parse_target, Target, TargetKind};
@@ -86,12 +86,12 @@ impl SyncDestination {
                 let placed = self.target.list_placed(kind, *scope, &self.project_root)?;
 
                 for name in placed {
-                    let identity = ComponentIdentity::new(kind, name.clone()).with_scope(*scope);
+                    let placed_ref = PlacedRef::new(kind, name.clone(), *scope);
 
-                    if !seen_identities.insert(identity.clone()) {
+                    if !seen_identities.insert(placed_ref.clone()) {
                         return Err(PlmError::InvalidArgument(format!(
                             "Duplicate component identity: {:?}",
-                            identity
+                            placed_ref
                         )));
                     }
 
@@ -118,11 +118,11 @@ impl SyncDestination {
     /// # Arguments
     ///
     /// * `identity` - Component identity whose kind and scope support is checked.
-    pub fn supports(&self, identity: &ComponentIdentity) -> bool {
-        let Some(scope) = identity.scope else {
-            return false;
-        };
-        self.target.supports(identity.kind) && self.target.supports_scope(identity.kind, scope)
+    pub fn supports(&self, placed_ref: &PlacedRef) -> bool {
+        self.target.supports(placed_ref.kind)
+            && self
+                .target
+                .supports_scope(placed_ref.kind, placed_ref.scope)
     }
 
     /// 対象の SyncableKind リストを取得
@@ -160,7 +160,7 @@ impl SyncDestination {
         let (origin, component_name) = parse_component_name(name)?;
 
         let ctx = PlacementContext {
-            component: ComponentIdentity::new(kind, component_name),
+            component: ComponentRef::new(kind, component_name),
             origin: &origin,
             scope: PlacementScope::new(scope),
             project: ProjectContext::new(&self.project_root),

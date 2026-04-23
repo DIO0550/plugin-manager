@@ -2,7 +2,7 @@ use super::*;
 
 #[test]
 fn test_component_ref() {
-    let component = ComponentIdentity::new(ComponentKind::Skill, "my-skill");
+    let component = ComponentRef::new(ComponentKind::Skill, "my-skill");
     assert_eq!(component.kind, ComponentKind::Skill);
     assert_eq!(component.name, "my-skill");
 }
@@ -35,7 +35,7 @@ fn test_placement_context() {
     let project_root = Path::new("/project");
 
     let ctx = PlacementContext {
-        component: ComponentIdentity::new(ComponentKind::Skill, "my-skill"),
+        component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),

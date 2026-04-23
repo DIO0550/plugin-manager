@@ -1,7 +1,7 @@
 //! GeminiCliTarget unit tests
 
 use super::*;
-use crate::component::{ComponentIdentity, PlacementScope, ProjectContext};
+use crate::component::{ComponentRef, PlacementScope, ProjectContext};
 use crate::target::PluginOrigin;
 use std::path::Path;
 use tempfile::TempDir;
@@ -88,7 +88,7 @@ fn test_gemini_cli_placement_location_skill_personal() {
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentIdentity::new(ComponentKind::Skill, "my-skill"),
+        component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Personal),
         project: ProjectContext::new(project_root),
@@ -108,7 +108,7 @@ fn test_gemini_cli_placement_location_skill_project() {
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentIdentity::new(ComponentKind::Skill, "my-skill"),
+        component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -129,7 +129,7 @@ fn test_gemini_cli_placement_location_instruction_personal() {
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentIdentity::new(ComponentKind::Instruction, "test"),
+        component: ComponentRef::new(ComponentKind::Instruction, "test"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Personal),
         project: ProjectContext::new(project_root),
@@ -149,7 +149,7 @@ fn test_gemini_cli_placement_location_instruction_project() {
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentIdentity::new(ComponentKind::Instruction, "test"),
+        component: ComponentRef::new(ComponentKind::Instruction, "test"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -167,7 +167,7 @@ fn test_gemini_cli_placement_location_agent_returns_none() {
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentIdentity::new(ComponentKind::Agent, "my-agent"),
+        component: ComponentRef::new(ComponentKind::Agent, "my-agent"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -182,7 +182,7 @@ fn test_gemini_cli_placement_location_command_returns_none() {
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentIdentity::new(ComponentKind::Command, "test"),
+        component: ComponentRef::new(ComponentKind::Command, "test"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -197,7 +197,7 @@ fn test_gemini_cli_placement_location_hook_returns_none() {
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentIdentity::new(ComponentKind::Hook, "test"),
+        component: ComponentRef::new(ComponentKind::Hook, "test"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -212,7 +212,7 @@ fn test_gemini_cli_placement_with_github_origin() {
     let origin = PluginOrigin::from_github("owner", "repo");
 
     let ctx = PlacementContext {
-        component: ComponentIdentity::new(ComponentKind::Skill, "my-skill"),
+        component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),

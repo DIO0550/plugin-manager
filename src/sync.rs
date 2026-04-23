@@ -28,12 +28,11 @@ mod placed;
 mod result;
 mod source;
 
-pub use crate::component::ComponentIdentity;
 pub use crate::fs::{FileSystem, RealFs};
 pub use action::SyncAction;
 pub use destination::SyncDestination;
 pub use options::{SyncOptions, SyncableKind};
-pub use placed::PlacedComponent;
+pub use placed::{PlacedComponent, PlacedRef};
 pub use result::{SyncFailure, SyncResult};
 pub use source::SyncSource;
 
@@ -76,25 +75,27 @@ pub(crate) fn sync_with_fs(
     let source_components = source.placed_components(options)?;
     let dest_components = dest.placed_components(options)?;
 
-    let source_map: HashMap<&ComponentIdentity, &PlacedComponent> = source_components
+    let source_map: HashMap<&PlacedRef, &PlacedComponent> = source_components
         .iter()
-        .map(|c| (c.identity(), c))
+        .map(|c| (c.placed_ref(), c))
         .collect();
-    let dest_map: HashMap<&ComponentIdentity, &PlacedComponent> =
-        dest_components.iter().map(|c| (c.identity(), c)).collect();
+    let dest_map: HashMap<&PlacedRef, &PlacedComponent> = dest_components
+        .iter()
+        .map(|c| (c.placed_ref(), c))
+        .collect();
 
     let mut to_create = Vec::new();
     let mut to_update = Vec::new();
     let mut skipped = Vec::new();
     let mut unsupported = Vec::new();
 
-    for (identity, src_component) in &source_map {
-        if !dest.supports(identity) {
+    for (placed_ref, src_component) in &source_map {
+        if !dest.supports(placed_ref) {
             unsupported.push((*src_component).clone());
             continue;
         }
 
-        match dest_map.get(identity) {
+        match dest_map.get(placed_ref) {
             None => to_create.push((*src_component).clone()),
             Some(dest_component) => {
                 if needs_update(src_component, dest_component, fs)? {

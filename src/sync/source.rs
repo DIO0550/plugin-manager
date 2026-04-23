@@ -1,10 +1,10 @@
 //! 同期元の定義
 
 use super::options::{SyncOptions, SyncableKind};
-use super::placed::PlacedComponent;
+use super::placed::{PlacedComponent, PlacedRef};
 use crate::component::{
-    CommandFormat, ComponentIdentity, ComponentKind, PlacementContext, PlacementScope,
-    ProjectContext, Scope,
+    CommandFormat, ComponentKind, ComponentRef, PlacementContext, PlacementScope, ProjectContext,
+    Scope,
 };
 use crate::error::{PlmError, Result};
 use crate::target::{parse_target, PluginOrigin, Target, TargetKind};
@@ -85,12 +85,12 @@ impl SyncSource {
                 let placed = self.target.list_placed(kind, *scope, &self.project_root)?;
 
                 for name in placed {
-                    let identity = ComponentIdentity::new(kind, name.clone()).with_scope(*scope);
+                    let placed_ref = PlacedRef::new(kind, name.clone(), *scope);
 
-                    if !seen_identities.insert(identity.clone()) {
+                    if !seen_identities.insert(placed_ref.clone()) {
                         return Err(PlmError::InvalidArgument(format!(
                             "Duplicate component identity: {:?}",
-                            identity
+                            placed_ref
                         )));
                     }
 
@@ -147,7 +147,7 @@ impl SyncSource {
         let (origin, component_name) = parse_component_name(name)?;
 
         let ctx = PlacementContext {
-            component: ComponentIdentity::new(kind, component_name),
+            component: ComponentRef::new(kind, component_name),
             origin: &origin,
             scope: PlacementScope::new(scope),
             project: ProjectContext::new(&self.project_root),

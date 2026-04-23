@@ -6,12 +6,12 @@
 //! ## 使い方
 //!
 //! ```ignore
-//! use crate::component::{ComponentIdentity, PlacementContext, PlacementScope, ProjectContext};
+//! use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
 //!
 //! let target = parse_target("codex")?;
 //! let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 //! let ctx = PlacementContext {
-//!     component: ComponentIdentity::new(ComponentKind::Skill, "my-skill"),
+//!     component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
 //!     origin: &origin,
 //!     scope: PlacementScope::new(Scope::Project),
 //!     project: ProjectContext::new(&project_root),
@@ -47,7 +47,7 @@ use crate::component::{AgentFormat, CommandFormat, ComponentKind};
 // componentモジュールから再エクスポート
 pub use crate::component::Scope;
 use crate::component::{
-    ComponentIdentity, PlacementContext, PlacementLocation, PlacementScope, ProjectContext,
+    ComponentRef, PlacementContext, PlacementLocation, PlacementScope, ProjectContext,
 };
 use crate::error::{PlmError, Result};
 use crate::fs::{FileSystem, RealFs};
@@ -108,6 +108,14 @@ impl PluginOrigin {
             marketplace: marketplace.unwrap_or("github").to_string(),
             plugin: plugin_name.to_string(),
         }
+    }
+
+    /// `{marketplace}/{plugin}/{name}` 形式の完全修飾名を返す。
+    ///
+    /// target の `filter_component` や list_placed で配置物の識別キーを
+    /// 組み立てる際に使用する。
+    pub fn qualify(&self, name: &str) -> String {
+        format!("{}/{}/{}", self.marketplace, self.plugin, name)
     }
 }
 
@@ -204,7 +212,7 @@ pub trait Target: Send + Sync {
     fn supports_scope(&self, kind: ComponentKind, scope: Scope) -> bool {
         let dummy_origin = PluginOrigin::from_marketplace("test", "test");
         let ctx = PlacementContext {
-            component: ComponentIdentity::new(kind, "test"),
+            component: ComponentRef::new(kind, "test"),
             origin: &dummy_origin,
             scope: PlacementScope::new(scope),
             project: ProjectContext::new(Path::new(".")),

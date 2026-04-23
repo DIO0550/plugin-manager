@@ -4,7 +4,7 @@
 //! 特定のコンポーネントを選択してインポートする。
 
 use crate::component::{AgentFormat, Component, ComponentDeployment, ComponentKind};
-use crate::component::{ComponentIdentity, PlacementContext, PlacementScope, ProjectContext};
+use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
 use crate::import::{ImportRecord, ImportRegistry};
 use crate::output::CommandSummary;
 use crate::plugin::PackageCache;
@@ -211,7 +211,7 @@ fn build_deployment(
     }
 
     let placement_ctx = PlacementContext {
-        component: ComponentIdentity::new(component.kind, &component.name),
+        component: ComponentRef::new(component.kind, &component.name),
         origin: ctx.origin,
         scope: PlacementScope::new(ctx.scope),
         project: ProjectContext::new(ctx.project_root),

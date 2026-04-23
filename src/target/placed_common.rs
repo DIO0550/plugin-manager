@@ -1,7 +1,7 @@
 //! `list_placed` の Instruction 分岐で共有されるユーティリティ
 
 use crate::component::{
-    ComponentIdentity, ComponentKind, PlacementContext, PlacementScope, ProjectContext, Scope,
+    ComponentKind, ComponentRef, PlacementContext, PlacementScope, ProjectContext, Scope,
 };
 use crate::target::{PluginOrigin, Target};
 use std::path::Path;
@@ -22,7 +22,7 @@ pub(crate) fn list_instruction(
 ) -> Vec<String> {
     let dummy_origin = PluginOrigin::from_marketplace("test", "test");
     let ctx = PlacementContext {
-        component: ComponentIdentity::new(ComponentKind::Instruction, "test"),
+        component: ComponentRef::new(ComponentKind::Instruction, "test"),
         origin: &dummy_origin,
         scope: PlacementScope::new(scope),
         project: ProjectContext::new(project_root),

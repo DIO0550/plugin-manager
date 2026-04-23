@@ -26,7 +26,7 @@ fn test_codex_placement_location_skill_with_hierarchy() {
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentIdentity::new(ComponentKind::Skill, "my-skill"),
+        component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -47,7 +47,7 @@ fn test_codex_placement_location_skill_github_direct() {
     let origin = PluginOrigin::from_github("owner", "repo");
 
     let ctx = PlacementContext {
-        component: ComponentIdentity::new(ComponentKind::Skill, "my-skill"),
+        component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -68,7 +68,7 @@ fn test_codex_placement_location_agent() {
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentIdentity::new(ComponentKind::Agent, "my-agent"),
+        component: ComponentRef::new(ComponentKind::Agent, "my-agent"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -90,7 +90,7 @@ fn test_codex_placement_location_instruction() {
 
     // Project scope
     let ctx = PlacementContext {
-        component: ComponentIdentity::new(ComponentKind::Instruction, "test"),
+        component: ComponentRef::new(ComponentKind::Instruction, "test"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -108,7 +108,7 @@ fn test_codex_command_not_supported() {
     let origin = PluginOrigin::from_marketplace("test", "test");
 
     let ctx = PlacementContext {
-        component: ComponentIdentity::new(ComponentKind::Command, "test"),
+        component: ComponentRef::new(ComponentKind::Command, "test"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),

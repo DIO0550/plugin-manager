@@ -82,12 +82,6 @@ pub struct Component {
     pub path: PathBuf,
 }
 
-impl From<&Component> for super::ComponentIdentity {
-    fn from(c: &Component) -> Self {
-        super::ComponentIdentity::new(c.kind, c.name.clone())
-    }
-}
-
 /// デプロイスコープ
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, ValueEnum, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]

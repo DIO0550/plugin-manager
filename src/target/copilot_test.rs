@@ -27,7 +27,7 @@ fn test_copilot_skill_personal_not_supported() {
 
     // Personal scope for skills is not supported
     let ctx = PlacementContext {
-        component: ComponentIdentity::new(ComponentKind::Skill, "my-skill"),
+        component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Personal),
         project: ProjectContext::new(project_root),
@@ -42,7 +42,7 @@ fn test_copilot_placement_location_skill_project() {
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentIdentity::new(ComponentKind::Skill, "my-skill"),
+        component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -64,7 +64,7 @@ fn test_copilot_placement_location_agent() {
 
     // Personal scope
     let ctx_personal = PlacementContext {
-        component: ComponentIdentity::new(ComponentKind::Agent, "test"),
+        component: ComponentRef::new(ComponentKind::Agent, "test"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Personal),
         project: ProjectContext::new(project_root),
@@ -78,7 +78,7 @@ fn test_copilot_placement_location_agent() {
 
     // Project scope
     let ctx_project = PlacementContext {
-        component: ComponentIdentity::new(ComponentKind::Agent, "test"),
+        component: ComponentRef::new(ComponentKind::Agent, "test"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -99,7 +99,7 @@ fn test_copilot_placement_location_command() {
 
     // Personal scope for commands is not supported
     let ctx_personal = PlacementContext {
-        component: ComponentIdentity::new(ComponentKind::Command, "my-command"),
+        component: ComponentRef::new(ComponentKind::Command, "my-command"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Personal),
         project: ProjectContext::new(project_root),
@@ -108,7 +108,7 @@ fn test_copilot_placement_location_command() {
 
     // Project scope
     let ctx_project = PlacementContext {
-        component: ComponentIdentity::new(ComponentKind::Command, "my-command"),
+        component: ComponentRef::new(ComponentKind::Command, "my-command"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -128,7 +128,7 @@ fn test_copilot_placement_location_instruction() {
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentIdentity::new(ComponentKind::Instruction, "test"),
+        component: ComponentRef::new(ComponentKind::Instruction, "test"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -156,7 +156,7 @@ fn test_copilot_agent_md_extension_transform() {
     // Claude Code プラグインのエージェント: agents/my-agent.md
     // list_agent_names() により名前は "my-agent" に正規化される
     let ctx = PlacementContext {
-        component: ComponentIdentity::new(ComponentKind::Agent, "my-agent"),
+        component: ComponentRef::new(ComponentKind::Agent, "my-agent"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -184,7 +184,7 @@ fn test_copilot_agent_single_file_edge_case() {
 
     // 単一ファイル指定時: file_stem() により "my-agent.agent" になり得る
     let ctx = PlacementContext {
-        component: ComponentIdentity::new(ComponentKind::Agent, "my-agent.agent"),
+        component: ComponentRef::new(ComponentKind::Agent, "my-agent.agent"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -211,7 +211,7 @@ fn test_copilot_placement_location_hook_project() {
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentIdentity::new(ComponentKind::Hook, "pre-commit"),
+        component: ComponentRef::new(ComponentKind::Hook, "pre-commit"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -232,7 +232,7 @@ fn test_copilot_placement_location_hook_personal() {
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentIdentity::new(ComponentKind::Hook, "pre-commit"),
+        component: ComponentRef::new(ComponentKind::Hook, "pre-commit"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Personal),
         project: ProjectContext::new(project_root),
