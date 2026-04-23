@@ -7,15 +7,22 @@ use crate::target::{PluginOrigin, Target};
 use std::path::Path;
 
 /// Instruction コンポーネントが配置済みの場合にファイル名を返す
+///
+/// 現状の 4 target はいずれも Instruction の placement_location を
+/// origin / component name に依存させていないため、dummy 値を渡しても
+/// 支障はない。ただし空文字列だと将来 origin / name を使う target が
+/// `<base>//...` のような奇妙なパスを生成する恐れがあるため、
+/// 非空の placeholder (`"test"`) で固定する（`Target::supports_scope` の
+/// dummy context と揃える方針）。
 pub(crate) fn list_instruction(
     target: &dyn Target,
     scope: Scope,
     project_root: &Path,
     instruction_filename: &str,
 ) -> Vec<String> {
-    let dummy_origin = PluginOrigin::from_marketplace("", "");
+    let dummy_origin = PluginOrigin::from_marketplace("test", "test");
     let ctx = PlacementContext {
-        component: ComponentIdentity::new(ComponentKind::Instruction, ""),
+        component: ComponentIdentity::new(ComponentKind::Instruction, "test"),
         origin: &dummy_origin,
         scope: PlacementScope::new(scope),
         project: ProjectContext::new(project_root),
