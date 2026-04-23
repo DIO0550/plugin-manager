@@ -49,9 +49,13 @@ impl PlacedComponent {
 
     /// scope を取得
     pub fn scope(&self) -> Scope {
-        self.identity
-            .scope
-            .expect("PlacedComponent identity must carry a scope")
+        match self.identity.scope {
+            Some(scope) => scope,
+            None => panic!(
+                "PlacedComponent identity must carry a scope (kind: {:?}, name: {}, path: {:?})",
+                self.identity.kind, self.identity.name, self.path
+            ),
+        }
     }
 
     /// パスが project_root 配下かを検証
