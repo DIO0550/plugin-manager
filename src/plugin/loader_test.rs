@@ -259,33 +259,46 @@ fn cleanup_rejects_origin_with_path_separator() {
     );
 }
 
-/// `home` が None の場合、personal scope の cleanup 対象はゼロ個となり
-/// （`./~/.codex` のような誤パスを走査せず）、project scope 側は引き続き
-/// 削除されることを確認する。
+/// `home` が None の場合でも project scope の cleanup は通常通り走ることを
+/// 確認する（integration レベルの回帰防止）。
 #[test]
-fn cleanup_skips_personal_when_home_is_none() {
+fn cleanup_runs_project_scope_when_home_is_none() {
     let tmp = TempDir::new().unwrap();
     let project = tmp.path().join("proj");
     let project_plugin_dir = make_empty_plugin_dir(&project.join(".codex"), "skills");
 
-    // CWD を一時ディレクトリに変更し、literal "~" 解決が意図しない場所を
-    // 指すことに備える（この CWD に `~/.codex` を作っておき、cleanup が
-    // それを触らないことを確認する）。
-    let cwd_guard = tmp.path().join("cwd");
-    std::fs::create_dir_all(&cwd_guard).unwrap();
-    let tilde_dir = cwd_guard.join("~").join(".codex").join("skills");
-    std::fs::create_dir_all(&tilde_dir).unwrap();
-
     cleanup_plugin_directories_impl(&RealFs, TargetKind::Codex, None, &origin(), &project);
 
-    // project scope は正常に cleanup される
     assert!(
         !project_plugin_dir.exists(),
         "project scope cleanup must still run when HOME is unset"
     );
-    // personal scope（literal `~` 解決先）は触られない
-    assert!(
-        tilde_dir.exists(),
-        "personal cleanup must be skipped when HOME is unset"
-    );
+}
+
+/// `home` が None の場合、`cleanup_specs` は personal scope 側のエントリを
+/// まるごと省略して project_root 配下のみを返すことを直接検証する。
+/// これにより literal `~` を含む誤パス（`./~/.codex` など）が絶対に
+/// cleanup 対象に含まれないことを構造的に保証する。
+#[test]
+fn cleanup_specs_with_home_none_returns_only_project_entries() {
+    let project = std::path::Path::new("/proj");
+
+    for kind in [
+        TargetKind::Codex,
+        TargetKind::Copilot,
+        TargetKind::Antigravity,
+        TargetKind::GeminiCli,
+    ] {
+        let specs = cleanup_specs(kind, None, project);
+        assert!(
+            !specs.is_empty(),
+            "{kind:?}: project scope specs must exist"
+        );
+        for (base, _) in &specs {
+            assert!(
+                base.starts_with(project),
+                "{kind:?}: unexpected non-project entry {base:?} when home=None"
+            );
+        }
+    }
 }
