@@ -53,7 +53,14 @@ pub(crate) fn cleanup_plugin_directories(
     project_root: &Path,
 ) {
     let fs = RealFs;
-    let home = std::env::var("HOME").ok().map(PathBuf::from);
+    // HOME="" や HOME="   " を未設定相当として扱う。
+    // そのまま PathBuf::from("") を使うと personal cleanup が `./.codex` 等の
+    // CWD 配下パスで走ってしまうため、trim 後に空なら None にフォールバックする。
+    let home = std::env::var("HOME")
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .map(PathBuf::from);
     cleanup_plugin_directories_impl(&fs, kind, home.as_deref(), origin, project_root);
 }
 
