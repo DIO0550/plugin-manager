@@ -24,11 +24,7 @@ pub(crate) fn load_plugin(
         .load_manifest(marketplace, plugin_name)
         .map_err(|e| format!("Failed to load manifest: {}", e))?;
 
-    let origin = match marketplace {
-        Some(mp) => PluginOrigin::from_marketplace(mp, plugin_name),
-        None => PluginOrigin::from_marketplace("github", plugin_name),
-    };
-
+    let origin = PluginOrigin::from_cached_plugin(marketplace, plugin_name);
     let plugin_path = cache.plugin_path(marketplace, plugin_name);
 
     Ok(Plugin::new(manifest, plugin_path, origin))
