@@ -151,3 +151,38 @@ fn cleanup_is_noop_when_dir_missing() {
     cleanup_plugin_directories_impl(&RealFs, TargetKind::Antigravity, &home, &origin(), &project);
     cleanup_plugin_directories_impl(&RealFs, TargetKind::GeminiCli, &home, &origin(), &project);
 }
+
+/// 不正な `..` を含む origin が渡された場合、cleanup が base の外側を
+/// 触らずスキップすることを確認する（path-escape 防御）。
+#[test]
+fn cleanup_rejects_origin_with_traversal_segment() {
+    let tmp = TempDir::new().unwrap();
+    let home = tmp.path().join("home");
+    let project = tmp.path().join("proj");
+
+    // base の外にダミーディレクトリを作っておき、cleanup がこれを消さないことを確認する。
+    let outside = tmp.path().join("outside");
+    fs::create_dir_all(&outside).unwrap();
+
+    let bad_origin = PluginOrigin::from_marketplace("..", "..");
+
+    cleanup_plugin_directories_impl(&RealFs, TargetKind::Codex, &home, &bad_origin, &project);
+
+    assert!(
+        outside.exists(),
+        "cleanup must not escape base via `..` segments"
+    );
+}
+
+/// パスセパレータを含む origin も同様にスキップされることを確認する。
+#[test]
+fn cleanup_rejects_origin_with_path_separator() {
+    let tmp = TempDir::new().unwrap();
+    let home = tmp.path().join("home");
+    let project = tmp.path().join("proj");
+
+    let bad_origin = PluginOrigin::from_marketplace("mp/inner", "plg");
+
+    // スキップされる（panic しない）ことだけを確認する。
+    cleanup_plugin_directories_impl(&RealFs, TargetKind::Codex, &home, &bad_origin, &project);
+}

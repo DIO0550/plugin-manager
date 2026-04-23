@@ -106,6 +106,12 @@ fn cleanup_specs(
 }
 
 fn cleanup_one(fs: &dyn FileSystem, base: &Path, kind_subdir: &str, origin: &PluginOrigin) {
+    // 防御的検証: 不正な marketplace / plugin セグメントが渡された場合、
+    // base の外で remove_dir_all が走ってしまうのを防ぐため cleanup をスキップする。
+    if !is_safe_path_segment(&origin.marketplace) || !is_safe_path_segment(&origin.plugin) {
+        return;
+    }
+
     let plugin_dir = base
         .join(kind_subdir)
         .join(&origin.marketplace)
@@ -117,6 +123,29 @@ fn cleanup_one(fs: &dyn FileSystem, base: &Path, kind_subdir: &str, origin: &Plu
 
     let kind_root = base.join(kind_subdir);
     remove_if_empty(fs, &kind_root);
+}
+
+/// パスの 1 セグメントとして安全かを判定する。
+///
+/// `..` / パスセパレータ / 先頭ドット / 絶対パスを拒否し、`base` 外への
+/// 書き込みや削除を防ぐ。`plugin/cache.rs::validate_source_path` と同じ方針。
+fn is_safe_path_segment(segment: &str) -> bool {
+    if segment.is_empty() {
+        return false;
+    }
+    if segment.contains("..") {
+        return false;
+    }
+    if segment.contains('/') || segment.contains('\\') {
+        return false;
+    }
+    if segment.starts_with('.') {
+        return false;
+    }
+    if Path::new(segment).is_absolute() {
+        return false;
+    }
+    true
 }
 
 fn remove_if_empty(fs: &dyn FileSystem, path: &Path) {
