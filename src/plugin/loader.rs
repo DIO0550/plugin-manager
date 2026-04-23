@@ -5,7 +5,6 @@
 
 use crate::fs::{FileSystem, RealFs};
 use crate::plugin::{PackageCacheAccess, Plugin};
-use crate::target::paths::home_dir;
 use crate::target::{PluginOrigin, TargetKind};
 use std::path::{Path, PathBuf};
 
@@ -44,21 +43,27 @@ pub(crate) fn load_plugin(
 /// * `kind` - target environment kind determining directory layout
 /// * `origin` - plugin origin providing marketplace and plugin segments
 /// * `project_root` - project root under which project-scope deploy directories live
+///
+/// `HOME` 環境変数が未設定の場合、personal scope のクリーンアップは
+/// スキップされる（project scope のみ実行）。これにより `HOME` 欠落時に
+/// literal `~` がカレント配下に解決され誤削除されるリスクを避ける。
 pub(crate) fn cleanup_plugin_directories(
     kind: TargetKind,
     origin: &PluginOrigin,
     project_root: &Path,
 ) {
     let fs = RealFs;
-    let home = home_dir();
-    cleanup_plugin_directories_impl(&fs, kind, &home, origin, project_root);
+    let home = std::env::var("HOME").ok().map(PathBuf::from);
+    cleanup_plugin_directories_impl(&fs, kind, home.as_deref(), origin, project_root);
 }
 
 /// 内部実装 — `home` と `fs` を注入可能にし、テストから直接呼ぶ。
+///
+/// `home` が `None` の場合、personal scope のクリーンアップはスキップされる。
 pub(crate) fn cleanup_plugin_directories_impl(
     fs: &dyn FileSystem,
     kind: TargetKind,
-    home: &Path,
+    home: Option<&Path>,
     origin: &PluginOrigin,
     project_root: &Path,
 ) {
@@ -69,40 +74,54 @@ pub(crate) fn cleanup_plugin_directories_impl(
 
 /// TargetKind ごとに (base_dir, kind_subdir) のリストを返す。
 ///
-/// base_dir は Personal / Project それぞれのディレクトリ、
+/// - `home` が `Some` の場合: personal scope + project scope 両方のエントリを列挙
+/// - `home` が `None` の場合: project scope のエントリのみ列挙（personal cleanup スキップ）
+///
 /// kind_subdir は `"agents"` / `"skills"` / `"prompts"` / `"hooks"` などの
 /// コンポーネント種別配下ディレクトリ名。
 fn cleanup_specs(
     kind: TargetKind,
-    home: &Path,
+    home: Option<&Path>,
     project_root: &Path,
 ) -> Vec<(PathBuf, &'static str)> {
+    let mut specs: Vec<(PathBuf, &'static str)> = Vec::new();
+
     match kind {
-        TargetKind::Codex => vec![
-            (home.join(".codex"), "agents"),
-            (home.join(".codex"), "skills"),
-            (project_root.join(".codex"), "agents"),
-            (project_root.join(".codex"), "skills"),
-        ],
-        TargetKind::Copilot => vec![
-            // Personal scope: CopilotTarget::can_place は Agent / Hook のみサポート
-            (home.join(".copilot"), "agents"),
-            (home.join(".copilot"), "hooks"),
+        TargetKind::Codex => {
+            if let Some(h) = home {
+                specs.push((h.join(".codex"), "agents"));
+                specs.push((h.join(".codex"), "skills"));
+            }
+            specs.push((project_root.join(".codex"), "agents"));
+            specs.push((project_root.join(".codex"), "skills"));
+        }
+        TargetKind::Copilot => {
+            if let Some(h) = home {
+                // Personal scope: CopilotTarget::can_place は Agent / Hook のみサポート
+                specs.push((h.join(".copilot"), "agents"));
+                specs.push((h.join(".copilot"), "hooks"));
+            }
             // Project scope: 全コンポーネント種別を受け付ける
-            (project_root.join(".github"), "agents"),
-            (project_root.join(".github"), "prompts"),
-            (project_root.join(".github"), "skills"),
-            (project_root.join(".github"), "hooks"),
-        ],
-        TargetKind::Antigravity => vec![
-            (home.join(".gemini").join("antigravity"), "skills"),
-            (project_root.join(".agent"), "skills"),
-        ],
-        TargetKind::GeminiCli => vec![
-            (home.join(".gemini"), "skills"),
-            (project_root.join(".gemini"), "skills"),
-        ],
+            specs.push((project_root.join(".github"), "agents"));
+            specs.push((project_root.join(".github"), "prompts"));
+            specs.push((project_root.join(".github"), "skills"));
+            specs.push((project_root.join(".github"), "hooks"));
+        }
+        TargetKind::Antigravity => {
+            if let Some(h) = home {
+                specs.push((h.join(".gemini").join("antigravity"), "skills"));
+            }
+            specs.push((project_root.join(".agent"), "skills"));
+        }
+        TargetKind::GeminiCli => {
+            if let Some(h) = home {
+                specs.push((h.join(".gemini"), "skills"));
+            }
+            specs.push((project_root.join(".gemini"), "skills"));
+        }
     }
+
+    specs
 }
 
 fn cleanup_one(fs: &dyn FileSystem, base: &Path, kind_subdir: &str, origin: &PluginOrigin) {
