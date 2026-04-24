@@ -11,8 +11,7 @@
 
 use crate::component::Component;
 use crate::plugin::{
-    cleanup_plugin_directories, load_plugin_deployment, PackageCacheAccess, PluginAction,
-    PluginIntent,
+    cleanup_plugin_directories, load_plugin, PackageCacheAccess, PluginAction, PluginIntent,
 };
 use crate::target::{all_targets, OperationResult};
 use std::path::Path;
@@ -22,7 +21,7 @@ use std::path::Path;
 /// # Arguments
 ///
 /// * `cache` - プラグインを検索するためのパッケージキャッシュアクセサ
-/// * `plugin_name` - プラグインの id（キャッシュディレクトリ名。GitHub なら `owner--repo`、Marketplace でも `cache.is_cached` / `load_plugin_deployment` に渡すディレクトリ名で、Marketplace 登録名とは一致しない場合がある。`InstalledPlugin::id()` 相当）
+/// * `plugin_name` - プラグインの id（キャッシュディレクトリ名。GitHub なら `owner--repo`、Marketplace でも `cache.is_cached` / `load_plugin` に渡すディレクトリ名で、Marketplace 登録名とは一致しない場合がある。`InstalledPlugin::id()` 相当）
 /// * `marketplace` - マーケットプレイス名（任意）
 /// * `project_root` - プロジェクトルートパス
 /// * `target_filter` - ターゲットフィルタ（None で全ターゲット）
@@ -38,11 +37,11 @@ pub fn disable_plugin(
     }
 
     // Imperative Shell: コンポーネントをスキャン（I/O）
-    let plugin = match load_plugin_deployment(cache, marketplace, plugin_name) {
+    let plugin = match load_plugin(cache, marketplace, plugin_name) {
         Ok(p) => p,
         Err(e) => return OperationResult::error(e),
     };
-    let components = plugin.components();
+    let components = plugin.components().to_vec();
 
     // Functional Core: 意図を生成（純粋）
     let intent = PluginIntent::with_target_filter(
@@ -68,7 +67,7 @@ pub fn disable_plugin(
             None => all_targets(),
         };
         for target in &targets_to_cleanup {
-            cleanup_plugin_directories(target.name(), &plugin.origin, project_root);
+            cleanup_plugin_directories(target.kind(), plugin.origin(), project_root);
         }
     }
 
@@ -80,7 +79,7 @@ pub fn disable_plugin(
 /// # Arguments
 ///
 /// * `cache` - プラグインを検索するためのパッケージキャッシュアクセサ
-/// * `plugin_name` - プラグインの id（キャッシュディレクトリ名。GitHub なら `owner--repo`、Marketplace でも `cache.is_cached` / `load_plugin_deployment` に渡すディレクトリ名で、Marketplace 登録名とは一致しない場合がある。`InstalledPlugin::id()` 相当）
+/// * `plugin_name` - プラグインの id（キャッシュディレクトリ名。GitHub なら `owner--repo`、Marketplace でも `cache.is_cached` / `load_plugin` に渡すディレクトリ名で、Marketplace 登録名とは一致しない場合がある。`InstalledPlugin::id()` 相当）
 /// * `marketplace` - マーケットプレイス名（任意）
 /// * `project_root` - プロジェクトルートパス
 /// * `target_filter` - ターゲットフィルタ（None で全ターゲット）
@@ -96,11 +95,11 @@ pub fn enable_plugin(
     }
 
     // Imperative Shell: コンポーネントをスキャン（I/O）
-    let plugin = match load_plugin_deployment(cache, marketplace, plugin_name) {
+    let plugin = match load_plugin(cache, marketplace, plugin_name) {
         Ok(p) => p,
         Err(e) => return OperationResult::error(e),
     };
-    let components = plugin.components();
+    let components = plugin.components().to_vec();
 
     // Functional Core: 意図を生成（純粋）
     let intent = PluginIntent::with_target_filter(
@@ -124,7 +123,7 @@ pub fn enable_plugin(
 /// # Arguments
 ///
 /// * `cache` - プラグインを検索するためのパッケージキャッシュアクセサ
-/// * `plugin_name` - プラグインの id（キャッシュディレクトリ名。GitHub なら `owner--repo`、Marketplace でも `cache.is_cached` / `load_plugin_deployment` に渡すディレクトリ名で、Marketplace 登録名とは一致しない場合がある。`InstalledPlugin::id()` 相当）
+/// * `plugin_name` - プラグインの id（キャッシュディレクトリ名。GitHub なら `owner--repo`、Marketplace でも `cache.is_cached` / `load_plugin` に渡すディレクトリ名で、Marketplace 登録名とは一致しない場合がある。`InstalledPlugin::id()` 相当）
 /// * `marketplace` - マーケットプレイス名（任意、デフォルト: "github"）
 ///
 /// # Returns
@@ -144,8 +143,8 @@ pub fn get_uninstall_info(
         ));
     }
 
-    let plugin = load_plugin_deployment(cache, Some(marketplace_str), plugin_name)?;
-    let components = plugin.components();
+    let plugin = load_plugin(cache, Some(marketplace_str), plugin_name)?;
+    let components = plugin.components().to_vec();
 
     let affected_targets = all_targets()
         .iter()
@@ -179,7 +178,7 @@ pub struct UninstallInfo {
 /// # Arguments
 ///
 /// * `cache` - プラグインを検索するためのパッケージキャッシュアクセサ
-/// * `plugin_name` - プラグインの id（キャッシュディレクトリ名。GitHub なら `owner--repo`、Marketplace でも `cache.is_cached` / `load_plugin_deployment` に渡すディレクトリ名で、Marketplace 登録名とは一致しない場合がある。`InstalledPlugin::id()` 相当）
+/// * `plugin_name` - プラグインの id（キャッシュディレクトリ名。GitHub なら `owner--repo`、Marketplace でも `cache.is_cached` / `load_plugin` に渡すディレクトリ名で、Marketplace 登録名とは一致しない場合がある。`InstalledPlugin::id()` 相当）
 /// * `marketplace` - マーケットプレイス名（任意）
 /// * `project_root` - プロジェクトルートパス
 pub fn uninstall_plugin(

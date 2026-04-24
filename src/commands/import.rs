@@ -213,7 +213,7 @@ fn build_deployment(
     let placement_ctx = PlacementContext {
         component: ComponentRef::new(component.kind, &component.name),
         origin: ctx.origin,
-        scope: PlacementScope(ctx.scope),
+        scope: PlacementScope::new(ctx.scope),
         project: ProjectContext::new(ctx.project_root),
     };
 

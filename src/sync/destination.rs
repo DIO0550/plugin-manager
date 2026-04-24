@@ -1,10 +1,12 @@
 //! 同期先の定義
 
 use super::options::{SyncOptions, SyncableKind};
-use super::placed::{ComponentIdentity, PlacedComponent};
+use super::placed::{PlacedComponent, PlacedRef};
 use super::source::parse_component_name;
-use crate::component::{CommandFormat, ComponentKind, Scope};
-use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
+use crate::component::{
+    CommandFormat, ComponentKind, ComponentRef, PlacementContext, PlacementScope, ProjectContext,
+    Scope,
+};
 use crate::error::{PlmError, Result};
 use crate::target::{parse_target, Target, TargetKind};
 use std::collections::HashSet;
@@ -65,14 +67,14 @@ impl SyncDestination {
 
     /// 配置済みコンポーネントを取得
     ///
-    /// 重複 identity がある場合はエラー
+    /// 重複した PlacedRef がある場合はエラー
     ///
     /// # Arguments
     ///
     /// * `options` - Options selecting which kinds and scopes to include.
     pub fn placed_components(&self, options: &SyncOptions) -> Result<Vec<PlacedComponent>> {
         let mut components = Vec::new();
-        let mut seen_identities = HashSet::new();
+        let mut seen_refs = HashSet::new();
 
         let kinds = self.target_kinds(options);
         let scopes = self.target_scopes(options);
@@ -84,12 +86,12 @@ impl SyncDestination {
                 let placed = self.target.list_placed(kind, *scope, &self.project_root)?;
 
                 for name in placed {
-                    let identity = ComponentIdentity::new(kind, name.clone(), *scope);
+                    let placed_ref = PlacedRef::new(kind, name.clone(), *scope);
 
-                    if !seen_identities.insert(identity.clone()) {
+                    if !seen_refs.insert(placed_ref.clone()) {
                         return Err(PlmError::InvalidArgument(format!(
-                            "Duplicate component identity: {:?}",
-                            identity
+                            "Duplicate placed component ref: {:?}",
+                            placed_ref
                         )));
                     }
 
@@ -115,10 +117,12 @@ impl SyncDestination {
     ///
     /// # Arguments
     ///
-    /// * `identity` - Component identity whose kind and scope support is checked.
-    pub fn supports(&self, identity: &ComponentIdentity) -> bool {
-        self.target.supports(identity.kind)
-            && self.target.supports_scope(identity.kind, identity.scope)
+    /// * `placed_ref` - Placed component reference whose kind and scope support is checked.
+    pub fn supports(&self, placed_ref: &PlacedRef) -> bool {
+        self.target.supports(placed_ref.kind)
+            && self
+                .target
+                .supports_scope(placed_ref.kind, placed_ref.scope)
     }
 
     /// 対象の SyncableKind リストを取得
@@ -158,7 +162,7 @@ impl SyncDestination {
         let ctx = PlacementContext {
             component: ComponentRef::new(kind, component_name),
             origin: &origin,
-            scope: PlacementScope(scope),
+            scope: PlacementScope::new(scope),
             project: ProjectContext::new(&self.project_root),
         };
 

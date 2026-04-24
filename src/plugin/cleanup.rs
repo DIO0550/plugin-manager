@@ -1,0 +1,167 @@
+//! アンインストール後のプラグインディレクトリ整理
+//!
+//! コンポーネント削除後に空になったディレクトリ
+//! （`<base>/<kind_subdir>/<marketplace>/<plugin>` とその親）を再帰的に
+//! 掃除する責務のみを持つ。マニフェスト読み込みなどのロード系処理は
+//! `plugin::loader` を参照。
+
+use crate::fs::{FileSystem, RealFs};
+use crate::target::{PluginOrigin, TargetKind};
+use std::path::{Path, PathBuf};
+
+/// プラグインディレクトリをクリーンアップ
+///
+/// コンポーネント削除後に空になったプラグインディレクトリを削除する。
+///
+/// # Arguments
+///
+/// * `kind` - target environment kind determining directory layout
+/// * `origin` - plugin origin providing marketplace and plugin segments
+/// * `project_root` - project root under which project-scope deploy directories live
+///
+/// `HOME` 環境変数が未設定の場合、personal scope のクリーンアップは
+/// スキップされる（project scope のみ実行）。これにより `HOME` 欠落時に
+/// literal `~` がカレント配下に解決され誤削除されるリスクを避ける。
+pub(crate) fn cleanup_plugin_directories(
+    kind: TargetKind,
+    origin: &PluginOrigin,
+    project_root: &Path,
+) {
+    let fs = RealFs;
+    // HOME="" や HOME="   " を未設定相当として扱う。
+    // そのまま PathBuf::from("") を使うと personal cleanup が `./.codex` 等の
+    // CWD 配下パスで走ってしまうため、trim 後に空なら None にフォールバックする。
+    let home = std::env::var("HOME")
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .map(PathBuf::from);
+    cleanup_plugin_directories_impl(&fs, kind, home.as_deref(), origin, project_root);
+}
+
+/// 内部実装 — `home` と `fs` を注入可能にし、テストから直接呼ぶ。
+///
+/// `home` が `None` の場合、personal scope のクリーンアップはスキップされる。
+pub(crate) fn cleanup_plugin_directories_impl(
+    fs: &dyn FileSystem,
+    kind: TargetKind,
+    home: Option<&Path>,
+    origin: &PluginOrigin,
+    project_root: &Path,
+) {
+    for (base, kind_subdir) in cleanup_specs(kind, home, project_root) {
+        cleanup_one(fs, &base, kind_subdir, origin);
+    }
+}
+
+/// TargetKind ごとに (base_dir, kind_subdir) のリストを返す。
+///
+/// - `home` が `Some` の場合: personal scope + project scope 両方のエントリを列挙
+/// - `home` が `None` の場合: project scope のエントリのみ列挙（personal cleanup スキップ）
+///
+/// kind_subdir は `"agents"` / `"skills"` / `"prompts"` / `"hooks"` などの
+/// コンポーネント種別配下ディレクトリ名。
+fn cleanup_specs(
+    kind: TargetKind,
+    home: Option<&Path>,
+    project_root: &Path,
+) -> Vec<(PathBuf, &'static str)> {
+    let mut specs: Vec<(PathBuf, &'static str)> = Vec::new();
+
+    match kind {
+        TargetKind::Codex => {
+            if let Some(h) = home {
+                specs.push((h.join(".codex"), "agents"));
+                specs.push((h.join(".codex"), "skills"));
+            }
+            specs.push((project_root.join(".codex"), "agents"));
+            specs.push((project_root.join(".codex"), "skills"));
+        }
+        TargetKind::Copilot => {
+            if let Some(h) = home {
+                // Personal scope: CopilotTarget::can_place は Agent / Hook のみサポート
+                specs.push((h.join(".copilot"), "agents"));
+                specs.push((h.join(".copilot"), "hooks"));
+            }
+            // Project scope: 全コンポーネント種別を受け付ける
+            specs.push((project_root.join(".github"), "agents"));
+            specs.push((project_root.join(".github"), "prompts"));
+            specs.push((project_root.join(".github"), "skills"));
+            specs.push((project_root.join(".github"), "hooks"));
+        }
+        TargetKind::Antigravity => {
+            if let Some(h) = home {
+                specs.push((h.join(".gemini").join("antigravity"), "skills"));
+            }
+            specs.push((project_root.join(".agent"), "skills"));
+        }
+        TargetKind::GeminiCli => {
+            if let Some(h) = home {
+                specs.push((h.join(".gemini"), "skills"));
+            }
+            specs.push((project_root.join(".gemini"), "skills"));
+        }
+    }
+
+    specs
+}
+
+fn cleanup_one(fs: &dyn FileSystem, base: &Path, kind_subdir: &str, origin: &PluginOrigin) {
+    // 防御的検証: 不正な marketplace / plugin セグメントが渡された場合、
+    // base の外で remove_dir_all が走ってしまうのを防ぐため cleanup をスキップする。
+    if !is_safe_path_segment(&origin.marketplace) || !is_safe_path_segment(&origin.plugin) {
+        return;
+    }
+
+    let plugin_dir = base
+        .join(kind_subdir)
+        .join(&origin.marketplace)
+        .join(&origin.plugin);
+    remove_if_empty(fs, &plugin_dir);
+
+    let marketplace_dir = base.join(kind_subdir).join(&origin.marketplace);
+    remove_if_empty(fs, &marketplace_dir);
+
+    let kind_root = base.join(kind_subdir);
+    remove_if_empty(fs, &kind_root);
+}
+
+/// パスの 1 セグメントとして安全かを判定する。
+///
+/// `..` / パスセパレータ / 先頭ドット / 絶対パスを拒否し、`base` 外への
+/// 書き込みや削除を防ぐ。`plugin/cache.rs::validate_source_path` と同じ方針。
+fn is_safe_path_segment(segment: &str) -> bool {
+    if segment.is_empty() {
+        return false;
+    }
+    if segment.contains("..") {
+        return false;
+    }
+    if segment.contains('/') || segment.contains('\\') {
+        return false;
+    }
+    if segment.starts_with('.') {
+        return false;
+    }
+    if Path::new(segment).is_absolute() {
+        return false;
+    }
+    true
+}
+
+fn remove_if_empty(fs: &dyn FileSystem, path: &Path) {
+    if !fs.is_dir(path) {
+        return;
+    }
+    let Ok(entries) = fs.read_dir(path) else {
+        return;
+    };
+    if !entries.is_empty() {
+        return;
+    }
+    let _ = fs.remove_dir_all(path);
+}
+
+#[cfg(test)]
+#[path = "cleanup_test.rs"]
+mod tests;

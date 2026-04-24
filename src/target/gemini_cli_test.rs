@@ -90,7 +90,7 @@ fn test_gemini_cli_placement_location_skill_personal() {
     let ctx = PlacementContext {
         component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
         origin: &origin,
-        scope: PlacementScope(Scope::Personal),
+        scope: PlacementScope::new(Scope::Personal),
         project: ProjectContext::new(project_root),
     };
     let location = target.placement_location(&ctx).unwrap();
@@ -110,7 +110,7 @@ fn test_gemini_cli_placement_location_skill_project() {
     let ctx = PlacementContext {
         component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
         origin: &origin,
-        scope: PlacementScope(Scope::Project),
+        scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
     };
     let location = target.placement_location(&ctx).unwrap();
@@ -131,7 +131,7 @@ fn test_gemini_cli_placement_location_instruction_personal() {
     let ctx = PlacementContext {
         component: ComponentRef::new(ComponentKind::Instruction, "test"),
         origin: &origin,
-        scope: PlacementScope(Scope::Personal),
+        scope: PlacementScope::new(Scope::Personal),
         project: ProjectContext::new(project_root),
     };
     let location = target.placement_location(&ctx).unwrap();
@@ -151,7 +151,7 @@ fn test_gemini_cli_placement_location_instruction_project() {
     let ctx = PlacementContext {
         component: ComponentRef::new(ComponentKind::Instruction, "test"),
         origin: &origin,
-        scope: PlacementScope(Scope::Project),
+        scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
     };
     let location = target.placement_location(&ctx).unwrap();
@@ -169,7 +169,7 @@ fn test_gemini_cli_placement_location_agent_returns_none() {
     let ctx = PlacementContext {
         component: ComponentRef::new(ComponentKind::Agent, "my-agent"),
         origin: &origin,
-        scope: PlacementScope(Scope::Project),
+        scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
     };
     assert!(target.placement_location(&ctx).is_none());
@@ -184,7 +184,7 @@ fn test_gemini_cli_placement_location_command_returns_none() {
     let ctx = PlacementContext {
         component: ComponentRef::new(ComponentKind::Command, "test"),
         origin: &origin,
-        scope: PlacementScope(Scope::Project),
+        scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
     };
     assert!(target.placement_location(&ctx).is_none());
@@ -199,7 +199,7 @@ fn test_gemini_cli_placement_location_hook_returns_none() {
     let ctx = PlacementContext {
         component: ComponentRef::new(ComponentKind::Hook, "test"),
         origin: &origin,
-        scope: PlacementScope(Scope::Project),
+        scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
     };
     assert!(target.placement_location(&ctx).is_none());
@@ -214,7 +214,7 @@ fn test_gemini_cli_placement_with_github_origin() {
     let ctx = PlacementContext {
         component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
         origin: &origin,
-        scope: PlacementScope(Scope::Project),
+        scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
     };
     let location = target.placement_location(&ctx).unwrap();

@@ -6,6 +6,7 @@
 use crate::component::{AgentFormat, CommandFormat, Component};
 use crate::marketplace::MarketplaceManifest;
 use crate::plugin::PluginManifest;
+use crate::target::PluginOrigin;
 use std::path::{Path, PathBuf};
 
 use super::cached_package::CachedPackage;
@@ -115,7 +116,8 @@ impl MarketplaceContent {
 
 impl From<CachedPackage> for MarketplaceContent {
     fn from(cached: CachedPackage) -> Self {
-        let primary = Plugin::new(cached.manifest, cached.path);
+        let origin = PluginOrigin::from_cached_plugin(cached.marketplace.as_deref(), cached.id());
+        let primary = Plugin::new(cached.manifest, cached.path, origin);
         Self {
             id: cached.id,
             marketplace: cached.marketplace,
@@ -128,7 +130,8 @@ impl From<CachedPackage> for MarketplaceContent {
 
 impl From<&CachedPackage> for MarketplaceContent {
     fn from(cached: &CachedPackage) -> Self {
-        let primary = Plugin::new(cached.manifest.clone(), cached.path.clone());
+        let origin = PluginOrigin::from_cached_plugin(cached.marketplace.as_deref(), cached.id());
+        let primary = Plugin::new(cached.manifest.clone(), cached.path.clone(), origin);
         Self {
             id: cached.id.clone(),
             marketplace: cached.marketplace.clone(),

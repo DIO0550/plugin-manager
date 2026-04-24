@@ -8,20 +8,15 @@ use std::path::{Path, PathBuf};
 
 /// コンポーネント参照
 ///
-/// コンポーネントの種別と名前を保持する値オブジェクト。
-#[derive(Debug, Clone)]
+/// 配置先決定に必要な最小の識別子（`kind` + `name`）。
+/// scope は `PlacementContext.scope` 側に保持する。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ComponentRef {
     pub kind: ComponentKind,
     pub name: String,
 }
 
 impl ComponentRef {
-    /// Create a new `ComponentRef`.
-    ///
-    /// # Arguments
-    ///
-    /// * `kind` - Component kind.
-    /// * `name` - Component name.
     pub fn new(kind: ComponentKind, name: impl Into<String>) -> Self {
         Self {
             kind,
@@ -30,29 +25,25 @@ impl ComponentRef {
     }
 }
 
+impl From<&crate::component::Component> for ComponentRef {
+    fn from(c: &crate::component::Component) -> Self {
+        Self::new(c.kind, c.name.clone())
+    }
+}
+
 /// 配置スコープ
 ///
 /// `Scope` をラップして配置ドメイン固有の型として扱う。
 #[derive(Debug, Clone, Copy)]
-pub struct PlacementScope(pub Scope);
+pub struct PlacementScope(Scope);
 
 impl PlacementScope {
-    pub fn personal() -> Self {
-        Self(Scope::Personal)
-    }
-
-    pub fn project() -> Self {
-        Self(Scope::Project)
-    }
-
-    pub fn inner(&self) -> Scope {
-        self.0
-    }
-}
-
-impl From<Scope> for PlacementScope {
-    fn from(scope: Scope) -> Self {
+    pub fn new(scope: Scope) -> Self {
         Self(scope)
+    }
+
+    pub fn scope(&self) -> Scope {
+        self.0
     }
 }
 
@@ -99,7 +90,7 @@ impl<'a> PlacementContext<'a> {
 
     /// スコープを取得
     pub fn scope(&self) -> Scope {
-        self.scope.0
+        self.scope.scope()
     }
 
     /// プロジェクトルートを取得

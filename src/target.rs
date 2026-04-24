@@ -13,7 +13,7 @@
 //! let ctx = PlacementContext {
 //!     component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
 //!     origin: &origin,
-//!     scope: PlacementScope(Scope::Project),
+//!     scope: PlacementScope::new(Scope::Project),
 //!     project: ProjectContext::new(&project_root),
 //! };
 //! let location = target.placement_location(&ctx);
@@ -25,7 +25,9 @@ mod copilot;
 mod effect;
 mod gemini_cli;
 mod id;
+pub(crate) mod paths;
 mod placed;
+pub(crate) mod placed_common;
 mod registry;
 pub mod scanner;
 
@@ -106,6 +108,14 @@ impl PluginOrigin {
             marketplace: marketplace.unwrap_or("github").to_string(),
             plugin: plugin_name.to_string(),
         }
+    }
+
+    /// `{marketplace}/{plugin}/{name}` 形式の完全修飾名を返す。
+    ///
+    /// target の `filter_component` や list_placed で配置物の識別キーを
+    /// 組み立てる際に使用する。
+    pub fn qualify(&self, name: &str) -> String {
+        format!("{}/{}/{}", self.marketplace, self.plugin, name)
     }
 }
 
@@ -204,7 +214,7 @@ pub trait Target: Send + Sync {
         let ctx = PlacementContext {
             component: ComponentRef::new(kind, "test"),
             origin: &dummy_origin,
-            scope: PlacementScope(scope),
+            scope: PlacementScope::new(scope),
             project: ProjectContext::new(Path::new(".")),
         };
         self.placement_location(&ctx).is_some()

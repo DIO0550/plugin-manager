@@ -9,14 +9,11 @@ fn test_component_ref() {
 
 #[test]
 fn test_placement_scope() {
-    let personal = PlacementScope::personal();
-    assert_eq!(personal.inner(), Scope::Personal);
+    let personal = PlacementScope::new(Scope::Personal);
+    assert_eq!(personal.scope(), Scope::Personal);
 
-    let project = PlacementScope::project();
-    assert_eq!(project.inner(), Scope::Project);
-
-    let from_scope = PlacementScope::from(Scope::Personal);
-    assert_eq!(from_scope.inner(), Scope::Personal);
+    let project = PlacementScope::new(Scope::Project);
+    assert_eq!(project.scope(), Scope::Project);
 }
 
 #[test]
@@ -40,7 +37,7 @@ fn test_placement_context() {
     let ctx = PlacementContext {
         component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
         origin: &origin,
-        scope: PlacementScope(Scope::Project),
+        scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
     };
 

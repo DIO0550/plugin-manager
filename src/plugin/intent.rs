@@ -168,7 +168,7 @@ impl PluginIntent {
         let context = PlacementContext {
             component: ComponentRef::new(component.kind, &component.name),
             origin,
-            scope: PlacementScope(Scope::Project),
+            scope: PlacementScope::new(Scope::Project),
             project: ProjectContext::new(&self.project_root),
         };
 

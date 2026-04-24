@@ -174,7 +174,7 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
             let ctx = PlacementContext {
                 component: ComponentRef::new(component.kind, &component.name),
                 origin: &origin,
-                scope: PlacementScope(request.scope),
+                scope: PlacementScope::new(request.scope),
                 project: ProjectContext::new(request.project_root),
             };
 
@@ -224,7 +224,7 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
             match deployment.execute() {
                 Ok(result) => {
                     let (source_format, dest_format) = match &result {
-                        DeploymentResult::Converted(conv) if conv.converted => (
+                        DeploymentResult::CommandConverted(conv) if conv.converted => (
                             Some(conv.source_format.to_string()),
                             Some(conv.dest_format.to_string()),
                         ),

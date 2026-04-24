@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn test_component_identity_eq() {
-    let id1 = ComponentIdentity::new(ComponentKind::Skill, "test", Scope::Personal);
-    let id2 = ComponentIdentity::new(ComponentKind::Skill, "test", Scope::Personal);
-    let id3 = ComponentIdentity::new(ComponentKind::Skill, "test", Scope::Project);
+fn test_placed_ref_eq() {
+    let id1 = PlacedRef::new(ComponentKind::Skill, "test", Scope::Personal);
+    let id2 = PlacedRef::new(ComponentKind::Skill, "test", Scope::Personal);
+    let id3 = PlacedRef::new(ComponentKind::Skill, "test", Scope::Project);
 
     assert_eq!(id1, id2);
     assert_ne!(id1, id3);

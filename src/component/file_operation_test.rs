@@ -2,16 +2,13 @@ use super::*;
 use std::path::PathBuf;
 
 #[test]
-fn test_file_operation_kind() {
+fn test_file_operation_copy_file_constructed() {
     let temp_dir = std::env::temp_dir();
     let scoped = ScopedPath::new(temp_dir.join("test.txt"), &temp_dir).unwrap();
 
-    let copy = FileOperation::CopyFile {
+    let op = FileOperation::CopyFile {
         source: PathBuf::from("/src/file.txt"),
-        target: scoped.clone(),
+        target: scoped,
     };
-    assert_eq!(copy.kind(), "copy_file");
-
-    let remove = FileOperation::RemoveFile { path: scoped };
-    assert_eq!(remove.kind(), "remove_file");
+    assert!(matches!(op, FileOperation::CopyFile { .. }));
 }

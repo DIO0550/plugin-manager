@@ -1,4 +1,6 @@
 use super::*;
+use crate::component::{ComponentRef, PlacementScope, ProjectContext};
+use crate::target::PluginOrigin;
 
 #[test]
 fn test_copilot_target_name() {
@@ -27,7 +29,7 @@ fn test_copilot_skill_personal_not_supported() {
     let ctx = PlacementContext {
         component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
         origin: &origin,
-        scope: PlacementScope(Scope::Personal),
+        scope: PlacementScope::new(Scope::Personal),
         project: ProjectContext::new(project_root),
     };
     assert!(target.placement_location(&ctx).is_none());
@@ -42,7 +44,7 @@ fn test_copilot_placement_location_skill_project() {
     let ctx = PlacementContext {
         component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
         origin: &origin,
-        scope: PlacementScope(Scope::Project),
+        scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
     };
     let location = target.placement_location(&ctx).unwrap();
@@ -64,7 +66,7 @@ fn test_copilot_placement_location_agent() {
     let ctx_personal = PlacementContext {
         component: ComponentRef::new(ComponentKind::Agent, "test"),
         origin: &origin,
-        scope: PlacementScope(Scope::Personal),
+        scope: PlacementScope::new(Scope::Personal),
         project: ProjectContext::new(project_root),
     };
     let location_personal = target.placement_location(&ctx_personal).unwrap();
@@ -78,7 +80,7 @@ fn test_copilot_placement_location_agent() {
     let ctx_project = PlacementContext {
         component: ComponentRef::new(ComponentKind::Agent, "test"),
         origin: &origin,
-        scope: PlacementScope(Scope::Project),
+        scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
     };
     let location_project = target.placement_location(&ctx_project).unwrap();
@@ -99,7 +101,7 @@ fn test_copilot_placement_location_command() {
     let ctx_personal = PlacementContext {
         component: ComponentRef::new(ComponentKind::Command, "my-command"),
         origin: &origin,
-        scope: PlacementScope(Scope::Personal),
+        scope: PlacementScope::new(Scope::Personal),
         project: ProjectContext::new(project_root),
     };
     assert!(target.placement_location(&ctx_personal).is_none());
@@ -108,7 +110,7 @@ fn test_copilot_placement_location_command() {
     let ctx_project = PlacementContext {
         component: ComponentRef::new(ComponentKind::Command, "my-command"),
         origin: &origin,
-        scope: PlacementScope(Scope::Project),
+        scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
     };
     let location = target.placement_location(&ctx_project).unwrap();
@@ -128,7 +130,7 @@ fn test_copilot_placement_location_instruction() {
     let ctx = PlacementContext {
         component: ComponentRef::new(ComponentKind::Instruction, "test"),
         origin: &origin,
-        scope: PlacementScope(Scope::Project),
+        scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
     };
     let location = target.placement_location(&ctx).unwrap();
@@ -156,7 +158,7 @@ fn test_copilot_agent_md_extension_transform() {
     let ctx = PlacementContext {
         component: ComponentRef::new(ComponentKind::Agent, "my-agent"),
         origin: &origin,
-        scope: PlacementScope(Scope::Project),
+        scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
     };
 
@@ -184,7 +186,7 @@ fn test_copilot_agent_single_file_edge_case() {
     let ctx = PlacementContext {
         component: ComponentRef::new(ComponentKind::Agent, "my-agent.agent"),
         origin: &origin,
-        scope: PlacementScope(Scope::Project),
+        scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
     };
 
@@ -211,7 +213,7 @@ fn test_copilot_placement_location_hook_project() {
     let ctx = PlacementContext {
         component: ComponentRef::new(ComponentKind::Hook, "pre-commit"),
         origin: &origin,
-        scope: PlacementScope(Scope::Project),
+        scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
     };
     let location = target.placement_location(&ctx).unwrap();
@@ -232,7 +234,7 @@ fn test_copilot_placement_location_hook_personal() {
     let ctx = PlacementContext {
         component: ComponentRef::new(ComponentKind::Hook, "pre-commit"),
         origin: &origin,
-        scope: PlacementScope(Scope::Personal),
+        scope: PlacementScope::new(Scope::Personal),
         project: ProjectContext::new(project_root),
     };
     let location = target.placement_location(&ctx).unwrap();

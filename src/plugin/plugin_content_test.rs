@@ -3,6 +3,7 @@
 use super::Plugin;
 use crate::component::{Component, ComponentKind};
 use crate::plugin::PluginManifest;
+use crate::target::PluginOrigin;
 use std::fs;
 use std::path::Path;
 use tempfile::TempDir;
@@ -41,7 +42,11 @@ fn test_plugin_new_with_skills() {
     let path = temp.path().to_path_buf();
     write_file(&path.join("skills/my-skill/SKILL.md"), "# Skill");
 
-    let plugin = Plugin::new(make_manifest("test"), path.clone());
+    let plugin = Plugin::new(
+        make_manifest("test"),
+        path.clone(),
+        PluginOrigin::from_marketplace("test", "test"),
+    );
 
     let components = plugin.components();
     assert_eq!(components.len(), 1);
@@ -55,7 +60,11 @@ fn test_plugin_new_empty_dir() {
     let temp = TempDir::new().unwrap();
     let path = temp.path().to_path_buf();
 
-    let plugin = Plugin::new(make_manifest("test"), path);
+    let plugin = Plugin::new(
+        make_manifest("test"),
+        path,
+        PluginOrigin::from_marketplace("test", "test"),
+    );
 
     assert!(plugin.components().is_empty());
 }
@@ -66,7 +75,11 @@ fn test_plugin_components_returns_slice() {
     let path = temp.path().to_path_buf();
     write_file(&path.join("skills/my-skill/SKILL.md"), "# Skill");
 
-    let plugin = Plugin::new(make_manifest("test"), path);
+    let plugin = Plugin::new(
+        make_manifest("test"),
+        path,
+        PluginOrigin::from_marketplace("test", "test"),
+    );
 
     let components: &[Component] = plugin.components();
     assert_eq!(components.len(), 1);
@@ -78,7 +91,11 @@ fn test_plugin_new_with_agents() {
     let path = temp.path().to_path_buf();
     write_file(&path.join("agents/my-agent.agent.md"), "# Agent");
 
-    let plugin = Plugin::new(make_manifest("test"), path.clone());
+    let plugin = Plugin::new(
+        make_manifest("test"),
+        path.clone(),
+        PluginOrigin::from_marketplace("test", "test"),
+    );
 
     let components = plugin.components();
     assert_eq!(components.len(), 1);
@@ -99,7 +116,11 @@ fn test_plugin_new_with_agent_single_file() {
     let mut manifest = make_manifest("test");
     manifest.agents = Some("custom-agent.md".to_string());
 
-    let plugin = Plugin::new(manifest, path.clone());
+    let plugin = Plugin::new(
+        manifest,
+        path.clone(),
+        PluginOrigin::from_marketplace("test", "test"),
+    );
 
     let components = plugin.components();
     assert_eq!(components.len(), 1);
@@ -114,7 +135,11 @@ fn test_plugin_new_with_commands() {
     let path = temp.path().to_path_buf();
     write_file(&path.join("commands/my-command.prompt.md"), "# Command");
 
-    let plugin = Plugin::new(make_manifest("test"), path.clone());
+    let plugin = Plugin::new(
+        make_manifest("test"),
+        path.clone(),
+        PluginOrigin::from_marketplace("test", "test"),
+    );
 
     let components = plugin.components();
     assert_eq!(components.len(), 1);
@@ -132,7 +157,11 @@ fn test_plugin_new_with_command_md_fallback() {
     let path = temp.path().to_path_buf();
     write_file(&path.join("commands/legacy-cmd.md"), "# Command");
 
-    let plugin = Plugin::new(make_manifest("test"), path.clone());
+    let plugin = Plugin::new(
+        make_manifest("test"),
+        path.clone(),
+        PluginOrigin::from_marketplace("test", "test"),
+    );
 
     let components = plugin.components();
     assert_eq!(components.len(), 1);
@@ -153,7 +182,11 @@ fn test_plugin_new_with_instructions() {
     let mut manifest = make_manifest("test");
     manifest.instructions = Some("docs".to_string());
 
-    let plugin = Plugin::new(manifest, path.clone());
+    let plugin = Plugin::new(
+        manifest,
+        path.clone(),
+        PluginOrigin::from_marketplace("test", "test"),
+    );
 
     let components = plugin.components();
     assert_eq!(components.len(), 1);
@@ -173,7 +206,11 @@ fn test_plugin_new_with_instructions_dir_containing_agents_md() {
     let mut manifest = make_manifest("test");
     manifest.instructions = Some("docs".to_string());
 
-    let plugin = Plugin::new(manifest, path.clone());
+    let plugin = Plugin::new(
+        manifest,
+        path.clone(),
+        PluginOrigin::from_marketplace("test", "test"),
+    );
 
     let components = plugin.components();
     assert_eq!(components.len(), 1);
@@ -188,7 +225,11 @@ fn test_plugin_new_with_default_agents_md_instruction() {
     let path = temp.path().to_path_buf();
     write_file(&path.join("AGENTS.md"), "# Agents");
 
-    let plugin = Plugin::new(make_manifest("test"), path.clone());
+    let plugin = Plugin::new(
+        make_manifest("test"),
+        path.clone(),
+        PluginOrigin::from_marketplace("test", "test"),
+    );
 
     let components = plugin.components();
     assert_eq!(components.len(), 1);
@@ -203,7 +244,11 @@ fn test_plugin_new_with_hooks() {
     let path = temp.path().to_path_buf();
     write_file(&path.join("hooks/on-apply-patch.sh"), "#!/bin/sh\n");
 
-    let plugin = Plugin::new(make_manifest("test"), path.clone());
+    let plugin = Plugin::new(
+        make_manifest("test"),
+        path.clone(),
+        PluginOrigin::from_marketplace("test", "test"),
+    );
 
     let components = plugin.components();
     assert_eq!(components.len(), 1);
@@ -224,7 +269,11 @@ fn test_plugin_new_with_instruction_file_manifest() {
     let mut manifest = make_manifest("test");
     manifest.instructions = Some("SETUP.md".to_string());
 
-    let plugin = Plugin::new(manifest, path.clone());
+    let plugin = Plugin::new(
+        manifest,
+        path.clone(),
+        PluginOrigin::from_marketplace("test", "test"),
+    );
 
     let components = plugin.components();
     assert_eq!(components.len(), 1);
@@ -241,7 +290,11 @@ fn test_plugin_new_with_missing_instruction_path() {
     let mut manifest = make_manifest("test");
     manifest.instructions = Some("nonexistent".to_string());
 
-    let plugin = Plugin::new(manifest, path);
+    let plugin = Plugin::new(
+        manifest,
+        path,
+        PluginOrigin::from_marketplace("test", "test"),
+    );
 
     let instructions: Vec<&Component> = plugin
         .components()
@@ -258,7 +311,11 @@ fn test_plugin_new_with_hooks_same_stem_different_ext() {
     write_file(&path.join("hooks/pre-commit.sh"), "#!/bin/sh\n");
     write_file(&path.join("hooks/pre-commit.py"), "#!/usr/bin/env python\n");
 
-    let plugin = Plugin::new(make_manifest("test"), path.clone());
+    let plugin = Plugin::new(
+        make_manifest("test"),
+        path.clone(),
+        PluginOrigin::from_marketplace("test", "test"),
+    );
 
     let hooks: Vec<&Component> = plugin
         .components()
@@ -280,7 +337,11 @@ fn test_plugin_clone_preserves_components() {
     let path = temp.path().to_path_buf();
     write_file(&path.join("skills/my-skill/SKILL.md"), "# Skill");
 
-    let plugin = Plugin::new(make_manifest("test"), path);
+    let plugin = Plugin::new(
+        make_manifest("test"),
+        path,
+        PluginOrigin::from_marketplace("test", "test"),
+    );
     let cloned = plugin.clone();
 
     assert_eq!(cloned.components().len(), 1);

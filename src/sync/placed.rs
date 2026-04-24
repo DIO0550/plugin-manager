@@ -4,22 +4,18 @@ use crate::component::{ComponentKind, Scope};
 use crate::error::{PlmError, Result};
 use std::path::{Path, PathBuf};
 
-/// コンポーネントを一意に識別するキー
+/// 配置済みコンポーネントの識別キー（`kind` + `name` + `scope`）。
+///
+/// sync で source / dest のマッチングに使う HashMap キー用途に特化した型。
+/// 同一 target 内では (kind, name, scope) の組で一意。
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ComponentIdentity {
+pub struct PlacedRef {
     pub kind: ComponentKind,
     pub name: String,
     pub scope: Scope,
 }
 
-impl ComponentIdentity {
-    /// Create a new `ComponentIdentity`.
-    ///
-    /// # Arguments
-    ///
-    /// * `kind` - Component kind identified.
-    /// * `name` - Fully-qualified component name.
-    /// * `scope` - Placement scope of the component.
+impl PlacedRef {
     pub fn new(kind: ComponentKind, name: impl Into<String>, scope: Scope) -> Self {
         Self {
             kind,
@@ -32,7 +28,7 @@ impl ComponentIdentity {
 /// ターゲット上に配置されているコンポーネント
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlacedComponent {
-    pub identity: ComponentIdentity,
+    pub placed_ref: PlacedRef,
     pub path: PathBuf,
 }
 
@@ -52,29 +48,29 @@ impl PlacedComponent {
         path: impl Into<PathBuf>,
     ) -> Self {
         Self {
-            identity: ComponentIdentity::new(kind, name, scope),
+            placed_ref: PlacedRef::new(kind, name, scope),
             path: path.into(),
         }
     }
 
-    /// 識別子を取得
-    pub fn identity(&self) -> &ComponentIdentity {
-        &self.identity
+    /// 識別キーを取得
+    pub fn placed_ref(&self) -> &PlacedRef {
+        &self.placed_ref
     }
 
     /// kind を取得
     pub fn kind(&self) -> ComponentKind {
-        self.identity.kind
+        self.placed_ref.kind
     }
 
     /// name を取得
     pub fn name(&self) -> &str {
-        &self.identity.name
+        &self.placed_ref.name
     }
 
     /// scope を取得
     pub fn scope(&self) -> Scope {
-        self.identity.scope
+        self.placed_ref.scope
     }
 
     /// パスが project_root 配下かを検証

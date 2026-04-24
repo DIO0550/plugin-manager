@@ -1,4 +1,6 @@
 use super::*;
+use crate::component::{ComponentRef, PlacementScope, ProjectContext};
+use crate::target::PluginOrigin;
 
 #[test]
 fn test_codex_target_name() {
@@ -26,7 +28,7 @@ fn test_codex_placement_location_skill_with_hierarchy() {
     let ctx = PlacementContext {
         component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
         origin: &origin,
-        scope: PlacementScope(Scope::Project),
+        scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
     };
     let location = target.placement_location(&ctx).unwrap();
@@ -47,7 +49,7 @@ fn test_codex_placement_location_skill_github_direct() {
     let ctx = PlacementContext {
         component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
         origin: &origin,
-        scope: PlacementScope(Scope::Project),
+        scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
     };
     let location = target.placement_location(&ctx).unwrap();
@@ -68,7 +70,7 @@ fn test_codex_placement_location_agent() {
     let ctx = PlacementContext {
         component: ComponentRef::new(ComponentKind::Agent, "my-agent"),
         origin: &origin,
-        scope: PlacementScope(Scope::Project),
+        scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
     };
     let location = target.placement_location(&ctx).unwrap();
@@ -90,7 +92,7 @@ fn test_codex_placement_location_instruction() {
     let ctx = PlacementContext {
         component: ComponentRef::new(ComponentKind::Instruction, "test"),
         origin: &origin,
-        scope: PlacementScope(Scope::Project),
+        scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
     };
     let location = target.placement_location(&ctx).unwrap();
@@ -108,7 +110,7 @@ fn test_codex_command_not_supported() {
     let ctx = PlacementContext {
         component: ComponentRef::new(ComponentKind::Command, "test"),
         origin: &origin,
-        scope: PlacementScope(Scope::Project),
+        scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
     };
     assert!(target.placement_location(&ctx).is_none());
