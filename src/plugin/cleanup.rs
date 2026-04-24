@@ -150,13 +150,16 @@ fn is_safe_path_segment(segment: &str) -> bool {
 }
 
 fn remove_if_empty(fs: &dyn FileSystem, path: &Path) {
-    if fs.is_dir(path) {
-        if let Ok(entries) = fs.read_dir(path) {
-            if entries.is_empty() {
-                let _ = fs.remove_dir_all(path);
-            }
-        }
+    if !fs.is_dir(path) {
+        return;
     }
+    let Ok(entries) = fs.read_dir(path) else {
+        return;
+    };
+    if !entries.is_empty() {
+        return;
+    }
+    let _ = fs.remove_dir_all(path);
 }
 
 #[cfg(test)]
