@@ -66,14 +66,14 @@ impl SyncSource {
 
     /// 配置済みコンポーネントを取得
     ///
-    /// 重複 identity がある場合はエラー
+    /// 重複した PlacedRef がある場合はエラー
     ///
     /// # Arguments
     ///
     /// * `options` - Options selecting which kinds and scopes to include.
     pub fn placed_components(&self, options: &SyncOptions) -> Result<Vec<PlacedComponent>> {
         let mut components = Vec::new();
-        let mut seen_identities = HashSet::new();
+        let mut seen_refs = HashSet::new();
 
         let kinds = self.target_kinds(options);
         let scopes = self.target_scopes(options);
@@ -87,9 +87,9 @@ impl SyncSource {
                 for name in placed {
                     let placed_ref = PlacedRef::new(kind, name.clone(), *scope);
 
-                    if !seen_identities.insert(placed_ref.clone()) {
+                    if !seen_refs.insert(placed_ref.clone()) {
                         return Err(PlmError::InvalidArgument(format!(
-                            "Duplicate component identity: {:?}",
+                            "Duplicate placed component ref: {:?}",
                             placed_ref
                         )));
                     }
