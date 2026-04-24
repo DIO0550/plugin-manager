@@ -117,7 +117,7 @@ impl SyncDestination {
     ///
     /// # Arguments
     ///
-    /// * `identity` - Component identity whose kind and scope support is checked.
+    /// * `placed_ref` - Placed component reference whose kind and scope support is checked.
     pub fn supports(&self, placed_ref: &PlacedRef) -> bool {
         self.target.supports(placed_ref.kind)
             && self
