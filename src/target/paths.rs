@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 /// - `HOME="   "`（空白のみ）
 ///
 /// これにより、`HOME=""` が空 `PathBuf` として伝播し personal scope が
-/// CWD 配下（例: `./.codex`）に解決される事故を防ぐ（`plugin::loader::
+/// CWD 配下（例: `./.codex`）に解決される事故を防ぐ（`plugin::cleanup::
 /// cleanup_plugin_directories` の HOME 正規化と同一方針）。
 /// ただし literal `"~"` を返すフォールバック自体はこれまでどおり残すので、
 /// `HOME` が欠落した環境では呼び出し側が `./~/...` のような相対パスを
