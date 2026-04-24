@@ -1,6 +1,6 @@
 //! OpenAI Codex ターゲット実装
 
-use crate::component::{ComponentKind, ComponentRef, PlacementContext, PlacementLocation, Scope};
+use crate::component::{ComponentKind, PlacementContext, PlacementLocation, Scope};
 use crate::error::Result;
 use crate::target::paths::base_dir;
 use crate::target::placed_common;
