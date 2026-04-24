@@ -1,5 +1,5 @@
 use super::*;
-use crate::component::{PlacementScope, ProjectContext};
+use crate::component::{ComponentRef, PlacementScope, ProjectContext};
 use crate::target::PluginOrigin;
 
 #[test]
