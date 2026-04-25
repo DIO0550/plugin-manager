@@ -33,6 +33,97 @@ const PROMPT_TOOL_MAP: &[(&str, &str)] = &[
     ("WebSearch", "websearch"),
 ];
 
+#[allow(dead_code)]
+struct ToolRow {
+    claude_code: &'static str,
+    copilot: Option<&'static str>,
+    /// 将来拡張用（Codex Tool 名マッピングが仕様化されたら Some(...) を埋める）
+    codex: Option<&'static str>,
+    reverse_canonical: bool,
+}
+
+#[allow(dead_code)]
+type ToolColumn = fn(&ToolRow) -> Option<&'static str>;
+
+#[allow(dead_code)]
+fn tool_col_claude_code(row: &ToolRow) -> Option<&'static str> {
+    Some(row.claude_code)
+}
+#[allow(dead_code)]
+fn tool_col_copilot(row: &ToolRow) -> Option<&'static str> {
+    row.copilot
+}
+#[allow(dead_code)]
+fn tool_col_codex(row: &ToolRow) -> Option<&'static str> {
+    row.codex
+}
+
+#[allow(dead_code)]
+const TOOL_TABLE: &[ToolRow] = &[
+    ToolRow {
+        claude_code: "Read",
+        copilot: Some("codebase"),
+        codex: None,
+        reverse_canonical: true,
+    },
+    ToolRow {
+        claude_code: "Write",
+        copilot: Some("codebase"),
+        codex: None,
+        reverse_canonical: false,
+    },
+    ToolRow {
+        claude_code: "Edit",
+        copilot: Some("codebase"),
+        codex: None,
+        reverse_canonical: false,
+    },
+    ToolRow {
+        claude_code: "Grep",
+        copilot: Some("search/codebase"),
+        codex: None,
+        reverse_canonical: true,
+    },
+    ToolRow {
+        claude_code: "Glob",
+        copilot: Some("search/codebase"),
+        codex: None,
+        reverse_canonical: false,
+    },
+    ToolRow {
+        claude_code: "Bash",
+        copilot: Some("terminal"),
+        codex: None,
+        reverse_canonical: true,
+    },
+    ToolRow {
+        claude_code: "WebFetch",
+        copilot: Some("fetch"),
+        codex: None,
+        reverse_canonical: true,
+    },
+    ToolRow {
+        claude_code: "WebSearch",
+        copilot: Some("websearch"),
+        codex: None,
+        reverse_canonical: true,
+    },
+];
+
+#[allow(dead_code)]
+fn find_forward_tool(_key: &str, _from: ToolColumn, _to: ToolColumn) -> Option<&'static str> {
+    todo!("T3 で実装")
+}
+
+#[allow(dead_code)]
+fn find_reverse_canonical_tool(
+    _value: &str,
+    _from: ToolColumn,
+    _to: ToolColumn,
+) -> Option<&'static str> {
+    todo!("T3 で実装")
+}
+
 /// Tool name conversion between Claude Code and Copilot (Prompt/Agent context).
 ///
 /// N:1 reverse lookups return the first table entry as the representative value
