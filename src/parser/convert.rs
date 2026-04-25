@@ -20,7 +20,7 @@ pub enum TargetType {
 }
 
 pub use crate::format::Format;
-use crate::format::{lookup_forward, lookup_reverse};
+use crate::format::lookup_forward;
 
 const PROMPT_TOOL_MAP: &[(&str, &str)] = &[
     ("Read", "codebase"), // representative for reverse lookup
@@ -33,23 +33,20 @@ const PROMPT_TOOL_MAP: &[(&str, &str)] = &[
     ("WebSearch", "websearch"),
 ];
 
-#[allow(dead_code)]
 struct ToolRow {
     claude_code: &'static str,
     copilot: Option<&'static str>,
     /// 将来拡張用（Codex Tool 名マッピングが仕様化されたら Some(...) を埋める）
+    #[allow(dead_code)]
     codex: Option<&'static str>,
     reverse_canonical: bool,
 }
 
-#[allow(dead_code)]
 type ToolColumn = fn(&ToolRow) -> Option<&'static str>;
 
-#[allow(dead_code)]
 fn tool_col_claude_code(row: &ToolRow) -> Option<&'static str> {
     Some(row.claude_code)
 }
-#[allow(dead_code)]
 fn tool_col_copilot(row: &ToolRow) -> Option<&'static str> {
     row.copilot
 }
@@ -58,7 +55,6 @@ fn tool_col_codex(row: &ToolRow) -> Option<&'static str> {
     row.codex
 }
 
-#[allow(dead_code)]
 const TOOL_TABLE: &[ToolRow] = &[
     ToolRow {
         claude_code: "Read",
@@ -110,18 +106,22 @@ const TOOL_TABLE: &[ToolRow] = &[
     },
 ];
 
-#[allow(dead_code)]
-fn find_forward_tool(_key: &str, _from: ToolColumn, _to: ToolColumn) -> Option<&'static str> {
-    todo!("T3 で実装")
+fn find_forward_tool(key: &str, from_col: ToolColumn, to_col: ToolColumn) -> Option<&'static str> {
+    TOOL_TABLE
+        .iter()
+        .find(|row| from_col(row) == Some(key))
+        .and_then(to_col)
 }
 
-#[allow(dead_code)]
 fn find_reverse_canonical_tool(
-    _value: &str,
-    _from: ToolColumn,
-    _to: ToolColumn,
+    value: &str,
+    from_col: ToolColumn,
+    to_col: ToolColumn,
 ) -> Option<&'static str> {
-    todo!("T3 で実装")
+    TOOL_TABLE
+        .iter()
+        .find(|row| row.reverse_canonical && from_col(row) == Some(value))
+        .and_then(to_col)
 }
 
 /// Tool name conversion between Claude Code and Copilot (Prompt/Agent context).
@@ -138,7 +138,7 @@ pub(crate) fn map_tool(tool: &str, from: Format, to: Format) -> String {
     let trimmed = tool.trim();
     match (from, to) {
         (Format::ClaudeCode, Format::Copilot) => {
-            if let Some(v) = lookup_forward(PROMPT_TOOL_MAP, trimmed) {
+            if let Some(v) = find_forward_tool(trimmed, tool_col_claude_code, tool_col_copilot) {
                 return v.to_string();
             }
             if trimmed.starts_with("Bash(git") {
@@ -150,7 +150,7 @@ pub(crate) fn map_tool(tool: &str, from: Format, to: Format) -> String {
             if trimmed == "githubRepo" {
                 return "Bash".to_string();
             }
-            lookup_reverse(PROMPT_TOOL_MAP, trimmed)
+            find_reverse_canonical_tool(trimmed, tool_col_copilot, tool_col_claude_code)
                 .map(|v| v.to_string())
                 .unwrap_or_else(|| trimmed.to_string())
         }
