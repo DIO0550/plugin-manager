@@ -1,114 +1,18 @@
 //! コンポーネントのデプロイ処理
 
 mod bash_escape;
+mod executor;
 mod hook_deploy;
 mod output;
 
+pub use executor::ComponentDeployment;
 pub use output::DeploymentOutput;
 
-use super::convert::{self, AgentFormat, CommandFormat};
+use super::convert::{AgentFormat, CommandFormat};
 use crate::component::{Component, ComponentKind, Scope};
 use crate::error::{PlmError, Result};
-use crate::path_ext::PathExt;
 use crate::target::TargetKind;
-use std::path::{Path, PathBuf};
-
-/// コンポーネントのデプロイ情報
-///
-/// 配置の実行（コピー/削除など）を担当する。
-/// 配置先の決定は `PlacementLocation` が担当する。
-#[derive(Debug, Clone)]
-pub struct ComponentDeployment {
-    pub kind: ComponentKind,
-    pub name: String,
-    pub scope: Scope,
-    source_path: PathBuf,
-    target_path: PathBuf,
-    /// ソースの Command フォーマット（Command の場合のみ有効）
-    source_format: Option<CommandFormat>,
-    /// ターゲットの Command フォーマット（Command の場合のみ有効）
-    dest_format: Option<CommandFormat>,
-    /// ソースの Agent フォーマット（Agent の場合のみ有効）
-    source_agent_format: Option<AgentFormat>,
-    /// ターゲットの Agent フォーマット（Agent の場合のみ有効）
-    dest_agent_format: Option<AgentFormat>,
-    /// Hook 変換を実行するかどうか
-    hook_convert: bool,
-    /// Hook 変換のターゲット種別
-    target_kind: Option<TargetKind>,
-    /// @@PLUGIN_ROOT@@ 置換用のプラグインキャッシュルートパス
-    plugin_root: Option<PathBuf>,
-}
-
-impl ComponentDeployment {
-    /// Builderを生成
-    pub(crate) fn builder() -> ComponentDeploymentBuilder {
-        ComponentDeploymentBuilder::new()
-    }
-
-    /// 配置先パスを取得
-    pub fn path(&self) -> &Path {
-        &self.target_path
-    }
-
-    /// 配置を実行（ファイルコピー）
-    ///
-    /// Command コンポーネントで `source_format` と `dest_format` が設定されている場合、
-    /// Command フォーマット変換を行う。
-    /// Agent コンポーネントで `source_agent_format` と `dest_agent_format` が設定されている場合、
-    /// Agent フォーマット変換を行う。
-    pub fn execute(&self) -> Result<DeploymentOutput> {
-        match self.kind {
-            ComponentKind::Skill => {
-                // Skills are directories
-                self.source_path.copy_dir_to(&self.target_path)?;
-                Ok(DeploymentOutput::Copied)
-            }
-            ComponentKind::Command => {
-                if let (Some(src_fmt), Some(dest_fmt)) = (self.source_format, self.dest_format) {
-                    let result = convert::convert_and_write(
-                        &self.source_path,
-                        &self.target_path,
-                        src_fmt,
-                        dest_fmt,
-                    )?;
-                    Ok(DeploymentOutput::CommandConverted(result))
-                } else {
-                    self.source_path.copy_file_to(&self.target_path)?;
-                    Ok(DeploymentOutput::Copied)
-                }
-            }
-            ComponentKind::Agent => {
-                if let (Some(src_fmt), Some(dest_fmt)) =
-                    (self.source_agent_format, self.dest_agent_format)
-                {
-                    let result = convert::convert_agent_and_write(
-                        &self.source_path,
-                        &self.target_path,
-                        src_fmt,
-                        dest_fmt,
-                    )?;
-                    Ok(DeploymentOutput::AgentConverted(result))
-                } else {
-                    self.source_path.copy_file_to(&self.target_path)?;
-                    Ok(DeploymentOutput::Copied)
-                }
-            }
-            ComponentKind::Instruction => {
-                self.source_path.copy_file_to(&self.target_path)?;
-                Ok(DeploymentOutput::Copied)
-            }
-            ComponentKind::Hook => {
-                if self.hook_convert {
-                    self.deploy_hook_converted()
-                } else {
-                    self.source_path.copy_file_to(&self.target_path)?;
-                    Ok(DeploymentOutput::Copied)
-                }
-            }
-        }
-    }
-}
+use std::path::PathBuf;
 
 /// ComponentDeployment のビルダー
 #[derive(Debug, Default)]
