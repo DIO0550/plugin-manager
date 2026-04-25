@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::component::{AgentFormat, CommandFormat, ComponentKind, Scope};
-use crate::component::{Component, ComponentDeployment, DeploymentResult};
+use crate::component::{Component, ComponentDeployment, ConversionConfig, DeploymentOutput};
 use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
 use crate::plugin::{MarketplaceContent, PackageCache, PackageCacheAccess};
 use crate::source::parse_source;
@@ -183,31 +183,31 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
                 None => continue,
             };
 
-            let mut builder = ComponentDeployment::builder()
-                .component(component)
+            let conversion = match component.kind {
+                ComponentKind::Command => ConversionConfig::Command {
+                    source: request.scanned.command_format(),
+                    dest: target.command_format(),
+                },
+                ComponentKind::Agent => ConversionConfig::Agent {
+                    source: request.scanned.agent_format(),
+                    dest: target.agent_format(),
+                },
+                ComponentKind::Hook if target.kind() == TargetKind::Copilot => {
+                    ConversionConfig::Hook {
+                        target_kind: target.kind(),
+                        plugin_root: Some(request.scanned.plugin_root().to_path_buf()),
+                    }
+                }
+                _ => ConversionConfig::None,
+            };
+
+            let deployment = match ComponentDeployment::builder()
+                .component(component.clone())
                 .scope(request.scope)
-                .target_path(&target_path);
-
-            if component.kind == ComponentKind::Command {
-                builder = builder
-                    .source_format(request.scanned.command_format())
-                    .dest_format(target.command_format());
-            }
-
-            if component.kind == ComponentKind::Agent {
-                builder = builder
-                    .source_agent_format(request.scanned.agent_format())
-                    .dest_agent_format(target.agent_format());
-            }
-
-            if component.kind == ComponentKind::Hook && target.kind() == TargetKind::Copilot {
-                builder = builder
-                    .hook_convert(true)
-                    .target_kind(target.kind())
-                    .plugin_root(request.scanned.plugin_root());
-            }
-
-            let deployment = match builder.build() {
+                .target_path(&target_path)
+                .conversion(conversion)
+                .build()
+            {
                 Ok(d) => d,
                 Err(e) => {
                     failures.push(PlaceFailure {
@@ -224,11 +224,11 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
             match deployment.execute() {
                 Ok(result) => {
                     let (source_format, dest_format) = match &result {
-                        DeploymentResult::CommandConverted(conv) if conv.converted => (
+                        DeploymentOutput::CommandConverted(conv) if conv.converted => (
                             Some(conv.source_format.to_string()),
                             Some(conv.dest_format.to_string()),
                         ),
-                        DeploymentResult::AgentConverted(conv) if conv.converted => (
+                        DeploymentOutput::AgentConverted(conv) if conv.converted => (
                             Some(conv.source_format.to_string()),
                             Some(conv.dest_format.to_string()),
                         ),
@@ -236,7 +236,7 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
                     };
 
                     let hook_warnings = match &result {
-                        DeploymentResult::HookConverted(hr) => {
+                        DeploymentOutput::HookConverted(hr) => {
                             hr.warnings.iter().map(|w| w.to_string()).collect()
                         }
                         _ => vec![],

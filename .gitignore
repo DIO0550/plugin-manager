@@ -30,3 +30,6 @@
 .specs/
 .devcontainer/.init-done
 plugin-workspace
+
+# Claude Code local settings (machine-specific permission allowlist)
+.claude/settings.local.json

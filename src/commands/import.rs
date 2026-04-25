@@ -3,7 +3,9 @@
 //! Claude Code Plugin形式のGitHubリポジトリから、
 //! 特定のコンポーネントを選択してインポートする。
 
-use crate::component::{AgentFormat, Component, ComponentDeployment, ComponentKind};
+use crate::component::{
+    AgentFormat, Component, ComponentDeployment, ComponentKind, ConversionConfig,
+};
 use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
 use crate::import::{ImportRecord, ImportRegistry};
 use crate::output::CommandSummary;
@@ -222,18 +224,22 @@ fn build_deployment(
         None => return Ok(None),
     };
 
-    let mut builder = ComponentDeployment::builder()
-        .component(component)
+    let conversion = match component.kind {
+        ComponentKind::Agent => ConversionConfig::Agent {
+            source: AgentFormat::ClaudeCode,
+            dest: target.agent_format(),
+        },
+        _ => ConversionConfig::None,
+    };
+
+    ComponentDeployment::builder()
+        .component(component.clone())
         .scope(ctx.scope)
-        .target_path(target_path);
-
-    if component.kind == ComponentKind::Agent {
-        builder = builder
-            .source_agent_format(AgentFormat::ClaudeCode)
-            .dest_agent_format(target.agent_format());
-    }
-
-    builder.build().map(Some).map_err(|e| e.to_string())
+        .target_path(target_path)
+        .conversion(conversion)
+        .build()
+        .map(Some)
+        .map_err(|e| e.to_string())
 }
 
 /// # Arguments
@@ -253,8 +259,8 @@ fn deploy_one(
             println!(
                 "  + {} {}: {} -> {}",
                 target.name(),
-                deployment.kind,
-                deployment.name,
+                deployment.kind(),
+                deployment.name(),
                 deployment.path().display()
             );
 
@@ -265,8 +271,8 @@ fn deploy_one(
 
             let record = ImportRecord {
                 source_repo: ctx.source_repo.to_string(),
-                kind: deployment.kind,
-                name: deployment.name.clone(),
+                kind: deployment.kind(),
+                name: deployment.name().to_string(),
                 target: target_kind,
                 scope: deployment.scope,
                 path: deployment.path().to_path_buf(),
@@ -284,8 +290,8 @@ fn deploy_one(
             println!(
                 "  x {} {}: {} - {}",
                 target.name(),
-                deployment.kind,
-                deployment.name,
+                deployment.kind(),
+                deployment.name(),
                 e
             );
             DeployOutcome::Failure
