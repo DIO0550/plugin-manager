@@ -1,11 +1,12 @@
 //! `ComponentDeployment` 構造体本体と `execute()` のディスパッチ
 
+use super::conversion::ConversionConfig;
 use super::output::DeploymentOutput;
-use crate::component::convert::{self, AgentFormat, CommandFormat};
-use crate::component::{ComponentKind, Scope};
+use super::ComponentDeploymentBuilder;
+use crate::component::convert;
+use crate::component::{Component, ComponentKind, Scope};
 use crate::error::Result;
 use crate::path_ext::PathExt;
-use crate::target::TargetKind;
 use std::path::{Path, PathBuf};
 
 /// コンポーネントのデプロイ情報
@@ -14,31 +15,31 @@ use std::path::{Path, PathBuf};
 /// 配置先の決定は `PlacementLocation` が担当する。
 #[derive(Debug, Clone)]
 pub struct ComponentDeployment {
-    pub kind: ComponentKind,
-    pub name: String,
+    pub(super) component: Component,
     pub scope: Scope,
-    pub(super) source_path: PathBuf,
     pub(super) target_path: PathBuf,
-    /// ソースの Command フォーマット（Command の場合のみ有効）
-    pub(super) source_format: Option<CommandFormat>,
-    /// ターゲットの Command フォーマット（Command の場合のみ有効）
-    pub(super) dest_format: Option<CommandFormat>,
-    /// ソースの Agent フォーマット（Agent の場合のみ有効）
-    pub(super) source_agent_format: Option<AgentFormat>,
-    /// ターゲットの Agent フォーマット（Agent の場合のみ有効）
-    pub(super) dest_agent_format: Option<AgentFormat>,
-    /// Hook 変換を実行するかどうか
-    pub(super) hook_convert: bool,
-    /// Hook 変換のターゲット種別
-    pub(super) target_kind: Option<TargetKind>,
-    /// @@PLUGIN_ROOT@@ 置換用のプラグインキャッシュルートパス
-    pub(super) plugin_root: Option<PathBuf>,
+    pub(super) conversion: ConversionConfig,
 }
 
 impl ComponentDeployment {
     /// Builder を生成
-    pub(crate) fn builder() -> super::ComponentDeploymentBuilder {
-        super::ComponentDeploymentBuilder::new()
+    pub fn builder() -> ComponentDeploymentBuilder {
+        ComponentDeploymentBuilder::default()
+    }
+
+    /// コンポーネント種別を取得
+    pub fn kind(&self) -> ComponentKind {
+        self.component.kind
+    }
+
+    /// コンポーネント名を取得
+    pub fn name(&self) -> &str {
+        &self.component.name
+    }
+
+    /// ソースパスを取得（同モジュール内のみ）
+    pub(super) fn source_path(&self) -> &Path {
+        &self.component.path
     }
 
     /// 配置先パスを取得
@@ -50,7 +51,7 @@ impl ComponentDeployment {
     ///
     /// `ComponentKind` ごとに専用の `deploy_*` メソッドへディスパッチする。
     pub fn execute(&self) -> Result<DeploymentOutput> {
-        match self.kind {
+        match self.kind() {
             ComponentKind::Skill => self.deploy_skill(),
             ComponentKind::Command => self.deploy_command(),
             ComponentKind::Agent => self.deploy_agent(),
@@ -61,52 +62,61 @@ impl ComponentDeployment {
 
     fn deploy_skill(&self) -> Result<DeploymentOutput> {
         // Skills are directories
-        self.source_path.copy_dir_to(&self.target_path)?;
+        self.source_path().copy_dir_to(&self.target_path)?;
         Ok(DeploymentOutput::Copied)
     }
 
     fn deploy_command(&self) -> Result<DeploymentOutput> {
-        if let (Some(src_fmt), Some(dest_fmt)) = (self.source_format, self.dest_format) {
-            let result = convert::convert_and_write(
-                &self.source_path,
-                &self.target_path,
-                src_fmt,
-                dest_fmt,
-            )?;
-            Ok(DeploymentOutput::CommandConverted(result))
-        } else {
-            self.source_path.copy_file_to(&self.target_path)?;
-            Ok(DeploymentOutput::Copied)
+        match &self.conversion {
+            ConversionConfig::Command { source, dest } => {
+                let result = convert::convert_and_write(
+                    self.source_path(),
+                    &self.target_path,
+                    *source,
+                    *dest,
+                )?;
+                Ok(DeploymentOutput::CommandConverted(result))
+            }
+            _ => {
+                self.source_path().copy_file_to(&self.target_path)?;
+                Ok(DeploymentOutput::Copied)
+            }
         }
     }
 
     fn deploy_agent(&self) -> Result<DeploymentOutput> {
-        if let (Some(src_fmt), Some(dest_fmt)) = (self.source_agent_format, self.dest_agent_format)
-        {
-            let result = convert::convert_agent_and_write(
-                &self.source_path,
-                &self.target_path,
-                src_fmt,
-                dest_fmt,
-            )?;
-            Ok(DeploymentOutput::AgentConverted(result))
-        } else {
-            self.source_path.copy_file_to(&self.target_path)?;
-            Ok(DeploymentOutput::Copied)
+        match &self.conversion {
+            ConversionConfig::Agent { source, dest } => {
+                let result = convert::convert_agent_and_write(
+                    self.source_path(),
+                    &self.target_path,
+                    *source,
+                    *dest,
+                )?;
+                Ok(DeploymentOutput::AgentConverted(result))
+            }
+            _ => {
+                self.source_path().copy_file_to(&self.target_path)?;
+                Ok(DeploymentOutput::Copied)
+            }
         }
     }
 
     fn deploy_instruction(&self) -> Result<DeploymentOutput> {
-        self.source_path.copy_file_to(&self.target_path)?;
+        self.source_path().copy_file_to(&self.target_path)?;
         Ok(DeploymentOutput::Copied)
     }
 
     fn deploy_hook(&self) -> Result<DeploymentOutput> {
-        if self.hook_convert {
-            self.deploy_hook_converted()
-        } else {
-            self.source_path.copy_file_to(&self.target_path)?;
-            Ok(DeploymentOutput::Copied)
+        match &self.conversion {
+            ConversionConfig::Hook {
+                target_kind,
+                plugin_root,
+            } => self.deploy_hook_converted(*target_kind, plugin_root.as_deref()),
+            _ => {
+                self.source_path().copy_file_to(&self.target_path)?;
+                Ok(DeploymentOutput::Copied)
+            }
         }
     }
 }

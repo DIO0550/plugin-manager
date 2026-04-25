@@ -1,8 +1,22 @@
 use super::*;
 use crate::component::convert::{AgentFormat, ConversionResult};
-use crate::component::{CommandFormat, Component};
+use crate::component::{CommandFormat, Component, ConversionConfig};
 use std::fs;
 use tempfile::TempDir;
+
+fn make_deployment(
+    component: Component,
+    target: PathBuf,
+    conversion: ConversionConfig,
+) -> ComponentDeployment {
+    ComponentDeployment::builder()
+        .component(component)
+        .scope(Scope::Project)
+        .target_path(target)
+        .conversion(conversion)
+        .build()
+        .unwrap()
+}
 
 // ========================================
 // Execute tests
@@ -16,16 +30,15 @@ fn test_execute_copies_file_for_agent() {
 
     fs::write(&source, "agent content").unwrap();
 
-    let deployment = ComponentDeployment::builder()
-        .component(&Component {
+    let deployment = make_deployment(
+        Component {
             kind: ComponentKind::Agent,
             name: "test-agent".to_string(),
-            path: (&source).into(),
-        })
-        .scope(Scope::Project)
-        .target_path(&target)
-        .build()
-        .unwrap();
+            path: source,
+        },
+        target.clone(),
+        ConversionConfig::None,
+    );
 
     deployment.execute().unwrap();
 
@@ -41,16 +54,15 @@ fn test_execute_copies_file_for_command() {
 
     fs::write(&source, "command content").unwrap();
 
-    let deployment = ComponentDeployment::builder()
-        .component(&Component {
+    let deployment = make_deployment(
+        Component {
             kind: ComponentKind::Command,
             name: "test-cmd".to_string(),
-            path: (&source).into(),
-        })
-        .scope(Scope::Project)
-        .target_path(&target)
-        .build()
-        .unwrap();
+            path: source,
+        },
+        target.clone(),
+        ConversionConfig::None,
+    );
 
     deployment.execute().unwrap();
 
@@ -66,10 +78,10 @@ fn test_execute_copies_file_for_instruction() {
     fs::write(&source, "instruction content").unwrap();
 
     let deployment = ComponentDeployment::builder()
-        .component(&Component {
+        .component(Component {
             kind: ComponentKind::Instruction,
             name: "test-instruction".to_string(),
-            path: (&source).into(),
+            path: source,
         })
         .scope(Scope::Personal)
         .target_path(&target)
@@ -90,10 +102,10 @@ fn test_execute_copies_file_for_hook() {
     fs::write(&source, "#!/bin/bash").unwrap();
 
     let deployment = ComponentDeployment::builder()
-        .component(&Component {
+        .component(Component {
             kind: ComponentKind::Hook,
             name: "test-hook".to_string(),
-            path: (&source).into(),
+            path: source,
         })
         .scope(Scope::Personal)
         .target_path(&target)
@@ -115,16 +127,15 @@ fn test_execute_copies_directory_for_skill() {
     fs::write(source.join("SKILL.md"), "skill content").unwrap();
     fs::write(source.join("helper.py"), "print('hello')").unwrap();
 
-    let deployment = ComponentDeployment::builder()
-        .component(&Component {
+    let deployment = make_deployment(
+        Component {
             kind: ComponentKind::Skill,
             name: "my-skill".to_string(),
-            path: (&source).into(),
-        })
-        .scope(Scope::Project)
-        .target_path(&target)
-        .build()
-        .unwrap();
+            path: source,
+        },
+        target.clone(),
+        ConversionConfig::None,
+    );
 
     deployment.execute().unwrap();
 
@@ -148,16 +159,15 @@ fn test_execute_skill_replaces_existing_directory() {
     fs::create_dir_all(&target).unwrap();
     fs::write(target.join("old.md"), "old").unwrap();
 
-    let deployment = ComponentDeployment::builder()
-        .component(&Component {
+    let deployment = make_deployment(
+        Component {
             kind: ComponentKind::Skill,
             name: "skill".to_string(),
-            path: (&source).into(),
-        })
-        .scope(Scope::Project)
-        .target_path(&target)
-        .build()
-        .unwrap();
+            path: source,
+        },
+        target.clone(),
+        ConversionConfig::None,
+    );
 
     deployment.execute().unwrap();
 
@@ -172,10 +182,10 @@ fn test_execute_skill_replaces_existing_directory() {
 #[test]
 fn test_path_returns_target_path() {
     let deployment = ComponentDeployment::builder()
-        .component(&Component {
+        .component(Component {
             kind: ComponentKind::Agent,
             name: "test".to_string(),
-            path: ("/src/test.md").into(),
+            path: PathBuf::from("/src/test.md"),
         })
         .scope(Scope::Project)
         .target_path("/dest/test.md")
@@ -210,18 +220,18 @@ fn test_execute_command_with_conversion() {
 
     fs::write(&source, sample_claude_code_content()).unwrap();
 
-    let deployment = ComponentDeployment::builder()
-        .component(&Component {
+    let deployment = make_deployment(
+        Component {
             kind: ComponentKind::Command,
             name: "commit".to_string(),
-            path: (&source).into(),
-        })
-        .scope(Scope::Project)
-        .target_path(&target)
-        .source_format(CommandFormat::ClaudeCode)
-        .dest_format(CommandFormat::Copilot)
-        .build()
-        .unwrap();
+            path: source,
+        },
+        target.clone(),
+        ConversionConfig::Command {
+            source: CommandFormat::ClaudeCode,
+            dest: CommandFormat::Copilot,
+        },
+    );
 
     let result = deployment.execute().unwrap();
 
@@ -253,18 +263,18 @@ fn test_execute_command_same_format_copies() {
 
     fs::write(&source, sample_claude_code_content()).unwrap();
 
-    let deployment = ComponentDeployment::builder()
-        .component(&Component {
+    let deployment = make_deployment(
+        Component {
             kind: ComponentKind::Command,
             name: "commit".to_string(),
-            path: (&source).into(),
-        })
-        .scope(Scope::Project)
-        .target_path(&target)
-        .source_format(CommandFormat::ClaudeCode)
-        .dest_format(CommandFormat::ClaudeCode)
-        .build()
-        .unwrap();
+            path: source,
+        },
+        target.clone(),
+        ConversionConfig::Command {
+            source: CommandFormat::ClaudeCode,
+            dest: CommandFormat::ClaudeCode,
+        },
+    );
 
     let result = deployment.execute().unwrap();
 
@@ -291,24 +301,22 @@ fn test_execute_command_without_format_copies() {
 
     fs::write(&source, "simple content").unwrap();
 
-    // source_format と dest_format を設定しない
-    let deployment = ComponentDeployment::builder()
-        .component(&Component {
+    // ConversionConfig::None ならフォーマット指定なしで Copied
+    let deployment = make_deployment(
+        Component {
             kind: ComponentKind::Command,
             name: "commit".to_string(),
-            path: (&source).into(),
-        })
-        .scope(Scope::Project)
-        .target_path(&target)
-        .build()
-        .unwrap();
+            path: source,
+        },
+        target.clone(),
+        ConversionConfig::None,
+    );
 
     let result = deployment.execute().unwrap();
 
-    // 変換設定がない場合は Copied
     match result {
         DeploymentOutput::Copied => {}
-        _ => panic!("Expected Copied without format settings"),
+        _ => panic!("Expected Copied without conversion"),
     }
 
     assert!(target.exists());
@@ -339,22 +347,21 @@ fn test_execute_agent_with_conversion_to_copilot() {
 
     fs::write(&source, sample_claude_code_agent_content()).unwrap();
 
-    let deployment = ComponentDeployment::builder()
-        .component(&Component {
+    let deployment = make_deployment(
+        Component {
             kind: ComponentKind::Agent,
             name: "code-review".to_string(),
-            path: (&source).into(),
-        })
-        .scope(Scope::Project)
-        .target_path(&target)
-        .source_agent_format(AgentFormat::ClaudeCode)
-        .dest_agent_format(AgentFormat::Copilot)
-        .build()
-        .unwrap();
+            path: source,
+        },
+        target.clone(),
+        ConversionConfig::Agent {
+            source: AgentFormat::ClaudeCode,
+            dest: AgentFormat::Copilot,
+        },
+    );
 
     let result = deployment.execute().unwrap();
 
-    // 変換が行われたことを確認
     match result {
         DeploymentOutput::AgentConverted(conv) => {
             assert!(conv.converted);
@@ -364,12 +371,11 @@ fn test_execute_agent_with_conversion_to_copilot() {
         _ => panic!("Expected AgentConverted"),
     }
 
-    // ファイルが Copilot 形式になっていることを確認
     let content = fs::read_to_string(&target).unwrap();
     assert!(content.contains("tools:"));
-    assert!(content.contains("codebase")); // tools 変換
-    assert!(content.contains("GPT-4o")); // model 変換
-    assert!(content.contains("target: vscode")); // target 追加
+    assert!(content.contains("codebase"));
+    assert!(content.contains("GPT-4o"));
+    assert!(content.contains("target: vscode"));
 }
 
 #[test]
@@ -380,22 +386,21 @@ fn test_execute_agent_with_conversion_to_codex() {
 
     fs::write(&source, sample_claude_code_agent_content()).unwrap();
 
-    let deployment = ComponentDeployment::builder()
-        .component(&Component {
+    let deployment = make_deployment(
+        Component {
             kind: ComponentKind::Agent,
             name: "code-review".to_string(),
-            path: (&source).into(),
-        })
-        .scope(Scope::Project)
-        .target_path(&target)
-        .source_agent_format(AgentFormat::ClaudeCode)
-        .dest_agent_format(AgentFormat::Codex)
-        .build()
-        .unwrap();
+            path: source,
+        },
+        target.clone(),
+        ConversionConfig::Agent {
+            source: AgentFormat::ClaudeCode,
+            dest: AgentFormat::Codex,
+        },
+    );
 
     let result = deployment.execute().unwrap();
 
-    // 変換が行われたことを確認
     match result {
         DeploymentOutput::AgentConverted(conv) => {
             assert!(conv.converted);
@@ -405,10 +410,8 @@ fn test_execute_agent_with_conversion_to_codex() {
         _ => panic!("Expected AgentConverted"),
     }
 
-    // ファイルが Codex 形式になっていることを確認
     let content = fs::read_to_string(&target).unwrap();
     assert!(content.contains("description:"));
-    // Codex は tools や model を持たない
     assert!(!content.contains("tools:"));
     assert!(!content.contains("model:"));
 }
@@ -421,30 +424,28 @@ fn test_execute_agent_same_format_copies() {
 
     fs::write(&source, sample_claude_code_agent_content()).unwrap();
 
-    let deployment = ComponentDeployment::builder()
-        .component(&Component {
+    let deployment = make_deployment(
+        Component {
             kind: ComponentKind::Agent,
             name: "code-review".to_string(),
-            path: (&source).into(),
-        })
-        .scope(Scope::Project)
-        .target_path(&target)
-        .source_agent_format(AgentFormat::ClaudeCode)
-        .dest_agent_format(AgentFormat::ClaudeCode)
-        .build()
-        .unwrap();
+            path: source,
+        },
+        target.clone(),
+        ConversionConfig::Agent {
+            source: AgentFormat::ClaudeCode,
+            dest: AgentFormat::ClaudeCode,
+        },
+    );
 
     let result = deployment.execute().unwrap();
 
-    // コピーのみ（変換なし）
     match result {
         DeploymentOutput::AgentConverted(conv) => {
-            assert!(!conv.converted); // converted = false means copy
+            assert!(!conv.converted);
         }
         _ => panic!("Expected AgentConverted with converted=false"),
     }
 
-    // 内容はそのまま
     assert_eq!(
         fs::read_to_string(&target).unwrap(),
         sample_claude_code_agent_content()
@@ -459,24 +460,21 @@ fn test_execute_agent_without_format_copies() {
 
     fs::write(&source, "simple agent content").unwrap();
 
-    // source_agent_format と dest_agent_format を設定しない
-    let deployment = ComponentDeployment::builder()
-        .component(&Component {
+    let deployment = make_deployment(
+        Component {
             kind: ComponentKind::Agent,
             name: "agent".to_string(),
-            path: (&source).into(),
-        })
-        .scope(Scope::Project)
-        .target_path(&target)
-        .build()
-        .unwrap();
+            path: source,
+        },
+        target.clone(),
+        ConversionConfig::None,
+    );
 
     let result = deployment.execute().unwrap();
 
-    // 変換設定がない場合は Copied
     match result {
         DeploymentOutput::Copied => {}
-        _ => panic!("Expected Copied without format settings"),
+        _ => panic!("Expected Copied without conversion"),
     }
 
     assert!(target.exists());

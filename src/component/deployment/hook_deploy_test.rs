@@ -1,8 +1,11 @@
-use crate::component::{Component, ComponentDeployment, ComponentKind, DeploymentOutput, Scope};
+use crate::component::{
+    Component, ComponentDeployment, ComponentKind, ConversionConfig, DeploymentOutput, Scope,
+};
 use crate::hooks::converter::ConversionWarning;
 use crate::hooks::name::HookName;
 use crate::target::TargetKind;
 use std::fs;
+use std::path::PathBuf;
 use tempfile::TempDir;
 
 /// Claude Code 形式の Hook JSON テストデータ
@@ -23,6 +26,28 @@ fn sample_claude_code_hook_json() -> &'static str {
 }"#
 }
 
+fn hook_deployment(
+    source: PathBuf,
+    name: &str,
+    target: PathBuf,
+    plugin_root: Option<PathBuf>,
+) -> ComponentDeployment {
+    ComponentDeployment::builder()
+        .component(Component {
+            kind: ComponentKind::Hook,
+            name: name.to_string(),
+            path: source,
+        })
+        .scope(Scope::Project)
+        .target_path(target)
+        .conversion(ConversionConfig::Hook {
+            target_kind: TargetKind::Copilot,
+            plugin_root,
+        })
+        .build()
+        .unwrap()
+}
+
 #[test]
 fn test_hook_convert_without_plugin_root_errors_when_wrappers_needed() {
     let temp = TempDir::new().unwrap();
@@ -32,18 +57,7 @@ fn test_hook_convert_without_plugin_root_errors_when_wrappers_needed() {
     // Claude Code 形式 → wrapper が生成される → plugin_root 必須
     fs::write(&source, sample_claude_code_hook_json()).unwrap();
 
-    let deployment = ComponentDeployment::builder()
-        .component(&Component {
-            kind: ComponentKind::Hook,
-            name: "test-hook".to_string(),
-            path: (&source).into(),
-        })
-        .scope(Scope::Project)
-        .target_path(&target)
-        .hook_convert(true)
-        .target_kind(TargetKind::Copilot)
-        .build()
-        .unwrap(); // build() は成功する
+    let deployment = hook_deployment(source, "test-hook", target, None);
 
     let err = deployment.execute().unwrap_err();
     assert!(err.to_string().contains("plugin_root"));
@@ -59,18 +73,7 @@ fn test_hook_convert_without_plugin_root_ok_for_warnings_only() {
     let json = r#"{"hooks":{"preToolUse":[{"type":"command","bash":"echo hi"}]}}"#;
     fs::write(&source, json).unwrap();
 
-    let deployment = ComponentDeployment::builder()
-        .component(&Component {
-            kind: ComponentKind::Hook,
-            name: "test-hook".to_string(),
-            path: (&source).into(),
-        })
-        .scope(Scope::Project)
-        .target_path(&target)
-        .hook_convert(true)
-        .target_kind(TargetKind::Copilot)
-        .build()
-        .unwrap();
+    let deployment = hook_deployment(source, "test-hook", target, None);
 
     let result = deployment.execute().unwrap();
     match result {
@@ -90,11 +93,12 @@ fn test_hook_convert_false_copies_file() {
 
     fs::write(&source, r#"{"hooks":{}}"#).unwrap();
 
+    // 変換なし (ConversionConfig::None) → ファイルコピー
     let deployment = ComponentDeployment::builder()
-        .component(&Component {
+        .component(Component {
             kind: ComponentKind::Hook,
             name: "test-hook".to_string(),
-            path: (&source).into(),
+            path: source,
         })
         .scope(Scope::Project)
         .target_path(&target)
@@ -118,19 +122,7 @@ fn test_hook_convert_true_deploys_converted() {
 
     fs::write(&source, sample_claude_code_hook_json()).unwrap();
 
-    let deployment = ComponentDeployment::builder()
-        .component(&Component {
-            kind: ComponentKind::Hook,
-            name: "my-hook".to_string(),
-            path: (&source).into(),
-        })
-        .scope(Scope::Project)
-        .target_path(&target)
-        .hook_convert(true)
-        .target_kind(TargetKind::Copilot)
-        .plugin_root(&plugin_root)
-        .build()
-        .unwrap();
+    let deployment = hook_deployment(source, "my-hook", target.clone(), Some(plugin_root));
 
     let result = deployment.execute().unwrap();
 
@@ -147,7 +139,6 @@ fn test_hook_convert_true_deploys_converted() {
     let parsed: serde_json::Value = serde_json::from_str(&json_content).unwrap();
     assert_eq!(parsed.get("version").unwrap(), 1);
 
-    // スクリプトが wrappers/{hook-name}/ に配置されていること
     let scripts_dir = target_dir.join("wrappers").join("my-hook");
     assert!(scripts_dir.exists());
     let script_files: Vec<_> = fs::read_dir(&scripts_dir)
@@ -156,7 +147,6 @@ fn test_hook_convert_true_deploys_converted() {
         .collect();
     assert!(!script_files.is_empty());
 
-    // JSON 内の bash パスが ./wrappers/my-hook/... を参照していること
     assert!(json_content.contains("./wrappers/my-hook/"));
 }
 
@@ -182,19 +172,7 @@ fn test_hook_convert_copilot_format_passthrough() {
 }"#;
     fs::write(&source, copilot_json).unwrap();
 
-    let deployment = ComponentDeployment::builder()
-        .component(&Component {
-            kind: ComponentKind::Hook,
-            name: "copilot-hook".to_string(),
-            path: (&source).into(),
-        })
-        .scope(Scope::Project)
-        .target_path(&target)
-        .hook_convert(true)
-        .target_kind(TargetKind::Copilot)
-        .plugin_root(&plugin_root)
-        .build()
-        .unwrap();
+    let deployment = hook_deployment(source, "copilot-hook", target.clone(), Some(plugin_root));
 
     let result = deployment.execute().unwrap();
 
@@ -202,7 +180,6 @@ fn test_hook_convert_copilot_format_passthrough() {
     assert!(matches!(result, DeploymentOutput::Copied));
 
     assert!(target.exists());
-    // 元のファイル内容がそのままコピーされること
     assert_eq!(fs::read_to_string(&target).unwrap(), copilot_json);
 }
 
@@ -218,23 +195,10 @@ fn test_hook_convert_plugin_root_replacement() {
 
     fs::write(&source, sample_claude_code_hook_json()).unwrap();
 
-    let deployment = ComponentDeployment::builder()
-        .component(&Component {
-            kind: ComponentKind::Hook,
-            name: "test-hook".to_string(),
-            path: (&source).into(),
-        })
-        .scope(Scope::Project)
-        .target_path(&target)
-        .hook_convert(true)
-        .target_kind(TargetKind::Copilot)
-        .plugin_root(&plugin_root)
-        .build()
-        .unwrap();
+    let deployment = hook_deployment(source, "test-hook", target, Some(plugin_root));
 
     deployment.execute().unwrap();
 
-    // wrapper スクリプト内で @@PLUGIN_ROOT@@ が置換されていること
     let wrappers_dir = target_dir.join("wrappers").join("test-hook");
     for entry in fs::read_dir(&wrappers_dir).unwrap() {
         let entry = entry.unwrap();
@@ -262,19 +226,7 @@ fn test_hook_convert_wrapper_executable_permission() {
 
     fs::write(&source, sample_claude_code_hook_json()).unwrap();
 
-    let deployment = ComponentDeployment::builder()
-        .component(&Component {
-            kind: ComponentKind::Hook,
-            name: "perm-hook".to_string(),
-            path: (&source).into(),
-        })
-        .scope(Scope::Project)
-        .target_path(&target)
-        .hook_convert(true)
-        .target_kind(TargetKind::Copilot)
-        .plugin_root(&plugin_root)
-        .build()
-        .unwrap();
+    let deployment = hook_deployment(source, "perm-hook", target, Some(plugin_root));
 
     deployment.execute().unwrap();
 
@@ -294,19 +246,7 @@ fn test_hook_convert_missing_source_returns_err() {
     let target = temp.path().join("dest/hook.json");
     let plugin_root = temp.path().join("cache/plugin");
 
-    let deployment = ComponentDeployment::builder()
-        .component(&Component {
-            kind: ComponentKind::Hook,
-            name: "hook".to_string(),
-            path: (&source).into(),
-        })
-        .scope(Scope::Project)
-        .target_path(&target)
-        .hook_convert(true)
-        .target_kind(TargetKind::Copilot)
-        .plugin_root(&plugin_root)
-        .build()
-        .unwrap();
+    let deployment = hook_deployment(source, "hook", target, Some(plugin_root));
 
     assert!(deployment.execute().is_err());
 }
@@ -322,19 +262,7 @@ fn test_hook_convert_creates_parent_dir() {
 
     fs::write(&source, sample_claude_code_hook_json()).unwrap();
 
-    let deployment = ComponentDeployment::builder()
-        .component(&Component {
-            kind: ComponentKind::Hook,
-            name: "hook".to_string(),
-            path: (&source).into(),
-        })
-        .scope(Scope::Project)
-        .target_path(&target)
-        .hook_convert(true)
-        .target_kind(TargetKind::Copilot)
-        .plugin_root(&plugin_root)
-        .build()
-        .unwrap();
+    let deployment = hook_deployment(source, "hook", target.clone(), Some(plugin_root));
 
     deployment.execute().unwrap();
     assert!(target.exists());
@@ -349,7 +277,6 @@ fn test_hook_convert_unsupported_events_produce_warnings() {
     let plugin_root = temp.path().join("cache/plugin");
     fs::create_dir_all(&plugin_root).unwrap();
 
-    // 存在しないイベント名のみ
     let json = r#"{
   "hooks": {
     "UnknownEvent": [
@@ -359,19 +286,7 @@ fn test_hook_convert_unsupported_events_produce_warnings() {
 }"#;
     fs::write(&source, json).unwrap();
 
-    let deployment = ComponentDeployment::builder()
-        .component(&Component {
-            kind: ComponentKind::Hook,
-            name: "hook".to_string(),
-            path: (&source).into(),
-        })
-        .scope(Scope::Project)
-        .target_path(&target)
-        .hook_convert(true)
-        .target_kind(TargetKind::Copilot)
-        .plugin_root(&plugin_root)
-        .build()
-        .unwrap();
+    let deployment = hook_deployment(source, "hook", target, Some(plugin_root));
 
     let result = deployment.execute().unwrap();
     match result {
@@ -396,7 +311,6 @@ fn test_hook_convert_original_scripts_not_copied() {
     let plugin_root = temp.path().join("cache/plugin");
     fs::create_dir_all(&plugin_root).unwrap();
 
-    // 元スクリプトを作成（コピーされないはず）
     let scripts_dir = plugin_root.join("scripts");
     fs::create_dir_all(&scripts_dir).unwrap();
     fs::write(
@@ -405,7 +319,6 @@ fn test_hook_convert_original_scripts_not_copied() {
     )
     .unwrap();
 
-    // Hook JSON で @@PLUGIN_ROOT@@ 経由で元スクリプトを参照
     let hook_json = r#"{
   "hooks": {
     "PreToolUse": [
@@ -422,27 +335,13 @@ fn test_hook_convert_original_scripts_not_copied() {
 }"#;
     fs::write(&source, hook_json).unwrap();
 
-    let deployment = ComponentDeployment::builder()
-        .component(&Component {
-            kind: ComponentKind::Hook,
-            name: "hook".to_string(),
-            path: (&source).into(),
-        })
-        .scope(Scope::Project)
-        .target_path(&target)
-        .hook_convert(true)
-        .target_kind(TargetKind::Copilot)
-        .plugin_root(&plugin_root)
-        .build()
-        .unwrap();
+    let deployment = hook_deployment(source, "hook", target, Some(plugin_root));
 
     deployment.execute().unwrap();
 
-    // 元スクリプトが配置先にコピーされていないこと
     assert!(!target_dir.join("scripts").exists());
     assert!(!target_dir.join("original.sh").exists());
 
-    // wrapper スクリプト内で @@PLUGIN_ROOT@@ が実パスに置換されていること
     let wrappers_dir = target_dir.join("wrappers").join("hook");
     assert!(wrappers_dir.exists());
     for entry in fs::read_dir(&wrappers_dir).unwrap() {
@@ -463,45 +362,22 @@ fn test_hook_convert_multiple_hooks_no_name_collision() {
 
     fs::write(&source, sample_claude_code_hook_json()).unwrap();
 
-    // Hook A
     let target_a = target_dir.join("hook-a.json");
-    let deployment_a = ComponentDeployment::builder()
-        .component(&Component {
-            kind: ComponentKind::Hook,
-            name: "hook-a".to_string(),
-            path: (&source).into(),
-        })
-        .scope(Scope::Project)
-        .target_path(&target_a)
-        .hook_convert(true)
-        .target_kind(TargetKind::Copilot)
-        .plugin_root(&plugin_root)
-        .build()
-        .unwrap();
+    let deployment_a = hook_deployment(
+        source.clone(),
+        "hook-a",
+        target_a.clone(),
+        Some(plugin_root.clone()),
+    );
     deployment_a.execute().unwrap();
 
-    // Hook B
     let target_b = target_dir.join("hook-b.json");
-    let deployment_b = ComponentDeployment::builder()
-        .component(&Component {
-            kind: ComponentKind::Hook,
-            name: "hook-b".to_string(),
-            path: (&source).into(),
-        })
-        .scope(Scope::Project)
-        .target_path(&target_b)
-        .hook_convert(true)
-        .target_kind(TargetKind::Copilot)
-        .plugin_root(&plugin_root)
-        .build()
-        .unwrap();
+    let deployment_b = hook_deployment(source, "hook-b", target_b.clone(), Some(plugin_root));
     deployment_b.execute().unwrap();
 
-    // 各 Hook の wrapper が別ディレクトリに配置されていること
     assert!(target_dir.join("wrappers/hook-a").exists());
     assert!(target_dir.join("wrappers/hook-b").exists());
 
-    // JSON 内の bash パスが正しい名前空間を参照していること
     let json_a = fs::read_to_string(&target_a).unwrap();
     let json_b = fs::read_to_string(&target_b).unwrap();
     assert!(json_a.contains("./wrappers/hook-a/"));
@@ -521,28 +397,14 @@ fn test_hook_convert_with_unsafe_name_uses_sanitized_dir() {
 
     fs::write(&source, sample_claude_code_hook_json()).unwrap();
 
-    let deployment = ComponentDeployment::builder()
-        .component(&Component {
-            kind: ComponentKind::Hook,
-            name: "my hook$name".to_string(),
-            path: (&source).into(),
-        })
-        .scope(Scope::Project)
-        .target_path(&target)
-        .hook_convert(true)
-        .target_kind(TargetKind::Copilot)
-        .plugin_root(&plugin_root)
-        .build()
-        .unwrap();
+    let deployment = hook_deployment(source, "my hook$name", target.clone(), Some(plugin_root));
 
     deployment.execute().unwrap();
 
     let hook_name = HookName::new("my hook$name");
     let safe_name = hook_name.as_safe();
 
-    // サニタイズされたディレクトリ名が使われること
     assert!(target_dir.join("wrappers").join(safe_name).exists());
-    // JSON 内のパスもサニタイズされた名前を参照
     let json_content = fs::read_to_string(&target).unwrap();
     assert!(json_content.contains(&format!("./wrappers/{}/", safe_name)));
 }
@@ -558,19 +420,7 @@ fn test_hook_convert_output_has_version() {
 
     fs::write(&source, sample_claude_code_hook_json()).unwrap();
 
-    let deployment = ComponentDeployment::builder()
-        .component(&Component {
-            kind: ComponentKind::Hook,
-            name: "hook".to_string(),
-            path: (&source).into(),
-        })
-        .scope(Scope::Project)
-        .target_path(&target)
-        .hook_convert(true)
-        .target_kind(TargetKind::Copilot)
-        .plugin_root(&plugin_root)
-        .build()
-        .unwrap();
+    let deployment = hook_deployment(source, "hook", target.clone(), Some(plugin_root));
 
     deployment.execute().unwrap();
 

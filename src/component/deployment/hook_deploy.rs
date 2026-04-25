@@ -7,6 +7,7 @@ use crate::error::{PlmError, Result};
 use crate::hooks::converter::{self, SourceFormat, SCRIPTS_DIR};
 use crate::hooks::name::HookName;
 use crate::path_ext::PathExt;
+use crate::target::TargetKind;
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
@@ -51,11 +52,16 @@ impl ComponentDeployment {
     }
 
     /// Hook 変換デプロイを実行
-    pub(super) fn deploy_hook_converted(&self) -> Result<DeploymentOutput> {
-        let input = fs::read_to_string(&self.source_path)?;
+    ///
+    /// `target_kind` と `plugin_root` は呼び出し側 (executor の `deploy_hook`) が
+    /// `ConversionConfig::Hook` から取り出した値を渡す。
+    pub(super) fn deploy_hook_converted(
+        &self,
+        target_kind: TargetKind,
+        plugin_root: Option<&Path>,
+    ) -> Result<DeploymentOutput> {
+        let input = fs::read_to_string(self.source_path())?;
 
-        // target_kind は build() で検証済み
-        let target_kind = self.target_kind.unwrap();
         let mut convert_result = converter::convert(&input, target_kind)?;
 
         // ソース形式が既にターゲット形式（passthrough）で、script/warning が不要な場合はファイルコピー。
@@ -65,12 +71,12 @@ impl ComponentDeployment {
             && convert_result.scripts.is_empty()
             && convert_result.warnings.is_empty()
         {
-            self.source_path.copy_file_to(&self.target_path)?;
+            self.source_path().copy_file_to(&self.target_path)?;
             return Ok(DeploymentOutput::Copied);
         }
 
         // Hook 名をサニタイズ（パスセグメント・シェルコマンドで安全に使えるようにする）
-        let hook_name = HookName::new(&self.name);
+        let hook_name = HookName::new(self.name());
         let safe_name = hook_name.as_safe();
 
         if !convert_result.scripts.is_empty() {
@@ -108,7 +114,7 @@ impl ComponentDeployment {
             }));
         }
 
-        let plugin_root = self.plugin_root.as_ref().ok_or_else(|| {
+        let plugin_root = plugin_root.ok_or_else(|| {
             PlmError::Validation("plugin_root is required when scripts are generated".to_string())
         })?;
         let plugin_root_str = plugin_root.display().to_string();
