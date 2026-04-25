@@ -22,17 +22,6 @@ pub enum TargetType {
 use crate::format::lookup_forward;
 pub use crate::format::Format;
 
-const PROMPT_TOOL_MAP: &[(&str, &str)] = &[
-    ("Read", "codebase"), // representative for reverse lookup
-    ("Write", "codebase"),
-    ("Edit", "codebase"),
-    ("Grep", "search/codebase"), // representative for reverse lookup
-    ("Glob", "search/codebase"),
-    ("Bash", "terminal"),
-    ("WebFetch", "fetch"),
-    ("WebSearch", "websearch"),
-];
-
 struct ToolRow {
     claude_code: &'static str,
     copilot: Option<&'static str>,
