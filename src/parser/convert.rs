@@ -21,28 +21,40 @@ pub enum TargetType {
 
 pub use crate::format::Format;
 
+/// Record-oriented row of [`TOOL_TABLE`].
+///
+/// Each row represents a single logical tool with its name in every supported
+/// format. `claude_code` is required; other format columns are `Option` because
+/// not every tool has a counterpart in every format.
 struct ToolRow {
     claude_code: &'static str,
     copilot: Option<&'static str>,
     /// 将来拡張用（Codex Tool 名マッピングが仕様化されたら Some(...) を埋める）
     #[allow(dead_code)]
     codex: Option<&'static str>,
+    /// Marks the canonical row to use when an N:1 reverse lookup hits multiple
+    /// candidates (e.g. `codebase` -> `Read` rather than `Write`/`Edit`).
     reverse_canonical: bool,
 }
 
+/// Column accessor: extracts one format's name from a [`ToolRow`].
 type ToolColumn = fn(&ToolRow) -> Option<&'static str>;
 
+/// Column accessor for the Claude Code name (always present).
 fn tool_col_claude_code(row: &ToolRow) -> Option<&'static str> {
     Some(row.claude_code)
 }
+/// Column accessor for the Copilot name.
 fn tool_col_copilot(row: &ToolRow) -> Option<&'static str> {
     row.copilot
 }
+/// Column accessor for the Codex name (reserved for future use).
 #[allow(dead_code)]
 fn tool_col_codex(row: &ToolRow) -> Option<&'static str> {
     row.codex
 }
 
+/// Tool name conversion table (rows = logical tools, columns = formats).
 const TOOL_TABLE: &[ToolRow] = &[
     ToolRow {
         claude_code: "Read",
@@ -94,6 +106,7 @@ const TOOL_TABLE: &[ToolRow] = &[
     },
 ];
 
+/// Returns the `to_col` value of the first row whose `from_col` equals `Some(key)`.
 fn find_forward_tool(key: &str, from_col: ToolColumn, to_col: ToolColumn) -> Option<&'static str> {
     TOOL_TABLE
         .iter()
@@ -101,6 +114,10 @@ fn find_forward_tool(key: &str, from_col: ToolColumn, to_col: ToolColumn) -> Opt
         .and_then(to_col)
 }
 
+/// Returns the `to_col` value of the canonical row (`reverse_canonical: true`)
+/// whose `from_col` equals `Some(value)`. Used for N:1 reverse lookups where
+/// multiple rows share the same source value but only one is the canonical
+/// representative.
 fn find_reverse_canonical_tool(
     value: &str,
     from_col: ToolColumn,
@@ -112,6 +129,8 @@ fn find_reverse_canonical_tool(
         .and_then(to_col)
 }
 
+/// Special case (table-external) for Claude Code -> Copilot tool conversion:
+/// any `Bash(git...)` invocation maps to Copilot's `githubRepo`.
 fn apply_tool_special_forward(trimmed: &str) -> Option<String> {
     if trimmed.starts_with("Bash(git") {
         Some("githubRepo".to_string())
@@ -120,6 +139,8 @@ fn apply_tool_special_forward(trimmed: &str) -> Option<String> {
     }
 }
 
+/// Special case (table-external) for Copilot -> Claude Code tool conversion:
+/// the Copilot-only `githubRepo` maps back to plain `Bash`.
 fn apply_tool_special_reverse(trimmed: &str) -> Option<String> {
     if trimmed == "githubRepo" {
         Some("Bash".to_string())
@@ -177,24 +198,34 @@ pub(crate) fn map_tools(tools: &[String], from: Format, to: Format) -> Vec<Strin
     result
 }
 
+/// Record-oriented row of [`MODEL_TABLE`].
+///
+/// Each row represents a single logical model with its name in every supported
+/// format. `claude_code` is required; other format columns are `Option` because
+/// not every model has a counterpart in every format.
 struct ModelRow {
     claude_code: &'static str,
     copilot: Option<&'static str>,
     codex: Option<&'static str>,
 }
 
+/// Column accessor: extracts one format's name from a [`ModelRow`].
 type ModelColumn = fn(&ModelRow) -> Option<&'static str>;
 
+/// Column accessor for the Claude Code name (always present).
 fn model_col_claude_code(row: &ModelRow) -> Option<&'static str> {
     Some(row.claude_code)
 }
+/// Column accessor for the Copilot name.
 fn model_col_copilot(row: &ModelRow) -> Option<&'static str> {
     row.copilot
 }
+/// Column accessor for the Codex name.
 fn model_col_codex(row: &ModelRow) -> Option<&'static str> {
     row.codex
 }
 
+/// Model name conversion table (rows = logical models, columns = formats).
 const MODEL_TABLE: &[ModelRow] = &[
     ModelRow {
         claude_code: "haiku",
