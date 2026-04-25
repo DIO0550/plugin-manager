@@ -239,6 +239,7 @@ fn build_deployment(
         .conversion(conversion)
         .build()
         .map(Some)
+        .map_err(|e| e.to_string())
 }
 
 /// # Arguments

@@ -6,6 +6,7 @@
 use super::conversion::ConversionConfig;
 use super::executor::ComponentDeployment;
 use crate::component::{Component, Scope};
+use crate::error::{PlmError, Result};
 use std::path::PathBuf;
 
 #[derive(Debug, Default)]
@@ -37,14 +38,16 @@ impl ComponentDeploymentBuilder {
         self
     }
 
-    pub fn build(self) -> Result<ComponentDeployment, String> {
+    pub fn build(self) -> Result<ComponentDeployment> {
         let component = self
             .component
-            .ok_or_else(|| "component is required".to_string())?;
-        let scope = self.scope.ok_or_else(|| "scope is required".to_string())?;
+            .ok_or_else(|| PlmError::Validation("component is required".to_string()))?;
+        let scope = self
+            .scope
+            .ok_or_else(|| PlmError::Validation("scope is required".to_string()))?;
         let target_path = self
             .target_path
-            .ok_or_else(|| "target_path is required".to_string())?;
+            .ok_or_else(|| PlmError::Validation("target_path is required".to_string()))?;
 
         Ok(ComponentDeployment {
             component,

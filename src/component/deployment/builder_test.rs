@@ -17,7 +17,9 @@ fn test_builder_fails_without_component() {
         .target_path("/dest")
         .build()
         .unwrap_err();
-    assert_eq!(err, "component is required");
+    assert!(
+        matches!(err, crate::error::PlmError::Validation(msg) if msg == "component is required")
+    );
 }
 
 #[test]
@@ -27,7 +29,7 @@ fn test_builder_fails_without_scope() {
         .target_path("/dest")
         .build()
         .unwrap_err();
-    assert_eq!(err, "scope is required");
+    assert!(matches!(err, crate::error::PlmError::Validation(msg) if msg == "scope is required"));
 }
 
 #[test]
@@ -37,7 +39,9 @@ fn test_builder_fails_without_target_path() {
         .scope(Scope::Project)
         .build()
         .unwrap_err();
-    assert_eq!(err, "target_path is required");
+    assert!(
+        matches!(err, crate::error::PlmError::Validation(msg) if msg == "target_path is required")
+    );
 }
 
 #[test]
