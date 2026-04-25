@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::component::{AgentFormat, CommandFormat, ComponentKind, Scope};
-use crate::component::{Component, ComponentDeployment, DeploymentResult};
+use crate::component::{Component, ComponentDeployment, DeploymentOutput};
 use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
 use crate::plugin::{MarketplaceContent, PackageCache, PackageCacheAccess};
 use crate::source::parse_source;
@@ -224,11 +224,11 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
             match deployment.execute() {
                 Ok(result) => {
                     let (source_format, dest_format) = match &result {
-                        DeploymentResult::CommandConverted(conv) if conv.converted => (
+                        DeploymentOutput::CommandConverted(conv) if conv.converted => (
                             Some(conv.source_format.to_string()),
                             Some(conv.dest_format.to_string()),
                         ),
-                        DeploymentResult::AgentConverted(conv) if conv.converted => (
+                        DeploymentOutput::AgentConverted(conv) if conv.converted => (
                             Some(conv.source_format.to_string()),
                             Some(conv.dest_format.to_string()),
                         ),
@@ -236,7 +236,7 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
                     };
 
                     let hook_warnings = match &result {
-                        DeploymentResult::HookConverted(hr) => {
+                        DeploymentOutput::HookConverted(hr) => {
                             hr.warnings.iter().map(|w| w.to_string()).collect()
                         }
                         _ => vec![],

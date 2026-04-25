@@ -10,7 +10,7 @@ mod placement;
 mod scoped_path;
 
 pub use convert::{AgentFormat, CommandFormat};
-pub use deployment::{ComponentDeployment, DeploymentResult};
+pub use deployment::{ComponentDeployment, DeploymentOutput};
 pub use file_operation::FileOperation;
 pub use kind::{Component, ComponentKind, Scope};
 pub use placement::{

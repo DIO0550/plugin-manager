@@ -1,6 +1,10 @@
 //! コンポーネントのデプロイ処理
 
-use super::convert::{self, AgentConversionResult, AgentFormat, CommandFormat, ConversionResult};
+mod output;
+
+pub use output::{DeploymentOutput, HookConvertOutput};
+
+use super::convert::{self, AgentFormat, CommandFormat};
 use crate::component::{Component, ComponentKind, Scope};
 use crate::error::{PlmError, Result};
 use crate::hooks::converter::{self, SourceFormat, SCRIPTS_DIR};
@@ -88,7 +92,7 @@ impl ComponentDeployment {
     }
 
     /// Hook 変換デプロイを実行
-    fn deploy_hook_converted(&self) -> Result<DeploymentResult> {
+    fn deploy_hook_converted(&self) -> Result<DeploymentOutput> {
         let input = fs::read_to_string(&self.source_path)?;
 
         // target_kind は build() で検証済み
@@ -103,7 +107,7 @@ impl ComponentDeployment {
             && convert_result.warnings.is_empty()
         {
             self.source_path.copy_file_to(&self.target_path)?;
-            return Ok(DeploymentResult::Copied);
+            return Ok(DeploymentOutput::Copied);
         }
 
         // Hook 名をサニタイズ（パスセグメント・シェルコマンドで安全に使えるようにする）
@@ -139,7 +143,7 @@ impl ComponentDeployment {
 
         let script_count = convert_result.scripts.len();
         if script_count == 0 {
-            return Ok(DeploymentResult::HookConverted(HookConvertResult {
+            return Ok(DeploymentOutput::HookConverted(HookConvertOutput {
                 warnings: convert_result.warnings,
                 script_count: 0,
             }));
@@ -176,7 +180,7 @@ impl ComponentDeployment {
             write_executable_script(&script_path, &content)
         })?;
 
-        Ok(DeploymentResult::HookConverted(HookConvertResult {
+        Ok(DeploymentOutput::HookConverted(HookConvertOutput {
             warnings: convert_result.warnings,
             script_count,
         }))
@@ -188,12 +192,12 @@ impl ComponentDeployment {
     /// Command フォーマット変換を行う。
     /// Agent コンポーネントで `source_agent_format` と `dest_agent_format` が設定されている場合、
     /// Agent フォーマット変換を行う。
-    pub fn execute(&self) -> Result<DeploymentResult> {
+    pub fn execute(&self) -> Result<DeploymentOutput> {
         match self.kind {
             ComponentKind::Skill => {
                 // Skills are directories
                 self.source_path.copy_dir_to(&self.target_path)?;
-                Ok(DeploymentResult::Copied)
+                Ok(DeploymentOutput::Copied)
             }
             ComponentKind::Command => {
                 if let (Some(src_fmt), Some(dest_fmt)) = (self.source_format, self.dest_format) {
@@ -203,10 +207,10 @@ impl ComponentDeployment {
                         src_fmt,
                         dest_fmt,
                     )?;
-                    Ok(DeploymentResult::CommandConverted(result))
+                    Ok(DeploymentOutput::CommandConverted(result))
                 } else {
                     self.source_path.copy_file_to(&self.target_path)?;
-                    Ok(DeploymentResult::Copied)
+                    Ok(DeploymentOutput::Copied)
                 }
             }
             ComponentKind::Agent => {
@@ -219,83 +223,23 @@ impl ComponentDeployment {
                         src_fmt,
                         dest_fmt,
                     )?;
-                    Ok(DeploymentResult::AgentConverted(result))
+                    Ok(DeploymentOutput::AgentConverted(result))
                 } else {
                     self.source_path.copy_file_to(&self.target_path)?;
-                    Ok(DeploymentResult::Copied)
+                    Ok(DeploymentOutput::Copied)
                 }
             }
             ComponentKind::Instruction => {
                 self.source_path.copy_file_to(&self.target_path)?;
-                Ok(DeploymentResult::Copied)
+                Ok(DeploymentOutput::Copied)
             }
             ComponentKind::Hook => {
                 if self.hook_convert {
                     self.deploy_hook_converted()
                 } else {
                     self.source_path.copy_file_to(&self.target_path)?;
-                    Ok(DeploymentResult::Copied)
+                    Ok(DeploymentOutput::Copied)
                 }
-            }
-        }
-    }
-}
-
-/// デプロイ結果
-#[derive(Debug)]
-pub enum DeploymentResult {
-    /// ファイルコピーのみ
-    Copied,
-    /// Command フォーマット変換が行われた
-    CommandConverted(ConversionResult),
-    /// Agent フォーマット変換が行われた
-    AgentConverted(AgentConversionResult),
-    /// Hook 変換が行われた
-    HookConverted(HookConvertResult),
-}
-
-/// Hook 変換結果
-#[derive(Debug)]
-pub struct HookConvertResult {
-    pub warnings: Vec<crate::hooks::converter::ConversionWarning>,
-    pub script_count: usize,
-}
-
-impl std::fmt::Display for DeploymentResult {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            DeploymentResult::Copied => write!(f, "Copied"),
-            DeploymentResult::CommandConverted(conv) => {
-                if conv.converted {
-                    write!(
-                        f,
-                        "Converted: {} → {}",
-                        conv.source_format, conv.dest_format
-                    )
-                } else {
-                    write!(f, "Copied (no conversion needed)")
-                }
-            }
-            DeploymentResult::AgentConverted(conv) => {
-                if conv.converted {
-                    write!(
-                        f,
-                        "Agent converted: {} → {}",
-                        conv.source_format, conv.dest_format
-                    )
-                } else {
-                    write!(f, "Copied (no agent conversion needed)")
-                }
-            }
-            DeploymentResult::HookConverted(hr) => {
-                write!(
-                    f,
-                    "Hook converted ({} script{}, {} warning{})",
-                    hr.script_count,
-                    if hr.script_count == 1 { "" } else { "s" },
-                    hr.warnings.len(),
-                    if hr.warnings.len() == 1 { "" } else { "s" }
-                )
             }
         }
     }

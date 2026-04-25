@@ -331,7 +331,7 @@ fn test_execute_command_with_conversion() {
 
     // 変換が行われたことを確認
     match result {
-        DeploymentResult::CommandConverted(conv) => {
+        DeploymentOutput::CommandConverted(conv) => {
             assert!(conv.converted);
             assert_eq!(conv.source_format, CommandFormat::ClaudeCode);
             assert_eq!(conv.dest_format, CommandFormat::Copilot);
@@ -370,7 +370,7 @@ fn test_execute_command_same_format_copies() {
 
     // コピーのみ（変換なし）
     match result {
-        DeploymentResult::CommandConverted(conv) => {
+        DeploymentOutput::CommandConverted(conv) => {
             assert!(!conv.converted); // converted = false means copy
         }
         _ => panic!("Expected Converted with converted=false"),
@@ -407,7 +407,7 @@ fn test_execute_command_without_format_copies() {
 
     // 変換設定がない場合は Copied
     match result {
-        DeploymentResult::Copied => {}
+        DeploymentOutput::Copied => {}
         _ => panic!("Expected Copied without format settings"),
     }
 
@@ -475,7 +475,7 @@ fn test_execute_agent_with_conversion_to_copilot() {
 
     // 変換が行われたことを確認
     match result {
-        DeploymentResult::AgentConverted(conv) => {
+        DeploymentOutput::AgentConverted(conv) => {
             assert!(conv.converted);
             assert_eq!(conv.source_format, AgentFormat::ClaudeCode);
             assert_eq!(conv.dest_format, AgentFormat::Copilot);
@@ -516,7 +516,7 @@ fn test_execute_agent_with_conversion_to_codex() {
 
     // 変換が行われたことを確認
     match result {
-        DeploymentResult::AgentConverted(conv) => {
+        DeploymentOutput::AgentConverted(conv) => {
             assert!(conv.converted);
             assert_eq!(conv.source_format, AgentFormat::ClaudeCode);
             assert_eq!(conv.dest_format, AgentFormat::Codex);
@@ -557,7 +557,7 @@ fn test_execute_agent_same_format_copies() {
 
     // コピーのみ（変換なし）
     match result {
-        DeploymentResult::AgentConverted(conv) => {
+        DeploymentOutput::AgentConverted(conv) => {
             assert!(!conv.converted); // converted = false means copy
         }
         _ => panic!("Expected AgentConverted with converted=false"),
@@ -594,7 +594,7 @@ fn test_execute_agent_without_format_copies() {
 
     // 変換設定がない場合は Copied
     match result {
-        DeploymentResult::Copied => {}
+        DeploymentOutput::Copied => {}
         _ => panic!("Expected Copied without format settings"),
     }
 
@@ -619,38 +619,6 @@ fn test_builder_agent_format() {
 
     // Builder で Agent フォーマットが設定できることを確認
     assert_eq!(deployment.kind, ComponentKind::Agent);
-}
-
-// ========================================
-// HookConvertResult tests
-// ========================================
-
-#[test]
-fn test_hook_convert_result_has_expected_fields() {
-    let result = HookConvertResult {
-        warnings: vec![ConversionWarning::MissingVersion],
-        script_count: 2,
-    };
-
-    assert_eq!(result.warnings.len(), 1);
-    assert_eq!(result.script_count, 2);
-}
-
-#[test]
-fn test_deployment_result_hook_converted_variant() {
-    let hook_result = HookConvertResult {
-        warnings: vec![],
-        script_count: 0,
-    };
-    let result = DeploymentResult::HookConverted(hook_result);
-
-    match result {
-        DeploymentResult::HookConverted(hr) => {
-            assert_eq!(hr.script_count, 0);
-            assert!(hr.warnings.is_empty());
-        }
-        _ => panic!("Expected HookConverted"),
-    }
 }
 
 // ========================================
@@ -763,7 +731,7 @@ fn test_hook_convert_without_plugin_root_ok_for_warnings_only() {
 
     let result = deployment.execute().unwrap();
     match result {
-        DeploymentResult::HookConverted(hr) => {
+        DeploymentOutput::HookConverted(hr) => {
             assert!(!hr.warnings.is_empty());
             assert_eq!(hr.script_count, 0);
         }
@@ -813,7 +781,7 @@ fn test_hook_convert_false_copies_file() {
         .unwrap();
 
     let result = deployment.execute().unwrap();
-    assert!(matches!(result, DeploymentResult::Copied));
+    assert!(matches!(result, DeploymentOutput::Copied));
     assert!(target.exists());
     assert_eq!(fs::read_to_string(&target).unwrap(), r#"{"hooks":{}}"#);
 }
@@ -846,7 +814,7 @@ fn test_hook_convert_true_deploys_converted() {
     let result = deployment.execute().unwrap();
 
     match result {
-        DeploymentResult::HookConverted(hr) => {
+        DeploymentOutput::HookConverted(hr) => {
             assert!(hr.script_count > 0);
         }
         _ => panic!("Expected HookConverted"),
@@ -910,7 +878,7 @@ fn test_hook_convert_copilot_format_passthrough() {
     let result = deployment.execute().unwrap();
 
     // Copilot CLI 形式はファイルコピーにフォールバック
-    assert!(matches!(result, DeploymentResult::Copied));
+    assert!(matches!(result, DeploymentOutput::Copied));
 
     assert!(target.exists());
     // 元のファイル内容がそのままコピーされること
@@ -1086,7 +1054,7 @@ fn test_hook_convert_unsupported_events_produce_warnings() {
 
     let result = deployment.execute().unwrap();
     match result {
-        DeploymentResult::HookConverted(hr) => {
+        DeploymentOutput::HookConverted(hr) => {
             assert!(!hr.warnings.is_empty());
             assert!(hr
                 .warnings
@@ -1256,65 +1224,6 @@ fn test_hook_convert_with_unsafe_name_uses_sanitized_dir() {
     // JSON 内のパスもサニタイズされた名前を参照
     let json_content = fs::read_to_string(&target).unwrap();
     assert!(json_content.contains(&format!("./wrappers/{}/", safe_name)));
-}
-
-// ========================================
-// Display trait tests
-// ========================================
-
-#[test]
-fn test_display_copied() {
-    let result = DeploymentResult::Copied;
-    assert_eq!(result.to_string(), "Copied");
-}
-
-#[test]
-fn test_display_converted_true() {
-    let result = DeploymentResult::CommandConverted(ConversionResult {
-        converted: true,
-        source_format: CommandFormat::ClaudeCode,
-        dest_format: CommandFormat::Copilot,
-    });
-    assert_eq!(result.to_string(), "Converted: ClaudeCode → Copilot");
-}
-
-#[test]
-fn test_display_converted_false() {
-    let result = DeploymentResult::CommandConverted(ConversionResult {
-        converted: false,
-        source_format: CommandFormat::ClaudeCode,
-        dest_format: CommandFormat::ClaudeCode,
-    });
-    assert_eq!(result.to_string(), "Copied (no conversion needed)");
-}
-
-#[test]
-fn test_display_agent_converted_true() {
-    let result = DeploymentResult::AgentConverted(AgentConversionResult {
-        converted: true,
-        source_format: AgentFormat::ClaudeCode,
-        dest_format: AgentFormat::Copilot,
-    });
-    assert_eq!(result.to_string(), "Agent converted: ClaudeCode → Copilot");
-}
-
-#[test]
-fn test_display_agent_converted_false() {
-    let result = DeploymentResult::AgentConverted(AgentConversionResult {
-        converted: false,
-        source_format: AgentFormat::ClaudeCode,
-        dest_format: AgentFormat::ClaudeCode,
-    });
-    assert_eq!(result.to_string(), "Copied (no agent conversion needed)");
-}
-
-#[test]
-fn test_display_hook_converted() {
-    let result = DeploymentResult::HookConverted(HookConvertResult {
-        warnings: vec![ConversionWarning::MissingVersion],
-        script_count: 3,
-    });
-    assert_eq!(result.to_string(), "Hook converted (3 scripts, 1 warning)");
 }
 
 /// 変換後 JSON に version: 1 が含まれること
