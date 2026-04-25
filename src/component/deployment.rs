@@ -1,5 +1,6 @@
 //! コンポーネントのデプロイ処理
 
+mod bash_escape;
 mod output;
 
 pub use output::{DeploymentOutput, HookConvertOutput};
@@ -11,6 +12,7 @@ use crate::hooks::converter::{self, SourceFormat, SCRIPTS_DIR};
 use crate::hooks::name::HookName;
 use crate::path_ext::PathExt;
 use crate::target::TargetKind;
+use bash_escape::{escape_for_bash_double_quote, write_executable_script};
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -431,48 +433,6 @@ impl ComponentDeploymentBuilder {
             plugin_root: self.plugin_root,
         })
     }
-}
-
-/// スクリプトファイルを書き出し、Unix では実行権限 (0o755) を設定する。
-///
-/// # Arguments
-///
-/// * `path` - File path to write the script to.
-/// * `content` - Script contents to write.
-fn write_executable_script(path: &Path, content: &str) -> Result<()> {
-    fs::write(path, content)?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(path, fs::Permissions::from_mode(0o755))?;
-    }
-    Ok(())
-}
-
-/// bash ダブルクォート内で特別な意味を持つ文字をエスケープする。
-///
-/// 対象文字: `\`, `"`, `$`, `` ` ``, `\n`
-/// 用途: `@@PLUGIN_ROOT@@` プレースホルダーの置換値として使用
-///
-/// # Arguments
-///
-/// * `s` - Raw string to escape for safe interpolation inside bash double quotes.
-fn escape_for_bash_double_quote(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    for ch in s.chars() {
-        match ch {
-            '\\' | '"' | '$' | '`' => {
-                out.push('\\');
-                out.push(ch);
-            }
-            '\n' => {
-                out.push('\\');
-                out.push('n');
-            }
-            _ => out.push(ch),
-        }
-    }
-    out
 }
 
 #[cfg(test)]
