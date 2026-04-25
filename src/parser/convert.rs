@@ -19,8 +19,8 @@ pub enum TargetType {
     Codex,
 }
 
-pub use crate::format::Format;
 use crate::format::lookup_forward;
+pub use crate::format::Format;
 
 const PROMPT_TOOL_MAP: &[(&str, &str)] = &[
     ("Read", "codebase"), // representative for reverse lookup
@@ -124,6 +124,22 @@ fn find_reverse_canonical_tool(
         .and_then(to_col)
 }
 
+fn apply_tool_special_forward(trimmed: &str) -> Option<String> {
+    if trimmed.starts_with("Bash(git") {
+        Some("githubRepo".to_string())
+    } else {
+        None
+    }
+}
+
+fn apply_tool_special_reverse(trimmed: &str) -> Option<String> {
+    if trimmed == "githubRepo" {
+        Some("Bash".to_string())
+    } else {
+        None
+    }
+}
+
 /// Tool name conversion between Claude Code and Copilot (Prompt/Agent context).
 ///
 /// N:1 reverse lookups return the first table entry as the representative value
@@ -141,14 +157,14 @@ pub(crate) fn map_tool(tool: &str, from: Format, to: Format) -> String {
             if let Some(v) = find_forward_tool(trimmed, tool_col_claude_code, tool_col_copilot) {
                 return v.to_string();
             }
-            if trimmed.starts_with("Bash(git") {
-                return "githubRepo".to_string();
+            if let Some(v) = apply_tool_special_forward(trimmed) {
+                return v;
             }
             trimmed.to_string()
         }
         (Format::Copilot, Format::ClaudeCode) => {
-            if trimmed == "githubRepo" {
-                return "Bash".to_string();
+            if let Some(v) = apply_tool_special_reverse(trimmed) {
+                return v;
             }
             find_reverse_canonical_tool(trimmed, tool_col_copilot, tool_col_claude_code)
                 .map(|v| v.to_string())
