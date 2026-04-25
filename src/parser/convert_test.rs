@@ -305,6 +305,28 @@ fn test_map_model_passthrough_normalization() {
     );
 }
 
+#[test]
+fn test_map_model_copilot_to_claude_lowercase_table_canonical() {
+    assert_eq!(
+        map_model("gpt-4o-mini", Format::Copilot, Format::ClaudeCode),
+        "haiku"
+    );
+    assert_eq!(
+        map_model("gpt-4o", Format::Copilot, Format::ClaudeCode),
+        "sonnet"
+    );
+    assert_eq!(map_model("o1", Format::Copilot, Format::ClaudeCode), "opus");
+}
+
+#[test]
+fn test_map_model_unsupported_pair_passthrough_lowercase() {
+    // (Codex, ClaudeCode) は未対応ペア。lowercase 化された値が返る。
+    assert_eq!(
+        map_model("Sonnet", Format::Codex, Format::ClaudeCode),
+        "sonnet"
+    );
+}
+
 // ============================================================================
 // Body variable conversion tests
 // ============================================================================
