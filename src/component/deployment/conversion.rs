@@ -9,8 +9,9 @@ use std::path::PathBuf;
 /// 変換が不要な場合 (`Skill`/`Instruction`、フォーマット同一の `Command`/`Agent` 等) は
 /// `None` を使う。`Command`/`Agent`/`Hook` の各バリアントは、変換に必要な情報を
 /// 型レベルで強制する（旧 Builder の `source_format` / `dest_format` ペア検証を排除）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum ConversionConfig {
+    #[default]
     None,
     Command {
         source: CommandFormat,
@@ -24,12 +25,6 @@ pub enum ConversionConfig {
         target_kind: TargetKind,
         plugin_root: Option<PathBuf>,
     },
-}
-
-impl Default for ConversionConfig {
-    fn default() -> Self {
-        Self::None
-    }
 }
 
 #[cfg(test)]
