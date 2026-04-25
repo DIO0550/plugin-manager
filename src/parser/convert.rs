@@ -177,30 +177,6 @@ pub(crate) fn map_tools(tools: &[String], from: Format, to: Format) -> Vec<Strin
     result
 }
 
-/// Keys are lowercase-normalized
-#[allow(dead_code)]
-const MODEL_CLAUDE_COPILOT_MAP: &[(&str, &str)] = &[
-    ("haiku", "GPT-4o-mini"),
-    ("sonnet", "GPT-4o"),
-    ("opus", "o1"),
-];
-
-/// Keys are lowercase-normalized (reverse of MODEL_CLAUDE_COPILOT_MAP)
-#[allow(dead_code)]
-const MODEL_COPILOT_CLAUDE_MAP: &[(&str, &str)] = &[
-    ("gpt-4o-mini", "haiku"),
-    ("gpt-4o", "sonnet"),
-    ("o1", "opus"),
-];
-
-/// Keys are lowercase-normalized
-#[allow(dead_code)]
-const MODEL_CLAUDE_CODEX_MAP: &[(&str, &str)] = &[
-    ("haiku", "gpt-4.1-mini"),
-    ("sonnet", "gpt-4.1"),
-    ("opus", "o3"),
-];
-
 struct ModelRow {
     claude_code: &'static str,
     copilot: Option<&'static str>,
