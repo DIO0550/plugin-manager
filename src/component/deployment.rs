@@ -132,5 +132,5 @@ impl ComponentDeployment {
 }
 
 #[cfg(test)]
-#[path = "deployment/deployment_test.rs"]
+#[path = "deployment_test.rs"]
 mod tests;
