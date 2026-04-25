@@ -19,7 +19,6 @@ pub enum TargetType {
     Codex,
 }
 
-use crate::format::lookup_forward;
 pub use crate::format::Format;
 
 struct ToolRow {
@@ -179,6 +178,7 @@ pub(crate) fn map_tools(tools: &[String], from: Format, to: Format) -> Vec<Strin
 }
 
 /// Keys are lowercase-normalized
+#[allow(dead_code)]
 const MODEL_CLAUDE_COPILOT_MAP: &[(&str, &str)] = &[
     ("haiku", "GPT-4o-mini"),
     ("sonnet", "GPT-4o"),
@@ -186,6 +186,7 @@ const MODEL_CLAUDE_COPILOT_MAP: &[(&str, &str)] = &[
 ];
 
 /// Keys are lowercase-normalized (reverse of MODEL_CLAUDE_COPILOT_MAP)
+#[allow(dead_code)]
 const MODEL_COPILOT_CLAUDE_MAP: &[(&str, &str)] = &[
     ("gpt-4o-mini", "haiku"),
     ("gpt-4o", "sonnet"),
@@ -193,11 +194,62 @@ const MODEL_COPILOT_CLAUDE_MAP: &[(&str, &str)] = &[
 ];
 
 /// Keys are lowercase-normalized
+#[allow(dead_code)]
 const MODEL_CLAUDE_CODEX_MAP: &[(&str, &str)] = &[
     ("haiku", "gpt-4.1-mini"),
     ("sonnet", "gpt-4.1"),
     ("opus", "o3"),
 ];
+
+struct ModelRow {
+    claude_code: &'static str,
+    copilot: Option<&'static str>,
+    codex: Option<&'static str>,
+}
+
+type ModelColumn = fn(&ModelRow) -> Option<&'static str>;
+
+fn model_col_claude_code(row: &ModelRow) -> Option<&'static str> {
+    Some(row.claude_code)
+}
+fn model_col_copilot(row: &ModelRow) -> Option<&'static str> {
+    row.copilot
+}
+fn model_col_codex(row: &ModelRow) -> Option<&'static str> {
+    row.codex
+}
+
+const MODEL_TABLE: &[ModelRow] = &[
+    ModelRow {
+        claude_code: "haiku",
+        copilot: Some("GPT-4o-mini"),
+        codex: Some("gpt-4.1-mini"),
+    },
+    ModelRow {
+        claude_code: "sonnet",
+        copilot: Some("GPT-4o"),
+        codex: Some("gpt-4.1"),
+    },
+    ModelRow {
+        claude_code: "opus",
+        copilot: Some("o1"),
+        codex: Some("o3"),
+    },
+];
+
+/// `from_col(row)` を lowercase 化した値が `key_lower` と一致する最初の行の `to_col` を返す。
+/// 入力 `key_lower` は呼び出し側で lowercase 化済みの前提（map_model で `to_lowercase()` 済み）。
+/// 列値が大文字混じり（例: "GPT-4o-mini"）の Copilot 列でも、lowercase 比較で双方向に引ける。
+fn find_model_lower(
+    key_lower: &str,
+    from_col: ModelColumn,
+    to_col: ModelColumn,
+) -> Option<&'static str> {
+    MODEL_TABLE
+        .iter()
+        .find(|row| from_col(row).map(|s| s.to_lowercase()).as_deref() == Some(key_lower))
+        .and_then(to_col)
+}
 
 /// Model name conversion between formats.
 ///
@@ -213,15 +265,15 @@ const MODEL_CLAUDE_CODEX_MAP: &[(&str, &str)] = &[
 /// * `to` - Destination format to convert the model name into.
 pub(crate) fn map_model(model: &str, from: Format, to: Format) -> String {
     let normalized = model.to_lowercase();
-    let table = match (from, to) {
-        (Format::ClaudeCode, Format::Copilot) => Some(MODEL_CLAUDE_COPILOT_MAP),
-        (Format::Copilot, Format::ClaudeCode) => Some(MODEL_COPILOT_CLAUDE_MAP),
-        (Format::ClaudeCode, Format::Codex) => Some(MODEL_CLAUDE_CODEX_MAP),
+    let columns: Option<(ModelColumn, ModelColumn)> = match (from, to) {
+        (Format::ClaudeCode, Format::Copilot) => Some((model_col_claude_code, model_col_copilot)),
+        (Format::Copilot, Format::ClaudeCode) => Some((model_col_copilot, model_col_claude_code)),
+        (Format::ClaudeCode, Format::Codex) => Some((model_col_claude_code, model_col_codex)),
         _ => None,
     };
 
-    match table {
-        Some(table) => lookup_forward(table, &normalized)
+    match columns {
+        Some((from_col, to_col)) => find_model_lower(&normalized, from_col, to_col)
             .map(|v| v.to_string())
             .unwrap_or(normalized),
         None => normalized,
