@@ -4,7 +4,7 @@
 //! 変換設定は `ConversionConfig::None` を default とする任意フィールド。
 
 use super::conversion::ConversionConfig;
-use super::executor::ComponentDeployment;
+use super::ComponentDeployment;
 use crate::component::{Component, Scope};
 use crate::error::{PlmError, Result};
 use std::path::PathBuf;

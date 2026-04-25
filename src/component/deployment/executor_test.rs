@@ -1,7 +1,8 @@
 use super::*;
 use crate::component::convert::{AgentFormat, ConversionResult};
-use crate::component::{CommandFormat, Component, ConversionConfig};
+use crate::component::{CommandFormat, Component, ComponentKind, ConversionConfig, Scope};
 use std::fs;
+use std::path::{Path, PathBuf};
 use tempfile::TempDir;
 
 fn make_deployment(

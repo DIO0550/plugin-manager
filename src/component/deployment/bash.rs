@@ -50,5 +50,5 @@ pub(super) fn escape_for_bash_double_quote(s: &str) -> String {
 }
 
 #[cfg(test)]
-#[path = "bash_escape_test.rs"]
+#[path = "bash_test.rs"]
 mod tests;

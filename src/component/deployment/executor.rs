@@ -1,52 +1,14 @@
-//! `ComponentDeployment` 構造体本体と `execute()` のディスパッチ
+//! `ComponentDeployment::execute()` のディスパッチと種別ごとの `deploy_*` 実装
 
 use super::conversion::ConversionConfig;
 use super::output::DeploymentOutput;
-use super::ComponentDeploymentBuilder;
+use super::ComponentDeployment;
 use crate::component::convert;
-use crate::component::{Component, ComponentKind, Scope};
+use crate::component::ComponentKind;
 use crate::error::Result;
 use crate::path_ext::PathExt;
-use std::path::{Path, PathBuf};
-
-/// コンポーネントのデプロイ情報
-///
-/// 配置の実行（コピー/削除など）を担当する。
-/// 配置先の決定は `PlacementLocation` が担当する。
-#[derive(Debug, Clone)]
-pub struct ComponentDeployment {
-    pub(super) component: Component,
-    pub scope: Scope,
-    pub(super) target_path: PathBuf,
-    pub(super) conversion: ConversionConfig,
-}
 
 impl ComponentDeployment {
-    /// Builder を生成
-    pub fn builder() -> ComponentDeploymentBuilder {
-        ComponentDeploymentBuilder::default()
-    }
-
-    /// コンポーネント種別を取得
-    pub fn kind(&self) -> ComponentKind {
-        self.component.kind
-    }
-
-    /// コンポーネント名を取得
-    pub fn name(&self) -> &str {
-        &self.component.name
-    }
-
-    /// ソースパスを取得（同モジュール内のみ）
-    pub(super) fn source_path(&self) -> &Path {
-        &self.component.path
-    }
-
-    /// 配置先パスを取得
-    pub fn path(&self) -> &Path {
-        &self.target_path
-    }
-
     /// 配置を実行
     ///
     /// `ComponentKind` ごとに専用の `deploy_*` メソッドへディスパッチする。

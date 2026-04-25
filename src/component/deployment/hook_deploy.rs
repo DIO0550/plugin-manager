@@ -1,8 +1,8 @@
 //! Hook 変換デプロイ処理
 
-use super::bash_escape::{escape_for_bash_double_quote, write_executable_script};
-use super::executor::ComponentDeployment;
+use super::bash::{escape_for_bash_double_quote, write_executable_script};
 use super::output::{DeploymentOutput, HookConvertOutput};
+use super::ComponentDeployment;
 use crate::error::{PlmError, Result};
 use crate::hooks::converter::{self, SourceFormat, SCRIPTS_DIR};
 use crate::hooks::name::HookName;
