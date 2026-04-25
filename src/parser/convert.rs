@@ -20,18 +20,134 @@ pub enum TargetType {
 }
 
 pub use crate::format::Format;
-use crate::format::{lookup_forward, lookup_reverse};
 
-const PROMPT_TOOL_MAP: &[(&str, &str)] = &[
-    ("Read", "codebase"), // representative for reverse lookup
-    ("Write", "codebase"),
-    ("Edit", "codebase"),
-    ("Grep", "search/codebase"), // representative for reverse lookup
-    ("Glob", "search/codebase"),
-    ("Bash", "terminal"),
-    ("WebFetch", "fetch"),
-    ("WebSearch", "websearch"),
+/// Record-oriented row of [`TOOL_TABLE`].
+///
+/// Each row represents a single logical tool with its name in every supported
+/// format. `claude_code` is required; other format columns are `Option` because
+/// not every tool has a counterpart in every format.
+struct ToolRow {
+    claude_code: &'static str,
+    copilot: Option<&'static str>,
+    /// 将来拡張用（Codex Tool 名マッピングが仕様化されたら Some(...) を埋める）
+    #[allow(dead_code)]
+    codex: Option<&'static str>,
+    /// Marks the canonical row to use when an N:1 reverse lookup hits multiple
+    /// candidates (e.g. `codebase` -> `Read` rather than `Write`/`Edit`).
+    reverse_canonical: bool,
+}
+
+/// Column accessor: extracts one format's name from a [`ToolRow`].
+type ToolColumn = fn(&ToolRow) -> Option<&'static str>;
+
+/// Column accessor for the Claude Code name (always present).
+fn tool_col_claude_code(row: &ToolRow) -> Option<&'static str> {
+    Some(row.claude_code)
+}
+/// Column accessor for the Copilot name.
+fn tool_col_copilot(row: &ToolRow) -> Option<&'static str> {
+    row.copilot
+}
+/// Column accessor for the Codex name (reserved for future use).
+#[allow(dead_code)]
+fn tool_col_codex(row: &ToolRow) -> Option<&'static str> {
+    row.codex
+}
+
+/// Tool name conversion table (rows = logical tools, columns = formats).
+const TOOL_TABLE: &[ToolRow] = &[
+    ToolRow {
+        claude_code: "Read",
+        copilot: Some("codebase"),
+        codex: None,
+        reverse_canonical: true,
+    },
+    ToolRow {
+        claude_code: "Write",
+        copilot: Some("codebase"),
+        codex: None,
+        reverse_canonical: false,
+    },
+    ToolRow {
+        claude_code: "Edit",
+        copilot: Some("codebase"),
+        codex: None,
+        reverse_canonical: false,
+    },
+    ToolRow {
+        claude_code: "Grep",
+        copilot: Some("search/codebase"),
+        codex: None,
+        reverse_canonical: true,
+    },
+    ToolRow {
+        claude_code: "Glob",
+        copilot: Some("search/codebase"),
+        codex: None,
+        reverse_canonical: false,
+    },
+    ToolRow {
+        claude_code: "Bash",
+        copilot: Some("terminal"),
+        codex: None,
+        reverse_canonical: true,
+    },
+    ToolRow {
+        claude_code: "WebFetch",
+        copilot: Some("fetch"),
+        codex: None,
+        reverse_canonical: true,
+    },
+    ToolRow {
+        claude_code: "WebSearch",
+        copilot: Some("websearch"),
+        codex: None,
+        reverse_canonical: true,
+    },
 ];
+
+/// Returns the `to_col` value of the first row whose `from_col` equals `Some(key)`.
+fn find_forward_tool(key: &str, from_col: ToolColumn, to_col: ToolColumn) -> Option<&'static str> {
+    TOOL_TABLE
+        .iter()
+        .find(|row| from_col(row) == Some(key))
+        .and_then(to_col)
+}
+
+/// Returns the `to_col` value of the canonical row (`reverse_canonical: true`)
+/// whose `from_col` equals `Some(value)`. Used for N:1 reverse lookups where
+/// multiple rows share the same source value but only one is the canonical
+/// representative.
+fn find_reverse_canonical_tool(
+    value: &str,
+    from_col: ToolColumn,
+    to_col: ToolColumn,
+) -> Option<&'static str> {
+    TOOL_TABLE
+        .iter()
+        .find(|row| row.reverse_canonical && from_col(row) == Some(value))
+        .and_then(to_col)
+}
+
+/// Special case (table-external) for Claude Code -> Copilot tool conversion:
+/// any `Bash(git...)` invocation maps to Copilot's `githubRepo`.
+fn apply_tool_special_forward(trimmed: &str) -> Option<String> {
+    if trimmed.starts_with("Bash(git") {
+        Some("githubRepo".to_string())
+    } else {
+        None
+    }
+}
+
+/// Special case (table-external) for Copilot -> Claude Code tool conversion:
+/// the Copilot-only `githubRepo` maps back to plain `Bash`.
+fn apply_tool_special_reverse(trimmed: &str) -> Option<String> {
+    if trimmed == "githubRepo" {
+        Some("Bash".to_string())
+    } else {
+        None
+    }
+}
 
 /// Tool name conversion between Claude Code and Copilot (Prompt/Agent context).
 ///
@@ -47,19 +163,19 @@ pub(crate) fn map_tool(tool: &str, from: Format, to: Format) -> String {
     let trimmed = tool.trim();
     match (from, to) {
         (Format::ClaudeCode, Format::Copilot) => {
-            if let Some(v) = lookup_forward(PROMPT_TOOL_MAP, trimmed) {
+            if let Some(v) = find_forward_tool(trimmed, tool_col_claude_code, tool_col_copilot) {
                 return v.to_string();
             }
-            if trimmed.starts_with("Bash(git") {
-                return "githubRepo".to_string();
+            if let Some(v) = apply_tool_special_forward(trimmed) {
+                return v;
             }
             trimmed.to_string()
         }
         (Format::Copilot, Format::ClaudeCode) => {
-            if trimmed == "githubRepo" {
-                return "Bash".to_string();
+            if let Some(v) = apply_tool_special_reverse(trimmed) {
+                return v;
             }
-            lookup_reverse(PROMPT_TOOL_MAP, trimmed)
+            find_reverse_canonical_tool(trimmed, tool_col_copilot, tool_col_claude_code)
                 .map(|v| v.to_string())
                 .unwrap_or_else(|| trimmed.to_string())
         }
@@ -82,26 +198,65 @@ pub(crate) fn map_tools(tools: &[String], from: Format, to: Format) -> Vec<Strin
     result
 }
 
-/// Keys are lowercase-normalized
-const MODEL_CLAUDE_COPILOT_MAP: &[(&str, &str)] = &[
-    ("haiku", "GPT-4o-mini"),
-    ("sonnet", "GPT-4o"),
-    ("opus", "o1"),
+/// Record-oriented row of [`MODEL_TABLE`].
+///
+/// Each row represents a single logical model with its name in every supported
+/// format. `claude_code` is required; other format columns are `Option` because
+/// not every model has a counterpart in every format.
+struct ModelRow {
+    claude_code: &'static str,
+    copilot: Option<&'static str>,
+    codex: Option<&'static str>,
+}
+
+/// Column accessor: extracts one format's name from a [`ModelRow`].
+type ModelColumn = fn(&ModelRow) -> Option<&'static str>;
+
+/// Column accessor for the Claude Code name (always present).
+fn model_col_claude_code(row: &ModelRow) -> Option<&'static str> {
+    Some(row.claude_code)
+}
+/// Column accessor for the Copilot name.
+fn model_col_copilot(row: &ModelRow) -> Option<&'static str> {
+    row.copilot
+}
+/// Column accessor for the Codex name.
+fn model_col_codex(row: &ModelRow) -> Option<&'static str> {
+    row.codex
+}
+
+/// Model name conversion table (rows = logical models, columns = formats).
+const MODEL_TABLE: &[ModelRow] = &[
+    ModelRow {
+        claude_code: "haiku",
+        copilot: Some("GPT-4o-mini"),
+        codex: Some("gpt-4.1-mini"),
+    },
+    ModelRow {
+        claude_code: "sonnet",
+        copilot: Some("GPT-4o"),
+        codex: Some("gpt-4.1"),
+    },
+    ModelRow {
+        claude_code: "opus",
+        copilot: Some("o1"),
+        codex: Some("o3"),
+    },
 ];
 
-/// Keys are lowercase-normalized (reverse of MODEL_CLAUDE_COPILOT_MAP)
-const MODEL_COPILOT_CLAUDE_MAP: &[(&str, &str)] = &[
-    ("gpt-4o-mini", "haiku"),
-    ("gpt-4o", "sonnet"),
-    ("o1", "opus"),
-];
-
-/// Keys are lowercase-normalized
-const MODEL_CLAUDE_CODEX_MAP: &[(&str, &str)] = &[
-    ("haiku", "gpt-4.1-mini"),
-    ("sonnet", "gpt-4.1"),
-    ("opus", "o3"),
-];
+/// `from_col(row)` を lowercase 化した値が `key_lower` と一致する最初の行の `to_col` を返す。
+/// 入力 `key_lower` は呼び出し側で lowercase 化済みの前提（map_model で `to_lowercase()` 済み）。
+/// 列値が大文字混じり（例: "GPT-4o-mini"）の Copilot 列でも、lowercase 比較で双方向に引ける。
+fn find_model_lower(
+    key_lower: &str,
+    from_col: ModelColumn,
+    to_col: ModelColumn,
+) -> Option<&'static str> {
+    MODEL_TABLE
+        .iter()
+        .find(|row| from_col(row).map(|s| s.to_lowercase()).as_deref() == Some(key_lower))
+        .and_then(to_col)
+}
 
 /// Model name conversion between formats.
 ///
@@ -117,15 +272,15 @@ const MODEL_CLAUDE_CODEX_MAP: &[(&str, &str)] = &[
 /// * `to` - Destination format to convert the model name into.
 pub(crate) fn map_model(model: &str, from: Format, to: Format) -> String {
     let normalized = model.to_lowercase();
-    let table = match (from, to) {
-        (Format::ClaudeCode, Format::Copilot) => Some(MODEL_CLAUDE_COPILOT_MAP),
-        (Format::Copilot, Format::ClaudeCode) => Some(MODEL_COPILOT_CLAUDE_MAP),
-        (Format::ClaudeCode, Format::Codex) => Some(MODEL_CLAUDE_CODEX_MAP),
+    let columns: Option<(ModelColumn, ModelColumn)> = match (from, to) {
+        (Format::ClaudeCode, Format::Copilot) => Some((model_col_claude_code, model_col_copilot)),
+        (Format::Copilot, Format::ClaudeCode) => Some((model_col_copilot, model_col_claude_code)),
+        (Format::ClaudeCode, Format::Codex) => Some((model_col_claude_code, model_col_codex)),
         _ => None,
     };
 
-    match table {
-        Some(table) => lookup_forward(table, &normalized)
+    match columns {
+        Some((from_col, to_col)) => find_model_lower(&normalized, from_col, to_col)
             .map(|v| v.to_string())
             .unwrap_or(normalized),
         None => normalized,
