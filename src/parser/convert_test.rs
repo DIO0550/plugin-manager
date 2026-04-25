@@ -155,6 +155,62 @@ fn test_map_tool_copilot_to_claude_n_to_1_representative() {
     );
 }
 
+#[test]
+fn test_map_tool_claude_to_copilot_n_to_1_forward_all_rows() {
+    // forward は全行で機能する（Read/Write/Edit すべて codebase に飛ぶ）
+    assert_eq!(
+        map_tool("Read", Format::ClaudeCode, Format::Copilot),
+        "codebase"
+    );
+    assert_eq!(
+        map_tool("Write", Format::ClaudeCode, Format::Copilot),
+        "codebase"
+    );
+    assert_eq!(
+        map_tool("Edit", Format::ClaudeCode, Format::Copilot),
+        "codebase"
+    );
+    assert_eq!(
+        map_tool("Grep", Format::ClaudeCode, Format::Copilot),
+        "search/codebase"
+    );
+    assert_eq!(
+        map_tool("Glob", Format::ClaudeCode, Format::Copilot),
+        "search/codebase"
+    );
+}
+
+#[test]
+fn test_map_tool_copilot_to_claude_n_to_1_canonical_grep() {
+    // reverse は代表行のみがヒット
+    assert_eq!(
+        map_tool("search/codebase", Format::Copilot, Format::ClaudeCode),
+        "Grep"
+    );
+    assert_eq!(
+        map_tool("codebase", Format::Copilot, Format::ClaudeCode),
+        "Read"
+    );
+}
+
+#[test]
+fn test_map_tool_claude_to_copilot_bash_git_prefix_match() {
+    // PIN: Bash(git で始まる入力は githubRepo に変換される（既存挙動）
+    assert_eq!(
+        map_tool("Bash(git:*)", Format::ClaudeCode, Format::Copilot),
+        "githubRepo"
+    );
+    assert_eq!(
+        map_tool("Bash(git commit*)", Format::ClaudeCode, Format::Copilot),
+        "githubRepo"
+    );
+
+    // NOTE: Bash(github) のような入力も現行の starts_with("Bash(git") では
+    // 偶発的に githubRepo にマッチする。これは本リファクタの保証範囲外
+    // (non-guaranteed incidental match) であり、将来仕様化する余地を残す。
+    // 意図的に assert はせず、振る舞いをコメントとして記録する。
+}
+
 // ============================================================================
 // Model name conversion tests
 // ============================================================================
