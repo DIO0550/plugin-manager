@@ -151,6 +151,25 @@ fn test_antigravity_placement_with_hierarchy() {
 }
 
 #[test]
+fn test_antigravity_placement_location_skill_with_prefixed_name() {
+    let target = AntigravityTarget::new();
+    let project_root = Path::new("/project");
+    let origin = PluginOrigin::from_marketplace("official", "my-plugin");
+
+    let ctx = PlacementContext {
+        component: ComponentRef::new(ComponentKind::Skill, "myplugin_foo"),
+        origin: &origin,
+        scope: PlacementScope::new(Scope::Project),
+        project: ProjectContext::new(project_root),
+    };
+    let location = target.placement_location(&ctx).unwrap();
+    assert_eq!(
+        location.as_path(),
+        Path::new("/project/.agent/skills/official/my-plugin/myplugin_foo")
+    );
+}
+
+#[test]
 fn test_antigravity_list_placed_empty_dir() {
     let target = AntigravityTarget::new();
     let temp_dir = TempDir::new().unwrap();

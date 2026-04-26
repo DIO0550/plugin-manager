@@ -142,6 +142,35 @@ fn test_copilot_placement_location_instruction() {
     );
 }
 
+#[test]
+fn test_copilot_placement_location_with_prefixed_name() {
+    let target = CopilotTarget::new();
+    let project_root = Path::new("/project");
+    let origin = PluginOrigin::from_marketplace("official", "my-plugin");
+
+    let skill_ctx = PlacementContext {
+        component: ComponentRef::new(ComponentKind::Skill, "myplugin_foo"),
+        origin: &origin,
+        scope: PlacementScope::new(Scope::Project),
+        project: ProjectContext::new(project_root),
+    };
+    assert_eq!(
+        target.placement_location(&skill_ctx).unwrap().as_path(),
+        Path::new("/project/.github/skills/official/my-plugin/myplugin_foo")
+    );
+
+    let cmd_ctx = PlacementContext {
+        component: ComponentRef::new(ComponentKind::Command, "myplugin_foo"),
+        origin: &origin,
+        scope: PlacementScope::new(Scope::Project),
+        project: ProjectContext::new(project_root),
+    };
+    assert_eq!(
+        target.placement_location(&cmd_ctx).unwrap().as_path(),
+        Path::new("/project/.github/prompts/official/my-plugin/myplugin_foo.prompt.md")
+    );
+}
+
 // =============================================================================
 // Claude Code → Copilot 変換テスト
 // =============================================================================
