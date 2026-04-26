@@ -208,9 +208,12 @@ fn key_to_msg_plugin_browse_i_returns_start_install() {
 }
 
 #[test]
-fn key_to_msg_plugin_browse_enter_returns_none() {
+fn key_to_msg_plugin_browse_enter_returns_start_install() {
     let model = make_plugin_browse_model();
-    assert!(key_to_msg(KeyCode::Enter, &model).is_none());
+    assert!(matches!(
+        key_to_msg(KeyCode::Enter, &model),
+        Some(Msg::StartInstall)
+    ));
 }
 
 #[test]
