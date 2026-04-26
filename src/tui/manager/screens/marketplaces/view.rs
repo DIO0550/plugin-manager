@@ -687,7 +687,8 @@ fn view_plugin_browse(
     }
 
     // ヘルプ
-    let help = Paragraph::new(" Esc: back | q: quit").style(Style::default().fg(Color::DarkGray));
+    let help = Paragraph::new(" Space: select | Enter/i: install | Esc: back | q: quit")
+        .style(Style::default().fg(Color::DarkGray));
     f.render_widget(help, chunks[3]);
 }
 
