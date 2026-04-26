@@ -449,7 +449,8 @@ fn test_list_hook_names_dot_file() {
 
     fs::write(hooks_dir.join(".env"), "KEY=VALUE").unwrap();
 
-    assert_eq!(names(list_hook_names(hooks_dir)), vec![""]);
+    // ドットファイルは stem が空文字になるため Hook 候補から除外する。
+    assert!(list_hook_names(hooks_dir).is_empty());
 }
 
 #[test]
@@ -469,7 +470,8 @@ fn test_list_hook_names_only_extension() {
 
     fs::write(hooks_dir.join(".gitignore"), "*.log").unwrap();
 
-    assert_eq!(names(list_hook_names(hooks_dir)), vec![""]);
+    // 拡張子のみのドットファイルも stem が空のため除外する。
+    assert!(list_hook_names(hooks_dir).is_empty());
 }
 
 #[test]
