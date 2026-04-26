@@ -9,6 +9,7 @@ use crate::fs::{FileSystem, RealFs};
 use crate::target::{PluginOrigin, TargetKind};
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// プラグインディレクトリをクリーンアップ
@@ -277,19 +278,24 @@ fn dir_is_empty(path: &Path) -> bool {
         .unwrap_or(false)
 }
 
-/// quarantine 名に使うランダム性のあるサフィックスを生成する。
+/// quarantine 名に使うサフィックスを生成する。
 ///
-/// 暗号学的乱数は不要（rename の race を縮小する目的のみ）。`SystemTime` の
-/// ナノ秒下位ビットとプロセス ID + ポインタアドレスを混ぜてユニーク性を稼ぐ。
+/// 暗号学的乱数は不要（rename の race を縮小する目的のみ）。同一親配下での
+/// 一意性確保が目的のため、`SystemTime` のナノ秒下位ビット + プロセス ID +
+/// プロセス内単調カウンタを混ぜる。
+///
+/// **注意**: 以前はポインタアドレスも混ぜていたが、quarantine ディレクトリ名
+/// としてアドレスがディスク上に露出するのを避けるため除外した。
 fn quarantine_suffix() -> String {
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_nanos())
+        .map(|d| d.as_nanos() as u64)
         .unwrap_or(0);
-    let pid = std::process::id() as u128;
-    let stack_addr = &nanos as *const _ as usize as u128;
-    let mixed = nanos ^ (pid << 32) ^ stack_addr;
-    format!("{:016x}", mixed as u64)
+    let pid = std::process::id() as u64;
+    let counter = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let mixed = nanos ^ pid.rotate_left(32) ^ counter.rotate_left(48);
+    format!("{:016x}", mixed)
 }
 
 fn remove_if_empty(fs: &dyn FileSystem, path: &Path) {
