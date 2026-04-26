@@ -69,7 +69,7 @@ fn test_list_agent_names_single_file() {
     let agent_file = temp_dir.path().join("my-agent.agent.md");
     fs::write(&agent_file, "# Agent").unwrap();
 
-    assert_eq!(names(list_agent_names(&agent_file)), vec!["my-agent.agent"]);
+    assert_eq!(names(list_agent_names(&agent_file)), vec!["my-agent"]);
 }
 
 #[test]
@@ -521,4 +521,217 @@ fn test_file_stem_name_double_extension() {
 fn test_file_stem_name_trailing_dot() {
     let path = Path::new("file.");
     assert_eq!(file_stem_name(path), Some("file".to_string()));
+}
+
+// =========================================================================
+// 再帰スキャン: list_skill_names
+// =========================================================================
+
+#[test]
+fn test_list_skill_names_one_level_nested() {
+    let temp_dir = TempDir::new().unwrap();
+    let skills_dir = temp_dir.path();
+
+    let nested = skills_dir.join("bar").join("foo");
+    fs::create_dir_all(&nested).unwrap();
+    fs::write(nested.join("SKILL.md"), "# Skill").unwrap();
+
+    let result = list_skill_names(skills_dir);
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].0, "foo");
+    assert_eq!(result[0].1, nested);
+}
+
+#[test]
+fn test_list_skill_names_multi_level_nested() {
+    let temp_dir = TempDir::new().unwrap();
+    let skills_dir = temp_dir.path();
+
+    let nested = skills_dir.join("a").join("b").join("baz");
+    fs::create_dir_all(&nested).unwrap();
+    fs::write(nested.join("SKILL.md"), "# Skill").unwrap();
+
+    let result = list_skill_names(skills_dir);
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].0, "baz");
+    assert_eq!(result[0].1, nested);
+}
+
+#[test]
+fn test_list_skill_names_does_not_descend_into_skill() {
+    let temp_dir = TempDir::new().unwrap();
+    let skills_dir = temp_dir.path();
+
+    // skill1 が SKILL.md を持つ
+    let skill1 = skills_dir.join("skill1");
+    fs::create_dir(&skill1).unwrap();
+    fs::write(skill1.join("SKILL.md"), "# Skill").unwrap();
+
+    // skill1/assets/inner にも SKILL.md がある（誤検出してはいけない）
+    let inner = skill1.join("assets").join("inner");
+    fs::create_dir_all(&inner).unwrap();
+    fs::write(inner.join("SKILL.md"), "# Inner").unwrap();
+
+    let result = list_skill_names(skills_dir);
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].0, "skill1");
+}
+
+#[test]
+fn test_list_skill_names_mixed_flat_and_nested() {
+    let temp_dir = TempDir::new().unwrap();
+    let skills_dir = temp_dir.path();
+
+    // 直下: skills/foo/SKILL.md
+    let flat = skills_dir.join("foo");
+    fs::create_dir(&flat).unwrap();
+    fs::write(flat.join("SKILL.md"), "# foo").unwrap();
+
+    // ネスト: skills/bar/baz/SKILL.md
+    let nested = skills_dir.join("bar").join("baz");
+    fs::create_dir_all(&nested).unwrap();
+    fs::write(nested.join("SKILL.md"), "# baz").unwrap();
+
+    let mut result = names(list_skill_names(skills_dir));
+    result.sort();
+    assert_eq!(result, vec!["baz", "foo"]);
+}
+
+#[test]
+fn test_list_skill_names_duplicate_basename_in_nested() {
+    let temp_dir = TempDir::new().unwrap();
+    let skills_dir = temp_dir.path();
+
+    let a = skills_dir.join("a").join("foo");
+    let b = skills_dir.join("b").join("foo");
+    fs::create_dir_all(&a).unwrap();
+    fs::create_dir_all(&b).unwrap();
+    fs::write(a.join("SKILL.md"), "# a/foo").unwrap();
+    fs::write(b.join("SKILL.md"), "# b/foo").unwrap();
+
+    // scan 層では衝突検出しない（呼び出し側 build_components の責務）
+    let mut result = names(list_skill_names(skills_dir));
+    result.sort();
+    assert_eq!(result, vec!["foo", "foo"]);
+}
+
+// =========================================================================
+// 再帰スキャン: list_agent_names
+// =========================================================================
+
+#[test]
+fn test_list_agent_names_one_level_nested() {
+    let temp_dir = TempDir::new().unwrap();
+    let agents_dir = temp_dir.path();
+
+    let nested = agents_dir.join("bar");
+    fs::create_dir(&nested).unwrap();
+    fs::write(nested.join("foo.agent.md"), "# Agent").unwrap();
+
+    let result = list_agent_names(agents_dir);
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].0, "foo");
+    assert_eq!(result[0].1, nested.join("foo.agent.md"));
+}
+
+#[test]
+fn test_list_agent_names_multi_level_nested() {
+    let temp_dir = TempDir::new().unwrap();
+    let agents_dir = temp_dir.path();
+
+    let nested = agents_dir.join("a").join("b");
+    fs::create_dir_all(&nested).unwrap();
+    fs::write(nested.join("foo.agent.md"), "# Agent").unwrap();
+
+    let result = list_agent_names(agents_dir);
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].0, "foo");
+    assert_eq!(result[0].1, nested.join("foo.agent.md"));
+}
+
+#[test]
+fn test_list_agent_names_recursive_skips_non_md() {
+    let temp_dir = TempDir::new().unwrap();
+    let agents_dir = temp_dir.path();
+
+    let nested = agents_dir.join("nested");
+    fs::create_dir(&nested).unwrap();
+    fs::write(nested.join("notes.txt"), "skip").unwrap();
+    fs::write(nested.join("foo.agent.md"), "# Agent").unwrap();
+
+    let result = names(list_agent_names(agents_dir));
+    assert_eq!(result, vec!["foo"]);
+}
+
+// =========================================================================
+// 再帰スキャン: list_command_names
+// =========================================================================
+
+#[test]
+fn test_list_command_names_one_level_nested() {
+    let temp_dir = TempDir::new().unwrap();
+    let commands_dir = temp_dir.path();
+
+    let nested = commands_dir.join("bar");
+    fs::create_dir(&nested).unwrap();
+    fs::write(nested.join("foo.prompt.md"), "# Cmd").unwrap();
+
+    let result = list_command_names(commands_dir);
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].0, "foo");
+    assert_eq!(result[0].1, nested.join("foo.prompt.md"));
+}
+
+// =========================================================================
+// 再帰スキャン: symlink ループ防止
+// =========================================================================
+
+#[cfg(unix)]
+#[test]
+fn test_list_skill_names_does_not_follow_symlinks() {
+    use std::os::unix::fs::symlink;
+
+    let temp_dir = TempDir::new().unwrap();
+    let skills_dir = temp_dir.path();
+
+    // 通常の skill
+    let skill1 = skills_dir.join("skill1");
+    fs::create_dir(&skill1).unwrap();
+    fs::write(skill1.join("SKILL.md"), "# Skill1").unwrap();
+
+    // 自分自身を指す symlink — 辿ったら無限ループ
+    symlink(skills_dir, skills_dir.join("loop")).unwrap();
+
+    let mut result = names(list_skill_names(skills_dir));
+    result.sort();
+    assert_eq!(result, vec!["skill1"]);
+}
+
+#[cfg(unix)]
+#[test]
+fn test_list_agent_names_does_not_follow_symlinks() {
+    use std::os::unix::fs::symlink;
+
+    let temp_dir = TempDir::new().unwrap();
+    let agents_dir = temp_dir.path();
+
+    fs::write(agents_dir.join("a.agent.md"), "# Agent").unwrap();
+    symlink(agents_dir, agents_dir.join("loop")).unwrap();
+
+    let result = names(list_agent_names(agents_dir));
+    assert_eq!(result, vec!["a"]);
+}
+
+#[test]
+fn test_list_command_names_multi_level_nested() {
+    let temp_dir = TempDir::new().unwrap();
+    let commands_dir = temp_dir.path();
+
+    let nested = commands_dir.join("a").join("b");
+    fs::create_dir_all(&nested).unwrap();
+    fs::write(nested.join("foo.prompt.md"), "# Cmd").unwrap();
+
+    let result = list_command_names(commands_dir);
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].0, "foo");
 }

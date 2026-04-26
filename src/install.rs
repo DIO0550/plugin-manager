@@ -126,7 +126,7 @@ pub async fn download_plugin_with_cache(
 ) -> crate::error::Result<MarketplaceContent> {
     let source = parse_source(source_str)?;
     let cached = source.download(cache, force).await?;
-    Ok(MarketplaceContent::from(cached))
+    MarketplaceContent::try_from(cached)
 }
 
 /// プラグインのコンポーネントをスキャン

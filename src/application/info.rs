@@ -217,7 +217,7 @@ fn build_plugin_info(content: MarketplaceContent) -> Result<PluginInfo> {
     // InstalledPlugin を組み立てる（list_installed_plugins と同じく marketplace は Option<String> を保つ）
     let id = Some(dir_name.clone());
     let origin = PluginOrigin::from_marketplace(marketplace_key, &dir_name);
-    let plugin = Plugin::new(manifest, cache_path, origin);
+    let plugin = Plugin::new(manifest, cache_path, origin)?;
     let installed = InstalledPlugin::from_cached_package(plugin, id, marketplace_opt, enabled);
 
     Ok(PluginInfo {

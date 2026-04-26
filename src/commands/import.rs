@@ -402,7 +402,8 @@ pub async fn run(args: Args) -> Result<(), String> {
         println!("  Description: {}", desc);
     }
 
-    let package = crate::plugin::MarketplaceContent::from(&cached_plugin);
+    let package =
+        crate::plugin::MarketplaceContent::try_from(&cached_plugin).map_err(|e| e.to_string())?;
     let components = package.components();
 
     let (filtered_components, skipped_paths) =

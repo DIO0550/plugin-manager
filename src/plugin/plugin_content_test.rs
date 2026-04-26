@@ -1,7 +1,8 @@
 //! Plugin のユニットテスト
 
-use super::Plugin;
+use super::{flatten_name, Plugin};
 use crate::component::{Component, ComponentKind};
+use crate::error::PlmError;
 use crate::plugin::PluginManifest;
 use crate::target::PluginOrigin;
 use std::fs;
@@ -46,12 +47,13 @@ fn test_plugin_new_with_skills() {
         make_manifest("test"),
         path.clone(),
         PluginOrigin::from_marketplace("test", "test"),
-    );
+    )
+    .unwrap();
 
     let components = plugin.components();
     assert_eq!(components.len(), 1);
     assert_eq!(components[0].kind, ComponentKind::Skill);
-    assert_eq!(components[0].name, "my-skill");
+    assert_eq!(components[0].name, "test_my-skill");
     assert_eq!(components[0].path, path.join("skills").join("my-skill"));
 }
 
@@ -64,7 +66,8 @@ fn test_plugin_new_empty_dir() {
         make_manifest("test"),
         path,
         PluginOrigin::from_marketplace("test", "test"),
-    );
+    )
+    .unwrap();
 
     assert!(plugin.components().is_empty());
 }
@@ -79,7 +82,8 @@ fn test_plugin_components_returns_slice() {
         make_manifest("test"),
         path,
         PluginOrigin::from_marketplace("test", "test"),
-    );
+    )
+    .unwrap();
 
     let components: &[Component] = plugin.components();
     assert_eq!(components.len(), 1);
@@ -95,12 +99,13 @@ fn test_plugin_new_with_agents() {
         make_manifest("test"),
         path.clone(),
         PluginOrigin::from_marketplace("test", "test"),
-    );
+    )
+    .unwrap();
 
     let components = plugin.components();
     assert_eq!(components.len(), 1);
     assert_eq!(components[0].kind, ComponentKind::Agent);
-    assert_eq!(components[0].name, "my-agent");
+    assert_eq!(components[0].name, "test_my-agent");
     assert_eq!(
         components[0].path,
         path.join("agents").join("my-agent.agent.md")
@@ -120,12 +125,13 @@ fn test_plugin_new_with_agent_single_file() {
         manifest,
         path.clone(),
         PluginOrigin::from_marketplace("test", "test"),
-    );
+    )
+    .unwrap();
 
     let components = plugin.components();
     assert_eq!(components.len(), 1);
     assert_eq!(components[0].kind, ComponentKind::Agent);
-    assert_eq!(components[0].name, "custom-agent");
+    assert_eq!(components[0].name, "test_custom-agent");
     assert_eq!(components[0].path, path.join("custom-agent.md"));
 }
 
@@ -139,12 +145,13 @@ fn test_plugin_new_with_commands() {
         make_manifest("test"),
         path.clone(),
         PluginOrigin::from_marketplace("test", "test"),
-    );
+    )
+    .unwrap();
 
     let components = plugin.components();
     assert_eq!(components.len(), 1);
     assert_eq!(components[0].kind, ComponentKind::Command);
-    assert_eq!(components[0].name, "my-command");
+    assert_eq!(components[0].name, "test_my-command");
     assert_eq!(
         components[0].path,
         path.join("commands").join("my-command.prompt.md")
@@ -161,12 +168,13 @@ fn test_plugin_new_with_command_md_fallback() {
         make_manifest("test"),
         path.clone(),
         PluginOrigin::from_marketplace("test", "test"),
-    );
+    )
+    .unwrap();
 
     let components = plugin.components();
     assert_eq!(components.len(), 1);
     assert_eq!(components[0].kind, ComponentKind::Command);
-    assert_eq!(components[0].name, "legacy-cmd");
+    assert_eq!(components[0].name, "test_legacy-cmd");
     assert_eq!(
         components[0].path,
         path.join("commands").join("legacy-cmd.md")
@@ -186,7 +194,8 @@ fn test_plugin_new_with_instructions() {
         manifest,
         path.clone(),
         PluginOrigin::from_marketplace("test", "test"),
-    );
+    )
+    .unwrap();
 
     let components = plugin.components();
     assert_eq!(components.len(), 1);
@@ -210,7 +219,8 @@ fn test_plugin_new_with_instructions_dir_containing_agents_md() {
         manifest,
         path.clone(),
         PluginOrigin::from_marketplace("test", "test"),
-    );
+    )
+    .unwrap();
 
     let components = plugin.components();
     assert_eq!(components.len(), 1);
@@ -229,7 +239,8 @@ fn test_plugin_new_with_default_agents_md_instruction() {
         make_manifest("test"),
         path.clone(),
         PluginOrigin::from_marketplace("test", "test"),
-    );
+    )
+    .unwrap();
 
     let components = plugin.components();
     assert_eq!(components.len(), 1);
@@ -248,7 +259,8 @@ fn test_plugin_new_with_hooks() {
         make_manifest("test"),
         path.clone(),
         PluginOrigin::from_marketplace("test", "test"),
-    );
+    )
+    .unwrap();
 
     let components = plugin.components();
     assert_eq!(components.len(), 1);
@@ -273,7 +285,8 @@ fn test_plugin_new_with_instruction_file_manifest() {
         manifest,
         path.clone(),
         PluginOrigin::from_marketplace("test", "test"),
-    );
+    )
+    .unwrap();
 
     let components = plugin.components();
     assert_eq!(components.len(), 1);
@@ -294,7 +307,8 @@ fn test_plugin_new_with_missing_instruction_path() {
         manifest,
         path,
         PluginOrigin::from_marketplace("test", "test"),
-    );
+    )
+    .unwrap();
 
     let instructions: Vec<&Component> = plugin
         .components()
@@ -315,7 +329,8 @@ fn test_plugin_new_with_hooks_same_stem_different_ext() {
         make_manifest("test"),
         path.clone(),
         PluginOrigin::from_marketplace("test", "test"),
-    );
+    )
+    .unwrap();
 
     let hooks: Vec<&Component> = plugin
         .components()
@@ -341,9 +356,208 @@ fn test_plugin_clone_preserves_components() {
         make_manifest("test"),
         path,
         PluginOrigin::from_marketplace("test", "test"),
-    );
+    )
+    .unwrap();
     let cloned = plugin.clone();
 
     assert_eq!(cloned.components().len(), 1);
-    assert_eq!(cloned.components()[0].name, "my-skill");
+    assert_eq!(cloned.components()[0].name, "test_my-skill");
+}
+
+// =========================================================================
+// flatten_name 純粋関数
+// =========================================================================
+
+#[test]
+fn test_flatten_name_basic() {
+    assert_eq!(flatten_name("myplugin", "foo"), "myplugin_foo");
+}
+
+#[test]
+fn test_flatten_name_original_with_underscore() {
+    assert_eq!(flatten_name("myplugin", "foo_bar"), "myplugin_foo_bar");
+}
+
+#[test]
+fn test_flatten_name_plugin_with_underscore() {
+    assert_eq!(flatten_name("my_plugin", "foo"), "my_plugin_foo");
+}
+
+#[test]
+fn test_flatten_name_empty_plugin_name() {
+    assert_eq!(flatten_name("", "foo"), "_foo");
+}
+
+// =========================================================================
+// build_components: ネスト + 平坦化
+// =========================================================================
+
+#[test]
+fn test_plugin_new_with_nested_skill_uses_flat_name() {
+    let temp = TempDir::new().unwrap();
+    let path = temp.path().to_path_buf();
+    write_file(&path.join("skills/bar/foo/SKILL.md"), "# Skill");
+
+    let plugin = Plugin::new(
+        make_manifest("myplugin"),
+        path.clone(),
+        PluginOrigin::from_marketplace("test", "test"),
+    )
+    .unwrap();
+
+    let components = plugin.components();
+    assert_eq!(components.len(), 1);
+    assert_eq!(components[0].kind, ComponentKind::Skill);
+    assert_eq!(components[0].name, "myplugin_foo");
+    assert_eq!(components[0].path, path.join("skills/bar/foo"));
+}
+
+#[test]
+fn test_plugin_new_skill_and_agent_same_name_no_collision() {
+    let temp = TempDir::new().unwrap();
+    let path = temp.path().to_path_buf();
+    write_file(&path.join("skills/foo/SKILL.md"), "# Skill");
+    write_file(&path.join("agents/foo.agent.md"), "# Agent");
+
+    let plugin = Plugin::new(
+        make_manifest("myplugin"),
+        path.clone(),
+        PluginOrigin::from_marketplace("test", "test"),
+    )
+    .unwrap();
+
+    let names: Vec<(_, _)> = plugin
+        .components()
+        .iter()
+        .map(|c| (c.kind, c.name.as_str()))
+        .collect();
+    assert!(names.contains(&(ComponentKind::Skill, "myplugin_foo")));
+    assert!(names.contains(&(ComponentKind::Agent, "myplugin_foo")));
+}
+
+#[test]
+fn test_plugin_new_distinct_basenames_no_collision() {
+    let temp = TempDir::new().unwrap();
+    let path = temp.path().to_path_buf();
+    write_file(&path.join("skills/foo/SKILL.md"), "# foo");
+    write_file(&path.join("skills/bar/baz/SKILL.md"), "# baz");
+
+    let plugin = Plugin::new(
+        make_manifest("myplugin"),
+        path,
+        PluginOrigin::from_marketplace("test", "test"),
+    )
+    .unwrap();
+
+    let mut skill_names: Vec<String> = plugin
+        .components()
+        .iter()
+        .filter(|c| c.kind == ComponentKind::Skill)
+        .map(|c| c.name.clone())
+        .collect();
+    skill_names.sort();
+    assert_eq!(skill_names, vec!["myplugin_baz", "myplugin_foo"]);
+}
+
+#[test]
+fn test_plugin_new_collision_in_nested_skills_returns_validation_error() {
+    let temp = TempDir::new().unwrap();
+    let path = temp.path().to_path_buf();
+    write_file(&path.join("skills/a/foo/SKILL.md"), "# a/foo");
+    write_file(&path.join("skills/b/foo/SKILL.md"), "# b/foo");
+
+    let result = Plugin::new(
+        make_manifest("myplugin"),
+        path,
+        PluginOrigin::from_marketplace("test", "test"),
+    );
+
+    let err = result.unwrap_err();
+    let msg = match err {
+        PlmError::Validation(s) => s,
+        other => panic!("expected Validation error, got: {:?}", other),
+    };
+    assert!(msg.contains("myplugin_foo"), "msg: {msg}");
+    assert!(msg.contains("Skill"), "msg: {msg}");
+    assert!(msg.contains("conflicts with"), "msg: {msg}");
+}
+
+#[test]
+fn test_plugin_new_collision_flat_and_nested_returns_validation_error() {
+    let temp = TempDir::new().unwrap();
+    let path = temp.path().to_path_buf();
+    write_file(&path.join("skills/foo/SKILL.md"), "# flat");
+    write_file(&path.join("skills/bar/foo/SKILL.md"), "# nested");
+
+    let result = Plugin::new(
+        make_manifest("myplugin"),
+        path,
+        PluginOrigin::from_marketplace("test", "test"),
+    );
+    assert!(matches!(result, Err(PlmError::Validation(_))));
+}
+
+// =========================================================================
+// パストラバーサル / 不正な plugin name の拒否
+// =========================================================================
+
+#[test]
+fn test_plugin_new_rejects_plugin_name_with_path_separator() {
+    let temp = TempDir::new().unwrap();
+    let path = temp.path().to_path_buf();
+    write_file(&path.join("skills/foo/SKILL.md"), "# Skill");
+
+    let result = Plugin::new(
+        make_manifest("../evil"),
+        path,
+        PluginOrigin::from_marketplace("test", "test"),
+    );
+    let err = result.unwrap_err();
+    let msg = match err {
+        PlmError::Validation(s) => s,
+        other => panic!("expected Validation error, got {:?}", other),
+    };
+    assert!(msg.contains("plugin name"), "msg: {msg}");
+}
+
+#[test]
+fn test_plugin_new_rejects_plugin_name_with_backslash() {
+    let temp = TempDir::new().unwrap();
+    let path = temp.path().to_path_buf();
+    write_file(&path.join("skills/foo/SKILL.md"), "# Skill");
+
+    let result = Plugin::new(
+        make_manifest("a\\b"),
+        path,
+        PluginOrigin::from_marketplace("test", "test"),
+    );
+    assert!(matches!(result, Err(PlmError::Validation(_))));
+}
+
+#[test]
+fn test_plugin_new_rejects_empty_plugin_name() {
+    let temp = TempDir::new().unwrap();
+    let path = temp.path().to_path_buf();
+    write_file(&path.join("skills/foo/SKILL.md"), "# Skill");
+
+    let result = Plugin::new(
+        make_manifest(""),
+        path,
+        PluginOrigin::from_marketplace("test", "test"),
+    );
+    assert!(matches!(result, Err(PlmError::Validation(_))));
+}
+
+#[test]
+fn test_plugin_new_rejects_plugin_name_dotdot() {
+    let temp = TempDir::new().unwrap();
+    let path = temp.path().to_path_buf();
+    write_file(&path.join("skills/foo/SKILL.md"), "# Skill");
+
+    let result = Plugin::new(
+        make_manifest(".."),
+        path,
+        PluginOrigin::from_marketplace("test", "test"),
+    );
+    assert!(matches!(result, Err(PlmError::Validation(_))));
 }

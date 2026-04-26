@@ -19,22 +19,26 @@ pub fn list_installed_plugins(cache: &dyn PackageCacheAccess) -> Result<Vec<Inst
     let project_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let deployed = list_all_placed(&project_root);
 
+    // 一覧取得経路ではスキャン失敗（重複検出など）は握りつぶして列挙を続行する。
+    // TUI 経由でも呼ばれるため stderr への直接出力は避ける。
+    // 厳密検証が必要な経路（install 等）は `Plugin::new` を直接呼ぶこと。
     let plugins = list_installed(cache)?
         .into_iter()
-        .map(|pkg| {
+        .filter_map(|pkg| {
             let name = pkg.manifest().name.clone();
             let marketplace_str = pkg.marketplace().unwrap_or("github");
             let ops_key = pkg.id().unwrap_or(&name);
             let origin = PluginOrigin::from_marketplace(marketplace_str, ops_key);
-            let plugin = Plugin::new(pkg.manifest().clone(), pkg.path().to_path_buf(), origin);
+            let plugin =
+                Plugin::new(pkg.manifest().clone(), pkg.path().to_path_buf(), origin).ok()?;
             let enabled = meta::is_enabled(pkg.path(), marketplace_str, ops_key, &deployed);
 
-            InstalledPlugin::from_cached_package(
+            Some(InstalledPlugin::from_cached_package(
                 plugin,
                 pkg.id().map(str::to_string),
                 pkg.marketplace().map(str::to_string),
                 enabled,
-            )
+            ))
         })
         .collect();
 
