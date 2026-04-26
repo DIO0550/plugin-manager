@@ -140,26 +140,24 @@ impl Plugin {
         let plugin_name = manifest.name.as_str();
         let mut components = Vec::new();
 
-        register_flattened_components(
-            &mut components,
-            ComponentKind::Skill,
-            plugin_name,
-            list_skill_names(&manifest.skills_dir(path)),
-        )?;
-
-        register_flattened_components(
-            &mut components,
-            ComponentKind::Agent,
-            plugin_name,
-            list_agent_names(&manifest.agents_dir(path)),
-        )?;
-
-        register_flattened_components(
-            &mut components,
-            ComponentKind::Command,
-            plugin_name,
-            list_command_names(&manifest.commands_dir(path)),
-        )?;
+        for (kind, items) in [
+            (
+                ComponentKind::Skill,
+                list_skill_names(&manifest.skills_dir(path)),
+            ),
+            (
+                ComponentKind::Agent,
+                list_agent_names(&manifest.agents_dir(path)),
+            ),
+            (
+                ComponentKind::Command,
+                list_command_names(&manifest.commands_dir(path)),
+            ),
+        ] {
+            let flattened = flatten_components(kind, plugin_name, items)?;
+            detect_name_collisions(&flattened)?;
+            components.extend(flattened);
+        }
 
         Self::build_instructions(path, manifest, &mut components);
 
@@ -259,34 +257,51 @@ impl Plugin {
     }
 }
 
-/// `flatten_name` を適用しながら `components` に追加し、同一 kind 内で
-/// 平坦化済み name が重複していないかを検証する。
+/// 元名のリストを平坦化済み `Component` のリストに変換する。
 ///
-/// 重複が検出された場合は `PlmError::Validation` を返す。kind が異なる
-/// component とは衝突を判定しない（kind 単位で HashMap を分離するため）。
-fn register_flattened_components(
-    components: &mut Vec<Component>,
+/// `plugin_name` および各 `original_name` を `validate_path_segment` で検証し、
+/// `flatten_name` で `"{plugin}_{original}"` 形式に変換する。検証に失敗した
+/// 場合は `PlmError::Validation` を返す。重複検出は行わない（呼び出し側で
+/// `detect_name_collisions` を使う）。
+fn flatten_components(
     kind: ComponentKind,
     plugin_name: &str,
     items: Vec<(String, PathBuf)>,
-) -> Result<()> {
+) -> Result<Vec<Component>> {
     validate_path_segment("plugin name", plugin_name)?;
-    let mut seen: HashMap<String, PathBuf> = HashMap::new();
-    for (original_name, path) in items {
-        validate_path_segment("component name", &original_name)?;
-        let name = flatten_name(plugin_name, &original_name);
-        if let Some(existing) = seen.get(&name) {
+    items
+        .into_iter()
+        .map(|(original_name, path)| {
+            validate_path_segment("component name", &original_name)?;
+            Ok(Component {
+                kind,
+                name: flatten_name(plugin_name, &original_name),
+                path,
+            })
+        })
+        .collect()
+}
+
+/// 同一スライス内で `Component.name` が重複していないかを検出する。
+///
+/// 重複があれば `PlmError::Validation` を返し、衝突した 2 パスをメッセージに
+/// 含める。スライスは同一 `kind` を前提とする（kind ごとに別呼び出しすること）。
+fn detect_name_collisions(components: &[Component]) -> Result<()> {
+    let mut seen: HashMap<&str, &Path> = HashMap::new();
+    for component in components {
+        if let Some(existing) = seen.get(component.name.as_str()) {
             return Err(PlmError::Validation(format!(
-                "duplicate component name '{name}' for kind {kind:?}: \
+                "duplicate component name '{}' for kind {:?}: \
                  '{}' conflicts with '{}'. \
                  Two source paths produce the same flattened name; \
                  rename one of the source directories/files to disambiguate.",
+                component.name,
+                component.kind,
                 existing.display(),
-                path.display(),
+                component.path.display(),
             )));
         }
-        seen.insert(name.clone(), path.clone());
-        components.push(Component { kind, name, path });
+        seen.insert(component.name.as_str(), component.path.as_path());
     }
     Ok(())
 }
