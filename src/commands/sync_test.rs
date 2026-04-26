@@ -72,17 +72,12 @@ fn test_sync_project_scope_no_components_zero_exit() {
         .stdout(predicate::str::contains("No components to sync"));
 }
 
-// Phase 2 ではフラットな placement_location と 3 階層の scanner が不整合になり
-// このシナリオのソース／宛先パスを単一 fixture で両立できないため一時的に
-// `#[ignore]` する。Phase 4（scanner フラット化）で再有効化し、
-// 同時に fixture をフラット 2 階層へ更新する。
 #[test]
-#[ignore = "Phase 4 で scanner をフラット化した後に再有効化"]
 fn test_sync_creates_component() {
     // Actually create and sync a component
     let temp = TempDir::new().unwrap();
 
-    // Phase 4 で fixture をフラット化する。
+    // フラット 2 階層: .codex/skills/<flattened_name>/SKILL.md
     let skill_dir = temp
         .path()
         .join(".codex")

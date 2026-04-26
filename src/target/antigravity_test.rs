@@ -185,13 +185,11 @@ fn test_antigravity_list_placed_with_skills() {
     let temp_dir = TempDir::new().unwrap();
     let project_root = temp_dir.path();
 
-    // Create skill directory structure with SKILL.md
+    // フラット 2 階層: .agent/skills/<flattened_name>/SKILL.md
     let skill_path = project_root
         .join(".agent")
         .join("skills")
-        .join("marketplace")
-        .join("plugin")
-        .join("skill-1");
+        .join("plugin_skill-1");
     std::fs::create_dir_all(&skill_path).unwrap();
     std::fs::write(skill_path.join("SKILL.md"), "# Skill 1").unwrap();
 
@@ -199,7 +197,9 @@ fn test_antigravity_list_placed_with_skills() {
         .list_placed(ComponentKind::Skill, Scope::Project, project_root)
         .unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0], "marketplace/plugin/skill-1");
+    // qualify は Phase 5 で name 単独になる。現状はプレースホルダ origin で
+    // "_/_/<flattened_name>" 形式を返す。
+    assert_eq!(result[0], "_/_/plugin_skill-1");
 }
 
 #[test]
@@ -208,13 +208,11 @@ fn test_antigravity_list_placed_no_skill_md() {
     let temp_dir = TempDir::new().unwrap();
     let project_root = temp_dir.path();
 
-    // Create skill directory without SKILL.md (should be ignored)
+    // SKILL.md 不在のディレクトリは無視される（フラット構造）
     let skill_path = project_root
         .join(".agent")
         .join("skills")
-        .join("marketplace")
-        .join("plugin")
-        .join("empty-skill");
+        .join("plugin_empty-skill");
     std::fs::create_dir_all(&skill_path).unwrap();
 
     let result = target

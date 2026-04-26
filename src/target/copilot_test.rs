@@ -304,14 +304,10 @@ fn test_copilot_list_placed_hooks() {
     let temp = TempDir::new().unwrap();
     let project_root = temp.path();
 
-    // hooks ディレクトリ構造を作成: .github/hooks/mkt/plugin/hook.json
-    let hooks_dir = project_root
-        .join(".github")
-        .join("hooks")
-        .join("official")
-        .join("my-plugin");
+    // フラット 2 階層構造: .github/hooks/<flattened_name>.json
+    let hooks_dir = project_root.join(".github").join("hooks");
     fs::create_dir_all(&hooks_dir).unwrap();
-    fs::write(hooks_dir.join("pre-commit.json"), "{}").unwrap();
+    fs::write(hooks_dir.join("my-plugin_pre-commit.json"), "{}").unwrap();
 
     let target = CopilotTarget::new();
     let result = target
@@ -319,5 +315,43 @@ fn test_copilot_list_placed_hooks() {
         .unwrap();
 
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0], "official/my-plugin/pre-commit");
+    // origin は scanner プレースホルダ ("_") のため qualify は "_/_/<name>"
+    // を返す。Phase 5 で qualify を name 単独へ変更するまでこの形式を期待する。
+    assert_eq!(result[0], "_/_/my-plugin_pre-commit");
+}
+
+#[test]
+fn test_copilot_filter_component_skill_requires_skill_md() {
+    use std::fs;
+    use tempfile::TempDir;
+
+    let temp = TempDir::new().unwrap();
+    let project_root = temp.path();
+
+    // SKILL.md なしの Skill ディレクトリ -> Skill 扱いされない
+    let skill_dir = project_root
+        .join(".github")
+        .join("skills")
+        .join("plugin_no-skill-md");
+    fs::create_dir_all(&skill_dir).unwrap();
+
+    let target = CopilotTarget::new();
+    let result = target
+        .list_placed(ComponentKind::Skill, Scope::Project, project_root)
+        .unwrap();
+    assert!(result.is_empty(), "Skill without SKILL.md must be ignored");
+
+    // SKILL.md ありの Skill ディレクトリ -> Skill として認識
+    let valid_skill = project_root
+        .join(".github")
+        .join("skills")
+        .join("plugin_my-skill");
+    fs::create_dir_all(&valid_skill).unwrap();
+    fs::write(valid_skill.join("SKILL.md"), "# Skill").unwrap();
+
+    let result = target
+        .list_placed(ComponentKind::Skill, Scope::Project, project_root)
+        .unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0], "_/_/plugin_my-skill");
 }

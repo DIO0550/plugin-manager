@@ -263,12 +263,11 @@ fn test_gemini_cli_list_placed_with_skills() {
     let temp_dir = TempDir::new().unwrap();
     let project_root = temp_dir.path();
 
+    // フラット 2 階層: .gemini/skills/<flattened_name>/SKILL.md
     let skill_path = project_root
         .join(".gemini")
         .join("skills")
-        .join("marketplace")
-        .join("plugin")
-        .join("skill-1");
+        .join("plugin_skill-1");
     std::fs::create_dir_all(&skill_path).unwrap();
     std::fs::write(skill_path.join("SKILL.md"), "# Skill 1").unwrap();
 
@@ -276,7 +275,7 @@ fn test_gemini_cli_list_placed_with_skills() {
         .list_placed(ComponentKind::Skill, Scope::Project, project_root)
         .unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0], "marketplace/plugin/skill-1");
+    assert_eq!(result[0], "_/_/plugin_skill-1");
 }
 
 #[test]
@@ -288,9 +287,7 @@ fn test_gemini_cli_list_placed_no_skill_md() {
     let skill_path = project_root
         .join(".gemini")
         .join("skills")
-        .join("marketplace")
-        .join("plugin")
-        .join("empty-skill");
+        .join("plugin_empty-skill");
     std::fs::create_dir_all(&skill_path).unwrap();
 
     let result = target

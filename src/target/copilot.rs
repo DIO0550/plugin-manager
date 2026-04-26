@@ -56,7 +56,10 @@ impl CopilotTarget {
     fn filter_component(c: &ScannedComponent, kind: ComponentKind) -> Option<String> {
         let make_qualified = |name: &str| c.origin.qualify(name);
         match kind {
-            ComponentKind::Skill if c.is_dir => Some(make_qualified(&c.name)),
+            // Skill: SKILL.md が直下にあるディレクトリのみ採用（二重防御）。
+            ComponentKind::Skill if c.is_dir && c.path.join("SKILL.md").is_file() => {
+                Some(make_qualified(&c.name))
+            }
             ComponentKind::Agent if !c.is_dir && c.name.ends_with(".agent.md") => {
                 Some(make_qualified(c.name.trim_end_matches(".agent.md")))
             }

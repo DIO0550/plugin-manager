@@ -1,6 +1,9 @@
-//! 3層ディレクトリ構造のスキャン
+//! フラット 1 階層ディレクトリ構造のスキャン
 //!
-//! `<kind>/<marketplace>/<plugin>/<component>` 階層を再帰的に走査する。
+//! `<kind>/<flattened_name>` 構造を 1 階層走査する。`Component.name` は
+//! `flatten_name(plugin_name, original_name)` で平坦化済みのため、中間
+//! ディレクトリは存在しない。`origin` は復元できないためプレースホルダ
+//! (`PluginOrigin { marketplace: "_", plugin: "_" }`) を埋めて返す。
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -8,10 +11,12 @@ use std::path::{Path, PathBuf};
 use crate::error::{PlmError, Result};
 use crate::target::PluginOrigin;
 
-/// 3層構造の階層定数（マジックナンバー回避）
-const LEVEL_MARKETPLACE: usize = 0;
-const LEVEL_PLUGIN: usize = 1;
-const LEVEL_COMPONENT: usize = 2;
+/// フラット配置で復元できない origin を埋めるプレースホルダ。
+///
+/// 旧 3 階層構造では `<marketplace>/<plugin>` が判別可能だったが、フラット化後
+/// は配置物 (`<base>/<plural>/<flattened_name>`) からは復元不能。利用側は
+/// `flattened_name` 単独でキー化する想定で、このフィールドは参照しない。
+const ORIGIN_PLACEHOLDER: &str = "_";
 
 /// スキャンで発見したコンポーネント
 #[derive(Debug, Clone)]
@@ -22,7 +27,7 @@ pub struct ScannedComponent {
     pub is_dir: bool,
 }
 
-/// 3層ディレクトリ構造をスキャンしてコンポーネント一覧を取得
+/// フラット 1 階層ディレクトリ構造をスキャンしてコンポーネント一覧を取得
 ///
 /// # 引数
 ///
@@ -43,55 +48,19 @@ pub fn scan_components(base_dir: &Path) -> Result<Vec<ScannedComponent>> {
     }
 
     let mut results = Vec::new();
-    collect_recursively(base_dir, &[], &mut results)?;
-    Ok(results)
-}
-
-/// 再帰的にディレクトリを走査してコンポーネントを収集
-///
-/// # Arguments
-///
-/// * `dir` - Directory currently being traversed.
-/// * `path_parts` - Accumulated path segments from the scan root down to `dir`.
-/// * `results` - Output buffer that receives discovered components.
-fn collect_recursively(
-    dir: &Path,
-    path_parts: &[String],
-    results: &mut Vec<ScannedComponent>,
-) -> Result<()> {
-    let current_level = path_parts.len();
-
-    fs::read_dir(dir)?.try_for_each(|result| -> Result<()> {
-        let entry = result?;
+    for entry in fs::read_dir(base_dir)? {
+        let entry = entry?;
         let path = entry.path();
-        // 既存挙動維持: path.is_dir()はメタデータエラーを握りつぶす
+        // 既存挙動維持: path.is_dir() はメタデータエラーを握りつぶす
         let is_dir = path.is_dir();
-
-        match current_level {
-            LEVEL_COMPONENT => {
-                // 最下層: コンポーネントとして収集
-                results.push(ScannedComponent {
-                    origin: PluginOrigin::from_marketplace(
-                        &path_parts[LEVEL_MARKETPLACE],
-                        &path_parts[LEVEL_PLUGIN],
-                    ),
-                    name: entry_name_lossy(&entry),
-                    path,
-                    is_dir,
-                });
-            }
-            _ if is_dir => {
-                // 中間層: ディレクトリのみ再帰
-                let mut next_parts = path_parts.to_vec();
-                next_parts.push(entry_name_lossy(&entry));
-                collect_recursively(&path, &next_parts, results)?;
-            }
-            _ => {
-                // 中間層のファイル: スキップ
-            }
-        }
-        Ok(())
-    })
+        results.push(ScannedComponent {
+            origin: PluginOrigin::from_marketplace(ORIGIN_PLACEHOLDER, ORIGIN_PLACEHOLDER),
+            name: entry_name_lossy(&entry),
+            path,
+            is_dir,
+        });
+    }
+    Ok(results)
 }
 
 /// ファイル名を取得（lossy変換、エラーにしない）
