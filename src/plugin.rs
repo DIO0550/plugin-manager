@@ -16,7 +16,7 @@ mod version;
 pub use action::PluginAction;
 pub(crate) use cache::list_installed;
 pub use cache::{CachedPackage, PackageCache, PackageCacheAccess};
-pub(crate) use cleanup::cleanup_plugin_directories;
+pub(crate) use cleanup::{cleanup_legacy_hierarchy, cleanup_plugin_directories};
 pub use installed::InstalledPlugin;
 pub use intent::PluginIntent;
 pub(crate) use loader::load_plugin;

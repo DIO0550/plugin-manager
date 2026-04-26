@@ -3,7 +3,9 @@ use std::path::{Path, PathBuf};
 use crate::component::{AgentFormat, CommandFormat, ComponentKind, Scope};
 use crate::component::{Component, ComponentDeployment, ConversionConfig, DeploymentOutput};
 use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
-use crate::plugin::{MarketplaceContent, PackageCache, PackageCacheAccess};
+use crate::plugin::{
+    cleanup_legacy_hierarchy, MarketplaceContent, PackageCache, PackageCacheAccess,
+};
 use crate::source::parse_source;
 use crate::target::{PluginOrigin, Target, TargetKind};
 
@@ -166,6 +168,10 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
         PluginOrigin::from_cached_plugin(request.scanned.marketplace(), request.scanned.id());
 
     for target in request.targets {
+        // 旧 3 階層構造 (<base>/<plural>/<mp>/<plg>) が残っている場合に掃除する。
+        // フラット 2 階層配置への移行をサポートするため、新規配置の前に実行する。
+        cleanup_legacy_hierarchy(target.kind(), &origin, request.project_root);
+
         for component in &request.scanned.components {
             if !target.supports(component.kind) {
                 continue;
