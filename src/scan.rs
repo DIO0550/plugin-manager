@@ -5,8 +5,8 @@
 //!
 //! ## 配置スキャン
 //!
-//! - `list_placed_plugins`: 配置済みアイテムからプラグインを抽出
-//! - `parse_placement`: 配置済みアイテム文字列をパース
+//! - [`list_placed_components`]: `target.list_placed()` の戻り値から
+//!   Instruction ファイルを除外した `flattened_name` 集合（`HashSet<String>`）を返す
 //!
 //! ## 低レベル関数
 //!
