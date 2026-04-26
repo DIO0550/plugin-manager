@@ -326,11 +326,10 @@ pub fn key_to_msg(key: KeyCode, model: &Model) -> Option<Msg> {
         match model {
             Model::PluginBrowse { .. } => match key {
                 KeyCode::Char(' ') => Some(Msg::ToggleSelect),
-                KeyCode::Char('i') => Some(Msg::StartInstall),
+                KeyCode::Char('i') | KeyCode::Enter => Some(Msg::StartInstall),
                 KeyCode::Up | KeyCode::Char('k') => Some(Msg::Up),
                 KeyCode::Down | KeyCode::Char('j') => Some(Msg::Down),
                 KeyCode::Esc => Some(Msg::Back),
-                KeyCode::Enter => None,
                 _ => None,
             },
             Model::TargetSelect { .. } => match key {
