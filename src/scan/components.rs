@@ -206,6 +206,12 @@ pub fn list_hook_names(hooks_dir: &Path) -> Vec<(String, PathBuf)> {
                 .rsplit_once('.')
                 .map(|(n, _)| n.to_string())
                 .unwrap_or_else(|| file_name.to_string());
+            // ドットファイル (`.env` / `.gitignore` など) は stem が空になるため
+            // Hook として扱わずスキップする。空名は flatten_name 後も `<plugin>_`
+            // という不完全な名前になり、後段の validate_path_segment で失敗する。
+            if hook_name.is_empty() {
+                return None;
+            }
             Some((hook_name, path))
         })
         .collect()
