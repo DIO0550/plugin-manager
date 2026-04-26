@@ -90,16 +90,11 @@ impl Target for GeminiCliTarget {
         let scope = context.scope();
         let project_root = context.project_root();
         let base = Self::base_dir(scope, project_root);
-        let origin = context.origin;
+        let _ = context.origin;
         let name = context.name();
 
         Some(match kind {
-            ComponentKind::Skill => PlacementLocation::dir(
-                base.join("skills")
-                    .join(&origin.marketplace)
-                    .join(&origin.plugin)
-                    .join(name),
-            ),
+            ComponentKind::Skill => PlacementLocation::dir(base.join("skills").join(name)),
             ComponentKind::Instruction => match scope {
                 Scope::Project => PlacementLocation::file(project_root.join("GEMINI.md")),
                 Scope::Personal => PlacementLocation::file(base.join("GEMINI.md")),

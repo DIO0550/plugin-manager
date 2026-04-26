@@ -36,7 +36,7 @@ fn test_codex_placement_location_skill_with_hierarchy() {
     assert!(location.is_dir());
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.codex/skills/official/my-plugin/my-skill")
+        Path::new("/project/.codex/skills/my-skill")
     );
 }
 
@@ -57,7 +57,7 @@ fn test_codex_placement_location_skill_github_direct() {
     assert!(location.is_dir());
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.codex/skills/github/owner--repo/my-skill")
+        Path::new("/project/.codex/skills/my-skill")
     );
 }
 
@@ -78,7 +78,7 @@ fn test_codex_placement_location_agent() {
     assert!(location.is_file());
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.codex/agents/official/my-plugin/my-agent.agent.md")
+        Path::new("/project/.codex/agents/my-agent.agent.md")
     );
 }
 
@@ -116,7 +116,7 @@ fn test_codex_placement_location_skill_with_prefixed_name() {
     let location = target.placement_location(&ctx).unwrap();
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.codex/skills/official/my-plugin/myplugin_foo")
+        Path::new("/project/.codex/skills/myplugin_foo")
     );
 }
 
@@ -135,7 +135,7 @@ fn test_codex_placement_location_agent_with_prefixed_name() {
     let location = target.placement_location(&ctx).unwrap();
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.codex/agents/official/my-plugin/myplugin_foo.agent.md")
+        Path::new("/project/.codex/agents/myplugin_foo.agent.md")
     );
 }
 

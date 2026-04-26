@@ -97,7 +97,7 @@ fn test_gemini_cli_placement_location_skill_personal() {
 
     assert!(location.is_dir());
     let home = std::env::var("HOME").unwrap();
-    let expected = format!("{}/.gemini/skills/official/my-plugin/my-skill", home);
+    let expected = format!("{}/.gemini/skills/my-skill", home);
     assert_eq!(location.as_path(), Path::new(&expected));
 }
 
@@ -118,7 +118,7 @@ fn test_gemini_cli_placement_location_skill_project() {
     assert!(location.is_dir());
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.gemini/skills/official/my-plugin/my-skill")
+        Path::new("/project/.gemini/skills/my-skill")
     );
 }
 
@@ -137,7 +137,7 @@ fn test_gemini_cli_placement_location_skill_with_prefixed_name() {
     let location = target.placement_location(&ctx).unwrap();
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.gemini/skills/official/my-plugin/myplugin_foo")
+        Path::new("/project/.gemini/skills/myplugin_foo")
     );
 }
 
@@ -241,7 +241,7 @@ fn test_gemini_cli_placement_with_github_origin() {
     assert!(location.is_dir());
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.gemini/skills/github/owner--repo/my-skill")
+        Path::new("/project/.gemini/skills/my-skill")
     );
 }
 

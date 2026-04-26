@@ -290,14 +290,16 @@ fn test_place_plugin_uses_id_for_origin() {
         project_root: project_dir.path(),
     });
 
-    // PluginOrigin の plugin フィールドが id() ("owner--repo") を使用していることを
-    // 配置先パスに "owner--repo" が含まれることで間接的に検証
+    // フラット配置: target_path 末尾は flattened_name (= "{plugin}_{original}")
     assert_eq!(result.plugin_name, "My Plugin");
     assert_eq!(result.successes.len(), 1);
+    let component_name = &result.successes[0].component_name;
     let target_path = result.successes[0].target_path.to_string_lossy();
     assert!(
-        target_path.contains("owner--repo"),
-        "target path should contain id 'owner--repo', got: {}",
+        target_path.ends_with(component_name.as_str())
+            || target_path.contains(&format!("/{}", component_name)),
+        "target path should end with flattened component name '{}', got: {}",
+        component_name,
         target_path
     );
 }

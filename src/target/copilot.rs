@@ -112,37 +112,25 @@ impl Target for CopilotTarget {
         let origin = context.origin;
         let name = context.name();
 
+        let _ = origin;
         Some(match kind {
-            // 階層構造: skills/<marketplace>/<plugin>/<skill> (ディレクトリ)
-            ComponentKind::Skill => PlacementLocation::dir(
-                base.join("skills")
-                    .join(&origin.marketplace)
-                    .join(&origin.plugin)
-                    .join(name),
-            ),
-            // 階層構造: agents/<marketplace>/<plugin>/<name>.agent.md (ファイル)
-            ComponentKind::Agent => PlacementLocation::file(
-                base.join("agents")
-                    .join(&origin.marketplace)
-                    .join(&origin.plugin)
-                    .join(format!("{}.agent.md", name)),
-            ),
-            // 階層構造: prompts/<marketplace>/<plugin>/<name>.prompt.md (ファイル)
-            ComponentKind::Command => PlacementLocation::file(
-                base.join("prompts")
-                    .join(&origin.marketplace)
-                    .join(&origin.plugin)
-                    .join(format!("{}.prompt.md", name)),
-            ),
+            // フラット構造: skills/<flattened_name> (ディレクトリ)
+            ComponentKind::Skill => PlacementLocation::dir(base.join("skills").join(name)),
+            // フラット構造: agents/<flattened_name>.agent.md (ファイル)
+            ComponentKind::Agent => {
+                PlacementLocation::file(base.join("agents").join(format!("{}.agent.md", name)))
+            }
+            // フラット構造: prompts/<flattened_name>.prompt.md (ファイル)
+            ComponentKind::Command => {
+                PlacementLocation::file(base.join("prompts").join(format!("{}.prompt.md", name)))
+            }
             ComponentKind::Instruction => {
                 PlacementLocation::file(base.join("copilot-instructions.md"))
             }
-            ComponentKind::Hook => PlacementLocation::file(
-                base.join("hooks")
-                    .join(&origin.marketplace)
-                    .join(&origin.plugin)
-                    .join(format!("{}.json", name)),
-            ),
+            // フラット構造: hooks/<flattened_name>.json (ファイル)
+            ComponentKind::Hook => {
+                PlacementLocation::file(base.join("hooks").join(format!("{}.json", name)))
+            }
         })
     }
 

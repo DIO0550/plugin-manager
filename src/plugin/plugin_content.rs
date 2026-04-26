@@ -153,6 +153,10 @@ impl Plugin {
                 ComponentKind::Command,
                 list_command_names(&manifest.commands_dir(path)),
             ),
+            (
+                ComponentKind::Hook,
+                list_hook_names(&manifest.hooks_dir(path)),
+            ),
         ] {
             let flattened = flatten_components(kind, plugin_name, items)?;
             detect_name_collisions(&flattened)?;
@@ -160,14 +164,6 @@ impl Plugin {
         }
 
         Self::build_instructions(path, manifest, &mut components);
-
-        for (name, p) in list_hook_names(&manifest.hooks_dir(path)) {
-            components.push(Component {
-                kind: ComponentKind::Hook,
-                path: p,
-                name,
-            });
-        }
 
         Ok(components)
     }

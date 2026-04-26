@@ -95,21 +95,14 @@ impl Target for CodexTarget {
         let origin = context.origin;
         let name = context.name();
 
+        let _ = origin;
         Some(match kind {
-            // 階層構造: skills/<marketplace>/<plugin>/<skill> (ディレクトリ)
-            ComponentKind::Skill => PlacementLocation::dir(
-                base.join("skills")
-                    .join(&origin.marketplace)
-                    .join(&origin.plugin)
-                    .join(name),
-            ),
-            // 階層構造: agents/<marketplace>/<plugin>/<name>.agent.md (ファイル)
-            ComponentKind::Agent => PlacementLocation::file(
-                base.join("agents")
-                    .join(&origin.marketplace)
-                    .join(&origin.plugin)
-                    .join(format!("{}.agent.md", name)),
-            ),
+            // フラット構造: skills/<flattened_name> (ディレクトリ)
+            ComponentKind::Skill => PlacementLocation::dir(base.join("skills").join(name)),
+            // フラット構造: agents/<flattened_name>.agent.md (ファイル)
+            ComponentKind::Agent => {
+                PlacementLocation::file(base.join("agents").join(format!("{}.agent.md", name)))
+            }
             ComponentKind::Instruction => match scope {
                 // Project scope: AGENTS.md is at project root, not in .codex
                 Scope::Project => PlacementLocation::file(project_root.join("AGENTS.md")),

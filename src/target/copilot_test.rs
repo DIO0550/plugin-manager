@@ -52,7 +52,7 @@ fn test_copilot_placement_location_skill_project() {
     assert!(location.is_dir());
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.github/skills/official/my-plugin/my-skill")
+        Path::new("/project/.github/skills/my-skill")
     );
 }
 
@@ -74,7 +74,7 @@ fn test_copilot_placement_location_agent() {
     assert!(location_personal
         .as_path()
         .to_string_lossy()
-        .contains(".copilot/agents/official/my-plugin/test.agent.md"));
+        .contains(".copilot/agents/test.agent.md"));
 
     // Project scope
     let ctx_project = PlacementContext {
@@ -87,7 +87,7 @@ fn test_copilot_placement_location_agent() {
     assert!(location_project.is_file());
     assert_eq!(
         location_project.as_path(),
-        Path::new("/project/.github/agents/official/my-plugin/test.agent.md")
+        Path::new("/project/.github/agents/test.agent.md")
     );
 }
 
@@ -117,7 +117,7 @@ fn test_copilot_placement_location_command() {
     assert!(location.is_file());
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.github/prompts/official/my-plugin/my-command.prompt.md")
+        Path::new("/project/.github/prompts/my-command.prompt.md")
     );
 }
 
@@ -156,7 +156,7 @@ fn test_copilot_placement_location_with_prefixed_name() {
     };
     assert_eq!(
         target.placement_location(&skill_ctx).unwrap().as_path(),
-        Path::new("/project/.github/skills/official/my-plugin/myplugin_foo")
+        Path::new("/project/.github/skills/myplugin_foo")
     );
 
     let cmd_ctx = PlacementContext {
@@ -167,7 +167,7 @@ fn test_copilot_placement_location_with_prefixed_name() {
     };
     assert_eq!(
         target.placement_location(&cmd_ctx).unwrap().as_path(),
-        Path::new("/project/.github/prompts/official/my-plugin/myplugin_foo.prompt.md")
+        Path::new("/project/.github/prompts/myplugin_foo.prompt.md")
     );
 }
 
@@ -250,7 +250,7 @@ fn test_copilot_placement_location_hook_project() {
     assert!(location.is_file());
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.github/hooks/official/my-plugin/pre-commit.json")
+        Path::new("/project/.github/hooks/pre-commit.json")
     );
 }
 
@@ -272,7 +272,28 @@ fn test_copilot_placement_location_hook_personal() {
     assert!(location
         .as_path()
         .to_string_lossy()
-        .contains(".copilot/hooks/official/my-plugin/pre-commit.json"));
+        .contains(".copilot/hooks/pre-commit.json"));
+}
+
+#[test]
+fn test_copilot_placement_location_hook_with_prefixed_name() {
+    let target = CopilotTarget::new();
+    let project_root = Path::new("/project");
+    let origin = PluginOrigin::from_marketplace("official", "my-plugin");
+
+    let ctx = PlacementContext {
+        component: ComponentRef::new(ComponentKind::Hook, "my-plugin_pre-commit"),
+        origin: &origin,
+        scope: PlacementScope::new(Scope::Project),
+        project: ProjectContext::new(project_root),
+    };
+    let location = target.placement_location(&ctx).unwrap();
+
+    assert!(location.is_file());
+    assert_eq!(
+        location.as_path(),
+        Path::new("/project/.github/hooks/my-plugin_pre-commit.json")
+    );
 }
 
 #[test]

@@ -265,7 +265,8 @@ fn test_plugin_new_with_hooks() {
     let components = plugin.components();
     assert_eq!(components.len(), 1);
     assert_eq!(components[0].kind, ComponentKind::Hook);
-    assert_eq!(components[0].name, "on-apply-patch");
+    // flatten_name 適用後: "{plugin}_{original}" = "test_on-apply-patch"
+    assert_eq!(components[0].name, "test_on-apply-patch");
     assert_eq!(
         components[0].path,
         path.join("hooks").join("on-apply-patch.sh")
@@ -325,25 +326,22 @@ fn test_plugin_new_with_hooks_same_stem_different_ext() {
     write_file(&path.join("hooks/pre-commit.sh"), "#!/bin/sh\n");
     write_file(&path.join("hooks/pre-commit.py"), "#!/usr/bin/env python\n");
 
-    let plugin = Plugin::new(
+    let result = Plugin::new(
         make_manifest("test"),
-        path.clone(),
+        path,
         PluginOrigin::from_marketplace("test", "test"),
-    )
-    .unwrap();
+    );
 
-    let hooks: Vec<&Component> = plugin
-        .components()
-        .iter()
-        .filter(|c| c.kind == ComponentKind::Hook)
-        .collect();
-    // Hooks with the same stem but different extensions should be kept as
-    // separate components, each preserving its own file path.
-    assert_eq!(hooks.len(), 2);
-    assert!(hooks.iter().all(|h| h.name == "pre-commit"));
-    assert!(hooks.iter().all(|h| {
-        h.path == path.join("hooks/pre-commit.sh") || h.path == path.join("hooks/pre-commit.py")
-    }));
+    // 同一プラグイン内の同 stem・別拡張子 Hook は detect_name_collisions が
+    // Validation エラーで報告する（Skill / Agent / Command と挙動を揃える）。
+    let err = result.unwrap_err();
+    let msg = match err {
+        PlmError::Validation(s) => s,
+        other => panic!("expected Validation error, got: {:?}", other),
+    };
+    assert!(msg.contains("test_pre-commit"), "msg: {msg}");
+    assert!(msg.contains("Hook"), "msg: {msg}");
+    assert!(msg.contains("conflicts with"), "msg: {msg}");
 }
 
 #[test]
@@ -546,6 +544,78 @@ fn test_plugin_new_rejects_empty_plugin_name() {
         PluginOrigin::from_marketplace("test", "test"),
     );
     assert!(matches!(result, Err(PlmError::Validation(_))));
+}
+
+#[test]
+fn test_plugin_new_hook_uses_flat_name() {
+    let temp = TempDir::new().unwrap();
+    let path = temp.path().to_path_buf();
+    write_file(&path.join("hooks/pre-commit.json"), "{}");
+
+    let plugin = Plugin::new(
+        make_manifest("myplugin"),
+        path.clone(),
+        PluginOrigin::from_marketplace("test", "test"),
+    )
+    .unwrap();
+
+    let components = plugin.components();
+    assert_eq!(components.len(), 1);
+    assert_eq!(components[0].kind, ComponentKind::Hook);
+    assert_eq!(components[0].name, "myplugin_pre-commit");
+    assert_eq!(
+        components[0].path,
+        path.join("hooks").join("pre-commit.json")
+    );
+}
+
+#[test]
+fn test_plugin_new_hook_collision_returns_validation_error() {
+    let temp = TempDir::new().unwrap();
+    let path = temp.path().to_path_buf();
+    // 同 stem の Hook を 2 つ配置する: detect_name_collisions が拾うはず
+    write_file(&path.join("hooks/pre-commit.sh"), "#!/bin/sh\n");
+    write_file(&path.join("hooks/pre-commit.json"), "{}");
+
+    let result = Plugin::new(
+        make_manifest("myplugin"),
+        path,
+        PluginOrigin::from_marketplace("test", "test"),
+    );
+
+    let err = result.unwrap_err();
+    let msg = match err {
+        PlmError::Validation(s) => s,
+        other => panic!("expected Validation error, got: {:?}", other),
+    };
+    assert!(msg.contains("myplugin_pre-commit"), "msg: {msg}");
+    assert!(msg.contains("Hook"), "msg: {msg}");
+}
+
+#[test]
+fn test_plugin_new_rejects_hook_name_with_path_separator() {
+    let temp = TempDir::new().unwrap();
+    let path = temp.path().to_path_buf();
+    // ディレクトリ階層に置かれた Hook（再帰スキャンで `..` 等が混入した想定）
+    write_file(&path.join("hooks/sub/inner.json"), "{}");
+
+    // Hook は再帰スキャンしないので通常パスでは混入しないが、
+    // 念のため list_hook_names が単一セグメントを返すことを保証する目的で
+    // 通常の sub-dir 内ファイルは無視されることを確認する。
+    let plugin = Plugin::new(
+        make_manifest("myplugin"),
+        path,
+        PluginOrigin::from_marketplace("test", "test"),
+    )
+    .unwrap();
+
+    // hooks サブディレクトリは無視されて Hook 0 件
+    let hooks: Vec<&Component> = plugin
+        .components()
+        .iter()
+        .filter(|c| c.kind == ComponentKind::Hook)
+        .collect();
+    assert!(hooks.is_empty());
 }
 
 #[test]

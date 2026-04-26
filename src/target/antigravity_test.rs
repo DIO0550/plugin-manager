@@ -85,10 +85,7 @@ fn test_antigravity_placement_location_skill_personal() {
     assert!(location.is_dir());
     // Personal scope uses ~/.gemini/antigravity/skills/
     let home = std::env::var("HOME").unwrap();
-    let expected = format!(
-        "{}/.gemini/antigravity/skills/official/my-plugin/my-skill",
-        home
-    );
+    let expected = format!("{}/.gemini/antigravity/skills/my-skill", home);
     assert_eq!(location.as_path(), Path::new(&expected));
 }
 
@@ -110,7 +107,7 @@ fn test_antigravity_placement_location_skill_project() {
     // Project scope uses .agent/skills/
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.agent/skills/official/my-plugin/my-skill")
+        Path::new("/project/.agent/skills/my-skill")
     );
 }
 
@@ -146,7 +143,7 @@ fn test_antigravity_placement_with_hierarchy() {
     assert!(location.is_dir());
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.agent/skills/github/owner--repo/my-skill")
+        Path::new("/project/.agent/skills/my-skill")
     );
 }
 
@@ -165,7 +162,7 @@ fn test_antigravity_placement_location_skill_with_prefixed_name() {
     let location = target.placement_location(&ctx).unwrap();
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.agent/skills/official/my-plugin/myplugin_foo")
+        Path::new("/project/.agent/skills/myplugin_foo")
     );
 }
 
