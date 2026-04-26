@@ -99,11 +99,14 @@ pub fn list_agent_names(agents_path: &Path) -> Vec<(String, PathBuf)> {
         let Some(file_name) = agents_path.file_name().and_then(|n| n.to_str()) else {
             return Vec::new();
         };
-        let name = file_name
+        let Some(name) = file_name
             .strip_suffix(AGENT_SUFFIX)
             .or_else(|| file_name.strip_suffix(MARKDOWN_SUFFIX))
             .map(String::from)
-            .unwrap_or_else(|| file_name.to_string());
+        else {
+            // .agent.md / .md 以外の拡張子は対象外（ディレクトリ走査と挙動を揃える）
+            return Vec::new();
+        };
         return vec![(name, agents_path.to_path_buf())];
     }
 
