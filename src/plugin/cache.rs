@@ -33,6 +33,9 @@ impl From<(Option<String>, String)> for PluginCacheKey {
 ///
 /// * `cache` - package cache access used to enumerate stored plugins
 pub(crate) fn list_installed(cache: &dyn PackageCacheAccess) -> Result<Vec<MarketplaceContent>> {
+    // 一覧取得経路では個別プラグインのスキャン失敗を握りつぶし、列挙自体は続行する。
+    // TUI 経由でも呼ばれるため stderr への直接出力は避ける。スキャン失敗を厳密に
+    // 検出する必要のある経路（install 等）は `Plugin::new` / `try_from` を直接呼ぶこと。
     let packages = cache
         .list()?
         .into_iter()
@@ -42,7 +45,7 @@ pub(crate) fn list_installed(cache: &dyn PackageCacheAccess) -> Result<Vec<Marke
             cache
                 .load_package(key.marketplace.as_deref(), &key.name)
                 .ok()
-                .map(MarketplaceContent::from)
+                .and_then(|pkg| MarketplaceContent::try_from(pkg).ok())
         })
         .collect();
     Ok(packages)

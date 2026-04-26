@@ -4,6 +4,7 @@
 //! マーケットプレイスのパッケージ。コンポーネントスキャン・パス解決を担う。
 
 use crate::component::{AgentFormat, CommandFormat, Component};
+use crate::error::PlmError;
 use crate::marketplace::MarketplaceManifest;
 use crate::plugin::PluginManifest;
 use crate::target::PluginOrigin;
@@ -114,31 +115,35 @@ impl MarketplaceContent {
     }
 }
 
-impl From<CachedPackage> for MarketplaceContent {
-    fn from(cached: CachedPackage) -> Self {
+impl TryFrom<CachedPackage> for MarketplaceContent {
+    type Error = PlmError;
+
+    fn try_from(cached: CachedPackage) -> Result<Self, Self::Error> {
         let origin = PluginOrigin::from_cached_plugin(cached.marketplace.as_deref(), cached.id());
-        let primary = Plugin::new(cached.manifest, cached.path, origin);
-        Self {
+        let primary = Plugin::new(cached.manifest, cached.path, origin)?;
+        Ok(Self {
             id: cached.id,
             marketplace: cached.marketplace,
             marketplace_manifest: cached.marketplace_manifest,
             primary,
             extra_plugins: Vec::new(),
-        }
+        })
     }
 }
 
-impl From<&CachedPackage> for MarketplaceContent {
-    fn from(cached: &CachedPackage) -> Self {
+impl TryFrom<&CachedPackage> for MarketplaceContent {
+    type Error = PlmError;
+
+    fn try_from(cached: &CachedPackage) -> Result<Self, Self::Error> {
         let origin = PluginOrigin::from_cached_plugin(cached.marketplace.as_deref(), cached.id());
-        let primary = Plugin::new(cached.manifest.clone(), cached.path.clone(), origin);
-        Self {
+        let primary = Plugin::new(cached.manifest.clone(), cached.path.clone(), origin)?;
+        Ok(Self {
             id: cached.id.clone(),
             marketplace: cached.marketplace.clone(),
             marketplace_manifest: cached.marketplace_manifest.clone(),
             primary,
             extra_plugins: Vec::new(),
-        }
+        })
     }
 }
 

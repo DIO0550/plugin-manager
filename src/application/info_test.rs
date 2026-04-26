@@ -230,7 +230,7 @@ fn create_marketplace_content(marketplace: &str, name: &str) -> MarketplaceConte
         commit_sha: "unknown".to_string(),
         marketplace_manifest: None,
     };
-    MarketplaceContent::from(cached)
+    MarketplaceContent::try_from(cached).unwrap()
 }
 
 #[test]

@@ -3,13 +3,27 @@
 //! パッケージ内の個別プラグインを表現する。コンポーネントスキャン・パス解決の責務を持つ。
 
 use crate::component::{Component, ComponentKind};
+use crate::error::{PlmError, Result};
 use crate::plugin::PluginManifest;
 use crate::scan::{
     file_stem_name, list_agent_names, list_command_names, list_hook_names, list_markdown_names,
     list_skill_names,
 };
 use crate::target::PluginOrigin;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+
+/// プラグイン名と元名から平坦化済みの `Component.name` を組み立てる純粋関数。
+///
+/// 常に `"{plugin_name}_{original_name}"` 形式を返す。サニタイズは行わない。
+///
+/// # Arguments
+///
+/// * `plugin_name` - `PluginManifest.name`
+/// * `original_name` - スキャン層が返す元名（中間ディレクトリ名は含まない）
+pub(crate) fn flatten_name(plugin_name: &str, original_name: &str) -> String {
+    format!("{plugin_name}_{original_name}")
+}
 
 /// パッケージ内の個別プラグイン
 ///
@@ -35,14 +49,14 @@ impl Plugin {
     /// * `manifest` - Plugin manifest describing the plugin metadata and layout.
     /// * `path` - Root directory path of the plugin on disk.
     /// * `origin` - Plugin origin (marketplace and plugin identifier).
-    pub fn new(manifest: PluginManifest, path: PathBuf, origin: PluginOrigin) -> Self {
-        let components = Self::build_components(&path, &manifest);
-        Self {
+    pub fn new(manifest: PluginManifest, path: PathBuf, origin: PluginOrigin) -> Result<Self> {
+        let components = Self::build_components(&path, &manifest)?;
+        Ok(Self {
             manifest,
             path,
             origin,
             components,
-        }
+        })
     }
 
     /// テスト専用コンストラクタ: FS スキャンをバイパスしてコンポーネントを直接注入する
@@ -86,32 +100,30 @@ impl Plugin {
     ///
     /// * `path` - Plugin root directory used to resolve component directories.
     /// * `manifest` - Plugin manifest that defines component layout and names.
-    fn build_components(path: &Path, manifest: &PluginManifest) -> Vec<Component> {
+    fn build_components(path: &Path, manifest: &PluginManifest) -> Result<Vec<Component>> {
+        let plugin_name = manifest.name.as_str();
         let mut components = Vec::new();
 
-        for (name, p) in list_skill_names(&manifest.skills_dir(path)) {
-            components.push(Component {
-                kind: ComponentKind::Skill,
-                path: p,
-                name,
-            });
-        }
+        push_components_with_collision_check(
+            &mut components,
+            ComponentKind::Skill,
+            plugin_name,
+            list_skill_names(&manifest.skills_dir(path)),
+        )?;
 
-        for (name, p) in list_agent_names(&manifest.agents_dir(path)) {
-            components.push(Component {
-                kind: ComponentKind::Agent,
-                path: p,
-                name,
-            });
-        }
+        push_components_with_collision_check(
+            &mut components,
+            ComponentKind::Agent,
+            plugin_name,
+            list_agent_names(&manifest.agents_dir(path)),
+        )?;
 
-        for (name, p) in list_command_names(&manifest.commands_dir(path)) {
-            components.push(Component {
-                kind: ComponentKind::Command,
-                path: p,
-                name,
-            });
-        }
+        push_components_with_collision_check(
+            &mut components,
+            ComponentKind::Command,
+            plugin_name,
+            list_command_names(&manifest.commands_dir(path)),
+        )?;
 
         Self::build_instructions(path, manifest, &mut components);
 
@@ -123,7 +135,7 @@ impl Plugin {
             });
         }
 
-        components
+        Ok(components)
     }
 
     /// Append instruction components resolved from the manifest into `components`.
@@ -209,6 +221,36 @@ impl Plugin {
     pub fn components(&self) -> &[Component] {
         &self.components
     }
+}
+
+/// `flatten_name` を適用しながら `components` に追加し、同一 kind 内で
+/// 平坦化済み name が重複していないかを検証する。
+///
+/// 重複が検出された場合は `PlmError::Validation` を返す。kind が異なる
+/// component とは衝突を判定しない（kind 単位で HashMap を分離するため）。
+fn push_components_with_collision_check(
+    components: &mut Vec<Component>,
+    kind: ComponentKind,
+    plugin_name: &str,
+    items: Vec<(String, PathBuf)>,
+) -> Result<()> {
+    let mut seen: HashMap<String, PathBuf> = HashMap::new();
+    for (original_name, path) in items {
+        let name = flatten_name(plugin_name, &original_name);
+        if let Some(existing) = seen.get(&name) {
+            return Err(PlmError::Validation(format!(
+                "duplicate component name '{name}' for kind {kind:?}: \
+                 '{}' conflicts with '{}'. \
+                 Two source paths produce the same flattened name; \
+                 rename one of the source directories/files to disambiguate.",
+                existing.display(),
+                path.display(),
+            )));
+        }
+        seen.insert(name.clone(), path.clone());
+        components.push(Component { kind, name, path });
+    }
+    Ok(())
 }
 
 #[cfg(test)]

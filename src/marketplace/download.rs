@@ -26,7 +26,7 @@ pub async fn download_marketplace_plugin_with_cache(
 ) -> Result<MarketplaceContent> {
     let source = MarketplaceSource::new(plugin_name, marketplace_name);
     let cached = source.download(cache, force).await?;
-    Ok(MarketplaceContent::from(cached))
+    MarketplaceContent::try_from(cached)
 }
 
 /// レジストリを注入可能なマーケットプレイス経由のプラグインダウンロード（テスト用）
@@ -86,7 +86,7 @@ async fn download_marketplace_plugin_with_registry(
         }
     };
 
-    Ok(MarketplaceContent::from(cached))
+    MarketplaceContent::try_from(cached)
 }
 
 #[cfg(test)]

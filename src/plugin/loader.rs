@@ -26,5 +26,5 @@ pub(crate) fn load_plugin(
     let origin = PluginOrigin::from_cached_plugin(marketplace, plugin_name);
     let plugin_path = cache.plugin_path(marketplace, plugin_name);
 
-    Ok(Plugin::new(manifest, plugin_path, origin))
+    Plugin::new(manifest, plugin_path, origin).map_err(|e| format!("Failed to build plugin: {}", e))
 }

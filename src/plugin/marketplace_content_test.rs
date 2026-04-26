@@ -28,7 +28,7 @@ fn make_manifest(name: &str) -> PluginManifest {
 
 /// 空ディレクトリを伴う `MarketplaceContent` を生成する
 ///
-/// `MarketplaceContent::from()` は構築時にコンポーネントスキャンを行うため、
+/// `MarketplaceContent::try_from().unwrap()` は構築時にコンポーネントスキャンを行うため、
 /// 固定パス（`/tmp/test-plugin` 等）ではなく `TempDir` を渡して
 /// 暗黙の FS 依存を排除する。
 fn create_test_marketplace_content() -> (TempDir, MarketplaceContent) {
@@ -43,7 +43,7 @@ fn create_test_marketplace_content() -> (TempDir, MarketplaceContent) {
         commit_sha: "abc123".to_string(),
         marketplace_manifest: None,
     };
-    let content = MarketplaceContent::from(cached);
+    let content = MarketplaceContent::try_from(cached).unwrap();
     (temp, content)
 }
 
@@ -59,7 +59,7 @@ fn create_test_marketplace_content_with_id(key: &str) -> (TempDir, MarketplaceCo
         commit_sha: "abc123".to_string(),
         marketplace_manifest: None,
     };
-    let content = MarketplaceContent::from(cached);
+    let content = MarketplaceContent::try_from(cached).unwrap();
     (temp, content)
 }
 
@@ -75,7 +75,7 @@ fn create_test_marketplace_content_no_marketplace() -> (TempDir, MarketplaceCont
         commit_sha: "abc123".to_string(),
         marketplace_manifest: None,
     };
-    let content = MarketplaceContent::from(cached);
+    let content = MarketplaceContent::try_from(cached).unwrap();
     (temp, content)
 }
 
@@ -147,7 +147,7 @@ fn test_marketplace_manifest_returns_some_when_present() {
         commit_sha: "abc123".to_string(),
         marketplace_manifest: Some(mp_manifest),
     };
-    let pkg = MarketplaceContent::from(cached);
+    let pkg = MarketplaceContent::try_from(cached).unwrap();
     let result = pkg.marketplace_manifest();
     assert!(result.is_some());
     assert_eq!(result.unwrap().name, "test-mp");
@@ -178,9 +178,9 @@ fn test_marketplace_content_components_from_cached_package() {
         marketplace_manifest: None,
     };
 
-    let content = MarketplaceContent::from(cached);
+    let content = MarketplaceContent::try_from(cached).unwrap();
     let components = content.components();
     assert_eq!(components.len(), 1);
     assert_eq!(components[0].kind, ComponentKind::Skill);
-    assert_eq!(components[0].name, "my-skill");
+    assert_eq!(components[0].name, "test-plugin_my-skill");
 }
