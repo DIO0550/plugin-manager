@@ -25,6 +25,42 @@ pub(crate) fn flatten_name(plugin_name: &str, original_name: &str) -> String {
     format!("{plugin_name}_{original_name}")
 }
 
+/// 平坦化に使う名前（plugin_name / original_name）が単一パスセグメントとして
+/// 安全に扱えることを検証する。`placement_location` が `base.join(name)` や
+/// `format!("{name}.agent.md")` を直接行うため、パス区切り・null 文字・親参照
+/// などが含まれているとターゲットディレクトリの外へエスケープされる恐れがある。
+///
+/// # 拒否する条件
+/// - 空文字
+/// - `/` `\` `\0` を含む
+/// - `.` または `..` 単体
+/// - `Path::new(name).components()` が複数コンポーネントを返す
+fn validate_path_segment(label: &str, name: &str) -> Result<()> {
+    if name.is_empty() {
+        return Err(PlmError::Validation(format!(
+            "{label} must not be empty for component flattening"
+        )));
+    }
+    if name.contains('/') || name.contains('\\') || name.contains('\0') {
+        return Err(PlmError::Validation(format!(
+            "{label} '{name}' must not contain path separators or null bytes"
+        )));
+    }
+    if name == "." || name == ".." {
+        return Err(PlmError::Validation(format!(
+            "{label} '{name}' must not be a parent/current directory reference"
+        )));
+    }
+    let mut components = Path::new(name).components();
+    let first = components.next();
+    if components.next().is_some() || !matches!(first, Some(std::path::Component::Normal(_))) {
+        return Err(PlmError::Validation(format!(
+            "{label} '{name}' must be a single normal path segment"
+        )));
+    }
+    Ok(())
+}
+
 /// パッケージ内の個別プラグイン
 ///
 /// `manifest`, `path` を保持し、構築時にコンポーネントを一度だけスキャンしてキャッシュする。
@@ -234,8 +270,10 @@ fn push_components_with_collision_check(
     plugin_name: &str,
     items: Vec<(String, PathBuf)>,
 ) -> Result<()> {
+    validate_path_segment("plugin name", plugin_name)?;
     let mut seen: HashMap<String, PathBuf> = HashMap::new();
     for (original_name, path) in items {
+        validate_path_segment("component name", &original_name)?;
         let name = flatten_name(plugin_name, &original_name);
         if let Some(existing) = seen.get(&name) {
             return Err(PlmError::Validation(format!(

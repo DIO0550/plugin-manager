@@ -496,3 +496,68 @@ fn test_plugin_new_collision_flat_and_nested_returns_validation_error() {
     );
     assert!(matches!(result, Err(PlmError::Validation(_))));
 }
+
+// =========================================================================
+// パストラバーサル / 不正な plugin name の拒否
+// =========================================================================
+
+#[test]
+fn test_plugin_new_rejects_plugin_name_with_path_separator() {
+    let temp = TempDir::new().unwrap();
+    let path = temp.path().to_path_buf();
+    write_file(&path.join("skills/foo/SKILL.md"), "# Skill");
+
+    let result = Plugin::new(
+        make_manifest("../evil"),
+        path,
+        PluginOrigin::from_marketplace("test", "test"),
+    );
+    let err = result.unwrap_err();
+    let msg = match err {
+        PlmError::Validation(s) => s,
+        other => panic!("expected Validation error, got {:?}", other),
+    };
+    assert!(msg.contains("plugin name"), "msg: {msg}");
+}
+
+#[test]
+fn test_plugin_new_rejects_plugin_name_with_backslash() {
+    let temp = TempDir::new().unwrap();
+    let path = temp.path().to_path_buf();
+    write_file(&path.join("skills/foo/SKILL.md"), "# Skill");
+
+    let result = Plugin::new(
+        make_manifest("a\\b"),
+        path,
+        PluginOrigin::from_marketplace("test", "test"),
+    );
+    assert!(matches!(result, Err(PlmError::Validation(_))));
+}
+
+#[test]
+fn test_plugin_new_rejects_empty_plugin_name() {
+    let temp = TempDir::new().unwrap();
+    let path = temp.path().to_path_buf();
+    write_file(&path.join("skills/foo/SKILL.md"), "# Skill");
+
+    let result = Plugin::new(
+        make_manifest(""),
+        path,
+        PluginOrigin::from_marketplace("test", "test"),
+    );
+    assert!(matches!(result, Err(PlmError::Validation(_))));
+}
+
+#[test]
+fn test_plugin_new_rejects_plugin_name_dotdot() {
+    let temp = TempDir::new().unwrap();
+    let path = temp.path().to_path_buf();
+    write_file(&path.join("skills/foo/SKILL.md"), "# Skill");
+
+    let result = Plugin::new(
+        make_manifest(".."),
+        path,
+        PluginOrigin::from_marketplace("test", "test"),
+    );
+    assert!(matches!(result, Err(PlmError::Validation(_))));
+}
