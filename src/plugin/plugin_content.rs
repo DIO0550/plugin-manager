@@ -140,21 +140,21 @@ impl Plugin {
         let plugin_name = manifest.name.as_str();
         let mut components = Vec::new();
 
-        push_components_with_collision_check(
+        register_flattened_components(
             &mut components,
             ComponentKind::Skill,
             plugin_name,
             list_skill_names(&manifest.skills_dir(path)),
         )?;
 
-        push_components_with_collision_check(
+        register_flattened_components(
             &mut components,
             ComponentKind::Agent,
             plugin_name,
             list_agent_names(&manifest.agents_dir(path)),
         )?;
 
-        push_components_with_collision_check(
+        register_flattened_components(
             &mut components,
             ComponentKind::Command,
             plugin_name,
@@ -264,7 +264,7 @@ impl Plugin {
 ///
 /// 重複が検出された場合は `PlmError::Validation` を返す。kind が異なる
 /// component とは衝突を判定しない（kind 単位で HashMap を分離するため）。
-fn push_components_with_collision_check(
+fn register_flattened_components(
     components: &mut Vec<Component>,
     kind: ComponentKind,
     plugin_name: &str,
