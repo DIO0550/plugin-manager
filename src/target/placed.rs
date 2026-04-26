@@ -5,19 +5,21 @@
 
 use super::all_targets;
 use crate::component::{ComponentKind, Scope};
-use crate::scan::list_placed_plugins;
+use crate::scan::list_placed_components;
 use std::collections::HashSet;
 use std::path::Path;
 
-/// 全ターゲットから配置済みプラグインを収集
+/// 全ターゲットから配置済みコンポーネントの `flattened_name` 集合を収集する。
 ///
 /// 全ターゲット・全コンポーネント種別のデプロイ済みコンポーネントを走査し、
-/// プラグインの (marketplace, plugin_name) の集合を返す。
+/// Instruction ファイル名を除いた `flattened_name` の重複なし集合を返す。
+/// フラット 2 階層構造へ移行後は `(marketplace, plugin)` ペアでは識別できない
+/// ため、戻り値の型を `HashSet<String>` に変更している。
 ///
 /// # Arguments
 ///
 /// * `project_root` - Project root directory used for project-scope lookups.
-pub(crate) fn list_all_placed(project_root: &Path) -> HashSet<(String, String)> {
+pub(crate) fn list_all_placed(project_root: &Path) -> HashSet<String> {
     let targets = all_targets();
     let mut all_items = Vec::new();
 
@@ -33,5 +35,5 @@ pub(crate) fn list_all_placed(project_root: &Path) -> HashSet<(String, String)> 
         }
     }
 
-    list_placed_plugins(&all_items)
+    list_placed_components(&all_items)
 }

@@ -496,7 +496,7 @@ fn test_is_enabled_func_with_status_by_target_enabled() {
     meta.set_status("codex", "enabled");
     write_meta(plugin_dir, &meta).unwrap();
 
-    let deployed: HashSet<(String, String)> = HashSet::new();
+    let deployed: HashSet<String> = HashSet::new();
     assert!(is_enabled(plugin_dir, "github", "test-plugin", &deployed));
 }
 
@@ -510,7 +510,7 @@ fn test_is_enabled_func_with_status_by_target_disabled() {
     meta.set_status("codex", "disabled");
     write_meta(plugin_dir, &meta).unwrap();
 
-    let deployed: HashSet<(String, String)> = HashSet::new();
+    let deployed: HashSet<String> = HashSet::new();
     assert!(!is_enabled(plugin_dir, "github", "test-plugin", &deployed));
 }
 
@@ -519,12 +519,13 @@ fn test_is_enabled_func_fallback_to_deployed() {
     let temp_dir = TempDir::new().unwrap();
     let plugin_dir = temp_dir.path();
 
-    // statusByTarget が空の場合、deployed から判定
+    // statusByTarget が空の場合、deployed の flattened_name に prefix
+    // マッチするエントリがあれば enabled。
     let meta = PluginMeta::default();
     write_meta(plugin_dir, &meta).unwrap();
 
-    let mut deployed: HashSet<(String, String)> = HashSet::new();
-    deployed.insert(("github".to_string(), "test-plugin".to_string()));
+    let mut deployed: HashSet<String> = HashSet::new();
+    deployed.insert("test-plugin_my-skill".to_string());
 
     assert!(is_enabled(plugin_dir, "github", "test-plugin", &deployed));
 }
@@ -538,7 +539,7 @@ fn test_is_enabled_func_fallback_not_deployed() {
     let meta = PluginMeta::default();
     write_meta(plugin_dir, &meta).unwrap();
 
-    let deployed: HashSet<(String, String)> = HashSet::new();
+    let deployed: HashSet<String> = HashSet::new();
     assert!(!is_enabled(plugin_dir, "github", "test-plugin", &deployed));
 }
 
@@ -547,22 +548,23 @@ fn test_is_enabled_func_no_meta_file_fallback() {
     let temp_dir = TempDir::new().unwrap();
     let plugin_dir = temp_dir.path();
 
-    // .plm-meta.json が存在しない場合、deployed から判定
-    let mut deployed: HashSet<(String, String)> = HashSet::new();
-    deployed.insert(("github".to_string(), "test-plugin".to_string()));
+    // .plm-meta.json が存在しない場合、deployed の flattened_name から判定
+    let mut deployed: HashSet<String> = HashSet::new();
+    deployed.insert("test-plugin_my-skill".to_string());
 
     assert!(is_enabled(plugin_dir, "github", "test-plugin", &deployed));
 }
 
 #[test]
-fn test_is_enabled_func_marketplace_normalization() {
+fn test_is_enabled_func_prefix_no_partial_match() {
     let temp_dir = TempDir::new().unwrap();
     let plugin_dir = temp_dir.path();
 
-    // marketplace が "github" の場合、None として扱われる
-    let mut deployed: HashSet<(String, String)> = HashSet::new();
-    deployed.insert(("github".to_string(), "test-plugin".to_string()));
+    // "test-plugin" が "test-plugin-other" の prefix と部分マッチしてしまう
+    // のを防ぐため、`flattened_name = "{plugin}_{...}"` に対し
+    // `"{plugin}_"` で始まるかをチェックする。
+    let mut deployed: HashSet<String> = HashSet::new();
+    deployed.insert("test-plugin-other_x".to_string());
 
-    // "github" は PluginOrigin::from_cached_plugin(None, ...) と同じ結果
-    assert!(is_enabled(plugin_dir, "github", "test-plugin", &deployed));
+    assert!(!is_enabled(plugin_dir, "github", "test-plugin", &deployed));
 }

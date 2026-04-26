@@ -166,27 +166,30 @@ impl SyncSource {
     }
 }
 
-/// コンポーネント名をパース (marketplace/plugin/component)
+/// コンポーネント名をパース。
+///
+/// フラット化後の識別子は `flattened_name` 単一セグメントのみ。Instruction
+/// (AGENTS.md / copilot-instructions.md / GEMINI.md) はそのままファイル名で
+/// 受け取る特例とする。`/` を含むレガシー識別子は `InvalidArgument` で拒否する。
 ///
 /// # Arguments
 ///
-/// * `name` - Component name in `marketplace/plugin/component` form, or a bare instruction file name.
+/// * `name` - フラット化された Component 名、または Instruction のファイル名。
 pub fn parse_component_name(name: &str) -> Result<(PluginOrigin, &str)> {
     // Instruction の特別扱い
     if name == "AGENTS.md" || name == "copilot-instructions.md" || name == "GEMINI.md" {
         return Ok((PluginOrigin::from_marketplace("", ""), name));
     }
 
-    let parts: Vec<&str> = name.split('/').collect();
-    if parts.len() != 3 {
+    if name.contains('/') {
         return Err(PlmError::InvalidArgument(format!(
-            "Invalid component name format: '{}'. Expected 'marketplace/plugin/component'",
+            "Invalid component name format: '{}'. Expected a single flattened segment",
             name
         )));
     }
 
-    let origin = PluginOrigin::from_marketplace(parts[0], parts[1]);
-    Ok((origin, parts[2]))
+    // フラット配置では origin を復元できないためプレースホルダを埋める。
+    Ok((PluginOrigin::from_marketplace("_", "_"), name))
 }
 
 #[cfg(test)]

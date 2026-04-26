@@ -1,66 +1,40 @@
 //! 配置スキャンロジック
 //!
-//! ターゲットから取得した配置済みアイテム文字列をパースする。
+//! ターゲットから取得した配置済みアイテム文字列を集約する。
 //! ドメイン非依存: 文字列のみに依存。
 //!
 //! ## 入力形式
 //!
 //! `target.list_placed()` は以下の形式の文字列を返す:
-//! - `"marketplace/plugin/component"` (Skills, Agents)
-//! - `"AGENTS.md"` (Instructions)
+//! - `<flattened_name>` (フラット 2 階層: Skills, Agents, Commands, Hooks)
+//! - `AGENTS.md` / `GEMINI.md` / `copilot-instructions.md` (Instructions)
 //!
-//! この文字列は常に `/` 区切り（OS のパス区切りではない）。
+//! このモジュールは `flattened_name` 集合を返し、Instruction ファイル名は除外する。
 
 use std::collections::HashSet;
 
-/// 配置済みアイテム文字列のリストから (marketplace, plugin_name) ペアを抽出
+/// Instruction として扱う既知のファイル名集合。
+const INSTRUCTION_FILE_NAMES: &[&str] = &["AGENTS.md", "copilot-instructions.md", "GEMINI.md"];
+
+/// 配置済みアイテム文字列の中に Instruction ファイル名が含まれているか。
+pub fn is_instruction_file(item: &str) -> bool {
+    INSTRUCTION_FILE_NAMES.contains(&item)
+}
+
+/// 配置済みアイテム文字列のリストから `flattened_name` 集合を抽出する。
 ///
-/// `target.list_placed()` の戻り値をパースし、プラグイン単位で集約する。
+/// `target.list_placed()` の戻り値をパースし、Instruction ファイルを除外して
+/// プラグイン配置の `flattened_name` の重複なし集合を返す。
 ///
 /// # Arguments
 ///
 /// * `placed_items` - `target.list_placed()` の戻り値リスト
-///
-/// # Returns
-/// (marketplace, plugin_name) ペアの集合
-pub fn list_placed_plugins(placed_items: &[String]) -> HashSet<(String, String)> {
+pub fn list_placed_components(placed_items: &[String]) -> HashSet<String> {
     placed_items
         .iter()
-        .filter_map(|item| parse_placement(item))
+        .filter(|item| !item.is_empty() && !is_instruction_file(item))
+        .cloned()
         .collect()
-}
-
-/// "marketplace/plugin/..." 形式をパース
-///
-/// # Arguments
-///
-/// * `item` - パース対象の文字列
-///
-/// # Returns
-/// * `Some((marketplace, plugin_name))` - 2セグメント以上かつ両方非空の場合
-/// * `None` - 以下のいずれかの場合:
-///   - 1セグメント以下（スラッシュなし）
-///   - marketplace または plugin_name が空文字
-///
-/// # Edge Cases
-/// * `""` → `None`
-/// * `"plugin"` → `None`
-/// * `"marketplace/plugin"` → `Some(("marketplace", "plugin"))`
-/// * `"marketplace/plugin/skill"` → `Some(("marketplace", "plugin"))`
-/// * `"/plugin"` → `None`
-/// * `"marketplace/"` → `None`
-pub fn parse_placement(item: &str) -> Option<(String, String)> {
-    let parts: Vec<&str> = item.split('/').collect();
-    if parts.len() >= 2 {
-        let marketplace = parts[0];
-        let plugin = parts[1];
-        if marketplace.is_empty() || plugin.is_empty() {
-            return None;
-        }
-        Some((marketplace.to_string(), plugin.to_string()))
-    } else {
-        None
-    }
 }
 
 #[cfg(test)]

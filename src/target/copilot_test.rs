@@ -317,7 +317,7 @@ fn test_copilot_list_placed_hooks() {
     assert_eq!(result.len(), 1);
     // origin は scanner プレースホルダ ("_") のため qualify は "_/_/<name>"
     // を返す。Phase 5 で qualify を name 単独へ変更するまでこの形式を期待する。
-    assert_eq!(result[0], "_/_/my-plugin_pre-commit");
+    assert_eq!(result[0], "my-plugin_pre-commit");
 }
 
 #[test]
@@ -353,5 +353,5 @@ fn test_copilot_filter_component_skill_requires_skill_md() {
         .list_placed(ComponentKind::Skill, Scope::Project, project_root)
         .unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0], "_/_/plugin_my-skill");
+    assert_eq!(result[0], "plugin_my-skill");
 }

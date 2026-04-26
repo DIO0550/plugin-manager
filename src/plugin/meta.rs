@@ -7,7 +7,6 @@ use super::manifest_resolve::resolve_manifest_path;
 use super::PluginManifest;
 use crate::error::Result;
 use crate::fs::{FileSystem, RealFs};
-use crate::target::PluginOrigin;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -287,20 +286,25 @@ pub fn resolve_installed_at(
 /// 2. `.plm-meta.json` が存在しない/読み取りエラー/statusByTarget が空の場合:
 ///    実デプロイ状態から判定（後方互換）
 ///
+/// 後方互換ロジックは `manifest.name` を `flattened_name` 集合の prefix として
+/// マッチさせる。フラット化後の `flattened_name` は `"{plugin_name}_{...}"`
+/// 形式のため、`plugin_name` で始まるエントリがあれば「このプラグイン由来の
+/// コンポーネントが配置済み」と判定する。
+///
 /// # Arguments
 ///
 /// * `cache_path` - プラグインのキャッシュパス
-/// * `marketplace` - マーケットプレイス名
-/// * `plugin_name` - プラグイン名
-/// * `deployed` - デプロイ済みプラグインの集合（事前計算済み）
+/// * `_marketplace` - マーケットプレイス名（フラット化後は未使用、互換のために残す）
+/// * `plugin_name` - プラグイン名（`PluginManifest.name` 相当）
+/// * `deployed` - デプロイ済みコンポーネントの `flattened_name` 集合
 ///
 /// # Returns
 /// `true` if enabled, `false` otherwise
 pub fn is_enabled(
     cache_path: &Path,
-    marketplace: &str,
+    _marketplace: &str,
     plugin_name: &str,
-    deployed: &HashSet<(String, String)>,
+    deployed: &HashSet<String>,
 ) -> bool {
     if let Some(plugin_meta) = load_meta(cache_path) {
         if !plugin_meta.status_by_target.is_empty() {
@@ -308,16 +312,11 @@ pub fn is_enabled(
         }
     }
 
-    // 後方互換: statusByTarget が無い古いプラグインは実デプロイ状態から判定
-    let origin = PluginOrigin::from_cached_plugin(
-        if marketplace == "github" {
-            None
-        } else {
-            Some(marketplace)
-        },
-        plugin_name,
-    );
-    deployed.contains(&(origin.marketplace, origin.plugin))
+    // 後方互換: statusByTarget が無い古いプラグインは flattened_name の prefix
+    // マッチで判定する。`flattened_name = "{plugin}_{original}"` なので、
+    // `plugin_name` で始まるエントリが 1 件でもあれば enabled と判定する。
+    let prefix = format!("{}_", plugin_name);
+    deployed.iter().any(|name| name.starts_with(&prefix))
 }
 
 #[cfg(test)]
