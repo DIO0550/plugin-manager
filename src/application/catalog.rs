@@ -23,7 +23,7 @@ pub fn list_installed_plugins(cache: &dyn PackageCacheAccess) -> Result<Vec<Inst
     // 一覧取得経路ではスキャン失敗（重複検出など）は握りつぶして列挙を続行する。
     // TUI 経由でも呼ばれるため stderr への直接出力は避ける。
     // 厳密検証が必要な経路（install 等）は `Plugin::new` を直接呼ぶこと。
-    let packages: Vec<_> = list_installed(cache)?.into_iter().collect();
+    let packages = list_installed(cache)?;
 
     // 「プラグイン数 × 配置済みコンポーネント数」の線形走査を避けるため、
     // 既知 plugin_name 集合と deployed から「配置済みコンポーネントを 1 件以上
