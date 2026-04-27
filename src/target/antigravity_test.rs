@@ -136,12 +136,15 @@ fn test_antigravity_placement_location_agent_returns_none() {
 
 #[test]
 fn test_antigravity_placement_with_hierarchy() {
+    // インストール経路では `Component.name` が `flatten_name(plugin, original)
+    // = "{plugin}_{original}"` に平坦化されるため、origin が GitHub でも
+    // テストはその形を使う。
     let target = AntigravityTarget::new();
     let project_root = Path::new("/project");
     let origin = PluginOrigin::from_github("owner", "repo");
 
     let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
+        component: ComponentRef::new(ComponentKind::Skill, "my-plugin_my-skill"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -151,7 +154,7 @@ fn test_antigravity_placement_with_hierarchy() {
     assert!(location.is_dir());
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.agent/skills/my-skill")
+        Path::new("/project/.agent/skills/my-plugin_my-skill")
     );
 }
 
