@@ -288,8 +288,9 @@ pub fn resolve_installed_at(
 ///
 /// 後方互換ロジックは `manifest.name` を `flattened_name` 集合の prefix として
 /// マッチさせる。フラット化後の `flattened_name` は `"{plugin_name}_{...}"`
-/// 形式のため、`plugin_name` で始まるエントリがあれば「このプラグイン由来の
-/// コンポーネントが配置済み」と判定する。
+/// 形式のため、境界付き prefix `"{plugin_name}_"` で始まるエントリが
+/// 1 件でもあれば「このプラグイン由来のコンポーネントが配置済み」と判定する
+/// （末尾 `_` を含めることで `plugin_name` と他プラグイン名の部分一致を防ぐ）。
 ///
 /// # Arguments
 ///
