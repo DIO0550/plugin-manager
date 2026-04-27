@@ -112,10 +112,8 @@ impl Target for CopilotTarget {
 
         let project_root = context.project_root();
         let base = Self::base_dir(scope, project_root);
-        let origin = context.origin;
         let name = context.name();
 
-        let _ = origin;
         Some(match kind {
             // フラット構造: skills/<flattened_name> (ディレクトリ)
             ComponentKind::Skill => PlacementLocation::dir(base.join("skills").join(name)),
