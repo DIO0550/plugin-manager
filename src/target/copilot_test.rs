@@ -98,13 +98,15 @@ fn test_copilot_placement_location_agent() {
 
 #[test]
 fn test_copilot_placement_location_command() {
+    // インストール経路では Command も `flatten_name(plugin, original)
+    // = "{plugin}_{original}"` に平坦化されるため、テストもその形を使う。
     let target = CopilotTarget::new();
     let project_root = Path::new("/project");
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     // Personal scope for commands is not supported
     let ctx_personal = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Command, "my-command"),
+        component: ComponentRef::new(ComponentKind::Command, "my-plugin_my-command"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Personal),
         project: ProjectContext::new(project_root),
@@ -113,7 +115,7 @@ fn test_copilot_placement_location_command() {
 
     // Project scope
     let ctx_project = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Command, "my-command"),
+        component: ComponentRef::new(ComponentKind::Command, "my-plugin_my-command"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -122,7 +124,7 @@ fn test_copilot_placement_location_command() {
     assert!(location.is_file());
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.github/prompts/my-command.prompt.md")
+        Path::new("/project/.github/prompts/my-plugin_my-command.prompt.md")
     );
 }
 
