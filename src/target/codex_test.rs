@@ -68,12 +68,14 @@ fn test_codex_placement_location_skill_github_direct() {
 
 #[test]
 fn test_codex_placement_location_agent() {
+    // インストール経路では `Component.name` が `flatten_name(plugin, original)
+    // = "{plugin}_{original}"` に平坦化されるため、テストもその形を使う。
     let target = CodexTarget::new();
     let project_root = Path::new("/project");
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Agent, "my-agent"),
+        component: ComponentRef::new(ComponentKind::Agent, "my-plugin_my-agent"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -83,7 +85,7 @@ fn test_codex_placement_location_agent() {
     assert!(location.is_file());
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.codex/agents/my-agent.agent.md")
+        Path::new("/project/.codex/agents/my-plugin_my-agent.agent.md")
     );
 }
 
