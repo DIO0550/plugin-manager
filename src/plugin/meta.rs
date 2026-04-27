@@ -319,6 +319,65 @@ pub fn is_enabled(
     deployed.iter().any(|name| name.starts_with(&prefix))
 }
 
+/// `is_enabled` の O(1) バリアント。プラグイン一覧を一括判定する経路で使う。
+///
+/// 事前に [`build_deployed_plugin_set`] で構築した
+/// 「配置済みコンポーネントを少なくとも 1 件持つ plugin_name 集合」を渡し、
+/// `deployed_plugins.contains(plugin_name)` の定数時間ルックアップに置換する。
+/// `.plm-meta.json` の `statusByTarget` を優先する判定ロジックは `is_enabled`
+/// と同一。
+///
+/// # Arguments
+///
+/// * `cache_path` - プラグインのキャッシュパス
+/// * `plugin_name` - `PluginManifest.name`
+/// * `deployed_plugins` - 配置済みコンポーネントを持つ plugin_name の集合
+pub fn is_enabled_indexed(
+    cache_path: &Path,
+    plugin_name: &str,
+    deployed_plugins: &HashSet<String>,
+) -> bool {
+    if let Some(plugin_meta) = load_meta(cache_path) {
+        if !plugin_meta.status_by_target.is_empty() {
+            return plugin_meta.any_enabled();
+        }
+    }
+    deployed_plugins.contains(plugin_name)
+}
+
+/// `deployed` の `flattened_name` 集合と既知の `plugin_names` から、
+/// 配置済みコンポーネントを少なくとも 1 件持つ plugin_name の集合を構築する。
+///
+/// `flattened_name = "{plugin}_{original}"` の `plugin` 部分を `_` 区切りで
+/// 走査し、`plugin_names` に存在する候補を収集する。`plugin_name` 自体が
+/// `_` を含む場合（例 `"my_plugin"`）も全 `_` 位置を試行するため正しく拾える。
+///
+/// 計算量: `O(sum(|name|))` の文字走査と各 `_` 位置での `HashSet::contains`。
+/// プラグイン数 N に対して `is_enabled` を呼ぶ経路では、従来の
+/// `O(N × |deployed|)` を `O(sum(|name|) + N)` に改善する。
+///
+/// # Arguments
+///
+/// * `deployed` - `list_all_placed` が返す `flattened_name` 集合
+/// * `plugin_names` - 既知の plugin_name 集合（通常はキャッシュから列挙）
+pub fn build_deployed_plugin_set(
+    deployed: &HashSet<String>,
+    plugin_names: &HashSet<String>,
+) -> HashSet<String> {
+    let mut result = HashSet::new();
+    for name in deployed {
+        for (idx, ch) in name.char_indices() {
+            if ch == '_' {
+                let candidate = &name[..idx];
+                if plugin_names.contains(candidate) {
+                    result.insert(candidate.to_string());
+                }
+            }
+        }
+    }
+    result
+}
+
 #[cfg(test)]
 #[path = "meta_test.rs"]
 mod tests;
