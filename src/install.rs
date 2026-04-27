@@ -168,9 +168,8 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
         PluginOrigin::from_cached_plugin(request.scanned.marketplace(), request.scanned.id());
 
     for target in request.targets {
-        // 旧 3 階層構造 (<base>/<plural>/<mp>/<plg>) が残っている場合に掃除する。
-        // フラット 2 階層配置への移行をサポートするため、新規配置の前に実行する。
-        cleanup_legacy_hierarchy(target.kind(), &origin, request.project_root);
+        let successes_before = successes.len();
+        let failures_before = failures.len();
 
         for component in &request.scanned.components {
             if !target.supports(component.kind) {
@@ -268,6 +267,17 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
                     });
                 }
             }
+        }
+
+        // 旧 3 階層構造 (<base>/<plural>/<mp>/<plg>) のクリーンアップは
+        // 当該 target 内の配置がすべて成功し、かつ少なくとも 1 件配置できた
+        // 場合にのみ実行する。途中で failure があった場合に旧階層を消すと
+        // 「新旧どちらも残らない」状態を招きうるため、ロールバック相当として
+        // 旧階層を温存する。
+        let target_had_failure = failures.len() > failures_before;
+        let target_had_success = successes.len() > successes_before;
+        if target_had_success && !target_had_failure {
+            cleanup_legacy_hierarchy(target.kind(), &origin, request.project_root);
         }
     }
 
