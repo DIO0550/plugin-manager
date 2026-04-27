@@ -7,6 +7,7 @@ use crate::component::{
     Scope,
 };
 use crate::error::{PlmError, Result};
+use crate::scan::is_instruction_file;
 use crate::target::{parse_target, PluginOrigin, Target, TargetKind};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -177,7 +178,7 @@ impl SyncSource {
 /// * `name` - フラット化された Component 名、または Instruction のファイル名。
 pub fn parse_component_name(name: &str) -> Result<(PluginOrigin, &str)> {
     // Instruction の特別扱い
-    if name == "AGENTS.md" || name == "copilot-instructions.md" || name == "GEMINI.md" {
+    if is_instruction_file(name) {
         return Ok((PluginOrigin::from_marketplace("", ""), name));
     }
 

@@ -24,4 +24,4 @@ pub use constants::{
     DEFAULT_AGENTS_DIR, DEFAULT_COMMANDS_DIR, DEFAULT_HOOKS_DIR, DEFAULT_INSTRUCTIONS_DIR,
     DEFAULT_INSTRUCTIONS_FILE, DEFAULT_SKILLS_DIR,
 };
-pub use placement::list_placed_components;
+pub use placement::{is_instruction_file, list_placed_components};
