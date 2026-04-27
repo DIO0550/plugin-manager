@@ -162,6 +162,20 @@ fn is_safe_path_segment(segment: &str) -> bool {
 /// （legacy + kind_root + mp_dir）/ depth=2 / file_name 一致 / 空親昇格削除
 /// に加え、削除前に同一親配下の `<plugin>.plm-quarantine-<random>` 名へ
 /// `rename` してから `remove_dir_all` する quarantine 方式で race を縮小する。
+///
+/// # I/O 抽象化方針
+///
+/// 同モジュールの `cleanup_plugin_directories` は `&dyn FileSystem` を受け取る
+/// が、本関数（および下請けの `sweep_legacy_one` / `dir_is_empty` /
+/// `path_is_symlink`）は `std::fs` を直接呼び出している。これは以下の API が
+/// 12 ガードの安全性確保に必須だが現状 `FileSystem` trait 未提供のため:
+/// - `std::fs::symlink_metadata` (シンボリックリンク非追従の type 判定)
+/// - `Path::canonicalize` (kind_root 配下に厳密に含まれるかの判定)
+/// - `std::fs::remove_dir` (空親ディレクトリ単独の昇格削除)
+///
+/// `FileSystem` 抽象に上記 3 点を追加して再注入する余地はあるが、本関数は
+/// 旧階層からの一回限りのマイグレーション用途であり、MockFs 化の費用対効果が
+/// 限定的なため当面 `std::fs` 直接呼び出しを維持する。
 pub(crate) fn cleanup_legacy_hierarchy(
     kind: TargetKind,
     origin: &PluginOrigin,
