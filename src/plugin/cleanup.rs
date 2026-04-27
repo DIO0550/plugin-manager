@@ -181,11 +181,15 @@ pub(crate) fn cleanup_legacy_hierarchy(
     origin: &PluginOrigin,
     project_root: &Path,
 ) {
+    // HOME が相対パス（例: "." / "tmp"）の場合に personal sweep が
+    // カレント配下で quarantine rename + remove_dir_all を走らせるリスクを
+    // 避けるため、絶対パスのみ採用する。
     let home = std::env::var("HOME")
         .ok()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
-        .map(PathBuf::from);
+        .map(PathBuf::from)
+        .filter(|p| p.is_absolute());
     cleanup_legacy_hierarchy_impl(kind, home.as_deref(), origin, project_root);
 }
 
