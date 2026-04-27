@@ -377,18 +377,21 @@ pub fn build_deployed_plugin_set(
     deployed: &HashSet<String>,
     plugin_names: &HashSet<String>,
 ) -> HashSet<String> {
-    let mut result = HashSet::new();
-    for name in deployed {
-        for (idx, ch) in name.char_indices() {
-            if ch == '_' {
-                let candidate = &name[..idx];
-                if plugin_names.contains(candidate) {
-                    result.insert(candidate.to_string());
-                }
-            }
-        }
-    }
-    result
+    deployed
+        .iter()
+        .flat_map(|name| underscore_prefix_candidates(name))
+        .filter(|candidate| plugin_names.contains(*candidate))
+        .map(str::to_string)
+        .collect()
+}
+
+/// `name` 内の各 `_` 位置で区切った prefix 候補を列挙する。
+///
+/// 例: `"foo_bar_baz"` → `["foo", "foo_bar"]`
+fn underscore_prefix_candidates(name: &str) -> impl Iterator<Item = &str> {
+    name.char_indices()
+        .filter(|(_, ch)| *ch == '_')
+        .map(move |(idx, _)| &name[..idx])
 }
 
 #[cfg(test)]
