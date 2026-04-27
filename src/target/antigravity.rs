@@ -96,17 +96,11 @@ impl Target for AntigravityTarget {
         let scope = context.scope();
         let project_root = context.project_root();
         let base = Self::base_dir(scope, project_root);
-        let origin = context.origin;
         let name = context.name();
 
         Some(match kind {
-            // 階層構造: skills/<marketplace>/<plugin>/<skill> (ディレクトリ)
-            ComponentKind::Skill => PlacementLocation::dir(
-                base.join("skills")
-                    .join(&origin.marketplace)
-                    .join(&origin.plugin)
-                    .join(name),
-            ),
+            // フラット構造: skills/<flattened_name> (ディレクトリ)
+            ComponentKind::Skill => PlacementLocation::dir(base.join("skills").join(name)),
             _ => return None,
         })
     }

@@ -46,7 +46,12 @@ impl CodexTarget {
     fn filter_component(c: &ScannedComponent, kind: ComponentKind) -> Option<String> {
         let make_qualified = |name: &str| c.origin.qualify(name);
         match kind {
-            ComponentKind::Skill if c.is_dir => Some(make_qualified(&c.name)),
+            // Skill: 直下に SKILL.md が存在するディレクトリのみ採用する。
+            // 旧 3 階層 `<plural>/<mp>/<plg>/<skill>/SKILL.md` の中間段
+            // (`<mp>` ディレクトリ等) を Skill と誤認しないための二重防御。
+            ComponentKind::Skill if c.is_dir && c.path.join("SKILL.md").is_file() => {
+                Some(make_qualified(&c.name))
+            }
             ComponentKind::Agent if !c.is_dir && c.name.ends_with(".agent.md") => {
                 let name = c.name.trim_end_matches(".agent.md");
                 Some(make_qualified(name))
@@ -92,24 +97,15 @@ impl Target for CodexTarget {
         let scope = context.scope();
         let project_root = context.project_root();
         let base = Self::base_dir(scope, project_root);
-        let origin = context.origin;
         let name = context.name();
 
         Some(match kind {
-            // 階層構造: skills/<marketplace>/<plugin>/<skill> (ディレクトリ)
-            ComponentKind::Skill => PlacementLocation::dir(
-                base.join("skills")
-                    .join(&origin.marketplace)
-                    .join(&origin.plugin)
-                    .join(name),
-            ),
-            // 階層構造: agents/<marketplace>/<plugin>/<name>.agent.md (ファイル)
-            ComponentKind::Agent => PlacementLocation::file(
-                base.join("agents")
-                    .join(&origin.marketplace)
-                    .join(&origin.plugin)
-                    .join(format!("{}.agent.md", name)),
-            ),
+            // フラット構造: skills/<flattened_name> (ディレクトリ)
+            ComponentKind::Skill => PlacementLocation::dir(base.join("skills").join(name)),
+            // フラット構造: agents/<flattened_name>.agent.md (ファイル)
+            ComponentKind::Agent => {
+                PlacementLocation::file(base.join("agents").join(format!("{}.agent.md", name)))
+            }
             ComponentKind::Instruction => match scope {
                 // Project scope: AGENTS.md is at project root, not in .codex
                 Scope::Project => PlacementLocation::file(project_root.join("AGENTS.md")),

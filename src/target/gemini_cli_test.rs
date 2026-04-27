@@ -83,12 +83,14 @@ fn test_gemini_cli_supports_scope_instruction_project() {
 
 #[test]
 fn test_gemini_cli_placement_location_skill_personal() {
+    // インストール経路では `Component.name` が `flatten_name(plugin, original)
+    // = "{plugin}_{original}"` に平坦化されるため、テストもその形を使う。
     let target = GeminiCliTarget::new();
     let project_root = Path::new("/project");
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
+        component: ComponentRef::new(ComponentKind::Skill, "my-plugin_my-skill"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Personal),
         project: ProjectContext::new(project_root),
@@ -97,18 +99,23 @@ fn test_gemini_cli_placement_location_skill_personal() {
 
     assert!(location.is_dir());
     let home = std::env::var("HOME").unwrap();
-    let expected = format!("{}/.gemini/skills/official/my-plugin/my-skill", home);
-    assert_eq!(location.as_path(), Path::new(&expected));
+    let expected = std::path::PathBuf::from(home)
+        .join(".gemini")
+        .join("skills")
+        .join("my-plugin_my-skill");
+    assert_eq!(location.as_path(), expected.as_path());
 }
 
 #[test]
 fn test_gemini_cli_placement_location_skill_project() {
+    // インストール経路では `Component.name` が `flatten_name(plugin, original)
+    // = "{plugin}_{original}"` に平坦化されるため、テストもその形を使う。
     let target = GeminiCliTarget::new();
     let project_root = Path::new("/project");
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
+        component: ComponentRef::new(ComponentKind::Skill, "my-plugin_my-skill"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -118,7 +125,7 @@ fn test_gemini_cli_placement_location_skill_project() {
     assert!(location.is_dir());
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.gemini/skills/official/my-plugin/my-skill")
+        Path::new("/project/.gemini/skills/my-plugin_my-skill")
     );
 }
 
@@ -137,7 +144,7 @@ fn test_gemini_cli_placement_location_skill_with_prefixed_name() {
     let location = target.placement_location(&ctx).unwrap();
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.gemini/skills/official/my-plugin/myplugin_foo")
+        Path::new("/project/.gemini/skills/myplugin_foo")
     );
 }
 
@@ -226,12 +233,14 @@ fn test_gemini_cli_placement_location_hook_returns_none() {
 
 #[test]
 fn test_gemini_cli_placement_with_github_origin() {
+    // インストール経路では `Component.name` が `flatten_name(plugin, original)
+    // = "{plugin}_{original}"` に平坦化される（origin 種別 github でも同じ）。
     let target = GeminiCliTarget::new();
     let project_root = Path::new("/project");
     let origin = PluginOrigin::from_github("owner", "repo");
 
     let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
+        component: ComponentRef::new(ComponentKind::Skill, "my-plugin_my-skill"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -241,7 +250,7 @@ fn test_gemini_cli_placement_with_github_origin() {
     assert!(location.is_dir());
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.gemini/skills/github/owner--repo/my-skill")
+        Path::new("/project/.gemini/skills/my-plugin_my-skill")
     );
 }
 
@@ -263,12 +272,11 @@ fn test_gemini_cli_list_placed_with_skills() {
     let temp_dir = TempDir::new().unwrap();
     let project_root = temp_dir.path();
 
+    // フラット 2 階層: .gemini/skills/<flattened_name>/SKILL.md
     let skill_path = project_root
         .join(".gemini")
         .join("skills")
-        .join("marketplace")
-        .join("plugin")
-        .join("skill-1");
+        .join("plugin_skill-1");
     std::fs::create_dir_all(&skill_path).unwrap();
     std::fs::write(skill_path.join("SKILL.md"), "# Skill 1").unwrap();
 
@@ -276,7 +284,7 @@ fn test_gemini_cli_list_placed_with_skills() {
         .list_placed(ComponentKind::Skill, Scope::Project, project_root)
         .unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0], "marketplace/plugin/skill-1");
+    assert_eq!(result[0], "plugin_skill-1");
 }
 
 #[test]
@@ -288,9 +296,7 @@ fn test_gemini_cli_list_placed_no_skill_md() {
     let skill_path = project_root
         .join(".gemini")
         .join("skills")
-        .join("marketplace")
-        .join("plugin")
-        .join("empty-skill");
+        .join("plugin_empty-skill");
     std::fs::create_dir_all(&skill_path).unwrap();
 
     let result = target

@@ -21,12 +21,14 @@ fn test_codex_supported_components() {
 
 #[test]
 fn test_codex_placement_location_skill_with_hierarchy() {
+    // インストール経路では `Component.name` が `flatten_name(plugin, original)
+    // = "{plugin}_{original}"` に平坦化されるため、テストもその形を使う。
     let target = CodexTarget::new();
     let project_root = Path::new("/project");
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
+        component: ComponentRef::new(ComponentKind::Skill, "my-plugin_my-skill"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -36,18 +38,21 @@ fn test_codex_placement_location_skill_with_hierarchy() {
     assert!(location.is_dir());
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.codex/skills/official/my-plugin/my-skill")
+        Path::new("/project/.codex/skills/my-plugin_my-skill")
     );
 }
 
 #[test]
 fn test_codex_placement_location_skill_github_direct() {
+    // インストール経路では `Component.name` が `flatten_name(plugin, original)
+    // = "{plugin}_{original}"` に平坦化されるため、origin の種別 (github) に
+    // 関わらずテストもその形を使う。
     let target = CodexTarget::new();
     let project_root = Path::new("/project");
     let origin = PluginOrigin::from_github("owner", "repo");
 
     let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
+        component: ComponentRef::new(ComponentKind::Skill, "my-plugin_my-skill"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -57,18 +62,20 @@ fn test_codex_placement_location_skill_github_direct() {
     assert!(location.is_dir());
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.codex/skills/github/owner--repo/my-skill")
+        Path::new("/project/.codex/skills/my-plugin_my-skill")
     );
 }
 
 #[test]
 fn test_codex_placement_location_agent() {
+    // インストール経路では `Component.name` が `flatten_name(plugin, original)
+    // = "{plugin}_{original}"` に平坦化されるため、テストもその形を使う。
     let target = CodexTarget::new();
     let project_root = Path::new("/project");
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Agent, "my-agent"),
+        component: ComponentRef::new(ComponentKind::Agent, "my-plugin_my-agent"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -78,7 +85,7 @@ fn test_codex_placement_location_agent() {
     assert!(location.is_file());
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.codex/agents/official/my-plugin/my-agent.agent.md")
+        Path::new("/project/.codex/agents/my-plugin_my-agent.agent.md")
     );
 }
 
@@ -116,7 +123,7 @@ fn test_codex_placement_location_skill_with_prefixed_name() {
     let location = target.placement_location(&ctx).unwrap();
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.codex/skills/official/my-plugin/myplugin_foo")
+        Path::new("/project/.codex/skills/myplugin_foo")
     );
 }
 
@@ -135,7 +142,7 @@ fn test_codex_placement_location_agent_with_prefixed_name() {
     let location = target.placement_location(&ctx).unwrap();
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.codex/agents/official/my-plugin/myplugin_foo.agent.md")
+        Path::new("/project/.codex/agents/myplugin_foo.agent.md")
     );
 }
 

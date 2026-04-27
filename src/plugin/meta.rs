@@ -7,7 +7,6 @@ use super::manifest_resolve::resolve_manifest_path;
 use super::PluginManifest;
 use crate::error::Result;
 use crate::fs::{FileSystem, RealFs};
-use crate::target::PluginOrigin;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -287,20 +286,26 @@ pub fn resolve_installed_at(
 /// 2. `.plm-meta.json` が存在しない/読み取りエラー/statusByTarget が空の場合:
 ///    実デプロイ状態から判定（後方互換）
 ///
+/// 後方互換ロジックは `manifest.name` を `flattened_name` 集合の prefix として
+/// マッチさせる。フラット化後の `flattened_name` は `"{plugin_name}_{...}"`
+/// 形式のため、境界付き prefix `"{plugin_name}_"` で始まるエントリが
+/// 1 件でもあれば「このプラグイン由来のコンポーネントが配置済み」と判定する
+/// （末尾 `_` を含めることで `plugin_name` と他プラグイン名の部分一致を防ぐ）。
+///
 /// # Arguments
 ///
 /// * `cache_path` - プラグインのキャッシュパス
-/// * `marketplace` - マーケットプレイス名
-/// * `plugin_name` - プラグイン名
-/// * `deployed` - デプロイ済みプラグインの集合（事前計算済み）
+/// * `_marketplace` - マーケットプレイス名（フラット化後は未使用、互換のために残す）
+/// * `plugin_name` - プラグイン名（`PluginManifest.name` 相当）
+/// * `deployed` - デプロイ済みコンポーネントの `flattened_name` 集合
 ///
 /// # Returns
 /// `true` if enabled, `false` otherwise
 pub fn is_enabled(
     cache_path: &Path,
-    marketplace: &str,
+    _marketplace: &str,
     plugin_name: &str,
-    deployed: &HashSet<(String, String)>,
+    deployed: &HashSet<String>,
 ) -> bool {
     if let Some(plugin_meta) = load_meta(cache_path) {
         if !plugin_meta.status_by_target.is_empty() {
@@ -308,16 +313,85 @@ pub fn is_enabled(
         }
     }
 
-    // 後方互換: statusByTarget が無い古いプラグインは実デプロイ状態から判定
-    let origin = PluginOrigin::from_cached_plugin(
-        if marketplace == "github" {
-            None
-        } else {
-            Some(marketplace)
-        },
-        plugin_name,
-    );
-    deployed.contains(&(origin.marketplace, origin.plugin))
+    // 後方互換: statusByTarget が無い古いプラグインは flattened_name の prefix
+    // マッチで判定する。`flattened_name = "{plugin}_{original}"` なので、
+    // `plugin_name` で始まるエントリが 1 件でもあれば enabled と判定する。
+    let prefix = format!("{}_", plugin_name);
+    deployed.iter().any(|name| name.starts_with(&prefix))
+}
+
+/// `is_enabled` の O(1) バリアント。プラグイン一覧を一括判定する経路で使う。
+///
+/// 事前に [`build_deployed_plugin_set`] で構築した
+/// 「配置済みコンポーネントを少なくとも 1 件持つ plugin_name 集合」を渡し、
+/// `deployed_plugins.contains(plugin_name)` の定数時間ルックアップに置換する。
+/// `.plm-meta.json` の `statusByTarget` を優先する判定ロジックは `is_enabled`
+/// と同一。
+///
+/// # Arguments
+///
+/// * `cache_path` - プラグインのキャッシュパス
+/// * `plugin_name` - `PluginManifest.name`
+/// * `deployed_plugins` - 配置済みコンポーネントを持つ plugin_name の集合
+pub fn is_enabled_indexed(
+    cache_path: &Path,
+    plugin_name: &str,
+    deployed_plugins: &HashSet<String>,
+) -> bool {
+    if let Some(plugin_meta) = load_meta(cache_path) {
+        if !plugin_meta.status_by_target.is_empty() {
+            return plugin_meta.any_enabled();
+        }
+    }
+    deployed_plugins.contains(plugin_name)
+}
+
+/// `deployed` の `flattened_name` 集合と既知の `plugin_names` から、
+/// 配置済みコンポーネントを少なくとも 1 件持つ plugin_name の集合を構築する。
+///
+/// `flattened_name = "{plugin}_{original}"` の `plugin` 部分を `_` 区切りで
+/// 走査し、`plugin_names` に存在する候補を収集する。`plugin_name` 自体が
+/// `_` を含む場合（例 `"my_plugin"`）も全 `_` 位置を試行するため正しく拾える。
+///
+/// 計算量: `O(sum(|name|))` の文字走査と各 `_` 位置での `HashSet::contains`。
+/// プラグイン数 N に対して `is_enabled` を呼ぶ経路では、従来の
+/// `O(N × |deployed|)` を `O(sum(|name|) + N)` に改善する。
+///
+/// # 既知の曖昧さ（プレフィックス衝突）
+///
+/// `"{plugin}_{original}"` 形式は `_` を含む plugin / original では分解が
+/// 一意にならない。例えば `plugin_names = {"foo", "foo_bar"}` で
+/// `deployed = {"foo_bar_baz"}` の場合、`"foo"` も `"foo_bar"` もマッチする
+/// ため両プラグインが enabled として返る。これは従来の
+/// `is_enabled` の `prefix.starts_with` ロジックと同一の挙動で（後方互換）、
+/// 「false positive を許容する best-effort なアッパーバウンド」として扱う。
+/// 完全な一意性が必要な場合は `flatten_name` の区切り文字再設計
+/// （非英数記号への変更や escape）または plugin_name の `_` 禁止が必要。
+/// 衝突挙動は `test_build_deployed_plugin_set_prefix_collision` で固定する。
+///
+/// # Arguments
+///
+/// * `deployed` - `list_all_placed` が返す `flattened_name` 集合
+/// * `plugin_names` - 既知の plugin_name 集合（通常はキャッシュから列挙）
+pub fn build_deployed_plugin_set(
+    deployed: &HashSet<String>,
+    plugin_names: &HashSet<String>,
+) -> HashSet<String> {
+    deployed
+        .iter()
+        .flat_map(|name| underscore_prefix_candidates(name))
+        .filter(|candidate| plugin_names.contains(*candidate))
+        .map(str::to_string)
+        .collect()
+}
+
+/// `name` 内の各 `_` 位置で区切った prefix 候補を列挙する。
+///
+/// 例: `"foo_bar_baz"` → `["foo", "foo_bar"]`
+fn underscore_prefix_candidates(name: &str) -> impl Iterator<Item = &str> {
+    name.char_indices()
+        .filter(|(_, ch)| *ch == '_')
+        .map(move |(idx, _)| &name[..idx])
 }
 
 #[cfg(test)]

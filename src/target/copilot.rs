@@ -56,7 +56,10 @@ impl CopilotTarget {
     fn filter_component(c: &ScannedComponent, kind: ComponentKind) -> Option<String> {
         let make_qualified = |name: &str| c.origin.qualify(name);
         match kind {
-            ComponentKind::Skill if c.is_dir => Some(make_qualified(&c.name)),
+            // Skill: SKILL.md が直下にあるディレクトリのみ採用（二重防御）。
+            ComponentKind::Skill if c.is_dir && c.path.join("SKILL.md").is_file() => {
+                Some(make_qualified(&c.name))
+            }
             ComponentKind::Agent if !c.is_dir && c.name.ends_with(".agent.md") => {
                 Some(make_qualified(c.name.trim_end_matches(".agent.md")))
             }
@@ -109,40 +112,26 @@ impl Target for CopilotTarget {
 
         let project_root = context.project_root();
         let base = Self::base_dir(scope, project_root);
-        let origin = context.origin;
         let name = context.name();
 
         Some(match kind {
-            // 階層構造: skills/<marketplace>/<plugin>/<skill> (ディレクトリ)
-            ComponentKind::Skill => PlacementLocation::dir(
-                base.join("skills")
-                    .join(&origin.marketplace)
-                    .join(&origin.plugin)
-                    .join(name),
-            ),
-            // 階層構造: agents/<marketplace>/<plugin>/<name>.agent.md (ファイル)
-            ComponentKind::Agent => PlacementLocation::file(
-                base.join("agents")
-                    .join(&origin.marketplace)
-                    .join(&origin.plugin)
-                    .join(format!("{}.agent.md", name)),
-            ),
-            // 階層構造: prompts/<marketplace>/<plugin>/<name>.prompt.md (ファイル)
-            ComponentKind::Command => PlacementLocation::file(
-                base.join("prompts")
-                    .join(&origin.marketplace)
-                    .join(&origin.plugin)
-                    .join(format!("{}.prompt.md", name)),
-            ),
+            // フラット構造: skills/<flattened_name> (ディレクトリ)
+            ComponentKind::Skill => PlacementLocation::dir(base.join("skills").join(name)),
+            // フラット構造: agents/<flattened_name>.agent.md (ファイル)
+            ComponentKind::Agent => {
+                PlacementLocation::file(base.join("agents").join(format!("{}.agent.md", name)))
+            }
+            // フラット構造: prompts/<flattened_name>.prompt.md (ファイル)
+            ComponentKind::Command => {
+                PlacementLocation::file(base.join("prompts").join(format!("{}.prompt.md", name)))
+            }
             ComponentKind::Instruction => {
                 PlacementLocation::file(base.join("copilot-instructions.md"))
             }
-            ComponentKind::Hook => PlacementLocation::file(
-                base.join("hooks")
-                    .join(&origin.marketplace)
-                    .join(&origin.plugin)
-                    .join(format!("{}.json", name)),
-            ),
+            // フラット構造: hooks/<flattened_name>.json (ファイル)
+            ComponentKind::Hook => {
+                PlacementLocation::file(base.join("hooks").join(format!("{}.json", name)))
+            }
         })
     }
 

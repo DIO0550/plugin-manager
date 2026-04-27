@@ -3,82 +3,67 @@
 use super::*;
 
 #[test]
-fn test_parse_placement_empty() {
-    assert_eq!(parse_placement(""), None);
+fn test_is_instruction_file_known() {
+    assert!(is_instruction_file("AGENTS.md"));
+    assert!(is_instruction_file("GEMINI.md"));
+    assert!(is_instruction_file("copilot-instructions.md"));
 }
 
 #[test]
-fn test_parse_placement_no_slash() {
-    assert_eq!(parse_placement("plugin"), None);
+fn test_is_instruction_file_unknown() {
+    assert!(!is_instruction_file("plugin_my-skill"));
+    assert!(!is_instruction_file(""));
+    assert!(!is_instruction_file("AGENTS.txt"));
 }
 
 #[test]
-fn test_parse_placement_two_segments() {
-    assert_eq!(
-        parse_placement("marketplace/plugin"),
-        Some(("marketplace".to_string(), "plugin".to_string()))
-    );
-}
-
-#[test]
-fn test_parse_placement_three_segments() {
-    assert_eq!(
-        parse_placement("marketplace/plugin/skill"),
-        Some(("marketplace".to_string(), "plugin".to_string()))
-    );
-}
-
-#[test]
-fn test_parse_placement_leading_slash() {
-    assert_eq!(parse_placement("/plugin"), None);
-}
-
-#[test]
-fn test_parse_placement_trailing_slash() {
-    assert_eq!(parse_placement("marketplace/"), None);
-}
-
-#[test]
-fn test_parse_placement_only_slash() {
-    assert_eq!(parse_placement("/"), None);
-}
-
-#[test]
-fn test_list_placed_plugins_empty() {
+fn test_list_placed_components_empty() {
     let items: Vec<String> = vec![];
-    let result = list_placed_plugins(&items);
+    let result = list_placed_components(&items);
     assert!(result.is_empty());
 }
 
 #[test]
-fn test_list_placed_plugins_single() {
-    let items = vec!["github/my-plugin/my-skill".to_string()];
-    let result = list_placed_plugins(&items);
+fn test_list_placed_components_single_flat_name() {
+    let items = vec!["plg_my-skill".to_string()];
+    let result = list_placed_components(&items);
     assert_eq!(result.len(), 1);
-    assert!(result.contains(&("github".to_string(), "my-plugin".to_string())));
+    assert!(result.contains("plg_my-skill"));
 }
 
 #[test]
-fn test_list_placed_plugins_dedup() {
+fn test_list_placed_components_dedup() {
     let items = vec![
-        "github/my-plugin/skill1".to_string(),
-        "github/my-plugin/skill2".to_string(),
-        "github/other-plugin/agent".to_string(),
+        "plg_skill1".to_string(),
+        "plg_skill1".to_string(),
+        "plg_skill2".to_string(),
     ];
-    let result = list_placed_plugins(&items);
+    let result = list_placed_components(&items);
     assert_eq!(result.len(), 2);
-    assert!(result.contains(&("github".to_string(), "my-plugin".to_string())));
-    assert!(result.contains(&("github".to_string(), "other-plugin".to_string())));
+    assert!(result.contains("plg_skill1"));
+    assert!(result.contains("plg_skill2"));
 }
 
 #[test]
-fn test_list_placed_plugins_ignores_invalid() {
+fn test_list_placed_components_excludes_instruction_files() {
     let items = vec![
-        "github/my-plugin/skill".to_string(),
-        "AGENTS.md".to_string(), // No slash, should be ignored
-        "/invalid".to_string(),  // Leading slash, should be ignored
+        "plg_skill".to_string(),
+        "AGENTS.md".to_string(),
+        "GEMINI.md".to_string(),
+        "copilot-instructions.md".to_string(),
     ];
-    let result = list_placed_plugins(&items);
+    let result = list_placed_components(&items);
     assert_eq!(result.len(), 1);
-    assert!(result.contains(&("github".to_string(), "my-plugin".to_string())));
+    assert!(result.contains("plg_skill"));
+    assert!(!result.contains("AGENTS.md"));
+    assert!(!result.contains("GEMINI.md"));
+    assert!(!result.contains("copilot-instructions.md"));
+}
+
+#[test]
+fn test_list_placed_components_excludes_empty_string() {
+    let items = vec!["".to_string(), "valid_name".to_string()];
+    let result = list_placed_components(&items);
+    assert_eq!(result.len(), 1);
+    assert!(result.contains("valid_name"));
 }

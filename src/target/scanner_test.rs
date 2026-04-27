@@ -1,26 +1,26 @@
 //! scanner モジュールのテスト
 
-use super::{scan_components, ScannedComponent};
+use super::scan_components;
 use std::fs;
 use tempfile::TempDir;
 
-/// 3層構造を正常にスキャンできる
+/// フラット 1 階層構造を正常にスキャンできる
 #[test]
-fn test_scan_components_three_level_structure() {
+fn test_scan_components_flat_dir() {
     let temp = TempDir::new().unwrap();
     let base = temp.path();
 
-    // 3層構造を作成: marketplace/plugin/component
-    let component_dir = base.join("official").join("my-plugin").join("my-skill");
+    // フラット構造: `<flattened_name>` を直下に配置
+    let component_dir = base.join("plugin_my-skill");
     fs::create_dir_all(&component_dir).unwrap();
 
     let results = scan_components(base).unwrap();
 
     assert_eq!(results.len(), 1);
     let component = &results[0];
-    assert_eq!(component.origin.marketplace, "official");
-    assert_eq!(component.origin.plugin, "my-plugin");
-    assert_eq!(component.name, "my-skill");
+    assert_eq!(component.origin.marketplace, "_");
+    assert_eq!(component.origin.plugin, "_");
+    assert_eq!(component.name, "plugin_my-skill");
     assert!(component.is_dir);
     assert_eq!(component.path, component_dir);
 }
@@ -36,55 +36,38 @@ fn test_scan_components_nonexistent_dir() {
     assert!(results.is_empty());
 }
 
-/// 中間層のファイルはスキップされる
+/// 直下のファイルもエントリとして拾われる（ディレクトリかどうかは is_dir で区別）
 #[test]
-fn test_scan_components_skips_files_at_intermediate_levels() {
+fn test_scan_components_includes_files_at_top_level() {
     let temp = TempDir::new().unwrap();
     let base = temp.path();
 
-    // 正常な3層構造
-    let component_dir = base.join("mp").join("plugin").join("skill");
-    fs::create_dir_all(&component_dir).unwrap();
-
-    // 中間層にファイルを置く (これはスキップされるべき)
-    fs::write(base.join("mp").join("stray-file.txt"), "ignored").unwrap();
-    fs::write(base.join("top-level-file.txt"), "ignored").unwrap();
+    fs::write(base.join("plugin_foo.agent.md"), "content").unwrap();
+    fs::create_dir_all(base.join("plugin_bar")).unwrap();
 
     let results = scan_components(base).unwrap();
 
-    // 3層構造のコンポーネントのみが取得される
-    assert_eq!(results.len(), 1);
-    assert_eq!(results[0].name, "skill");
+    assert_eq!(results.len(), 2);
+    let dirs: Vec<_> = results.iter().filter(|c| c.is_dir).collect();
+    let files: Vec<_> = results.iter().filter(|c| !c.is_dir).collect();
+    assert_eq!(dirs.len(), 1);
+    assert_eq!(files.len(), 1);
 }
 
-/// 複数のコンポーネントをスキャンできる
+/// 複数のフラットエントリをスキャンできる
 #[test]
 fn test_scan_components_multiple() {
     let temp = TempDir::new().unwrap();
     let base = temp.path();
 
-    // 複数のコンポーネント
-    fs::create_dir_all(base.join("mp1").join("plugin-a").join("skill-1")).unwrap();
-    fs::create_dir_all(base.join("mp1").join("plugin-a").join("skill-2")).unwrap();
-    fs::create_dir_all(base.join("mp2").join("plugin-b").join("agent")).unwrap();
-
-    // ファイルコンポーネントも含む
-    fs::create_dir_all(base.join("mp1").join("plugin-c")).unwrap();
-    fs::write(
-        base.join("mp1").join("plugin-c").join("test.agent.md"),
-        "content",
-    )
-    .unwrap();
+    fs::create_dir_all(base.join("plg-a_skill-1")).unwrap();
+    fs::create_dir_all(base.join("plg-a_skill-2")).unwrap();
+    fs::create_dir_all(base.join("plg-b_skill-3")).unwrap();
+    fs::write(base.join("plg-c_test.agent.md"), "content").unwrap();
 
     let results = scan_components(base).unwrap();
 
     assert_eq!(results.len(), 4);
-
-    // ディレクトリとファイルが両方含まれる
-    let dirs: Vec<_> = results.iter().filter(|c| c.is_dir).collect();
-    let files: Vec<_> = results.iter().filter(|c| !c.is_dir).collect();
-    assert_eq!(dirs.len(), 3);
-    assert_eq!(files.len(), 1);
 }
 
 /// 空のディレクトリは空Vecを返す

@@ -214,6 +214,21 @@ fn test_list_hook_names_returns_empty_for_nonexistent() {
     assert!(list_hook_names(&nonexistent).is_empty());
 }
 
+#[test]
+fn test_list_hook_names_skips_dotfiles_with_empty_stem() {
+    let temp_dir = TempDir::new().unwrap();
+    let hooks_dir = temp_dir.path();
+
+    // ドットファイルは rsplit_once('.') が ("", ext) を返すため stem が空文字
+    // になる。flatten_name 後も `<plugin>_` という不完全な名前になり
+    // validate_path_segment で失敗するため、ここで除外する。
+    fs::write(hooks_dir.join(".gitignore"), "*.tmp").unwrap();
+    fs::write(hooks_dir.join(".env"), "FOO=bar").unwrap();
+    fs::write(hooks_dir.join("pre-commit.sh"), "#!/bin/sh").unwrap();
+
+    assert_eq!(names(list_hook_names(hooks_dir)), vec!["pre-commit"]);
+}
+
 // =========================================================================
 // list_markdown_names tests
 // =========================================================================
@@ -434,7 +449,8 @@ fn test_list_hook_names_dot_file() {
 
     fs::write(hooks_dir.join(".env"), "KEY=VALUE").unwrap();
 
-    assert_eq!(names(list_hook_names(hooks_dir)), vec![""]);
+    // ドットファイルは stem が空文字になるため Hook 候補から除外する。
+    assert!(list_hook_names(hooks_dir).is_empty());
 }
 
 #[test]
@@ -454,7 +470,8 @@ fn test_list_hook_names_only_extension() {
 
     fs::write(hooks_dir.join(".gitignore"), "*.log").unwrap();
 
-    assert_eq!(names(list_hook_names(hooks_dir)), vec![""]);
+    // 拡張子のみのドットファイルも stem が空のため除外する。
+    assert!(list_hook_names(hooks_dir).is_empty());
 }
 
 #[test]

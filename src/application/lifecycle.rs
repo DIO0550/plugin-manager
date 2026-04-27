@@ -11,7 +11,8 @@
 
 use crate::component::Component;
 use crate::plugin::{
-    cleanup_plugin_directories, load_plugin, PackageCacheAccess, PluginAction, PluginIntent,
+    cleanup_legacy_hierarchy, cleanup_plugin_directories, load_plugin, PackageCacheAccess,
+    PluginAction, PluginIntent,
 };
 use crate::target::{all_targets, OperationResult};
 use std::path::Path;
@@ -68,6 +69,7 @@ pub fn disable_plugin(
         };
         for target in &targets_to_cleanup {
             cleanup_plugin_directories(target.kind(), plugin.origin(), project_root);
+            cleanup_legacy_hierarchy(target.kind(), plugin.origin(), project_root);
         }
     }
 

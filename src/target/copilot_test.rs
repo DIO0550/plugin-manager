@@ -37,12 +37,14 @@ fn test_copilot_skill_personal_not_supported() {
 
 #[test]
 fn test_copilot_placement_location_skill_project() {
+    // インストール経路では `Component.name` が `flatten_name(plugin, original)
+    // = "{plugin}_{original}"` に平坦化されるため、テストもその形を使う。
     let target = CopilotTarget::new();
     let project_root = Path::new("/project");
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
+        component: ComponentRef::new(ComponentKind::Skill, "my-plugin_my-skill"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -52,33 +54,36 @@ fn test_copilot_placement_location_skill_project() {
     assert!(location.is_dir());
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.github/skills/official/my-plugin/my-skill")
+        Path::new("/project/.github/skills/my-plugin_my-skill")
     );
 }
 
 #[test]
 fn test_copilot_placement_location_agent() {
+    // インストール経路では Agent も `flatten_name(plugin, original)
+    // = "{plugin}_{original}"` に平坦化されるため、テストもその形を使う。
     let target = CopilotTarget::new();
     let project_root = Path::new("/project");
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     // Personal scope
     let ctx_personal = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Agent, "test"),
+        component: ComponentRef::new(ComponentKind::Agent, "my-plugin_test"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Personal),
         project: ProjectContext::new(project_root),
     };
     let location_personal = target.placement_location(&ctx_personal).unwrap();
     assert!(location_personal.is_file());
-    assert!(location_personal
-        .as_path()
-        .to_string_lossy()
-        .contains(".copilot/agents/official/my-plugin/test.agent.md"));
+    assert!(location_personal.as_path().ends_with(
+        Path::new(".copilot")
+            .join("agents")
+            .join("my-plugin_test.agent.md")
+    ));
 
     // Project scope
     let ctx_project = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Agent, "test"),
+        component: ComponentRef::new(ComponentKind::Agent, "my-plugin_test"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -87,19 +92,21 @@ fn test_copilot_placement_location_agent() {
     assert!(location_project.is_file());
     assert_eq!(
         location_project.as_path(),
-        Path::new("/project/.github/agents/official/my-plugin/test.agent.md")
+        Path::new("/project/.github/agents/my-plugin_test.agent.md")
     );
 }
 
 #[test]
 fn test_copilot_placement_location_command() {
+    // インストール経路では Command も `flatten_name(plugin, original)
+    // = "{plugin}_{original}"` に平坦化されるため、テストもその形を使う。
     let target = CopilotTarget::new();
     let project_root = Path::new("/project");
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     // Personal scope for commands is not supported
     let ctx_personal = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Command, "my-command"),
+        component: ComponentRef::new(ComponentKind::Command, "my-plugin_my-command"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Personal),
         project: ProjectContext::new(project_root),
@@ -108,7 +115,7 @@ fn test_copilot_placement_location_command() {
 
     // Project scope
     let ctx_project = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Command, "my-command"),
+        component: ComponentRef::new(ComponentKind::Command, "my-plugin_my-command"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -117,7 +124,7 @@ fn test_copilot_placement_location_command() {
     assert!(location.is_file());
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.github/prompts/official/my-plugin/my-command.prompt.md")
+        Path::new("/project/.github/prompts/my-plugin_my-command.prompt.md")
     );
 }
 
@@ -156,7 +163,7 @@ fn test_copilot_placement_location_with_prefixed_name() {
     };
     assert_eq!(
         target.placement_location(&skill_ctx).unwrap().as_path(),
-        Path::new("/project/.github/skills/official/my-plugin/myplugin_foo")
+        Path::new("/project/.github/skills/myplugin_foo")
     );
 
     let cmd_ctx = PlacementContext {
@@ -167,7 +174,7 @@ fn test_copilot_placement_location_with_prefixed_name() {
     };
     assert_eq!(
         target.placement_location(&cmd_ctx).unwrap().as_path(),
-        Path::new("/project/.github/prompts/official/my-plugin/myplugin_foo.prompt.md")
+        Path::new("/project/.github/prompts/myplugin_foo.prompt.md")
     );
 }
 
@@ -235,12 +242,14 @@ fn test_copilot_agent_single_file_edge_case() {
 
 #[test]
 fn test_copilot_placement_location_hook_project() {
+    // フラット化後は Hook も `flatten_name(plugin, original) = "{plugin}_{stem}"`
+    // で配置されるため、テストもプリフィックス済みの名前を使う。
     let target = CopilotTarget::new();
     let project_root = Path::new("/project");
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Hook, "pre-commit"),
+        component: ComponentRef::new(ComponentKind::Hook, "my-plugin_pre-commit"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -250,18 +259,20 @@ fn test_copilot_placement_location_hook_project() {
     assert!(location.is_file());
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.github/hooks/official/my-plugin/pre-commit.json")
+        Path::new("/project/.github/hooks/my-plugin_pre-commit.json")
     );
 }
 
 #[test]
 fn test_copilot_placement_location_hook_personal() {
+    // フラット化後は Hook も `flatten_name(plugin, original) = "{plugin}_{stem}"`
+    // で配置されるため、テストもプリフィックス済みの名前を使う。
     let target = CopilotTarget::new();
     let project_root = Path::new("/project");
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Hook, "pre-commit"),
+        component: ComponentRef::new(ComponentKind::Hook, "my-plugin_pre-commit"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Personal),
         project: ProjectContext::new(project_root),
@@ -269,10 +280,11 @@ fn test_copilot_placement_location_hook_personal() {
     let location = target.placement_location(&ctx).unwrap();
 
     assert!(location.is_file());
-    assert!(location
-        .as_path()
-        .to_string_lossy()
-        .contains(".copilot/hooks/official/my-plugin/pre-commit.json"));
+    assert!(location.as_path().ends_with(
+        Path::new(".copilot")
+            .join("hooks")
+            .join("my-plugin_pre-commit.json")
+    ));
 }
 
 #[test]
@@ -283,14 +295,10 @@ fn test_copilot_list_placed_hooks() {
     let temp = TempDir::new().unwrap();
     let project_root = temp.path();
 
-    // hooks ディレクトリ構造を作成: .github/hooks/mkt/plugin/hook.json
-    let hooks_dir = project_root
-        .join(".github")
-        .join("hooks")
-        .join("official")
-        .join("my-plugin");
+    // フラット 2 階層構造: .github/hooks/<flattened_name>.json
+    let hooks_dir = project_root.join(".github").join("hooks");
     fs::create_dir_all(&hooks_dir).unwrap();
-    fs::write(hooks_dir.join("pre-commit.json"), "{}").unwrap();
+    fs::write(hooks_dir.join("my-plugin_pre-commit.json"), "{}").unwrap();
 
     let target = CopilotTarget::new();
     let result = target
@@ -298,5 +306,43 @@ fn test_copilot_list_placed_hooks() {
         .unwrap();
 
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0], "official/my-plugin/pre-commit");
+    // origin は scanner プレースホルダ ("_") だが、`PluginOrigin::qualify` は
+    // フラット化以降 `name` 単独を返すため、そのまま flattened_name を期待する。
+    assert_eq!(result[0], "my-plugin_pre-commit");
+}
+
+#[test]
+fn test_copilot_filter_component_skill_requires_skill_md() {
+    use std::fs;
+    use tempfile::TempDir;
+
+    let temp = TempDir::new().unwrap();
+    let project_root = temp.path();
+
+    // SKILL.md なしの Skill ディレクトリ -> Skill 扱いされない
+    let skill_dir = project_root
+        .join(".github")
+        .join("skills")
+        .join("plugin_no-skill-md");
+    fs::create_dir_all(&skill_dir).unwrap();
+
+    let target = CopilotTarget::new();
+    let result = target
+        .list_placed(ComponentKind::Skill, Scope::Project, project_root)
+        .unwrap();
+    assert!(result.is_empty(), "Skill without SKILL.md must be ignored");
+
+    // SKILL.md ありの Skill ディレクトリ -> Skill として認識
+    let valid_skill = project_root
+        .join(".github")
+        .join("skills")
+        .join("plugin_my-skill");
+    fs::create_dir_all(&valid_skill).unwrap();
+    fs::write(valid_skill.join("SKILL.md"), "# Skill").unwrap();
+
+    let result = target
+        .list_placed(ComponentKind::Skill, Scope::Project, project_root)
+        .unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0], "plugin_my-skill");
 }

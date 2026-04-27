@@ -3,7 +3,9 @@ use std::path::{Path, PathBuf};
 use crate::component::{AgentFormat, CommandFormat, ComponentKind, Scope};
 use crate::component::{Component, ComponentDeployment, ConversionConfig, DeploymentOutput};
 use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
-use crate::plugin::{MarketplaceContent, PackageCache, PackageCacheAccess};
+use crate::plugin::{
+    cleanup_legacy_hierarchy, MarketplaceContent, PackageCache, PackageCacheAccess,
+};
 use crate::source::parse_source;
 use crate::target::{PluginOrigin, Target, TargetKind};
 
@@ -166,6 +168,8 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
         PluginOrigin::from_cached_plugin(request.scanned.marketplace(), request.scanned.id());
 
     for target in request.targets {
+        let failures_before = failures.len();
+
         for component in &request.scanned.components {
             if !target.supports(component.kind) {
                 continue;
@@ -262,6 +266,18 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
                     });
                 }
             }
+        }
+
+        // 旧 3 階層構造 (<base>/<plural>/<mp>/<plg>) のクリーンアップは
+        // 当該 target 内で failure が発生しなかった場合に実行する。
+        // 途中で failure があった場合に旧階層を消すと「新旧どちらも残らない」
+        // 状態を招きうるため、ロールバック相当として旧階層を温存する。
+        // 一方、配置件数が 0 件（target がサポートしないコンポーネントだけ
+        // の場合など）でも failure がなければ、install 実行時の自動クリーン
+        // アップ対象とし旧階層が永続するのを避ける。
+        let target_had_failure = failures.len() > failures_before;
+        if !target_had_failure {
+            cleanup_legacy_hierarchy(target.kind(), &origin, request.project_root);
         }
     }
 

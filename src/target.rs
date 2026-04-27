@@ -110,12 +110,30 @@ impl PluginOrigin {
         }
     }
 
-    /// `{marketplace}/{plugin}/{name}` 形式の完全修飾名を返す。
+    /// origin が復元できない場面で埋めるプレースホルダ。
     ///
-    /// target の `filter_component` や list_placed で配置物の識別キーを
-    /// 組み立てる際に使用する。
+    /// フラット 2 階層構造 `<base>/<plural>/<flattened_name>` では配置物から
+    /// `marketplace` / `plugin` を復元できない。スキャン層 (`scan_components`)
+    /// と sync ソース (`parse_component_name`) はいずれも `flattened_name`
+    /// 単独でキー化する想定でこのプレースホルダを埋める。利用側はこの
+    /// フィールドを参照してはならない。
+    pub fn placeholder() -> Self {
+        Self {
+            marketplace: "_".to_string(),
+            plugin: "_".to_string(),
+        }
+    }
+
+    /// 配置物の識別キー（フラット化された `name` 単独）を返す。
+    ///
+    /// `<base>/<plural>/<flattened_name>` 構造ではマーケットプレイス/プラグイン
+    /// 段が存在しないため、配置物からは `flattened_name` のみ復元できる。
+    /// 過去は `{marketplace}/{plugin}/{name}` の 3 セグメントを返していたが、
+    /// フラット化後は識別子としても `name` を返す。
     pub fn qualify(&self, name: &str) -> String {
-        format!("{}/{}/{}", self.marketplace, self.plugin, name)
+        // marketplace/plugin はもはや配置物識別に使われないため、引数 self は
+        // 互換のためだけに残す。将来の API クリーンアップで削除候補。
+        name.to_string()
     }
 }
 
