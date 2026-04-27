@@ -37,12 +37,14 @@ fn test_copilot_skill_personal_not_supported() {
 
 #[test]
 fn test_copilot_placement_location_skill_project() {
+    // インストール経路では `Component.name` が `flatten_name(plugin, original)
+    // = "{plugin}_{original}"` に平坦化されるため、テストもその形を使う。
     let target = CopilotTarget::new();
     let project_root = Path::new("/project");
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
+        component: ComponentRef::new(ComponentKind::Skill, "my-plugin_my-skill"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -52,7 +54,7 @@ fn test_copilot_placement_location_skill_project() {
     assert!(location.is_dir());
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.github/skills/my-skill")
+        Path::new("/project/.github/skills/my-plugin_my-skill")
     );
 }
 
