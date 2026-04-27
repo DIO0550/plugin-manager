@@ -73,8 +73,7 @@ fn test_copilot_placement_location_agent() {
     assert!(location_personal.is_file());
     assert!(location_personal
         .as_path()
-        .to_string_lossy()
-        .contains(".copilot/agents/test.agent.md"));
+        .ends_with(Path::new(".copilot").join("agents").join("test.agent.md")));
 
     // Project scope
     let ctx_project = PlacementContext {
