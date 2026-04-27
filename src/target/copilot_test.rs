@@ -258,12 +258,14 @@ fn test_copilot_placement_location_hook_project() {
 
 #[test]
 fn test_copilot_placement_location_hook_personal() {
+    // フラット化後は Hook も `flatten_name(plugin, original) = "{plugin}_{stem}"`
+    // で配置されるため、テストもプリフィックス済みの名前を使う。
     let target = CopilotTarget::new();
     let project_root = Path::new("/project");
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Hook, "pre-commit"),
+        component: ComponentRef::new(ComponentKind::Hook, "my-plugin_pre-commit"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Personal),
         project: ProjectContext::new(project_root),
@@ -274,7 +276,7 @@ fn test_copilot_placement_location_hook_personal() {
     assert!(location
         .as_path()
         .to_string_lossy()
-        .contains(".copilot/hooks/pre-commit.json"));
+        .contains(".copilot/hooks/my-plugin_pre-commit.json"));
 }
 
 #[test]
