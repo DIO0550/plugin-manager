@@ -44,12 +44,15 @@ fn test_codex_placement_location_skill_with_hierarchy() {
 
 #[test]
 fn test_codex_placement_location_skill_github_direct() {
+    // インストール経路では `Component.name` が `flatten_name(plugin, original)
+    // = "{plugin}_{original}"` に平坦化されるため、origin の種別 (github) に
+    // 関わらずテストもその形を使う。
     let target = CodexTarget::new();
     let project_root = Path::new("/project");
     let origin = PluginOrigin::from_github("owner", "repo");
 
     let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
+        component: ComponentRef::new(ComponentKind::Skill, "my-plugin_my-skill"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -59,7 +62,7 @@ fn test_codex_placement_location_skill_github_direct() {
     assert!(location.is_dir());
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.codex/skills/my-skill")
+        Path::new("/project/.codex/skills/my-plugin_my-skill")
     );
 }
 
