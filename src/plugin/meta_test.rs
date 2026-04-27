@@ -620,6 +620,32 @@ fn test_build_deployed_plugin_set_no_partial_match() {
 }
 
 #[test]
+fn test_build_deployed_plugin_set_prefix_collision() {
+    // 既知の曖昧さ: `_` を含む plugin 名が包含関係になる場合、1 つの
+    // `flattened_name` から複数 plugin_name が拾われる。これは従来の
+    // `is_enabled` の prefix.starts_with と同じ挙動（後方互換）。
+    // 完全一意化には `flatten_name` の区切り文字再設計が必要。
+    let mut deployed: HashSet<String> = HashSet::new();
+    deployed.insert("foo_bar_baz".to_string());
+
+    let mut known: HashSet<String> = HashSet::new();
+    known.insert("foo".to_string());
+    known.insert("foo_bar".to_string());
+
+    let result = build_deployed_plugin_set(&deployed, &known);
+    assert_eq!(result.len(), 2);
+    assert!(result.contains("foo"));
+    assert!(result.contains("foo_bar"));
+
+    // 互換確認: 同じ deployed と plugin_name 個別に対する `is_enabled` も
+    // 両方 true を返す（false positive の挙動が build_deployed_plugin_set と
+    // 等価であること）。
+    let temp_dir = TempDir::new().unwrap();
+    assert!(is_enabled(temp_dir.path(), "github", "foo", &deployed));
+    assert!(is_enabled(temp_dir.path(), "github", "foo_bar", &deployed));
+}
+
+#[test]
 fn test_is_enabled_indexed_uses_status_by_target_when_present() {
     let temp_dir = TempDir::new().unwrap();
     let plugin_dir = temp_dir.path();

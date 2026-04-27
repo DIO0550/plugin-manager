@@ -356,6 +356,18 @@ pub fn is_enabled_indexed(
 /// プラグイン数 N に対して `is_enabled` を呼ぶ経路では、従来の
 /// `O(N × |deployed|)` を `O(sum(|name|) + N)` に改善する。
 ///
+/// # 既知の曖昧さ（プレフィックス衝突）
+///
+/// `"{plugin}_{original}"` 形式は `_` を含む plugin / original では分解が
+/// 一意にならない。例えば `plugin_names = {"foo", "foo_bar"}` で
+/// `deployed = {"foo_bar_baz"}` の場合、`"foo"` も `"foo_bar"` もマッチする
+/// ため両プラグインが enabled として返る。これは従来の
+/// `is_enabled` の `prefix.starts_with` ロジックと同一の挙動で（後方互換）、
+/// 「false positive を許容する best-effort なアッパーバウンド」として扱う。
+/// 完全な一意性が必要な場合は `flatten_name` の区切り文字再設計
+/// （非英数記号への変更や escape）または plugin_name の `_` 禁止が必要。
+/// 衝突挙動は `test_build_deployed_plugin_set_prefix_collision` で固定する。
+///
 /// # Arguments
 ///
 /// * `deployed` - `list_all_placed` が返す `flattened_name` 集合
