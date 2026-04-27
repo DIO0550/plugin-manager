@@ -233,12 +233,14 @@ fn test_gemini_cli_placement_location_hook_returns_none() {
 
 #[test]
 fn test_gemini_cli_placement_with_github_origin() {
+    // インストール経路では `Component.name` が `flatten_name(plugin, original)
+    // = "{plugin}_{original}"` に平坦化される（origin 種別 github でも同じ）。
     let target = GeminiCliTarget::new();
     let project_root = Path::new("/project");
     let origin = PluginOrigin::from_github("owner", "repo");
 
     let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
+        component: ComponentRef::new(ComponentKind::Skill, "my-plugin_my-skill"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -248,7 +250,7 @@ fn test_gemini_cli_placement_with_github_origin() {
     assert!(location.is_dir());
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.gemini/skills/my-skill")
+        Path::new("/project/.gemini/skills/my-plugin_my-skill")
     );
 }
 
