@@ -85,8 +85,12 @@ fn test_antigravity_placement_location_skill_personal() {
     assert!(location.is_dir());
     // Personal scope uses ~/.gemini/antigravity/skills/
     let home = std::env::var("HOME").unwrap();
-    let expected = format!("{}/.gemini/antigravity/skills/my-skill", home);
-    assert_eq!(location.as_path(), Path::new(&expected));
+    let expected = std::path::PathBuf::from(home)
+        .join(".gemini")
+        .join("antigravity")
+        .join("skills")
+        .join("my-skill");
+    assert_eq!(location.as_path(), expected.as_path());
 }
 
 #[test]
