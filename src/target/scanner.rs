@@ -11,13 +11,6 @@ use std::path::{Path, PathBuf};
 use crate::error::{PlmError, Result};
 use crate::target::PluginOrigin;
 
-/// フラット配置で復元できない origin を埋めるプレースホルダ。
-///
-/// 旧 3 階層構造では `<marketplace>/<plugin>` が判別可能だったが、フラット化後
-/// は配置物 (`<base>/<plural>/<flattened_name>`) からは復元不能。利用側は
-/// `flattened_name` 単独でキー化する想定で、このフィールドは参照しない。
-const ORIGIN_PLACEHOLDER: &str = "_";
-
 /// スキャンで発見したコンポーネント
 #[derive(Debug, Clone)]
 pub struct ScannedComponent {
@@ -54,7 +47,7 @@ pub fn scan_components(base_dir: &Path) -> Result<Vec<ScannedComponent>> {
         // 既存挙動維持: path.is_dir() はメタデータエラーを握りつぶす
         let is_dir = path.is_dir();
         results.push(ScannedComponent {
-            origin: PluginOrigin::from_marketplace(ORIGIN_PLACEHOLDER, ORIGIN_PLACEHOLDER),
+            origin: PluginOrigin::placeholder(),
             name: entry_name_lossy(&entry),
             path,
             is_dir,

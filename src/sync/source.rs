@@ -188,7 +188,7 @@ pub fn parse_component_name(name: &str) -> Result<(PluginOrigin, &str)> {
     validate_flattened_name(name)?;
 
     // フラット配置では origin を復元できないためプレースホルダを埋める。
-    Ok((PluginOrigin::from_marketplace("_", "_"), name))
+    Ok((PluginOrigin::placeholder(), name))
 }
 
 /// `flattened_name` が単一の安全なパスセグメントであることを検証する。

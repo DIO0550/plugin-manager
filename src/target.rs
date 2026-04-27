@@ -110,6 +110,20 @@ impl PluginOrigin {
         }
     }
 
+    /// origin が復元できない場面で埋めるプレースホルダ。
+    ///
+    /// フラット 2 階層構造 `<base>/<plural>/<flattened_name>` では配置物から
+    /// `marketplace` / `plugin` を復元できない。スキャン層 (`scan_components`)
+    /// と sync ソース (`parse_component_name`) はいずれも `flattened_name`
+    /// 単独でキー化する想定でこのプレースホルダを埋める。利用側はこの
+    /// フィールドを参照してはならない。
+    pub fn placeholder() -> Self {
+        Self {
+            marketplace: "_".to_string(),
+            plugin: "_".to_string(),
+        }
+    }
+
     /// 配置物の識別キー（フラット化された `name` 単独）を返す。
     ///
     /// `<base>/<plural>/<flattened_name>` 構造ではマーケットプレイス/プラグイン
