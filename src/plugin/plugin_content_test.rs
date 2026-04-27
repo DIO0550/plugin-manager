@@ -593,7 +593,7 @@ fn test_plugin_new_hook_collision_returns_validation_error() {
 }
 
 #[test]
-fn test_plugin_new_rejects_hook_name_with_path_separator() {
+fn test_plugin_new_ignores_hooks_in_subdirectories() {
     let temp = TempDir::new().unwrap();
     let path = temp.path().to_path_buf();
     // ディレクトリ階層に置かれた Hook（再帰スキャンで `..` 等が混入した想定）
