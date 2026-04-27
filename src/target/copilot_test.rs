@@ -235,12 +235,14 @@ fn test_copilot_agent_single_file_edge_case() {
 
 #[test]
 fn test_copilot_placement_location_hook_project() {
+    // フラット化後は Hook も `flatten_name(plugin, original) = "{plugin}_{stem}"`
+    // で配置されるため、テストもプリフィックス済みの名前を使う。
     let target = CopilotTarget::new();
     let project_root = Path::new("/project");
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Hook, "pre-commit"),
+        component: ComponentRef::new(ComponentKind::Hook, "my-plugin_pre-commit"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -250,7 +252,7 @@ fn test_copilot_placement_location_hook_project() {
     assert!(location.is_file());
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.github/hooks/pre-commit.json")
+        Path::new("/project/.github/hooks/my-plugin_pre-commit.json")
     );
 }
 
@@ -273,27 +275,6 @@ fn test_copilot_placement_location_hook_personal() {
         .as_path()
         .to_string_lossy()
         .contains(".copilot/hooks/pre-commit.json"));
-}
-
-#[test]
-fn test_copilot_placement_location_hook_with_prefixed_name() {
-    let target = CopilotTarget::new();
-    let project_root = Path::new("/project");
-    let origin = PluginOrigin::from_marketplace("official", "my-plugin");
-
-    let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Hook, "my-plugin_pre-commit"),
-        origin: &origin,
-        scope: PlacementScope::new(Scope::Project),
-        project: ProjectContext::new(project_root),
-    };
-    let location = target.placement_location(&ctx).unwrap();
-
-    assert!(location.is_file());
-    assert_eq!(
-        location.as_path(),
-        Path::new("/project/.github/hooks/my-plugin_pre-commit.json")
-    );
 }
 
 #[test]
