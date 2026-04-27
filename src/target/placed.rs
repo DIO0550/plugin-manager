@@ -11,10 +11,12 @@ use std::path::Path;
 
 /// 全ターゲットから配置済みコンポーネントの `flattened_name` 集合を収集する。
 ///
-/// 全ターゲット・全コンポーネント種別のデプロイ済みコンポーネントを走査し、
+/// 全ターゲット・全コンポーネント種別の **Project scope のみ** を走査し、
 /// Instruction ファイル名を除いた `flattened_name` の重複なし集合を返す。
-/// フラット 2 階層構造へ移行後は `(marketplace, plugin)` ペアでは識別できない
-/// ため、戻り値の型を `HashSet<String>` に変更している。
+/// Personal scope（`~/.codex/`, `~/.copilot/` 等）は走査せず、Personal の
+/// 配置検知は `.plm-meta.json` の `statusByTarget` 経由（`is_enabled` の優先
+/// パス）に委ねる。フラット 2 階層構造へ移行後は `(marketplace, plugin)`
+/// ペアでは識別できないため、戻り値の型を `HashSet<String>` に変更している。
 ///
 /// # Arguments
 ///
