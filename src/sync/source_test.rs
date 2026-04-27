@@ -45,3 +45,21 @@ fn test_parse_component_name_rejects_slashes() {
     let result = parse_component_name("/leading-slash");
     assert!(result.is_err());
 }
+
+#[test]
+fn test_parse_component_name_rejects_empty() {
+    let result = parse_component_name("");
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_parse_component_name_rejects_dot_segments() {
+    assert!(parse_component_name(".").is_err());
+    assert!(parse_component_name("..").is_err());
+}
+
+#[test]
+fn test_parse_component_name_rejects_backslashes_and_nul() {
+    assert!(parse_component_name("a\\b").is_err());
+    assert!(parse_component_name("a\0b").is_err());
+}

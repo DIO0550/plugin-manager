@@ -171,7 +171,10 @@ impl SyncSource {
 ///
 /// フラット化後の識別子は `flattened_name` 単一セグメントのみ。Instruction
 /// (AGENTS.md / copilot-instructions.md / GEMINI.md) はそのままファイル名で
-/// 受け取る特例とする。`/` を含むレガシー識別子は `InvalidArgument` で拒否する。
+/// 受け取る特例とする。空文字・パス区切り (`/` `\`) ・null バイト・`.` / `..` ・
+/// 複合パスを含むレガシー識別子は `InvalidArgument` で拒否する
+/// (`placement_location` が `base.join(name)` を直接行うためベースディレクトリ
+/// 外への書き込みを防ぐ)。
 ///
 /// # Arguments
 ///
@@ -182,15 +185,40 @@ pub fn parse_component_name(name: &str) -> Result<(PluginOrigin, &str)> {
         return Ok((PluginOrigin::from_marketplace("", ""), name));
     }
 
-    if name.contains('/') {
-        return Err(PlmError::InvalidArgument(format!(
-            "Invalid component name format: '{}'. Expected a single flattened segment",
-            name
-        )));
-    }
+    validate_flattened_name(name)?;
 
     // フラット配置では origin を復元できないためプレースホルダを埋める。
     Ok((PluginOrigin::from_marketplace("_", "_"), name))
+}
+
+/// `flattened_name` が単一の安全なパスセグメントであることを検証する。
+fn validate_flattened_name(name: &str) -> Result<()> {
+    if name.is_empty() {
+        return Err(PlmError::InvalidArgument(
+            "Component name must not be empty".to_string(),
+        ));
+    }
+    if name.contains('/') || name.contains('\\') || name.contains('\0') {
+        return Err(PlmError::InvalidArgument(format!(
+            "Invalid component name '{}': must not contain path separators or null bytes",
+            name
+        )));
+    }
+    if name == "." || name == ".." {
+        return Err(PlmError::InvalidArgument(format!(
+            "Invalid component name '{}': must not be a parent/current directory reference",
+            name
+        )));
+    }
+    let mut components = Path::new(name).components();
+    let first = components.next();
+    if components.next().is_some() || !matches!(first, Some(std::path::Component::Normal(_))) {
+        return Err(PlmError::InvalidArgument(format!(
+            "Invalid component name '{}': must be a single flattened segment",
+            name
+        )));
+    }
+    Ok(())
 }
 
 #[cfg(test)]
