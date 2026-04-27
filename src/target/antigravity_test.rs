@@ -97,12 +97,14 @@ fn test_antigravity_placement_location_skill_personal() {
 
 #[test]
 fn test_antigravity_placement_location_skill_project() {
+    // インストール経路では `Component.name` が `flatten_name(plugin, original)
+    // = "{plugin}_{original}"` に平坦化されるため、テストもその形を使う。
     let target = AntigravityTarget::new();
     let project_root = Path::new("/project");
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
+        component: ComponentRef::new(ComponentKind::Skill, "my-plugin_my-skill"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -113,7 +115,7 @@ fn test_antigravity_placement_location_skill_project() {
     // Project scope uses .agent/skills/
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.agent/skills/my-skill")
+        Path::new("/project/.agent/skills/my-plugin_my-skill")
     );
 }
 
