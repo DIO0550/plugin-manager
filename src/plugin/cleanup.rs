@@ -31,15 +31,39 @@ pub(crate) fn cleanup_plugin_directories(
     project_root: &Path,
 ) {
     let fs = RealFs;
-    // HOME="" や HOME="   " を未設定相当として扱う。
-    // そのまま PathBuf::from("") を使うと personal cleanup が `./.codex` 等の
-    // CWD 配下パスで走ってしまうため、trim 後に空なら None にフォールバックする。
-    let home = std::env::var("HOME")
-        .ok()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-        .map(PathBuf::from);
+    let home = resolve_home_dir();
     cleanup_plugin_directories_impl(&fs, kind, home.as_deref(), origin, project_root);
+}
+
+/// `HOME` 環境変数を正規化する。
+///
+/// 以下を一箇所で扱い、`cleanup_plugin_directories` と
+/// `cleanup_legacy_hierarchy` の両者で挙動が分岐しないようにする:
+/// - 未設定 / 空文字 / 空白のみは `None`
+/// - 非 UTF-8 値も `OsString` のまま受理（`var_os`）
+/// - 相対パス（例: `.` や `tmp`）は `None`。CWD 配下で
+///   `quarantine rename + remove_dir_all` が走るリスクを避けるため
+fn resolve_home_dir() -> Option<PathBuf> {
+    let home = std::env::var_os("HOME")?;
+
+    let home = match home.to_str() {
+        Some(s) => {
+            let trimmed = s.trim();
+            if trimmed.is_empty() {
+                return None;
+            }
+            PathBuf::from(trimmed)
+        }
+        None => {
+            let path = PathBuf::from(home);
+            if path.as_os_str().is_empty() {
+                return None;
+            }
+            path
+        }
+    };
+
+    home.is_absolute().then_some(home)
 }
 
 /// 内部実装 — `home` と `fs` を注入可能にし、テストから直接呼ぶ。
@@ -181,15 +205,9 @@ pub(crate) fn cleanup_legacy_hierarchy(
     origin: &PluginOrigin,
     project_root: &Path,
 ) {
-    // HOME が相対パス（例: "." / "tmp"）の場合に personal sweep が
-    // カレント配下で quarantine rename + remove_dir_all を走らせるリスクを
-    // 避けるため、絶対パスのみ採用する。
-    let home = std::env::var("HOME")
-        .ok()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-        .map(PathBuf::from)
-        .filter(|p| p.is_absolute());
+    // HOME 正規化（空白/空文字・相対パス・非 UTF-8 の扱い）は
+    // `cleanup_plugin_directories` と共通 helper `resolve_home_dir` に集約。
+    let home = resolve_home_dir();
     cleanup_legacy_hierarchy_impl(kind, home.as_deref(), origin, project_root);
 }
 
