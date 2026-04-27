@@ -30,6 +30,11 @@ pub(crate) fn list_all_placed(project_root: &Path) -> HashSet<String> {
             if !target.supports(*kind) {
                 continue;
             }
+            // Instruction の戻り値は後段の `list_placed_components` で
+            // 除外されるため、ファイルシステム探査自体をスキップする。
+            if matches!(kind, ComponentKind::Instruction) {
+                continue;
+            }
             // エラー時は黙殺（保守的に deployed とみなさない）
             if let Ok(placed) = target.list_placed(*kind, Scope::Project, project_root) {
                 all_items.extend(placed);
