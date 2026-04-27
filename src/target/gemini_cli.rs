@@ -90,7 +90,6 @@ impl Target for GeminiCliTarget {
         let scope = context.scope();
         let project_root = context.project_root();
         let base = Self::base_dir(scope, project_root);
-        let _ = context.origin;
         let name = context.name();
 
         Some(match kind {
