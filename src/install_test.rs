@@ -294,13 +294,20 @@ fn test_place_plugin_uses_id_for_origin() {
     assert_eq!(result.plugin_name, "My Plugin");
     assert_eq!(result.successes.len(), 1);
     let component_name = &result.successes[0].component_name;
-    let target_path = result.successes[0].target_path.to_string_lossy();
+    let target_path = &result.successes[0].target_path;
+    let last_segment = target_path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("");
+    // ディレクトリ配置 (Skill) は完全一致、ファイル配置 (Agent/Command/Hook) は
+    // `<flattened_name>.<ext>` のため接頭辞 + `.` で判定する。
+    let matches = last_segment == component_name.as_str()
+        || last_segment.starts_with(&format!("{}.", component_name));
     assert!(
-        target_path.ends_with(component_name.as_str())
-            || target_path.contains(&format!("/{}", component_name)),
-        "target path should end with flattened component name '{}', got: {}",
+        matches,
+        "target path last segment should be flattened component name '{}', got: {}",
         component_name,
-        target_path
+        target_path.display()
     );
 }
 
