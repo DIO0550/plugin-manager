@@ -119,7 +119,6 @@ impl PluginOrigin {
     pub fn qualify(&self, name: &str) -> String {
         // marketplace/plugin はもはや配置物識別に使われないため、引数 self は
         // 互換のためだけに残す。将来の API クリーンアップで削除候補。
-        let _ = (&self.marketplace, &self.plugin);
         name.to_string()
     }
 }
