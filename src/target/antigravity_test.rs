@@ -70,12 +70,14 @@ fn test_antigravity_supports_scope_skill_project() {
 
 #[test]
 fn test_antigravity_placement_location_skill_personal() {
+    // インストール経路では `Component.name` が `flatten_name(plugin, original)
+    // = "{plugin}_{original}"` に平坦化されるため、テストもその形を使う。
     let target = AntigravityTarget::new();
     let project_root = Path::new("/project");
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
+        component: ComponentRef::new(ComponentKind::Skill, "my-plugin_my-skill"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Personal),
         project: ProjectContext::new(project_root),
@@ -89,7 +91,7 @@ fn test_antigravity_placement_location_skill_personal() {
         .join(".gemini")
         .join("antigravity")
         .join("skills")
-        .join("my-skill");
+        .join("my-plugin_my-skill");
     assert_eq!(location.as_path(), expected.as_path());
 }
 
