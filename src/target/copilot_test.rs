@@ -60,26 +60,30 @@ fn test_copilot_placement_location_skill_project() {
 
 #[test]
 fn test_copilot_placement_location_agent() {
+    // インストール経路では Agent も `flatten_name(plugin, original)
+    // = "{plugin}_{original}"` に平坦化されるため、テストもその形を使う。
     let target = CopilotTarget::new();
     let project_root = Path::new("/project");
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     // Personal scope
     let ctx_personal = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Agent, "test"),
+        component: ComponentRef::new(ComponentKind::Agent, "my-plugin_test"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Personal),
         project: ProjectContext::new(project_root),
     };
     let location_personal = target.placement_location(&ctx_personal).unwrap();
     assert!(location_personal.is_file());
-    assert!(location_personal
-        .as_path()
-        .ends_with(Path::new(".copilot").join("agents").join("test.agent.md")));
+    assert!(location_personal.as_path().ends_with(
+        Path::new(".copilot")
+            .join("agents")
+            .join("my-plugin_test.agent.md")
+    ));
 
     // Project scope
     let ctx_project = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Agent, "test"),
+        component: ComponentRef::new(ComponentKind::Agent, "my-plugin_test"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -88,7 +92,7 @@ fn test_copilot_placement_location_agent() {
     assert!(location_project.is_file());
     assert_eq!(
         location_project.as_path(),
-        Path::new("/project/.github/agents/test.agent.md")
+        Path::new("/project/.github/agents/my-plugin_test.agent.md")
     );
 }
 
