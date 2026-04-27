@@ -272,10 +272,11 @@ fn test_copilot_placement_location_hook_personal() {
     let location = target.placement_location(&ctx).unwrap();
 
     assert!(location.is_file());
-    assert!(location
-        .as_path()
-        .to_string_lossy()
-        .contains(".copilot/hooks/my-plugin_pre-commit.json"));
+    assert!(location.as_path().ends_with(
+        Path::new(".copilot")
+            .join("hooks")
+            .join("my-plugin_pre-commit.json")
+    ));
 }
 
 #[test]
