@@ -497,7 +497,7 @@ fn test_is_enabled_func_with_status_by_target_enabled() {
     write_meta(plugin_dir, &meta).unwrap();
 
     let deployed: HashSet<String> = HashSet::new();
-    assert!(is_enabled(plugin_dir, "github", "test-plugin", &deployed));
+    assert!(is_enabled(plugin_dir, "test-plugin", &deployed));
 }
 
 #[test]
@@ -511,7 +511,7 @@ fn test_is_enabled_func_with_status_by_target_disabled() {
     write_meta(plugin_dir, &meta).unwrap();
 
     let deployed: HashSet<String> = HashSet::new();
-    assert!(!is_enabled(plugin_dir, "github", "test-plugin", &deployed));
+    assert!(!is_enabled(plugin_dir, "test-plugin", &deployed));
 }
 
 #[test]
@@ -527,7 +527,7 @@ fn test_is_enabled_func_fallback_to_deployed() {
     let mut deployed: HashSet<String> = HashSet::new();
     deployed.insert("test-plugin_my-skill".to_string());
 
-    assert!(is_enabled(plugin_dir, "github", "test-plugin", &deployed));
+    assert!(is_enabled(plugin_dir, "test-plugin", &deployed));
 }
 
 #[test]
@@ -540,7 +540,7 @@ fn test_is_enabled_func_fallback_not_deployed() {
     write_meta(plugin_dir, &meta).unwrap();
 
     let deployed: HashSet<String> = HashSet::new();
-    assert!(!is_enabled(plugin_dir, "github", "test-plugin", &deployed));
+    assert!(!is_enabled(plugin_dir, "test-plugin", &deployed));
 }
 
 #[test]
@@ -552,7 +552,7 @@ fn test_is_enabled_func_no_meta_file_fallback() {
     let mut deployed: HashSet<String> = HashSet::new();
     deployed.insert("test-plugin_my-skill".to_string());
 
-    assert!(is_enabled(plugin_dir, "github", "test-plugin", &deployed));
+    assert!(is_enabled(plugin_dir, "test-plugin", &deployed));
 }
 
 #[test]
@@ -566,7 +566,7 @@ fn test_is_enabled_func_prefix_no_partial_match() {
     let mut deployed: HashSet<String> = HashSet::new();
     deployed.insert("test-plugin-other_x".to_string());
 
-    assert!(!is_enabled(plugin_dir, "github", "test-plugin", &deployed));
+    assert!(!is_enabled(plugin_dir, "test-plugin", &deployed));
 }
 
 // =============================================================================
@@ -641,8 +641,8 @@ fn test_build_deployed_plugin_set_prefix_collision() {
     // 両方 true を返す（false positive の挙動が build_deployed_plugin_set と
     // 等価であること）。
     let temp_dir = TempDir::new().unwrap();
-    assert!(is_enabled(temp_dir.path(), "github", "foo", &deployed));
-    assert!(is_enabled(temp_dir.path(), "github", "foo_bar", &deployed));
+    assert!(is_enabled(temp_dir.path(), "foo", &deployed));
+    assert!(is_enabled(temp_dir.path(), "foo_bar", &deployed));
 }
 
 #[test]

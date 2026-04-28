@@ -295,18 +295,12 @@ pub fn resolve_installed_at(
 /// # Arguments
 ///
 /// * `cache_path` - プラグインのキャッシュパス
-/// * `_marketplace` - マーケットプレイス名（フラット化後は未使用、互換のために残す）
 /// * `plugin_name` - プラグイン名（`PluginManifest.name` 相当）
 /// * `deployed` - デプロイ済みコンポーネントの `flattened_name` 集合
 ///
 /// # Returns
 /// `true` if enabled, `false` otherwise
-pub fn is_enabled(
-    cache_path: &Path,
-    _marketplace: &str,
-    plugin_name: &str,
-    deployed: &HashSet<String>,
-) -> bool {
+pub fn is_enabled(cache_path: &Path, plugin_name: &str, deployed: &HashSet<String>) -> bool {
     if let Some(plugin_meta) = load_meta(cache_path) {
         if !plugin_meta.status_by_target.is_empty() {
             return plugin_meta.any_enabled();
