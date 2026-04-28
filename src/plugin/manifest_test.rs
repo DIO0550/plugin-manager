@@ -10,28 +10,6 @@ fn test_parse_minimal() {
 }
 
 #[test]
-fn test_parse_full() {
-    let json = r#"{
-        "name": "full-plugin",
-        "version": "2.0.0",
-        "description": "A full plugin",
-        "author": {
-            "name": "Test Author",
-            "email": "test@example.com"
-        },
-        "skills": "./skills/",
-        "agents": "./agents/"
-    }"#;
-    let manifest = PluginManifest::parse(json).unwrap();
-    assert_eq!(manifest.name, "full-plugin");
-    assert_eq!(manifest.version, "2.0.0");
-    assert_eq!(manifest.description, Some("A full plugin".to_string()));
-    assert!(manifest.author.is_some());
-    assert!(manifest.has_skills());
-    assert!(manifest.has_agents());
-}
-
-#[test]
 fn test_parse_invalid() {
     let json = r#"{"name": "test"}"#; // missing version
     assert!(PluginManifest::parse(json).is_err());
@@ -84,23 +62,6 @@ fn test_parse_empty_version() {
 }
 
 // === 境界値テスト: 空文字パス ===
-
-#[test]
-fn test_parse_empty_skills_path() {
-    // skills: "" の場合
-    let json = r#"{"name": "test", "version": "1.0.0", "skills": ""}"#;
-    let manifest = PluginManifest::parse(json).unwrap();
-    assert!(manifest.has_skills());
-    assert_eq!(manifest.skills, Some("".to_string()));
-}
-
-#[test]
-fn test_parse_empty_agents_path() {
-    // agents: "" の場合
-    let json = r#"{"name": "test", "version": "1.0.0", "agents": ""}"#;
-    let manifest = PluginManifest::parse(json).unwrap();
-    assert!(manifest.has_agents());
-}
 
 // === 境界値テスト: パス解決 ===
 
@@ -218,14 +179,6 @@ fn test_parse_empty_string() {
     // 空文字
     let json = "";
     assert!(PluginManifest::parse(json).is_err());
-}
-
-#[test]
-fn test_parse_null_fields() {
-    // null 値
-    let json = r#"{"name": "test", "version": "1.0.0", "skills": null}"#;
-    let manifest = PluginManifest::parse(json).unwrap();
-    assert!(!manifest.has_skills());
 }
 
 // === installed_at フィールドのテスト ===

@@ -78,26 +78,6 @@ impl PluginManifest {
         Self::parse(&content)
     }
 
-    /// スキルが含まれているか
-    pub fn has_skills(&self) -> bool {
-        self.skills.is_some()
-    }
-
-    /// エージェントが含まれているか
-    pub fn has_agents(&self) -> bool {
-        self.agents.is_some()
-    }
-
-    /// コマンドが含まれているか
-    pub fn has_commands(&self) -> bool {
-        self.commands.is_some()
-    }
-
-    /// インストラクションが含まれているか
-    pub fn has_instructions(&self) -> bool {
-        self.instructions.is_some()
-    }
-
     /// スキルディレクトリのパスを解決
     ///
     /// # Arguments
