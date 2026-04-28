@@ -21,24 +21,6 @@ pub async fn download_with_progress(
     download_with_progress_impl(client, url, auth_header, "unknown").await
 }
 
-/// ホスト名付きプログレスバーダウンロード
-///
-/// # Arguments
-///
-/// * `client` - HTTP client used to issue the download request.
-/// * `url` - URL of the resource to download.
-/// * `auth_header` - Optional `(name, value)` pair appended as an HTTP header.
-/// * `_host` - Host label for future telemetry; currently unused.
-#[allow(dead_code)]
-pub async fn download_with_progress_and_host(
-    client: &Client,
-    url: &str,
-    auth_header: Option<(&str, String)>,
-    _host: &str,
-) -> Result<Vec<u8>> {
-    download_with_progress_impl(client, url, auth_header, _host).await
-}
-
 /// プログレスバー付きダウンロード実装
 ///
 /// # Arguments
