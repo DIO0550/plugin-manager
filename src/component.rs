@@ -10,8 +10,6 @@ mod placement;
 mod scoped_path;
 
 pub use convert::{AgentFormat, CommandFormat};
-#[allow(unused_imports)]
-pub use deployment::ComponentDeploymentBuilder;
 pub use deployment::{ComponentDeployment, ConversionConfig, DeploymentOutput};
 pub use file_operation::FileOperation;
 pub use kind::{Component, ComponentKind, Scope};
