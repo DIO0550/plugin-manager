@@ -44,17 +44,15 @@ impl CodexTarget {
     /// * `c` - Scanned component entry.
     /// * `kind` - Component kind expected for the entry.
     fn filter_component(c: &ScannedComponent, kind: ComponentKind) -> Option<String> {
-        let make_qualified = |name: &str| c.origin.qualify(name);
         match kind {
             // Skill: 直下に SKILL.md が存在するディレクトリのみ採用する。
             // 旧 3 階層 `<plural>/<mp>/<plg>/<skill>/SKILL.md` の中間段
             // (`<mp>` ディレクトリ等) を Skill と誤認しないための二重防御。
             ComponentKind::Skill if c.is_dir && c.path.join("SKILL.md").is_file() => {
-                Some(make_qualified(&c.name))
+                Some(c.name.clone())
             }
             ComponentKind::Agent if !c.is_dir && c.name.ends_with(".agent.md") => {
-                let name = c.name.trim_end_matches(".agent.md");
-                Some(make_qualified(name))
+                Some(c.name.trim_end_matches(".agent.md").to_string())
             }
             _ => None,
         }

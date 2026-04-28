@@ -208,7 +208,7 @@ fn test_antigravity_list_placed_with_skills() {
         .list_placed(ComponentKind::Skill, Scope::Project, project_root)
         .unwrap();
     assert_eq!(result.len(), 1);
-    // qualify は name 単独 (= flattened_name) を返す。
+    // フラット化された name (= flattened_name) を返す。
     assert_eq!(result[0], "plugin_skill-1");
 }
 

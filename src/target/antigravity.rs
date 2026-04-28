@@ -54,7 +54,7 @@ impl AntigravityTarget {
             ComponentKind::Skill if c.is_dir => {
                 let skill_md = c.path.join("SKILL.md");
                 if skill_md.exists() {
-                    Some(c.origin.qualify(&c.name))
+                    Some(c.name.clone())
                 } else {
                     None
                 }
