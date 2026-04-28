@@ -29,9 +29,6 @@ pub use crate::format::Format;
 struct ToolRow {
     claude_code: &'static str,
     copilot: Option<&'static str>,
-    /// 将来拡張用（Codex Tool 名マッピングが仕様化されたら Some(...) を埋める）
-    #[allow(dead_code)]
-    codex: Option<&'static str>,
     /// Marks the canonical row to use when an N:1 reverse lookup hits multiple
     /// candidates (e.g. `codebase` -> `Read` rather than `Write`/`Edit`).
     reverse_canonical: bool,
@@ -48,60 +45,47 @@ fn tool_col_claude_code(row: &ToolRow) -> Option<&'static str> {
 fn tool_col_copilot(row: &ToolRow) -> Option<&'static str> {
     row.copilot
 }
-/// Column accessor for the Codex name (reserved for future use).
-#[allow(dead_code)]
-fn tool_col_codex(row: &ToolRow) -> Option<&'static str> {
-    row.codex
-}
 
 /// Tool name conversion table (rows = logical tools, columns = formats).
 const TOOL_TABLE: &[ToolRow] = &[
     ToolRow {
         claude_code: "Read",
         copilot: Some("codebase"),
-        codex: None,
         reverse_canonical: true,
     },
     ToolRow {
         claude_code: "Write",
         copilot: Some("codebase"),
-        codex: None,
         reverse_canonical: false,
     },
     ToolRow {
         claude_code: "Edit",
         copilot: Some("codebase"),
-        codex: None,
         reverse_canonical: false,
     },
     ToolRow {
         claude_code: "Grep",
         copilot: Some("search/codebase"),
-        codex: None,
         reverse_canonical: true,
     },
     ToolRow {
         claude_code: "Glob",
         copilot: Some("search/codebase"),
-        codex: None,
         reverse_canonical: false,
     },
     ToolRow {
         claude_code: "Bash",
         copilot: Some("terminal"),
-        codex: None,
         reverse_canonical: true,
     },
     ToolRow {
         claude_code: "WebFetch",
         copilot: Some("fetch"),
-        codex: None,
         reverse_canonical: true,
     },
     ToolRow {
         claude_code: "WebSearch",
         copilot: Some("websearch"),
-        codex: None,
         reverse_canonical: true,
     },
 ];
