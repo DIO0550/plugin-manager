@@ -10,6 +10,8 @@ mod app;
 mod common;
 mod data;
 pub mod filter;
+pub mod layout;
+pub mod style;
 
 #[cfg(test)]
 mod app_test;
