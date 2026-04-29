@@ -230,7 +230,7 @@ pub fn load_meta(plugin_dir: &Path) -> Option<PluginMeta> {
         },
         Err(e) => {
             eprintln!(
-                "Warning: Failed to read {} ({}); installedAt will be unavailable.",
+                "Warning: Failed to read {} ({}); plugin metadata will be unavailable.",
                 META_FILE, e
             );
             None
