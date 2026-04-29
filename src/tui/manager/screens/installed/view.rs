@@ -7,7 +7,7 @@ use crate::application::InstalledPlugin;
 use crate::component::ComponentKind;
 use crate::tui::manager::core::layout::{detail_layout, framed_layout, outer_rect};
 use crate::tui::manager::core::style::{
-    bordered_block, highlight_spans, menu_list, selectable_list, ICON_DISABLED, ICON_ENABLED,
+    bordered_block, highlight_line, menu_list, selectable_list, ICON_DISABLED, ICON_ENABLED,
     LIST_ITEM_INDENT, MARK_MARKED, MARK_UNMARKED,
 };
 use crate::tui::manager::core::{
@@ -220,8 +220,7 @@ pub(super) fn build_plugin_row<'a>(
     is_selected: bool,
 ) -> ListItem<'a> {
     let spans = build_plugin_row_spans(plugin, is_marked, update_status, content_width);
-    let spans = highlight_spans(spans, is_selected);
-    ListItem::new(vec![Line::from(spans), Line::raw("")])
+    ListItem::new(vec![highlight_line(spans, is_selected), Line::raw("")])
 }
 
 /// 詳細画面の action メニュー項目を 2 行 ListItem (内容 + 空行) として構築する。
@@ -233,8 +232,7 @@ pub(super) fn build_plugin_row<'a>(
 fn build_detail_action_item(action: &DetailAction, is_selected: bool) -> ListItem<'static> {
     let line_text = format!("{}{}", LIST_ITEM_INDENT, action.label());
     let spans = vec![Span::styled(line_text, action.style())];
-    let spans = highlight_spans(spans, is_selected);
-    ListItem::new(vec![Line::from(spans), Line::raw("")])
+    ListItem::new(vec![highlight_line(spans, is_selected), Line::raw("")])
 }
 
 /// 詳細画面の action メニュー全体を組み立て、`(items, action_menu_rows)` を返す。
@@ -270,8 +268,7 @@ fn build_component_types_item(
         count
     );
     let spans = vec![Span::raw(line_text)];
-    let spans = highlight_spans(spans, is_selected);
-    ListItem::new(vec![Line::from(spans), Line::raw("")])
+    ListItem::new(vec![highlight_line(spans, is_selected), Line::raw("")])
 }
 
 /// `view_component_list` のリスト項目を 2 行 ListItem (内容 + 空行) として構築する。
@@ -280,8 +277,7 @@ fn build_component_types_item(
 fn build_component_list_item(component_name: &str, is_selected: bool) -> ListItem<'static> {
     let line_text = format!("{}{}", LIST_ITEM_INDENT, component_name);
     let spans = vec![Span::raw(line_text)];
-    let spans = highlight_spans(spans, is_selected);
-    ListItem::new(vec![Line::from(spans), Line::raw("")])
+    ListItem::new(vec![highlight_line(spans, is_selected), Line::raw("")])
 }
 
 /// 更新ステータスの表示文字列とスタイルを取得

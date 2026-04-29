@@ -10,7 +10,7 @@ use crate::tui::manager::core::layout::{
     framed_layout, modal_layout, outer_rect, split_horizontal,
 };
 use crate::tui::manager::core::style::{
-    bordered_block, highlight_spans, menu_list, selectable_list, CHECKBOX_SELECTED,
+    bordered_block, highlight_line, menu_list, selectable_list, CHECKBOX_SELECTED,
     CHECKBOX_UNSELECTED, LIST_ITEM_INDENT, MARK_MARKED, RADIO_SELECTED, RADIO_UNSELECTED,
 };
 use crate::tui::manager::core::{
@@ -222,21 +222,21 @@ fn view_market_list(
                 LIST_ITEM_INDENT, m.name, m.source, source_path_info, plugin_info, updated_info
             );
             let line_text = truncate_for_list(outer.width, raw).into_owned();
-            let spans = highlight_spans(vec![Span::raw(line_text)], Some(i) == selected_idx);
-            ListItem::new(vec![Line::from(spans), Line::raw("")])
+            let line = highlight_line(vec![Span::raw(line_text)], Some(i) == selected_idx);
+            ListItem::new(vec![line, Line::raw("")])
         })
         .collect();
 
     // "+ Add new marketplace" 項目を末尾に追加
     let add_idx = total_items - 1;
-    let add_spans = highlight_spans(
+    let add_line = highlight_line(
         vec![Span::styled(
             format!("{}+ Add new marketplace", LIST_ITEM_INDENT),
             Style::default().fg(Color::Cyan),
         )],
         Some(add_idx) == selected_idx,
     );
-    items.push(ListItem::new(vec![Line::from(add_spans), Line::raw("")]));
+    items.push(ListItem::new(vec![add_line, Line::raw("")]));
 
     let list = selectable_list(items, &title);
 
@@ -426,8 +426,8 @@ fn view_plugin_list(
                     format!("{}{}", LIST_ITEM_INDENT, name)
                 };
                 let line_text = truncate_for_list(outer.width, raw).into_owned();
-                let spans = highlight_spans(vec![Span::raw(line_text)], Some(i) == selected_idx);
-                ListItem::new(vec![Line::from(spans), Line::raw("")])
+                let line = highlight_line(vec![Span::raw(line_text)], Some(i) == selected_idx);
+                ListItem::new(vec![line, Line::raw("")])
             })
             .collect();
 
@@ -930,9 +930,8 @@ fn build_target_list_items(
         .map(|(i, (_name, display_name, selected))| {
             let (mark, style) = target_checkbox(*selected);
             let line_text = format!("{}{} {}", LIST_ITEM_INDENT, mark, display_name);
-            let spans =
-                highlight_spans(vec![Span::styled(line_text, style)], Some(i) == highlighted);
-            ListItem::new(vec![Line::from(spans), Line::raw("")])
+            let line = highlight_line(vec![Span::styled(line_text, style)], Some(i) == highlighted);
+            ListItem::new(vec![line, Line::raw("")])
         })
         .collect()
 }
@@ -974,24 +973,23 @@ fn build_scope_list_items(
                 scope.display_name(),
                 path
             );
-            let spans = highlight_spans(
+            let line = highlight_line(
                 vec![Span::styled(line_text, style)],
                 Some(idx) == highlighted,
             );
-            ListItem::new(vec![Line::from(spans), Line::raw("")])
+            ListItem::new(vec![line, Line::raw("")])
         })
         .collect()
 }
 
 /// `view_market_detail` の action メニュー項目を 2 行 ListItem (内容 + 空行) として構築する。
 ///
-/// `is_selected = true` のとき内容行の Span に `highlight_style()` を patch する
+/// `is_selected = true` のとき内容行に `highlight_style()` を適用する
 /// （空行には適用しない）。返される `ListItem` は所有データのみで構成されるため `'static`。
 fn build_market_action_item(action: &DetailAction, is_selected: bool) -> ListItem<'static> {
     let line_text = format!("{}{}", LIST_ITEM_INDENT, action.label());
     let spans = vec![Span::styled(line_text, action.style())];
-    let spans = highlight_spans(spans, is_selected);
-    ListItem::new(vec![Line::from(spans), Line::raw("")])
+    ListItem::new(vec![highlight_line(spans, is_selected), Line::raw("")])
 }
 
 /// `view_market_detail` の action メニュー全体を組み立て、`(items, action_menu_rows)` を返す。
@@ -1054,9 +1052,8 @@ fn build_browse_list_items(
                 _ => format!("{}{} {}", LIST_ITEM_INDENT, mark, p.name),
             };
             let line_text = truncate_for_list(content_width, raw).into_owned();
-            let spans =
-                highlight_spans(vec![Span::styled(line_text, style)], Some(i) == highlighted);
-            ListItem::new(vec![Line::from(spans), Line::raw("")])
+            let line = highlight_line(vec![Span::styled(line_text, style)], Some(i) == highlighted);
+            ListItem::new(vec![line, Line::raw("")])
         })
         .collect()
 }

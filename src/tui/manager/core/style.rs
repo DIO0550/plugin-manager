@@ -3,7 +3,7 @@
 //! TUI 各画面で共有するスタイル（タイトル装飾、選択行強調、リストアイコン）。
 
 use ratatui::style::{Color, Modifier, Style};
-use ratatui::text::Span;
+use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, List, ListItem};
 
 /// リスト項目の左インデント（highlight_symbol "> " と整合させるため固定）
@@ -56,23 +56,26 @@ pub fn highlight_style() -> Style {
         .bg(Color::Green)
 }
 
-/// 選択行のときに各 Span を `highlight_style()` で patch して返す。
+/// 選択行用の `Line` を組み立てる。
 ///
-/// 既存の Span スタイル（fg 色など）の上に highlight_style を上書きすることで、
-/// 緑色の文字が緑背景で見えなくなるなどの問題を防ぐ。`is_selected = false` の
-/// ときは入力をそのまま返す。
-pub fn highlight_spans<'a>(spans: Vec<Span<'a>>, is_selected: bool) -> Vec<Span<'a>> {
+/// `is_selected = true` のとき、行全体の `Line::style` に `highlight_style()` を
+/// 適用して、テキスト後ろの余白セルまで含めて水平方向に緑背景で塗る。さらに
+/// 既存の Span スタイル（fg 色など）の上にも `highlight_style()` を patch して、
+/// 緑色の文字が緑背景に埋もれるのを防ぐ。`is_selected = false` のときは入力の
+/// Span 列をそのまま `Line::from` で返す。
+pub fn highlight_line<'a>(spans: Vec<Span<'a>>, is_selected: bool) -> Line<'a> {
     if !is_selected {
-        return spans;
+        return Line::from(spans);
     }
     let hl = highlight_style();
-    spans
+    let styled: Vec<Span<'a>> = spans
         .into_iter()
         .map(|s| {
             let style = s.style.patch(hl);
             Span::styled(s.content, style)
         })
-        .collect()
+        .collect();
+    Line::from(styled).style(hl)
 }
 
 /// `bordered_block(title)` + `HIGHLIGHT_SYMBOL` を組み合わせた List ファクトリ。
