@@ -19,14 +19,15 @@ mod data_test;
 mod filter_test;
 
 pub use app::{update, view, Model, Tab};
-// `LIST_HIGHLIGHT_WIDTH` は現状内部利用がないが、`LIST_DECORATION_WIDTH` の内訳として
-// 公開 API を維持する（将来 List 装飾の構成を変える際の参照点として残す）。
-// 単独利用がないため `unused_imports` lint を抑制する。他の re-export 項目には影響しない。
-#[allow(unused_imports)]
-pub use common::LIST_HIGHLIGHT_WIDTH;
+// `LIST_HIGHLIGHT_WIDTH` / `BLOCK_BORDER_WIDTH` は現状クレート内で直接参照していないが、
+// 装飾幅の内訳定数として公開 API を維持する（List 装飾構成や Paragraph 系切り詰め予算を
+// 外部から再構成できる参照点として残す）。単独利用がないため `unused_imports` lint を
+// 抑制する。他の re-export 項目には影響しない。
 pub use common::{
-    content_rect, render_filter_bar, truncate_to_width, BLOCK_BORDER_WIDTH, HORIZONTAL_PADDING,
-    LIST_DECORATION_WIDTH, MIN_CONTENT_WIDTH,
+    content_rect, render_filter_bar, truncate_for_list, truncate_for_paragraph, truncate_to_width,
+    HORIZONTAL_PADDING, LIST_DECORATION_WIDTH, MIN_CONTENT_WIDTH,
 };
+#[allow(unused_imports)]
+pub use common::{BLOCK_BORDER_WIDTH, LIST_HIGHLIGHT_WIDTH};
 pub use data::{DataStore, MarketplaceItem, PluginId};
 pub use filter::filter_plugins;

@@ -89,11 +89,17 @@ pub fn content_rect(area: Rect, padding: u16) -> Rect {
     Rect::new(area.x.saturating_add(padding), area.y, width, area.height)
 }
 
+/// 切り詰め時の省略記号文字列。
+pub const ELLIPSIS: &str = "...";
+
+/// 切り詰め時の省略記号の文字数（cells）。`ELLIPSIS.chars().count()` と整合させる。
+pub const ELLIPSIS_LEN: u16 = 3;
+
 /// 文字列を最大幅 `max_width` cells に収まるように切り詰める純粋関数。
 ///
 /// `text.chars().count() <= max_width` ならそのまま返す。
-/// 超える場合、`max_width > 3` なら先頭 `max_width - 3` 文字 + `"..."`、
-/// `max_width <= 3` なら先頭 `max_width` 文字を返す。
+/// 超える場合、`max_width > ELLIPSIS_LEN` なら先頭 `max_width - ELLIPSIS_LEN` 文字 + `ELLIPSIS`、
+/// `max_width <= ELLIPSIS_LEN` なら先頭 `max_width` 文字を返す（省略記号を載せる余地が無い）。
 ///
 /// 想定用途は ASCII / 半角英数字主体のリスト行・タイトル・説明文。
 /// 全角文字を含む場合は表示幅と文字数が一致しないため目安として動作する。
@@ -102,11 +108,41 @@ pub fn truncate_to_width(text: &str, max_width: u16) -> String {
     if text.chars().count() <= max {
         return text.to_string();
     }
-    if max <= 3 {
+    let ellipsis_len = ELLIPSIS_LEN as usize;
+    if max <= ellipsis_len {
         return text.chars().take(max).collect();
     }
-    let head: String = text.chars().take(max - 3).collect();
-    format!("{head}...")
+    let head: String = text.chars().take(max - ellipsis_len).collect();
+    format!("{head}{ELLIPSIS}")
+}
+
+/// `content_width` が `MIN_CONTENT_WIDTH` 未満のときだけ `text` を装飾幅 `decoration_width` 引きで切り詰める。
+///
+/// それ以外（通常幅）は `text` を所有形式に変換するだけで何も変えない。
+/// ウィジェット種類で異なる装飾幅を呼び側が選び、共通の if 分岐をここに集約する。
+fn truncate_when_narrow(content_width: u16, decoration_width: u16, text: &str) -> String {
+    if content_width < MIN_CONTENT_WIDTH {
+        let inner_width = content_width.saturating_sub(decoration_width);
+        truncate_to_width(text, inner_width)
+    } else {
+        text.to_string()
+    }
+}
+
+/// `List`（`Borders::ALL` + `highlight_symbol("> ")`）行用の狭幅フォールバック。
+///
+/// `content_width < MIN_CONTENT_WIDTH` のときだけ `LIST_DECORATION_WIDTH` を差し引いた
+/// inner width で `truncate_to_width` を適用する。それ以外はそのまま返す。
+pub fn truncate_for_list(content_width: u16, text: &str) -> String {
+    truncate_when_narrow(content_width, LIST_DECORATION_WIDTH, text)
+}
+
+/// `Paragraph + Block(Borders::ALL)`（`highlight_symbol` なし）行用の狭幅フォールバック。
+///
+/// `content_width < MIN_CONTENT_WIDTH` のときだけ `BLOCK_BORDER_WIDTH` を差し引いた
+/// inner width で `truncate_to_width` を適用する。それ以外はそのまま返す。
+pub fn truncate_for_paragraph(content_width: u16, text: &str) -> String {
+    truncate_when_narrow(content_width, BLOCK_BORDER_WIDTH, text)
 }
 
 #[cfg(test)]

@@ -147,3 +147,36 @@ fn truncate_to_width_at_boundary_41() {
     let text = "a".repeat(40);
     assert_eq!(truncate_to_width(&text, 41), text);
 }
+
+// =============================================================================
+// truncate_for_list / truncate_for_paragraph — 狭幅フォールバック
+// =============================================================================
+
+#[test]
+fn truncate_for_list_returns_text_when_wide() {
+    let text = "a".repeat(50);
+    assert_eq!(truncate_for_list(80, &text), text);
+}
+
+#[test]
+fn truncate_for_list_truncates_with_list_decoration_width_when_narrow() {
+    let text = "a".repeat(50);
+    let result = truncate_for_list(30, &text);
+    let inner = (30u16 - LIST_DECORATION_WIDTH) as usize;
+    assert_eq!(result.chars().count(), inner);
+    assert!(result.ends_with(ELLIPSIS));
+}
+
+#[test]
+fn truncate_for_paragraph_truncates_with_block_border_width_when_narrow() {
+    let text = "a".repeat(50);
+    let result = truncate_for_paragraph(30, &text);
+    let inner = (30u16 - BLOCK_BORDER_WIDTH) as usize;
+    assert_eq!(result.chars().count(), inner);
+    assert!(result.ends_with(ELLIPSIS));
+}
+
+#[test]
+fn truncate_for_list_does_not_panic_at_zero_width() {
+    let _ = truncate_for_list(0, "abc");
+}

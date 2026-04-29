@@ -2,12 +2,13 @@
 
 use super::model::{
     AddFormModel, BrowsePlugin, DetailAction, InstallSummary, Model, OperationStatus,
+    PluginInstallResult,
 };
 use crate::component::Scope;
 use crate::marketplace::PluginSource;
 use crate::tui::manager::core::{
-    content_rect, render_filter_bar, truncate_to_width, DataStore, Tab, BLOCK_BORDER_WIDTH,
-    HORIZONTAL_PADDING, LIST_DECORATION_WIDTH, MIN_CONTENT_WIDTH,
+    content_rect, render_filter_bar, truncate_for_list, truncate_for_paragraph, DataStore, Tab,
+    HORIZONTAL_PADDING,
 };
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Clear, Gauge, List, ListItem, ListState, Paragraph, Tabs};
@@ -219,13 +220,7 @@ fn view_market_list(
                 "  {}    {}{}    {}    {}",
                 m.name, m.source, source_path_info, plugin_info, updated_info
             );
-            let text = if outer.width < MIN_CONTENT_WIDTH {
-                let list_inner_width = outer.width.saturating_sub(LIST_DECORATION_WIDTH);
-                truncate_to_width(&raw, list_inner_width)
-            } else {
-                raw
-            };
-            ListItem::new(text)
+            ListItem::new(truncate_for_list(outer.width, &raw))
         })
         .collect();
 
@@ -438,13 +433,7 @@ fn view_plugin_list(
                 } else {
                     format!("  {}", name)
                 };
-                let text = if outer.width < MIN_CONTENT_WIDTH {
-                    let list_inner_width = outer.width.saturating_sub(LIST_DECORATION_WIDTH);
-                    truncate_to_width(&raw, list_inner_width)
-                } else {
-                    raw
-                };
-                ListItem::new(text)
+                ListItem::new(truncate_for_list(outer.width, &raw))
             })
             .collect();
 
@@ -845,6 +834,22 @@ fn view_installing(f: &mut Frame, plugin_names: &[String], current_idx: usize, t
     f.render_widget(gauge, inner_chunks[1]);
 }
 
+/// インストール結果 1 件を描画用の `(行テキスト, 色)` に整形する。
+///
+/// 成功・失敗で接頭辞・色が異なるが、組み立て・切り詰め・スタイル付与の経路を
+/// 共通化するため、ここでは色とテキストの導出だけを担う。
+fn format_install_result_line(result: &PluginInstallResult) -> (String, Color) {
+    if result.success {
+        (format!("  ✓ {}", result.plugin_name), Color::Green)
+    } else {
+        let error_msg = result.error.as_deref().unwrap_or("Unknown error");
+        (
+            format!("  ✗ {}: {}", result.plugin_name, error_msg),
+            Color::Red,
+        )
+    }
+}
+
 /// インストール結果画面を描画
 ///
 /// # Arguments
@@ -881,33 +886,12 @@ fn view_install_result(f: &mut Frame, summary: &InstallSummary) {
         Line::raw(""),
     ];
 
-    let narrow = outer.width < MIN_CONTENT_WIDTH;
-    let paragraph_inner_width = outer.width.saturating_sub(BLOCK_BORDER_WIDTH);
     for result in &summary.results {
-        if result.success {
-            let raw = format!("  ✓ {}", result.plugin_name);
-            let line_text = if narrow {
-                truncate_to_width(&raw, paragraph_inner_width)
-            } else {
-                raw
-            };
-            lines.push(Line::from(Span::styled(
-                line_text,
-                Style::default().fg(Color::Green),
-            )));
-        } else {
-            let error_msg = result.error.as_deref().unwrap_or("Unknown error");
-            let raw = format!("  ✗ {}: {}", result.plugin_name, error_msg);
-            let line_text = if narrow {
-                truncate_to_width(&raw, paragraph_inner_width)
-            } else {
-                raw
-            };
-            lines.push(Line::from(Span::styled(
-                line_text,
-                Style::default().fg(Color::Red),
-            )));
-        }
+        let (raw, color) = format_install_result_line(result);
+        lines.push(Line::from(Span::styled(
+            truncate_for_paragraph(outer.width, &raw),
+            Style::default().fg(color),
+        )));
     }
 
     lines.push(Line::raw(""));
