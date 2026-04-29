@@ -227,6 +227,16 @@ fn build_detail_action_item<'a>(action: &DetailAction) -> ListItem<'a> {
     ListItem::new(vec![Line::from(line_text), Line::raw("")]).style(action.style())
 }
 
+/// 詳細画面の action メニュー全体を組み立て、`(items, action_menu_rows)` を返す。
+///
+/// `action_menu_rows` は描画行数（`items.iter().map(ListItem::height).sum()`）。
+/// 呼び出し側は `detail_layout` にこの値を渡して全 action の領域を確保する。
+fn build_detail_action_menu<'a>(actions: &[DetailAction]) -> (Vec<ListItem<'a>>, u16) {
+    let items: Vec<ListItem> = actions.iter().map(build_detail_action_item).collect();
+    let rows: u16 = items.iter().map(|i| i.height() as u16).sum();
+    (items, rows)
+}
+
 /// `view_component_types` のリスト項目を 2 行 ListItem として構築する。
 fn build_component_types_item<'a>(kind: ComponentKind, count: usize) -> ListItem<'a> {
     let line_text = format!(
@@ -422,9 +432,8 @@ fn view_plugin_detail(
 
     // アクションメニュー（enabled 状態に応じて動的に切り替え）
     let actions = DetailAction::for_plugin(plugin.enabled());
-    let items: Vec<ListItem> = actions.iter().map(build_detail_action_item).collect();
+    let (items, action_menu_rows) = build_detail_action_menu(&actions);
 
-    let action_menu_rows: u16 = items.iter().map(|i| i.height() as u16).sum();
     let [info_area, menu_area, _detail_help] = detail_layout(content_area, action_menu_rows);
 
     let info_para = Paragraph::new(info_lines).block(bordered_block(&title));

@@ -300,8 +300,7 @@ fn view_market_detail(
 
     // アクションメニュー（先に組み立て、描画行数を算出して area を確保する）
     let actions = DetailAction::all();
-    let items: Vec<ListItem> = actions.iter().map(build_market_action_item).collect();
-    let action_menu_rows: u16 = items.iter().map(|i| i.height() as u16).sum();
+    let (items, action_menu_rows) = build_market_action_menu(&actions);
 
     // コンテンツ領域を画面固有に再分割（info / action_menu / error）
     let content_chunks = Layout::default()
@@ -956,6 +955,15 @@ fn build_scope_list_items(highlighted_idx: usize) -> Vec<ListItem<'static>> {
 fn build_market_action_item<'a>(action: &DetailAction) -> ListItem<'a> {
     let line_text = format!("{}{}", LIST_ITEM_INDENT, action.label());
     ListItem::new(vec![Line::from(line_text), Line::raw("")]).style(action.style())
+}
+
+/// `view_market_detail` の action メニュー全体を組み立て、`(items, action_menu_rows)` を返す。
+///
+/// `action_menu_rows` は描画行数（`items.iter().map(ListItem::height).sum()`）。
+fn build_market_action_menu<'a>(actions: &[DetailAction]) -> (Vec<ListItem<'a>>, u16) {
+    let items: Vec<ListItem> = actions.iter().map(build_market_action_item).collect();
+    let rows: u16 = items.iter().map(|i| i.height() as u16).sum();
+    (items, rows)
 }
 
 /// Browse 行の状態ブロックとスタイルを決定（installed / selected / idle の 3 状態）。

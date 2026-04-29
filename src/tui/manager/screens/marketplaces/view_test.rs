@@ -327,11 +327,12 @@ fn build_market_action_item_returns_height_2() {
 }
 
 #[test]
-fn view_market_detail_action_menu_renders_all_actions_with_2line_items() {
+fn build_market_action_menu_reserves_full_height() {
     let actions = super::DetailAction::all();
-    let total: u16 = actions
-        .iter()
-        .map(|a| build_market_action_item(a).height() as u16)
-        .sum();
-    assert_eq!(total, actions.len() as u16 * 2);
+    let (items, rows) = build_market_action_menu(&actions);
+    assert_eq!(items.len(), actions.len());
+    assert_eq!(rows, actions.len() as u16 * 2);
+    for item in &items {
+        assert_eq!(item.height(), 2);
+    }
 }
