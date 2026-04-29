@@ -3,8 +3,8 @@
 //! 各画面状態に応じた描画ロジック。
 
 use super::model::{DetailAction, Model, UpdateStatusDisplay};
-use crate::component::ComponentKind;
 use crate::application::InstalledPlugin;
+use crate::component::ComponentKind;
 use crate::tui::manager::core::{
     content_rect, filter_plugins, render_filter_bar, truncate_to_width, DataStore, PluginId, Tab,
     HORIZONTAL_PADDING, LIST_DECORATION_WIDTH, MIN_CONTENT_WIDTH,
@@ -106,6 +106,74 @@ fn sanitize_reason(reason: &str) -> String {
     }
 }
 
+/// マーク状態 / 有効状態に応じた行のベーススタイルを返す。
+fn plugin_row_style(is_marked: bool, enabled: bool) -> Style {
+    match (is_marked, enabled) {
+        (true, _) => Style::default().fg(Color::Yellow),
+        (false, true) => Style::default(),
+        (false, false) => Style::default().fg(Color::DarkGray),
+    }
+}
+
+/// マーク有無からチェック印 prefix を組み立てる。
+fn plugin_row_prefix(is_marked: bool) -> String {
+    let mark_indicator = if is_marked { "[x] " } else { "[ ] " };
+    format!("  {}", mark_indicator)
+}
+
+/// 名前 + (marketplace) + バージョン + (disabled) を組み立てる。
+fn plugin_row_name_text(plugin: &InstalledPlugin) -> String {
+    let marketplace_str = plugin
+        .marketplace()
+        .map(|m| format!(" @{}", m))
+        .unwrap_or_default();
+    let status_str = if plugin.enabled() { "" } else { " [disabled]" };
+    format!(
+        "{}{}  v{}{}",
+        plugin.name(),
+        marketplace_str,
+        plugin.version(),
+        status_str
+    )
+}
+
+/// 狭幅 (`content_width < MIN_CONTENT_WIDTH`) フォールバック用の Span 列。
+///
+/// 更新ステータス Span を落とし、`prefix` のスタイルを保ったまま
+/// 残り幅 (`list_inner_width - prefix_w`) で `name_text` を切り詰めた最大 2 Span 構成。
+fn narrow_plugin_row_spans<'a>(
+    prefix: String,
+    name_text: &str,
+    content_width: u16,
+    base_style: Style,
+) -> Vec<Span<'a>> {
+    let list_inner_width = content_width.saturating_sub(LIST_DECORATION_WIDTH);
+    let prefix_w = prefix.chars().count() as u16;
+    let body_budget = list_inner_width.saturating_sub(prefix_w);
+    let body = truncate_to_width(name_text, body_budget);
+    vec![
+        Span::styled(prefix, base_style),
+        Span::styled(body, base_style),
+    ]
+}
+
+/// 通常幅用の Span 列。`prefix + name_text` に更新ステータス Span を追記する。
+fn wide_plugin_row_spans<'a>(
+    prefix: String,
+    name_text: String,
+    update_status: Option<&'a UpdateStatusDisplay>,
+    base_style: Style,
+) -> Vec<Span<'a>> {
+    let mut spans = vec![
+        Span::styled(prefix, base_style),
+        Span::styled(name_text, base_style),
+    ];
+    if let Some(status) = update_status {
+        spans.push(update_status_span(status));
+    }
+    spans
+}
+
 /// プラグイン 1 行分の Span 列を構築する。
 ///
 /// 通常時は `[prefix + name/version/disabled + update_status]` の複数 Span を返し、
@@ -117,48 +185,14 @@ pub(super) fn build_plugin_row_spans<'a>(
     update_status: Option<&'a UpdateStatusDisplay>,
     content_width: u16,
 ) -> Vec<Span<'a>> {
-    let mark_indicator = if is_marked { "[x] " } else { "[ ] " };
-    let prefix = format!("  {}", mark_indicator);
-
-    let marketplace_str = plugin
-        .marketplace()
-        .map(|m| format!(" @{}", m))
-        .unwrap_or_default();
-    let status_str = if plugin.enabled() { "" } else { " [disabled]" };
-    let name_text = format!(
-        "{}{}  v{}{}",
-        plugin.name(),
-        marketplace_str,
-        plugin.version(),
-        status_str
-    );
-
-    let base_style = if is_marked {
-        Style::default().fg(Color::Yellow)
-    } else if plugin.enabled() {
-        Style::default()
-    } else {
-        Style::default().fg(Color::DarkGray)
-    };
+    let prefix = plugin_row_prefix(is_marked);
+    let name_text = plugin_row_name_text(plugin);
+    let base_style = plugin_row_style(is_marked, plugin.enabled());
 
     if content_width < MIN_CONTENT_WIDTH {
-        let list_inner_width = content_width.saturating_sub(LIST_DECORATION_WIDTH);
-        let prefix_w = prefix.chars().count() as u16;
-        let body_budget = list_inner_width.saturating_sub(prefix_w);
-        let body = truncate_to_width(&name_text, body_budget);
-        vec![
-            Span::styled(prefix, base_style),
-            Span::styled(body, base_style),
-        ]
+        narrow_plugin_row_spans(prefix, &name_text, content_width, base_style)
     } else {
-        let mut spans = vec![
-            Span::styled(prefix, base_style),
-            Span::styled(name_text, base_style),
-        ];
-        if let Some(status) = update_status {
-            spans.push(update_status_span(status));
-        }
-        spans
+        wide_plugin_row_spans(prefix, name_text, update_status, base_style)
     }
 }
 
