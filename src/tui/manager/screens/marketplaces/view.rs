@@ -618,8 +618,8 @@ fn view_target_select(
     mut state: ListState,
 ) {
     let outer = outer_rect(f.area());
-    let modal_area = modal_layout(outer, 60, 60);
-    f.render_widget(Clear, modal_area);
+    let modal_area = modal_layout(outer, 100, 100);
+    f.render_widget(Clear, f.area());
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -649,8 +649,8 @@ fn view_target_select(
 /// * `state` - List state used for scope highlight.
 fn view_scope_select(f: &mut Frame, highlighted_idx: usize, mut state: ListState) {
     let outer = outer_rect(f.area());
-    let modal_area = modal_layout(outer, 60, 50);
-    f.render_widget(Clear, modal_area);
+    let modal_area = modal_layout(outer, 100, 100);
+    f.render_widget(Clear, f.area());
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -681,8 +681,8 @@ fn view_scope_select(f: &mut Frame, highlighted_idx: usize, mut state: ListState
 /// * `total` - Total number of plugins in this install batch.
 fn view_installing(f: &mut Frame, plugin_names: &[String], current_idx: usize, total: usize) {
     let outer = outer_rect(f.area());
-    let modal_area = modal_layout(outer, 70, 40);
-    f.render_widget(Clear, modal_area);
+    let modal_area = modal_layout(outer, 100, 100);
+    f.render_widget(Clear, f.area());
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -768,8 +768,8 @@ fn format_install_result_line(result: &PluginInstallResult) -> (String, Color) {
 /// * `summary` - Aggregated install summary to display.
 fn view_install_result(f: &mut Frame, summary: &InstallSummary) {
     let outer = outer_rect(f.area());
-    let modal_area = modal_layout(outer, 80, 70);
-    f.render_widget(Clear, modal_area);
+    let modal_area = modal_layout(outer, 100, 100);
+    f.render_widget(Clear, f.area());
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -911,7 +911,7 @@ fn build_target_list_items(
             let (mark, style) = target_checkbox(*selected);
             let line_text = format!("{}{} {}", LIST_ITEM_INDENT, mark, display_name);
             let line = highlight_line(vec![Span::styled(line_text, style)], Some(i) == highlighted);
-            ListItem::new(vec![line, Line::raw("")])
+            ListItem::new(vec![line])
         })
         .collect()
 }
@@ -957,19 +957,19 @@ fn build_scope_list_items(
                 vec![Span::styled(line_text, style)],
                 Some(idx) == highlighted,
             );
-            ListItem::new(vec![line, Line::raw("")])
+            ListItem::new(vec![line])
         })
         .collect()
 }
 
-/// `view_market_detail` の action メニュー項目を 2 行 ListItem (内容 + 空行) として構築する。
+/// `view_market_detail` の action メニュー項目を 1 行 ListItem (内容のみ) として構築する。
 ///
-/// `is_selected = true` のとき内容行に `highlight_style()` を適用する
-/// （空行には適用しない）。返される `ListItem` は所有データのみで構成されるため `'static`。
+/// `is_selected = true` のとき内容行に `highlight_style()` を適用する。
+/// 返される `ListItem` は所有データのみで構成されるため `'static`。
 fn build_market_action_item(action: &DetailAction, is_selected: bool) -> ListItem<'static> {
     let line_text = format!("{}{}", LIST_ITEM_INDENT, action.label());
     let spans = vec![Span::styled(line_text, action.style())];
-    ListItem::new(vec![highlight_line(spans, is_selected), Line::raw("")])
+    ListItem::new(vec![highlight_line(spans, is_selected)])
 }
 
 /// `view_market_detail` の action メニュー全体を組み立て、`(items, action_menu_rows)` を返す。

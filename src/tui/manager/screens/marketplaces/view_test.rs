@@ -167,10 +167,7 @@ fn scope_radio_not_current() {
 fn target_item(mark: &str, label: &str, style: Style) -> ListItem<'static> {
     use ratatui::text::Span;
     let line_text = format!("{}{} {}", LIST_ITEM_INDENT, mark, label);
-    ListItem::new(vec![
-        Line::from(Span::styled(line_text, style)),
-        Line::raw(""),
-    ])
+    ListItem::new(vec![Line::from(Span::styled(line_text, style))])
 }
 
 #[test]
@@ -233,11 +230,11 @@ fn build_target_list_items_mixed() {
 }
 
 #[test]
-fn build_target_list_items_have_height_2() {
+fn build_target_list_items_have_height_1() {
     let targets = vec![("codex".to_string(), "Codex".to_string(), true)];
     let items = build_target_list_items(&targets, None);
     for item in &items {
-        assert_eq!(item.height(), 2);
+        assert_eq!(item.height(), 1);
     }
 }
 
@@ -254,10 +251,7 @@ fn scope_item(mark: &str, scope: Scope, path: &str, style: Style) -> ListItem<'s
         scope.display_name(),
         path
     );
-    ListItem::new(vec![
-        Line::from(Span::styled(line_text, style)),
-        Line::raw(""),
-    ])
+    ListItem::new(vec![Line::from(Span::styled(line_text, style))])
 }
 
 #[test]
@@ -316,10 +310,10 @@ fn build_scope_list_items_out_of_range_clamps_to_last() {
 }
 
 #[test]
-fn build_scope_list_items_have_height_2() {
+fn build_scope_list_items_have_height_1() {
     let items = build_scope_list_items(0, None);
     for item in &items {
-        assert_eq!(item.height(), 2);
+        assert_eq!(item.height(), 1);
     }
 }
 
@@ -328,10 +322,10 @@ fn build_scope_list_items_have_height_2() {
 // =============================================================================
 
 #[test]
-fn build_market_action_item_returns_height_2() {
+fn build_market_action_item_returns_height_1() {
     for action in super::DetailAction::all().iter() {
         let item = build_market_action_item(action, false);
-        assert_eq!(item.height(), 2);
+        assert_eq!(item.height(), 1);
     }
 }
 
@@ -340,9 +334,9 @@ fn build_market_action_menu_reserves_full_height() {
     let actions = super::DetailAction::all();
     let (items, rows) = build_market_action_menu(actions, None);
     assert_eq!(items.len(), actions.len());
-    assert_eq!(rows, actions.len() as u16 * 2);
+    assert_eq!(rows, actions.len() as u16);
     for item in &items {
-        assert_eq!(item.height(), 2);
+        assert_eq!(item.height(), 1);
     }
 }
 
@@ -442,4 +436,141 @@ fn installing_inner_layout_collapses_padding_when_height_is_minimum() {
 fn installing_inner_layout_does_not_panic_for_tiny_height() {
     use ratatui::layout::Rect;
     let _ = installing_inner_layout(Rect::new(0, 0, 80, 5));
+}
+
+// =============================================================================
+// 描画テスト（`Clear, f.area()` の効果保証）
+// =============================================================================
+
+fn fill_buffer_with_sentinel(buffer: &mut ratatui::buffer::Buffer, sentinel: char) {
+    let area = buffer.area;
+    for y in area.y..area.bottom() {
+        for x in area.x..area.right() {
+            if let Some(cell) = buffer.cell_mut((x, y)) {
+                cell.set_char(sentinel);
+            }
+        }
+    }
+}
+
+#[test]
+fn modal_clears_outer_frame_cells_at_normal_size_for_target_select() {
+    use ratatui::backend::TestBackend;
+    use ratatui::widgets::ListState;
+    use ratatui::Terminal;
+
+    let backend = TestBackend::new(80, 24);
+    let mut terminal = Terminal::new(backend).expect("terminal");
+
+    // 1 回目: 内部バッファを番兵で埋める
+    terminal
+        .draw(|frame| {
+            fill_buffer_with_sentinel(frame.buffer_mut(), 'X');
+        })
+        .expect("seed sentinel draw");
+
+    // 2 回目: 対象モーダルを描画
+    let targets = vec![("codex".to_string(), "Codex".to_string(), false)];
+    terminal
+        .draw(|frame| {
+            view_target_select(frame, &targets, 0, ListState::default());
+        })
+        .expect("render modal");
+
+    let buffer = terminal.backend().buffer();
+    let width = buffer.area.width;
+    let height = buffer.area.height;
+    // 最外周セルを走査し、番兵 'X' が残っていないことを確認
+    for x in 0..width {
+        let top = buffer[(x, 0)].symbol();
+        let bottom = buffer[(x, height - 1)].symbol();
+        assert_ne!(top, "X", "top row cell ({}, 0) still has sentinel", x);
+        assert_ne!(
+            bottom,
+            "X",
+            "bottom row cell ({}, {}) still has sentinel",
+            x,
+            height - 1
+        );
+    }
+    for y in 0..height {
+        let left = buffer[(0, y)].symbol();
+        let right = buffer[(width - 1, y)].symbol();
+        assert_ne!(left, "X", "left col cell (0, {}) still has sentinel", y);
+        assert_ne!(
+            right,
+            "X",
+            "right col cell ({}, {}) still has sentinel",
+            width - 1,
+            y
+        );
+    }
+}
+
+#[test]
+fn modal_clears_outer_frame_cells_at_normal_size_for_install_result() {
+    use super::{InstallSummary, PluginInstallResult};
+    use ratatui::backend::TestBackend;
+    use ratatui::Terminal;
+
+    let backend = TestBackend::new(80, 24);
+    let mut terminal = Terminal::new(backend).expect("terminal");
+
+    terminal
+        .draw(|frame| {
+            fill_buffer_with_sentinel(frame.buffer_mut(), 'X');
+        })
+        .expect("seed sentinel draw");
+
+    let summary = InstallSummary {
+        results: vec![PluginInstallResult {
+            plugin_name: "alpha".to_string(),
+            success: true,
+            error: None,
+        }],
+        total: 1,
+        succeeded: 1,
+        failed: 0,
+    };
+    terminal
+        .draw(|frame| {
+            view_install_result(frame, &summary);
+        })
+        .expect("render modal");
+
+    let buffer = terminal.backend().buffer();
+    let width = buffer.area.width;
+    let height = buffer.area.height;
+    for x in 0..width {
+        assert_ne!(buffer[(x, 0)].symbol(), "X");
+        assert_ne!(buffer[(x, height - 1)].symbol(), "X");
+    }
+    for y in 0..height {
+        assert_ne!(buffer[(0, y)].symbol(), "X");
+        assert_ne!(buffer[(width - 1, y)].symbol(), "X");
+    }
+}
+
+#[test]
+fn modal_renders_without_panic_at_tiny_size() {
+    use ratatui::backend::TestBackend;
+    use ratatui::widgets::ListState;
+    use ratatui::Terminal;
+
+    let backend = TestBackend::new(10, 4);
+    let mut terminal = Terminal::new(backend).expect("terminal");
+
+    let targets = vec![("codex".to_string(), "Codex".to_string(), false)];
+    terminal
+        .draw(|frame| {
+            view_target_select(frame, &targets, 0, ListState::default());
+        })
+        .expect("render target_select tiny");
+
+    let plugin_names = vec!["alpha".to_string()];
+    terminal
+        .draw(|frame| {
+            view_installing(frame, &plugin_names, 0, 1);
+        })
+        .expect("render installing tiny");
 }
