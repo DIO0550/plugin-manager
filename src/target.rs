@@ -123,18 +123,6 @@ impl PluginOrigin {
             plugin: "_".to_string(),
         }
     }
-
-    /// 配置物の識別キー（フラット化された `name` 単独）を返す。
-    ///
-    /// `<base>/<plural>/<flattened_name>` 構造ではマーケットプレイス/プラグイン
-    /// 段が存在しないため、配置物からは `flattened_name` のみ復元できる。
-    /// 過去は `{marketplace}/{plugin}/{name}` の 3 セグメントを返していたが、
-    /// フラット化後は識別子としても `name` を返す。
-    pub fn qualify(&self, name: &str) -> String {
-        // marketplace/plugin はもはや配置物識別に使われないため、引数 self は
-        // 互換のためだけに残す。将来の API クリーンアップで削除候補。
-        name.to_string()
-    }
 }
 
 /// ターゲット種別（CLIオプション用）

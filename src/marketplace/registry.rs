@@ -62,9 +62,6 @@ pub struct MarketplaceCache {
     #[serde(default)]
     pub owner: Option<MarketplaceOwner>,
     pub plugins: Vec<MarketplacePlugin>,
-    /// 元の marketplace.json マニフェスト（旧キャッシュ互換のため読込のみ許可）
-    #[serde(default, skip_serializing)]
-    pub original_manifest: Option<MarketplaceManifest>,
 }
 
 impl MarketplaceCache {
@@ -72,7 +69,6 @@ impl MarketplaceCache {
     ///
     /// - `source` は `"github:{repo_owner}/{repo_name}"` 形式で構築（`repo` 引数の owner / name を使用）
     /// - `fetched_at` は現在時刻（`Utc::now()`）
-    /// - `original_manifest` は `None`（呼び出し元で必要なら後から付ける）
     ///
     /// # Arguments
     ///
@@ -86,7 +82,6 @@ impl MarketplaceCache {
             source: format!("github:{}/{}", repo.owner(), repo.name()),
             owner: manifest.owner,
             plugins: manifest.plugins,
-            original_manifest: None,
         }
     }
 }

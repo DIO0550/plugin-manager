@@ -216,7 +216,6 @@ fn installed_plugin_with_author(author: Option<Author>) -> InstalledPlugin {
         hooks: None,
         mcp_servers: None,
         lsp_servers: None,
-        installed_at: None,
     };
     InstalledPlugin::new_for_test_full(
         manifest,

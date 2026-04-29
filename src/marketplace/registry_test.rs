@@ -166,12 +166,6 @@ fn from_manifest_sets_fetched_at_near_now() {
 }
 
 #[test]
-fn from_manifest_sets_original_manifest_none() {
-    let cache = MarketplaceCache::from_manifest(sample_manifest(), "catalog", &sample_repo());
-    assert!(cache.original_manifest.is_none());
-}
-
-#[test]
 fn from_manifest_sets_name_from_argument() {
     let cache =
         MarketplaceCache::from_manifest(sample_manifest(), "my-custom-name", &sample_repo());
@@ -322,4 +316,21 @@ async fn fetch_cache_with_trailing_slash_preserves_legacy_path() {
         client.last_path().as_deref(),
         Some("subdir//.claude-plugin/marketplace.json")
     );
+}
+
+#[test]
+fn parse_legacy_cache_with_original_manifest_ignores_unknown_field() {
+    // 旧キャッシュの "original_manifest" キーは unknown field として無視される
+    let json = r#"{
+        "name": "legacy",
+        "fetched_at": "2025-01-15T10:30:00Z",
+        "source": "github:o/n",
+        "owner": null,
+        "plugins": [],
+        "original_manifest": { "name": "x", "owner": null, "plugins": [] }
+    }"#;
+    let cache: MarketplaceCache = serde_json::from_str(json).expect("parse must not fail");
+    assert_eq!(cache.name, "legacy");
+    assert_eq!(cache.source, "github:o/n");
+    assert!(cache.plugins.is_empty());
 }

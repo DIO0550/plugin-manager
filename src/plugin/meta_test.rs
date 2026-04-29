@@ -231,66 +231,22 @@ fn test_resolve_installed_at_from_meta() {
     };
     write_meta(plugin_dir, &meta).unwrap();
 
-    let result = resolve_installed_at(plugin_dir, None);
+    let result = resolve_installed_at(plugin_dir);
     assert_eq!(result, Some("2025-01-15T10:30:00Z".to_string()));
 }
 
 #[test]
-fn test_resolve_installed_at_fallback_to_manifest() {
+fn test_resolve_installed_at_ignores_legacy_plugin_json() {
     let temp_dir = TempDir::new().unwrap();
     let plugin_dir = temp_dir.path();
 
-    // plugin.json を作成（.plm-meta.json なし）
+    // plugin.json に installedAt があっても無視される (.plm-meta.json なし)
     let manifest_content =
         r#"{"name":"test","version":"1.0.0","installedAt":"2025-01-10T00:00:00Z"}"#;
     fs::write(plugin_dir.join("plugin.json"), manifest_content).unwrap();
 
-    let manifest = PluginManifest::parse(manifest_content).unwrap();
-    let result = resolve_installed_at(plugin_dir, Some(&manifest));
-    assert_eq!(result, Some("2025-01-10T00:00:00Z".to_string()));
-}
-
-#[test]
-fn test_resolve_installed_at_meta_priority() {
-    let temp_dir = TempDir::new().unwrap();
-    let plugin_dir = temp_dir.path();
-
-    // 両方に値がある場合、.plm-meta.json が優先
-    let meta = PluginMeta {
-        installed_at: Some("2025-01-15T10:30:00Z".to_string()),
-        ..Default::default()
-    };
-    write_meta(plugin_dir, &meta).unwrap();
-
-    let manifest_content =
-        r#"{"name":"test","version":"1.0.0","installedAt":"2025-01-10T00:00:00Z"}"#;
-    fs::write(plugin_dir.join("plugin.json"), manifest_content).unwrap();
-
-    let manifest = PluginManifest::parse(manifest_content).unwrap();
-    let result = resolve_installed_at(plugin_dir, Some(&manifest));
-    assert_eq!(result, Some("2025-01-15T10:30:00Z".to_string()));
-}
-
-#[test]
-fn test_resolve_installed_at_empty_meta_fallback() {
-    let temp_dir = TempDir::new().unwrap();
-    let plugin_dir = temp_dir.path();
-
-    // .plm-meta.json は空の installedAt
-    let meta = PluginMeta {
-        installed_at: Some("".to_string()),
-        ..Default::default()
-    };
-    write_meta(plugin_dir, &meta).unwrap();
-
-    // plugin.json に値あり
-    let manifest_content =
-        r#"{"name":"test","version":"1.0.0","installedAt":"2025-01-10T00:00:00Z"}"#;
-    fs::write(plugin_dir.join("plugin.json"), manifest_content).unwrap();
-
-    let manifest = PluginManifest::parse(manifest_content).unwrap();
-    let result = resolve_installed_at(plugin_dir, Some(&manifest));
-    assert_eq!(result, Some("2025-01-10T00:00:00Z".to_string()));
+    let result = resolve_installed_at(plugin_dir);
+    assert!(result.is_none());
 }
 
 #[test]
@@ -298,12 +254,8 @@ fn test_resolve_installed_at_both_none() {
     let temp_dir = TempDir::new().unwrap();
     let plugin_dir = temp_dir.path();
 
-    // plugin.json に installedAt なし
-    let manifest_content = r#"{"name":"test","version":"1.0.0"}"#;
-    fs::write(plugin_dir.join("plugin.json"), manifest_content).unwrap();
-
-    let manifest = PluginManifest::parse(manifest_content).unwrap();
-    let result = resolve_installed_at(plugin_dir, Some(&manifest));
+    // .plm-meta.json も plugin.json も無い
+    let result = resolve_installed_at(plugin_dir);
     assert!(result.is_none());
 }
 
@@ -497,7 +449,7 @@ fn test_is_enabled_func_with_status_by_target_enabled() {
     write_meta(plugin_dir, &meta).unwrap();
 
     let deployed: HashSet<String> = HashSet::new();
-    assert!(is_enabled(plugin_dir, "github", "test-plugin", &deployed));
+    assert!(is_enabled(plugin_dir, "test-plugin", &deployed));
 }
 
 #[test]
@@ -511,7 +463,7 @@ fn test_is_enabled_func_with_status_by_target_disabled() {
     write_meta(plugin_dir, &meta).unwrap();
 
     let deployed: HashSet<String> = HashSet::new();
-    assert!(!is_enabled(plugin_dir, "github", "test-plugin", &deployed));
+    assert!(!is_enabled(plugin_dir, "test-plugin", &deployed));
 }
 
 #[test]
@@ -527,7 +479,7 @@ fn test_is_enabled_func_fallback_to_deployed() {
     let mut deployed: HashSet<String> = HashSet::new();
     deployed.insert("test-plugin_my-skill".to_string());
 
-    assert!(is_enabled(plugin_dir, "github", "test-plugin", &deployed));
+    assert!(is_enabled(plugin_dir, "test-plugin", &deployed));
 }
 
 #[test]
@@ -540,7 +492,7 @@ fn test_is_enabled_func_fallback_not_deployed() {
     write_meta(plugin_dir, &meta).unwrap();
 
     let deployed: HashSet<String> = HashSet::new();
-    assert!(!is_enabled(plugin_dir, "github", "test-plugin", &deployed));
+    assert!(!is_enabled(plugin_dir, "test-plugin", &deployed));
 }
 
 #[test]
@@ -552,7 +504,7 @@ fn test_is_enabled_func_no_meta_file_fallback() {
     let mut deployed: HashSet<String> = HashSet::new();
     deployed.insert("test-plugin_my-skill".to_string());
 
-    assert!(is_enabled(plugin_dir, "github", "test-plugin", &deployed));
+    assert!(is_enabled(plugin_dir, "test-plugin", &deployed));
 }
 
 #[test]
@@ -566,7 +518,7 @@ fn test_is_enabled_func_prefix_no_partial_match() {
     let mut deployed: HashSet<String> = HashSet::new();
     deployed.insert("test-plugin-other_x".to_string());
 
-    assert!(!is_enabled(plugin_dir, "github", "test-plugin", &deployed));
+    assert!(!is_enabled(plugin_dir, "test-plugin", &deployed));
 }
 
 // =============================================================================
@@ -641,8 +593,8 @@ fn test_build_deployed_plugin_set_prefix_collision() {
     // 両方 true を返す（false positive の挙動が build_deployed_plugin_set と
     // 等価であること）。
     let temp_dir = TempDir::new().unwrap();
-    assert!(is_enabled(temp_dir.path(), "github", "foo", &deployed));
-    assert!(is_enabled(temp_dir.path(), "github", "foo_bar", &deployed));
+    assert!(is_enabled(temp_dir.path(), "foo", &deployed));
+    assert!(is_enabled(temp_dir.path(), "foo_bar", &deployed));
 }
 
 #[test]

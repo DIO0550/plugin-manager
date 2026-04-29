@@ -54,20 +54,19 @@ impl CopilotTarget {
     /// * `c` - Scanned component entry.
     /// * `kind` - Component kind expected for the entry.
     fn filter_component(c: &ScannedComponent, kind: ComponentKind) -> Option<String> {
-        let make_qualified = |name: &str| c.origin.qualify(name);
         match kind {
             // Skill: SKILL.md が直下にあるディレクトリのみ採用（二重防御）。
             ComponentKind::Skill if c.is_dir && c.path.join("SKILL.md").is_file() => {
-                Some(make_qualified(&c.name))
+                Some(c.name.clone())
             }
             ComponentKind::Agent if !c.is_dir && c.name.ends_with(".agent.md") => {
-                Some(make_qualified(c.name.trim_end_matches(".agent.md")))
+                Some(c.name.trim_end_matches(".agent.md").to_string())
             }
             ComponentKind::Command if !c.is_dir && c.name.ends_with(".prompt.md") => {
-                Some(make_qualified(c.name.trim_end_matches(".prompt.md")))
+                Some(c.name.trim_end_matches(".prompt.md").to_string())
             }
             ComponentKind::Hook if !c.is_dir && c.name.ends_with(".json") => {
-                Some(make_qualified(c.name.trim_end_matches(".json")))
+                Some(c.name.trim_end_matches(".json").to_string())
             }
             _ => None,
         }

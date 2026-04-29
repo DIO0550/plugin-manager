@@ -306,8 +306,7 @@ fn test_copilot_list_placed_hooks() {
         .unwrap();
 
     assert_eq!(result.len(), 1);
-    // origin は scanner プレースホルダ ("_") だが、`PluginOrigin::qualify` は
-    // フラット化以降 `name` 単独を返すため、そのまま flattened_name を期待する。
+    // フラット化以降は `name` 単独 (= flattened_name) を識別子とする。
     assert_eq!(result[0], "my-plugin_pre-commit");
 }
 

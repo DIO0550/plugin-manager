@@ -210,11 +210,11 @@ fn build_plugin_info(content: MarketplaceContent) -> Result<PluginInfo> {
 
     let source = determine_source(marketplace_key, &dir_name);
 
-    let installed_at = meta::resolve_installed_at(&cache_path, Some(&manifest));
+    let installed_at = meta::resolve_installed_at(&cache_path);
 
     // flatten_name の prefix は manifest.name に基づくため
     // is_enabled には manifest.name を渡す。
-    let enabled = resolve_enabled(&cache_path, marketplace_key, manifest.name.as_str());
+    let enabled = resolve_enabled(&cache_path, manifest.name.as_str());
 
     // InstalledPlugin を組み立てる（list_installed_plugins と同じく marketplace は Option<String> を保つ）
     let id = Some(dir_name.clone());
@@ -236,12 +236,11 @@ fn build_plugin_info(content: MarketplaceContent) -> Result<PluginInfo> {
 /// # Arguments
 ///
 /// * `cache_path` - Path to the plugin's cache directory.
-/// * `marketplace` - Marketplace key (e.g. `"github"`).
 /// * `plugin_name` - `PluginManifest.name`。`flattened_name` の prefix 判定に使う。
-fn resolve_enabled(cache_path: &Path, marketplace: &str, plugin_name: &str) -> bool {
+fn resolve_enabled(cache_path: &Path, plugin_name: &str) -> bool {
     let project_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let deployed = list_all_placed(&project_root);
-    meta::is_enabled(cache_path, marketplace, plugin_name, &deployed)
+    meta::is_enabled(cache_path, plugin_name, &deployed)
 }
 
 #[cfg(test)]

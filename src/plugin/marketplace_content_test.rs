@@ -22,7 +22,6 @@ fn make_manifest(name: &str) -> PluginManifest {
         hooks: None,
         mcp_servers: None,
         lsp_servers: None,
-        installed_at: None,
     }
 }
 
