@@ -87,21 +87,19 @@ fn framed_layout_min_terminal_height() {
 }
 
 #[test]
-fn detail_layout_returns_3_chunks_with_specified_action_menu_height() {
+fn detail_layout_returns_2_chunks_with_specified_action_menu_height() {
     let content = Rect::new(0, 0, 80, 20);
     let chunks = detail_layout(content, 4);
     assert_eq!(chunks[1].height, 4);
-    assert_eq!(chunks[2].height, 1);
-    assert!(chunks[0].height >= 1);
+    assert_eq!(chunks[0].height, 16);
 }
 
 #[test]
 fn detail_layout_respects_action_menu_rows() {
     let content = Rect::new(0, 0, 80, 20);
     let chunks = detail_layout(content, 10);
-    assert_eq!(chunks[0].height, 9);
+    assert_eq!(chunks[0].height, 10);
     assert_eq!(chunks[1].height, 10);
-    assert_eq!(chunks[2].height, 1);
 }
 
 #[test]
@@ -109,8 +107,7 @@ fn detail_layout_action_menu_rows_zero_returns_empty_menu() {
     let content = Rect::new(0, 0, 80, 20);
     let chunks = detail_layout(content, 0);
     assert_eq!(chunks[1].height, 0);
-    assert_eq!(chunks[2].height, 1);
-    assert!(chunks[0].height >= 1);
+    assert_eq!(chunks[0].height, 20);
 }
 
 #[test]

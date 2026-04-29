@@ -440,7 +440,7 @@ fn view_plugin_detail(
     let actions = DetailAction::for_plugin(plugin.enabled());
     let (items, action_menu_rows) = build_detail_action_menu(&actions);
 
-    let [info_area, menu_area, _detail_help] = detail_layout(content_area, action_menu_rows);
+    let [info_area, menu_area] = detail_layout(content_area, action_menu_rows);
 
     let info_para = Paragraph::new(info_lines).block(bordered_block(&title));
     f.render_widget(info_para, info_area);

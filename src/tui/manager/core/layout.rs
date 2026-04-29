@@ -79,23 +79,22 @@ pub fn framed_layout(outer: Rect) -> [Rect; 4] {
     [chunks[0], chunks[1], chunks[2], chunks[3]]
 }
 
-/// Installed plugin detail 用 3 区画レイアウト
-/// `(info_pane: Min(1), action_menu: Length(action_menu_rows), help: Length(1))`
+/// Installed plugin detail 用 2 区画レイアウト
+/// `(info_pane: Min(1), action_menu: Length(action_menu_rows))`
+///
+/// help 行は呼び出し元で既に `framed_layout` の help_area に確保しているため、
+/// ここでは含めない。
 ///
 /// `action_menu_rows` は **action menu の描画行数（論理 action 件数ではない）**。
 /// 呼び出し側では固定係数で見積もらず、
 /// `items.iter().map(ListItem::height).sum()` のように
 /// 実際に描画する item の高さ合計を渡すこと。
-pub fn detail_layout(content: Rect, action_menu_rows: u16) -> [Rect; 3] {
+pub fn detail_layout(content: Rect, action_menu_rows: u16) -> [Rect; 2] {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Min(1),
-            Constraint::Length(action_menu_rows),
-            Constraint::Length(1),
-        ])
+        .constraints([Constraint::Min(1), Constraint::Length(action_menu_rows)])
         .split(content);
-    [chunks[0], chunks[1], chunks[2]]
+    [chunks[0], chunks[1]]
 }
 
 /// 中央寄せモーダルの **外枠 (centered area) のみ** を返す。
