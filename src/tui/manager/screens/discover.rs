@@ -2,12 +2,12 @@
 //!
 //! 利用可能なプラグインの検索と閲覧。
 
-use crate::tui::manager::core::{
-    content_rect, render_filter_bar, DataStore, PluginId, Tab, HORIZONTAL_PADDING,
-};
+use crate::tui::manager::core::layout::{framed_layout, outer_rect};
+use crate::tui::manager::core::style::bordered_block;
+use crate::tui::manager::core::{render_filter_bar, DataStore, PluginId, Tab};
 use crossterm::event::KeyCode;
 use ratatui::prelude::*;
-use ratatui::widgets::{Block, Borders, Clear, ListState, Paragraph, Tabs};
+use ratatui::widgets::{Clear, ListState, Paragraph, Tabs};
 
 /// キャッシュ状態（タブ切替時に保持）
 #[derive(Debug, Default)]
@@ -96,18 +96,10 @@ pub fn view(
     filter_text: &str,
     filter_focused: bool,
 ) {
-    let outer = content_rect(f.area(), HORIZONTAL_PADDING);
-    f.render_widget(Clear, outer);
+    let outer = outer_rect(f.area());
+    f.render_widget(Clear, f.area());
 
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(1), // タブバー
-            Constraint::Length(3), // フィルタバー
-            Constraint::Min(1),    // コンテンツ
-            Constraint::Length(1), // ヘルプ
-        ])
-        .split(outer);
+    let [tabs_area, filter_area, content_area, help_area] = framed_layout(outer);
 
     let tab_titles: Vec<&str> = Tab::all().iter().map(|t| t.title()).collect();
     let tabs = Tabs::new(tab_titles)
@@ -119,16 +111,16 @@ pub fn view(
                 .add_modifier(Modifier::BOLD),
         )
         .divider(" | ");
-    f.render_widget(tabs, chunks[0]);
+    f.render_widget(tabs, tabs_area);
 
     // フィルタバー（Discover タブではフィルタ機能は未対応、UI のみ表示）
-    render_filter_bar(f, chunks[1], filter_text, filter_focused);
+    render_filter_bar(f, filter_area, filter_text, filter_focused);
 
     let content = Paragraph::new("\n  Browse available plugins")
-        .block(Block::default().title(" Discover ").borders(Borders::ALL))
+        .block(bordered_block(" Discover "))
         .style(Style::default().fg(Color::DarkGray));
-    f.render_widget(content, chunks[2]);
+    f.render_widget(content, content_area);
 
     let help = Paragraph::new(" Tab: switch | q: quit").style(Style::default().fg(Color::DarkGray));
-    f.render_widget(help, chunks[3]);
+    f.render_widget(help, help_area);
 }
