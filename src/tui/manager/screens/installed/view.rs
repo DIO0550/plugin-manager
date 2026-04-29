@@ -3,9 +3,11 @@
 //! 各画面状態に応じた描画ロジック。
 
 use super::model::{DetailAction, Model, UpdateStatusDisplay};
+use crate::application::InstalledPlugin;
 use crate::component::ComponentKind;
 use crate::tui::manager::core::{
-    dialog_rect, filter_plugins, render_filter_bar, DataStore, PluginId, Tab,
+    content_rect, filter_plugins, render_filter_bar, truncate_to_width, DataStore, PluginId, Tab,
+    HORIZONTAL_PADDING, LIST_DECORATION_WIDTH, MIN_CONTENT_WIDTH,
 };
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Tabs};
@@ -104,6 +106,107 @@ fn sanitize_reason(reason: &str) -> String {
     }
 }
 
+/// マーク状態 / 有効状態に応じた行のベーススタイルを返す。
+fn plugin_row_style(is_marked: bool, enabled: bool) -> Style {
+    match (is_marked, enabled) {
+        (true, _) => Style::default().fg(Color::Yellow),
+        (false, true) => Style::default(),
+        (false, false) => Style::default().fg(Color::DarkGray),
+    }
+}
+
+/// マーク有無からチェック印 prefix を組み立てる。
+fn plugin_row_prefix(is_marked: bool) -> String {
+    let mark_indicator = if is_marked { "[x] " } else { "[ ] " };
+    format!("  {}", mark_indicator)
+}
+
+/// 名前 + (marketplace) + バージョン + (disabled) を組み立てる。
+fn plugin_row_name_text(plugin: &InstalledPlugin) -> String {
+    let marketplace_str = plugin
+        .marketplace()
+        .map(|m| format!(" @{}", m))
+        .unwrap_or_default();
+    let status_str = if plugin.enabled() { "" } else { " [disabled]" };
+    format!(
+        "{}{}  v{}{}",
+        plugin.name(),
+        marketplace_str,
+        plugin.version(),
+        status_str
+    )
+}
+
+/// 狭幅 (`content_width < MIN_CONTENT_WIDTH`) フォールバック用の Span 列。
+///
+/// 更新ステータス Span を落とし、`prefix` のスタイルを保ったまま
+/// 残り幅 (`list_inner_width - prefix_w`) で `name_text` を切り詰めた最大 2 Span 構成。
+fn narrow_plugin_row_spans<'a>(
+    prefix: String,
+    name_text: &str,
+    content_width: u16,
+    base_style: Style,
+) -> Vec<Span<'a>> {
+    let list_inner_width = content_width.saturating_sub(LIST_DECORATION_WIDTH);
+    let prefix_w = prefix.chars().count() as u16;
+    let body_budget = list_inner_width.saturating_sub(prefix_w);
+    let body = truncate_to_width(name_text, body_budget);
+    vec![
+        Span::styled(prefix, base_style),
+        Span::styled(body, base_style),
+    ]
+}
+
+/// 通常幅用の Span 列。`prefix + name_text` に更新ステータス Span を追記する。
+fn wide_plugin_row_spans<'a>(
+    prefix: String,
+    name_text: String,
+    update_status: Option<&'a UpdateStatusDisplay>,
+    base_style: Style,
+) -> Vec<Span<'a>> {
+    let mut spans = vec![
+        Span::styled(prefix, base_style),
+        Span::styled(name_text, base_style),
+    ];
+    if let Some(status) = update_status {
+        spans.push(update_status_span(status));
+    }
+    spans
+}
+
+/// プラグイン 1 行分の Span 列を構築する。
+///
+/// 通常時は `[prefix + name/version/disabled + update_status]` の複数 Span を返し、
+/// `content_width < MIN_CONTENT_WIDTH` の狭幅時は更新ステータス Span を落とし、
+/// `prefix + body` の最大 2 Span に切り詰める。`content_width` には `outer.width` を渡す。
+pub(super) fn build_plugin_row_spans<'a>(
+    plugin: &'a InstalledPlugin,
+    is_marked: bool,
+    update_status: Option<&'a UpdateStatusDisplay>,
+    content_width: u16,
+) -> Vec<Span<'a>> {
+    let prefix = plugin_row_prefix(is_marked);
+    let name_text = plugin_row_name_text(plugin);
+    let base_style = plugin_row_style(is_marked, plugin.enabled());
+
+    if content_width < MIN_CONTENT_WIDTH {
+        narrow_plugin_row_spans(prefix, &name_text, content_width, base_style)
+    } else {
+        wide_plugin_row_spans(prefix, name_text, update_status, base_style)
+    }
+}
+
+/// プラグイン 1 行分の `ListItem` を構築する。
+pub(super) fn build_plugin_row<'a>(
+    plugin: &'a InstalledPlugin,
+    is_marked: bool,
+    update_status: Option<&'a UpdateStatusDisplay>,
+    content_width: u16,
+) -> ListItem<'a> {
+    let spans = build_plugin_row_spans(plugin, is_marked, update_status, content_width);
+    ListItem::new(Line::from(spans))
+}
+
 /// 更新ステータスの表示文字列とスタイルを取得
 ///
 /// # Arguments
@@ -146,12 +249,8 @@ fn view_plugin_list(
     update_statuses: &HashMap<PluginId, UpdateStatusDisplay>,
 ) {
     let filtered = filter_plugins(&ctx.data.plugins, ctx.filter_text);
-    let content_height = (filtered.len() as u16).max(1) + 9; // +3 for filter bar
-    let dialog_width = 55u16;
-    let dialog_height = content_height.min(24);
-
-    let dialog_area = dialog_rect(dialog_width, dialog_height, f.area());
-    f.render_widget(Clear, dialog_area);
+    let outer = content_rect(f.area(), HORIZONTAL_PADDING);
+    f.render_widget(Clear, outer);
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -161,7 +260,7 @@ fn view_plugin_list(
             Constraint::Min(1),    // コンテンツ
             Constraint::Length(1), // ヘルプ
         ])
-        .split(dialog_area);
+        .split(outer);
 
     // タブバー
     let tab_titles: Vec<&str> = Tab::all().iter().map(|t| t.title()).collect();
@@ -207,44 +306,8 @@ fn view_plugin_list(
             .iter()
             .map(|p| {
                 let is_marked = marked_ids.contains(p.id());
-                let mark_indicator = if is_marked { "[x] " } else { "[ ] " };
-
-                let marketplace_str = p
-                    .marketplace()
-                    .map(|m| format!(" @{}", m))
-                    .unwrap_or_default();
-                let status_str = if p.enabled() { "" } else { " [disabled]" };
-
-                // 行のベーススタイル（マーク・disabled 状態に応じて統一）
-                let base_style = if is_marked {
-                    Style::default().fg(Color::Yellow)
-                } else if p.enabled() {
-                    Style::default()
-                } else {
-                    Style::default().fg(Color::DarkGray)
-                };
-
-                let mut spans = vec![];
-
-                // マークインジケータ（ベーススタイルと統一）
-                spans.push(Span::styled(format!("  {}", mark_indicator), base_style));
-
-                // プラグイン名
-                let name_text = format!(
-                    "{}{}  v{}{}",
-                    p.name(),
-                    marketplace_str,
-                    p.version(),
-                    status_str
-                );
-                spans.push(Span::styled(name_text, base_style));
-
-                // 更新ステータス
-                if let Some(update_status) = update_statuses.get(p.id()) {
-                    spans.push(update_status_span(update_status));
-                }
-
-                ListItem::new(Line::from(spans))
+                let update_status = update_statuses.get(p.id());
+                build_plugin_row(p, is_marked, update_status, outer.width)
             })
             .collect();
 
@@ -286,11 +349,8 @@ fn view_plugin_detail(
         return;
     };
 
-    // ダイアログサイズ
-    let dialog_width = 65u16;
-    let dialog_height = 21u16; // +3 for filter bar
-    let dialog_area = dialog_rect(dialog_width, dialog_height, f.area());
-    f.render_widget(Clear, dialog_area);
+    let outer = content_rect(f.area(), HORIZONTAL_PADDING);
+    f.render_widget(Clear, outer);
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -301,7 +361,7 @@ fn view_plugin_detail(
             Constraint::Min(1),    // アクションメニュー
             Constraint::Length(1), // ヘルプ
         ])
-        .split(dialog_area);
+        .split(outer);
 
     // タブバー
     let tab_titles: Vec<&str> = Tab::all().iter().map(|t| t.title()).collect();
@@ -394,15 +454,9 @@ fn view_component_types(
     };
 
     let counts = ctx.data.available_component_kinds(plugin);
-    let has_marketplace = plugin.marketplace().is_some();
-    let base_lines = if has_marketplace { 4 } else { 3 };
-    let type_lines = if counts.is_empty() { 1 } else { counts.len() };
-    let content_height = (base_lines + type_lines) as u16 + 7; // +3 for filter bar
-    let dialog_width = 55u16;
-    let dialog_height = content_height.min(18);
 
-    let dialog_area = dialog_rect(dialog_width, dialog_height, f.area());
-    f.render_widget(Clear, dialog_area);
+    let outer = content_rect(f.area(), HORIZONTAL_PADDING);
+    f.render_widget(Clear, outer);
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -411,7 +465,7 @@ fn view_component_types(
             Constraint::Min(1),    // コンテンツ
             Constraint::Length(1), // ヘルプ
         ])
-        .split(dialog_area);
+        .split(outer);
 
     // フィルタバー（read-only）
     render_filter_bar(f, chunks[0], ctx.filter_text, ctx.filter_focused);
@@ -489,12 +543,8 @@ fn view_component_list(
         .map(|c| ListItem::new(format!("  {}", c)))
         .collect();
 
-    let content_height = (components.len() as u16).max(1) + 7; // +3 for filter bar
-    let dialog_width = 55u16;
-    let dialog_height = content_height.min(23);
-
-    let dialog_area = dialog_rect(dialog_width, dialog_height, f.area());
-    f.render_widget(Clear, dialog_area);
+    let outer = content_rect(f.area(), HORIZONTAL_PADDING);
+    f.render_widget(Clear, outer);
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -503,7 +553,7 @@ fn view_component_list(
             Constraint::Min(1),    // コンテンツ
             Constraint::Length(1), // ヘルプ
         ])
-        .split(dialog_area);
+        .split(outer);
 
     // フィルタバー（read-only）
     render_filter_bar(f, chunks[0], ctx.filter_text, ctx.filter_focused);
@@ -530,3 +580,7 @@ fn view_component_list(
         .style(Style::default().fg(Color::DarkGray));
     f.render_widget(help, chunks[2]);
 }
+
+#[cfg(test)]
+#[path = "view_test.rs"]
+mod view_test;

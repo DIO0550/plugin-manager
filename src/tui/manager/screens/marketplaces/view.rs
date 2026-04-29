@@ -2,10 +2,14 @@
 
 use super::model::{
     AddFormModel, BrowsePlugin, DetailAction, InstallSummary, Model, OperationStatus,
+    PluginInstallResult,
 };
 use crate::component::Scope;
 use crate::marketplace::PluginSource;
-use crate::tui::manager::core::{dialog_rect, render_filter_bar, DataStore, Tab};
+use crate::tui::manager::core::{
+    content_rect, render_filter_bar, truncate_for_list, truncate_for_paragraph, DataStore, Tab,
+    HORIZONTAL_PADDING,
+};
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Clear, Gauge, List, ListItem, ListState, Paragraph, Tabs};
 use std::collections::HashSet;
@@ -162,18 +166,12 @@ fn view_market_list(
     operation_status: &Option<OperationStatus>,
     error_message: &Option<String>,
 ) {
-    // リスト長: マーケットプレイス数 + 1（"+ Add new"）
-    let list_len = ctx.data.marketplaces.len() + 1;
     let has_status = operation_status.is_some();
     let has_error = error_message.is_some();
     let extra_lines = if has_status { 1 } else { 0 } + if has_error { 1 } else { 0 };
 
-    let content_height = (list_len as u16).max(1) + 2 + extra_lines; // +2 for borders
-    let dialog_width = 65u16;
-    let dialog_height = (content_height + 5).min(24); // +5 for tab+filter+help
-
-    let dialog_area = dialog_rect(dialog_width, dialog_height, f.area());
-    f.render_widget(Clear, dialog_area);
+    let outer = content_rect(f.area(), HORIZONTAL_PADDING);
+    f.render_widget(Clear, outer);
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -183,7 +181,7 @@ fn view_market_list(
             Constraint::Min(1),    // コンテンツ
             Constraint::Length(1), // ヘルプ
         ])
-        .split(dialog_area);
+        .split(outer);
 
     // タブバー
     render_tab_bar(f, chunks[0]);
@@ -218,11 +216,11 @@ fn view_market_list(
                 .map(|p| format!(" ({})", p))
                 .unwrap_or_default();
 
-            let text = format!(
+            let raw = format!(
                 "  {}    {}{}    {}    {}",
                 m.name, m.source, source_path_info, plugin_info, updated_info
             );
-            ListItem::new(text)
+            ListItem::new(truncate_for_list(outer.width, raw))
         })
         .collect();
 
@@ -288,11 +286,8 @@ fn view_market_detail(
     ctx: &ViewCtx<'_>,
     error_message: &Option<String>,
 ) {
-    let dialog_width = 65u16;
-    let dialog_height = 20u16;
-
-    let dialog_area = dialog_rect(dialog_width, dialog_height, f.area());
-    f.render_widget(Clear, dialog_area);
+    let outer = content_rect(f.area(), HORIZONTAL_PADDING);
+    f.render_widget(Clear, outer);
 
     let has_error = error_message.is_some();
     let error_height = if has_error { 1 } else { 0 };
@@ -307,7 +302,7 @@ fn view_market_detail(
             Constraint::Length(error_height), // エラー
             Constraint::Length(1),            // ヘルプ
         ])
-        .split(dialog_area);
+        .split(outer);
 
     // タブバー
     render_tab_bar(f, chunks[0]);
@@ -400,12 +395,8 @@ fn view_plugin_list(
     plugins: &[(String, Option<String>)],
     filter: &FilterCtx<'_>,
 ) {
-    let content_height = (plugins.len() as u16).max(1) + 2; // +2 for borders
-    let dialog_width = 65u16;
-    let dialog_height = (content_height + 5).min(24);
-
-    let dialog_area = dialog_rect(dialog_width, dialog_height, f.area());
-    f.render_widget(Clear, dialog_area);
+    let outer = content_rect(f.area(), HORIZONTAL_PADDING);
+    f.render_widget(Clear, outer);
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -415,7 +406,7 @@ fn view_plugin_list(
             Constraint::Min(1),    // コンテンツ
             Constraint::Length(1), // ヘルプ
         ])
-        .split(dialog_area);
+        .split(outer);
 
     // タブバー
     render_tab_bar(f, chunks[0]);
@@ -437,12 +428,12 @@ fn view_plugin_list(
         let items: Vec<ListItem> = plugins
             .iter()
             .map(|(name, desc)| {
-                let text = if let Some(description) = desc {
+                let raw = if let Some(description) = desc {
                     format!("  {} - {}", name, description)
                 } else {
                     format!("  {}", name)
                 };
-                ListItem::new(text)
+                ListItem::new(truncate_for_list(outer.width, raw))
             })
             .collect();
 
@@ -472,11 +463,8 @@ fn view_plugin_list(
 /// * `filter_text` - Current filter input text.
 /// * `filter_focused` - Whether the filter bar currently has focus.
 fn view_add_form(f: &mut Frame, form: &AddFormModel, filter_text: &str, filter_focused: bool) {
-    let dialog_width = 65u16;
-    let dialog_height = 15u16;
-
-    let dialog_area = dialog_rect(dialog_width, dialog_height, f.area());
-    f.render_widget(Clear, dialog_area);
+    let outer = content_rect(f.area(), HORIZONTAL_PADDING);
+    f.render_widget(Clear, outer);
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -486,7 +474,7 @@ fn view_add_form(f: &mut Frame, form: &AddFormModel, filter_text: &str, filter_f
             Constraint::Min(1),    // コンテンツ
             Constraint::Length(1), // ヘルプ
         ])
-        .split(dialog_area);
+        .split(outer);
 
     // タブバー
     render_tab_bar(f, chunks[0]);
@@ -627,11 +615,8 @@ fn view_plugin_browse(
     mut state: ListState,
     filter: &FilterCtx<'_>,
 ) {
-    let dialog_width = 80u16;
-    let dialog_height = 24u16;
-
-    let dialog_area = dialog_rect(dialog_width, dialog_height, f.area());
-    f.render_widget(Clear, dialog_area);
+    let outer = content_rect(f.area(), HORIZONTAL_PADDING);
+    f.render_widget(Clear, outer);
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -641,7 +626,7 @@ fn view_plugin_browse(
             Constraint::Min(1),    // コンテンツ
             Constraint::Length(1), // ヘルプ
         ])
-        .split(dialog_area);
+        .split(outer);
 
     // タブバー
     render_tab_bar(f, chunks[0]);
@@ -706,11 +691,15 @@ fn view_target_select(
     _highlighted_idx: usize,
     mut state: ListState,
 ) {
-    let dialog_width = 45u16;
+    let outer = content_rect(f.area(), HORIZONTAL_PADDING);
     let dialog_height = (targets.len() as u16 + 5).min(16);
-
-    let dialog_area = dialog_rect(dialog_width, dialog_height, f.area());
-    f.render_widget(Clear, dialog_area);
+    let modal_area = Rect::new(
+        outer.x,
+        outer.y,
+        outer.width,
+        dialog_height.min(outer.height),
+    );
+    f.render_widget(Clear, modal_area);
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -718,7 +707,7 @@ fn view_target_select(
             Constraint::Min(1),    // コンテンツ
             Constraint::Length(1), // ヘルプ
         ])
-        .split(dialog_area);
+        .split(modal_area);
 
     let items = build_target_list_items(targets);
 
@@ -746,11 +735,15 @@ fn view_target_select(
 /// * `highlighted_idx` - Currently highlighted scope index.
 /// * `state` - List state used for scope highlight.
 fn view_scope_select(f: &mut Frame, highlighted_idx: usize, mut state: ListState) {
-    let dialog_width = 45u16;
+    let outer = content_rect(f.area(), HORIZONTAL_PADDING);
     let dialog_height = 8u16;
-
-    let dialog_area = dialog_rect(dialog_width, dialog_height, f.area());
-    f.render_widget(Clear, dialog_area);
+    let modal_area = Rect::new(
+        outer.x,
+        outer.y,
+        outer.width,
+        dialog_height.min(outer.height),
+    );
+    f.render_widget(Clear, modal_area);
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -758,7 +751,7 @@ fn view_scope_select(f: &mut Frame, highlighted_idx: usize, mut state: ListState
             Constraint::Min(1),    // コンテンツ
             Constraint::Length(1), // ヘルプ
         ])
-        .split(dialog_area);
+        .split(modal_area);
 
     let items = build_scope_list_items(highlighted_idx);
 
@@ -787,16 +780,20 @@ fn view_scope_select(f: &mut Frame, highlighted_idx: usize, mut state: ListState
 /// * `current_idx` - Index of the plugin currently being processed.
 /// * `total` - Total number of plugins in this install batch.
 fn view_installing(f: &mut Frame, plugin_names: &[String], current_idx: usize, total: usize) {
-    let dialog_width = 45u16;
+    let outer = content_rect(f.area(), HORIZONTAL_PADDING);
     let dialog_height = 7u16;
-
-    let dialog_area = dialog_rect(dialog_width, dialog_height, f.area());
-    f.render_widget(Clear, dialog_area);
+    let modal_area = Rect::new(
+        outer.x,
+        outer.y,
+        outer.width,
+        dialog_height.min(outer.height),
+    );
+    f.render_widget(Clear, modal_area);
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Min(1)])
-        .split(dialog_area);
+        .split(modal_area);
 
     let current_name = plugin_names
         .get(current_idx)
@@ -837,6 +834,22 @@ fn view_installing(f: &mut Frame, plugin_names: &[String], current_idx: usize, t
     f.render_widget(gauge, inner_chunks[1]);
 }
 
+/// インストール結果 1 件を描画用の `(行テキスト, 色)` に整形する。
+///
+/// 成功・失敗で接頭辞・色が異なるが、組み立て・切り詰め・スタイル付与の経路を
+/// 共通化するため、ここでは色とテキストの導出だけを担う。
+fn format_install_result_line(result: &PluginInstallResult) -> (String, Color) {
+    if result.success {
+        (format!("  ✓ {}", result.plugin_name), Color::Green)
+    } else {
+        let error_msg = result.error.as_deref().unwrap_or("Unknown error");
+        (
+            format!("  ✗ {}: {}", result.plugin_name, error_msg),
+            Color::Red,
+        )
+    }
+}
+
 /// インストール結果画面を描画
 ///
 /// # Arguments
@@ -845,11 +858,16 @@ fn view_installing(f: &mut Frame, plugin_names: &[String], current_idx: usize, t
 /// * `summary` - Aggregated install summary to display.
 fn view_install_result(f: &mut Frame, summary: &InstallSummary) {
     let content_height = (summary.results.len() as u16 + 5).min(20);
-    let dialog_width = 50u16;
     let dialog_height = content_height + 3;
 
-    let dialog_area = dialog_rect(dialog_width, dialog_height, f.area());
-    f.render_widget(Clear, dialog_area);
+    let outer = content_rect(f.area(), HORIZONTAL_PADDING);
+    let modal_area = Rect::new(
+        outer.x,
+        outer.y,
+        outer.width,
+        dialog_height.min(outer.height),
+    );
+    f.render_widget(Clear, modal_area);
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -857,7 +875,7 @@ fn view_install_result(f: &mut Frame, summary: &InstallSummary) {
             Constraint::Min(1),    // コンテンツ
             Constraint::Length(1), // ヘルプ
         ])
-        .split(dialog_area);
+        .split(modal_area);
 
     let mut lines = vec![
         Line::raw(""),
@@ -869,18 +887,11 @@ fn view_install_result(f: &mut Frame, summary: &InstallSummary) {
     ];
 
     for result in &summary.results {
-        if result.success {
-            lines.push(Line::from(Span::styled(
-                format!("  ✓ {}", result.plugin_name),
-                Style::default().fg(Color::Green),
-            )));
-        } else {
-            let error_msg = result.error.as_deref().unwrap_or("Unknown error");
-            lines.push(Line::from(Span::styled(
-                format!("  ✗ {}: {}", result.plugin_name, error_msg),
-                Style::default().fg(Color::Red),
-            )));
-        }
+        let (raw, color) = format_install_result_line(result);
+        lines.push(Line::from(Span::styled(
+            truncate_for_paragraph(outer.width, raw),
+            Style::default().fg(color),
+        )));
     }
 
     lines.push(Line::raw(""));
