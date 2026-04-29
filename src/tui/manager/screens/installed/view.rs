@@ -5,12 +5,17 @@
 use super::model::{DetailAction, Model, UpdateStatusDisplay};
 use crate::application::InstalledPlugin;
 use crate::component::ComponentKind;
+use crate::tui::manager::core::layout::{detail_layout, framed_layout, outer_rect};
+use crate::tui::manager::core::style::{
+    bordered_block, menu_list, selectable_list, ICON_DISABLED, ICON_ENABLED, LIST_ITEM_INDENT,
+    MARK_MARKED, MARK_UNMARKED,
+};
 use crate::tui::manager::core::{
-    content_rect, filter_plugins, render_filter_bar, truncate_to_width, DataStore, PluginId, Tab,
-    HORIZONTAL_PADDING, LIST_DECORATION_WIDTH, MIN_CONTENT_WIDTH,
+    filter_plugins, render_filter_bar, truncate_to_width, DataStore, PluginId, Tab,
+    LIST_DECORATION_WIDTH, MIN_CONTENT_WIDTH,
 };
 use ratatui::prelude::*;
-use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Tabs};
+use ratatui::widgets::{Clear, ListItem, ListState, Paragraph, Tabs};
 use std::collections::{HashMap, HashSet};
 
 /// 描画用共通コンテキスト
@@ -115,10 +120,17 @@ fn plugin_row_style(is_marked: bool, enabled: bool) -> Style {
     }
 }
 
-/// マーク有無からチェック印 prefix を組み立てる。
-fn plugin_row_prefix(is_marked: bool) -> String {
-    let mark_indicator = if is_marked { "[x] " } else { "[ ] " };
-    format!("  {}", mark_indicator)
+/// マーク状態 + enabled 状態から行の prefix を組み立てる。
+///
+/// 完成形例: `"  [✓] ● "` (marked + enabled) / `"  [ ] ○ "` (unmarked + disabled)
+fn plugin_row_prefix(is_marked: bool, enabled: bool) -> String {
+    let mark = if is_marked {
+        MARK_MARKED
+    } else {
+        MARK_UNMARKED
+    };
+    let icon = if enabled { ICON_ENABLED } else { ICON_DISABLED };
+    format!("{}{} {} ", LIST_ITEM_INDENT, mark, icon)
 }
 
 /// 名前 + (marketplace) + バージョン + (disabled) を組み立てる。
@@ -185,7 +197,7 @@ pub(super) fn build_plugin_row_spans<'a>(
     update_status: Option<&'a UpdateStatusDisplay>,
     content_width: u16,
 ) -> Vec<Span<'a>> {
-    let prefix = plugin_row_prefix(is_marked);
+    let prefix = plugin_row_prefix(is_marked, plugin.enabled());
     let name_text = plugin_row_name_text(plugin);
     let base_style = plugin_row_style(is_marked, plugin.enabled());
 
@@ -204,7 +216,7 @@ pub(super) fn build_plugin_row<'a>(
     content_width: u16,
 ) -> ListItem<'a> {
     let spans = build_plugin_row_spans(plugin, is_marked, update_status, content_width);
-    ListItem::new(Line::from(spans))
+    ListItem::new(vec![Line::from(spans), Line::raw("")])
 }
 
 /// 更新ステータスの表示文字列とスタイルを取得
@@ -249,18 +261,10 @@ fn view_plugin_list(
     update_statuses: &HashMap<PluginId, UpdateStatusDisplay>,
 ) {
     let filtered = filter_plugins(&ctx.data.plugins, ctx.filter_text);
-    let outer = content_rect(f.area(), HORIZONTAL_PADDING);
+    let outer = outer_rect(f.area());
     f.render_widget(Clear, outer);
 
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(1), // タブバー
-            Constraint::Length(3), // フィルタバー
-            Constraint::Min(1),    // コンテンツ
-            Constraint::Length(1), // ヘルプ
-        ])
-        .split(outer);
+    let [tabs_area, filter_area, content_area, help_area] = framed_layout(outer);
 
     // タブバー
     let tab_titles: Vec<&str> = Tab::all().iter().map(|t| t.title()).collect();
@@ -273,10 +277,10 @@ fn view_plugin_list(
                 .add_modifier(Modifier::BOLD),
         )
         .divider(" | ");
-    f.render_widget(tabs, chunks[0]);
+    f.render_widget(tabs, tabs_area);
 
     // フィルタバー
-    render_filter_bar(f, chunks[1], ctx.filter_text, ctx.filter_focused);
+    render_filter_bar(f, filter_area, ctx.filter_text, ctx.filter_focused);
 
     // タイトル（マーク数表示付き）
     let marked_count = marked_ids.len();
@@ -298,9 +302,9 @@ fn view_plugin_list(
     // プラグインリスト（フィルタ済み）
     if filtered.is_empty() {
         let no_match = Paragraph::new("  No matching plugins")
-            .block(Block::default().title(title).borders(Borders::ALL))
+            .block(bordered_block(&title))
             .style(Style::default().fg(Color::DarkGray));
-        f.render_widget(no_match, chunks[2]);
+        f.render_widget(no_match, content_area);
     } else {
         let items: Vec<ListItem> = filtered
             .iter()
@@ -311,16 +315,9 @@ fn view_plugin_list(
             })
             .collect();
 
-        let list = List::new(items)
-            .block(Block::default().title(title).borders(Borders::ALL))
-            .highlight_style(
-                Style::default()
-                    .add_modifier(Modifier::BOLD)
-                    .fg(Color::Green),
-            )
-            .highlight_symbol("> ");
+        let list = selectable_list(items, &title);
 
-        f.render_stateful_widget(list, chunks[2], &mut state);
+        f.render_stateful_widget(list, content_area, &mut state);
     }
 
     // ヘルプ
@@ -328,7 +325,7 @@ fn view_plugin_list(
         " Space: mark | a: all | U: update | A: update all | Tab: switch | ↑↓: move | Enter: details | q: quit",
     )
     .style(Style::default().fg(Color::DarkGray));
-    f.render_widget(help, chunks[3]);
+    f.render_widget(help, help_area);
 }
 
 /// プラグイン詳細画面を描画
@@ -349,19 +346,10 @@ fn view_plugin_detail(
         return;
     };
 
-    let outer = content_rect(f.area(), HORIZONTAL_PADDING);
+    let outer = outer_rect(f.area());
     f.render_widget(Clear, outer);
 
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(1), // タブバー
-            Constraint::Length(3), // フィルタバー
-            Constraint::Length(7), // プラグイン情報
-            Constraint::Min(1),    // アクションメニュー
-            Constraint::Length(1), // ヘルプ
-        ])
-        .split(outer);
+    let [tabs_area, filter_area, content_area, help_area] = framed_layout(outer);
 
     // タブバー
     let tab_titles: Vec<&str> = Tab::all().iter().map(|t| t.title()).collect();
@@ -374,10 +362,10 @@ fn view_plugin_detail(
                 .add_modifier(Modifier::BOLD),
         )
         .divider(" | ");
-    f.render_widget(tabs, chunks[0]);
+    f.render_widget(tabs, tabs_area);
 
     // フィルタバー（read-only）
-    render_filter_bar(f, chunks[1], ctx.filter_text, ctx.filter_focused);
+    render_filter_bar(f, filter_area, ctx.filter_text, ctx.filter_focused);
 
     // プラグイン情報
     let marketplace_str = plugin
@@ -412,27 +400,29 @@ fn view_plugin_detail(
         ]),
     ];
 
-    let info_block = Block::default().title(title).borders(Borders::ALL);
-    let info_para = Paragraph::new(info_lines).block(info_block);
-    f.render_widget(info_para, chunks[2]);
-
     // アクションメニュー（enabled 状態に応じて動的に切り替え）
     let actions = DetailAction::for_plugin(plugin.enabled());
     let items: Vec<ListItem> = actions
         .iter()
-        .map(|a| ListItem::new(format!("  {}", a.label())).style(a.style()))
+        .map(|a| {
+            let line_text = format!("{}{}", LIST_ITEM_INDENT, a.label());
+            ListItem::new(vec![Line::from(line_text), Line::raw("")]).style(a.style())
+        })
         .collect();
 
-    let list = List::new(items)
-        .highlight_style(Style::default().add_modifier(Modifier::BOLD))
-        .highlight_symbol("> ");
+    let action_menu_rows: u16 = items.iter().map(|i| i.height() as u16).sum();
+    let [info_area, menu_area, _detail_help] = detail_layout(content_area, action_menu_rows);
 
-    f.render_stateful_widget(list, chunks[3], &mut state);
+    let info_para = Paragraph::new(info_lines).block(bordered_block(&title));
+    f.render_widget(info_para, info_area);
+
+    let list = menu_list(items);
+    f.render_stateful_widget(list, menu_area, &mut state);
 
     // ヘルプ
     let help = Paragraph::new(" Navigate: ↑↓ • Select: Enter • Back: Esc")
         .style(Style::default().fg(Color::DarkGray));
-    f.render_widget(help, chunks[4]);
+    f.render_widget(help, help_area);
 }
 
 /// コンポーネント種別選択画面を描画
@@ -455,7 +445,7 @@ fn view_component_types(
 
     let counts = ctx.data.available_component_kinds(plugin);
 
-    let outer = content_rect(f.area(), HORIZONTAL_PADDING);
+    let outer = outer_rect(f.area());
     f.render_widget(Clear, outer);
 
     let chunks = Layout::default()
@@ -482,27 +472,24 @@ fn view_component_types(
         lines.push(String::new());
         lines.push("  Components: (none)".to_string());
 
-        let paragraph = Paragraph::new(lines.join("\n"))
-            .block(Block::default().title(title).borders(Borders::ALL));
+        let paragraph = Paragraph::new(lines.join("\n")).block(bordered_block(&title));
         f.render_widget(paragraph, chunks[1]);
     } else {
         // コンポーネントがある場合
         let items: Vec<ListItem> = counts
             .iter()
             .map(|(kind, count)| {
-                let text = format!("  {} ({})", component_kind_title(*kind), count);
-                ListItem::new(text)
+                let line_text = format!(
+                    "{}{} ({})",
+                    LIST_ITEM_INDENT,
+                    component_kind_title(*kind),
+                    count
+                );
+                ListItem::new(vec![Line::from(line_text), Line::raw("")])
             })
             .collect();
 
-        let list = List::new(items)
-            .block(Block::default().title(title).borders(Borders::ALL))
-            .highlight_style(
-                Style::default()
-                    .add_modifier(Modifier::BOLD)
-                    .fg(Color::Green),
-            )
-            .highlight_symbol("> ");
+        let list = selectable_list(items, &title);
 
         f.render_stateful_widget(list, chunks[1], &mut state);
     }
@@ -540,10 +527,13 @@ fn view_component_list(
     let components = ctx.data.component_names(plugin, kind);
     let items: Vec<ListItem> = components
         .iter()
-        .map(|c| ListItem::new(format!("  {}", c)))
+        .map(|c| {
+            let line_text = format!("{}{}", LIST_ITEM_INDENT, c);
+            ListItem::new(vec![Line::from(line_text), Line::raw("")])
+        })
         .collect();
 
-    let outer = content_rect(f.area(), HORIZONTAL_PADDING);
+    let outer = outer_rect(f.area());
     f.render_widget(Clear, outer);
 
     let chunks = Layout::default()
@@ -564,14 +554,7 @@ fn view_component_list(
         component_kind_title(kind),
         components.len()
     );
-    let list = List::new(items)
-        .block(Block::default().title(title).borders(Borders::ALL))
-        .highlight_style(
-            Style::default()
-                .add_modifier(Modifier::BOLD)
-                .fg(Color::Green),
-        )
-        .highlight_symbol("> ");
+    let list = selectable_list(items, &title);
 
     f.render_stateful_widget(list, chunks[1], &mut state);
 
