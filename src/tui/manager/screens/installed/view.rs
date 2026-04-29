@@ -384,18 +384,13 @@ fn view_plugin_detail(
         Line::from(vec![
             Span::raw("Scope: "),
             Span::styled("project", Style::default().fg(Color::White)),
-        ]),
-        Line::from(vec![
-            Span::raw("Version: "),
+            Span::raw("    Version: "),
             Span::styled(plugin.version(), Style::default().fg(Color::White)),
         ]),
-        Line::raw(""),
         Line::from(vec![
             Span::raw("Author: "),
             Span::styled("N/A", Style::default().fg(Color::DarkGray)),
-        ]),
-        Line::from(vec![
-            Span::raw("Status: "),
+            Span::raw("    Status: "),
             Span::styled(status_text, Style::default().fg(status_color)),
         ]),
     ];

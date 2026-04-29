@@ -298,13 +298,24 @@ fn view_market_detail(
     // フィルタバー（read-only）
     render_filter_bar(f, filter_area, ctx.filter_text, ctx.filter_focused);
 
+    // アクションメニュー（先に組み立て、描画行数を算出して area を確保する）
+    let actions = DetailAction::all();
+    let items: Vec<ListItem> = actions
+        .iter()
+        .map(|a| {
+            let line_text = format!("{}{}", LIST_ITEM_INDENT, a.label());
+            ListItem::new(vec![Line::from(line_text), Line::raw("")]).style(a.style())
+        })
+        .collect();
+    let action_menu_rows: u16 = items.iter().map(|i| i.height() as u16).sum();
+
     // コンテンツ領域を画面固有に再分割（info / action_menu / error）
     let content_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(6),            // マーケットプレイス情報
-            Constraint::Min(1),               // アクションメニュー
-            Constraint::Length(error_height), // エラー
+            Constraint::Min(1),                   // マーケットプレイス情報
+            Constraint::Length(action_menu_rows), // アクションメニュー
+            Constraint::Length(error_height),     // エラー
         ])
         .split(content_area);
 
@@ -349,16 +360,6 @@ fn view_market_detail(
 
     let info_para = Paragraph::new(info_lines).block(bordered_block(&title));
     f.render_widget(info_para, content_chunks[0]);
-
-    // アクションメニュー
-    let actions = DetailAction::all();
-    let items: Vec<ListItem> = actions
-        .iter()
-        .map(|a| {
-            let line_text = format!("{}{}", LIST_ITEM_INDENT, a.label());
-            ListItem::new(vec![Line::from(line_text), Line::raw("")]).style(a.style())
-        })
-        .collect();
 
     let list = menu_list(items);
 
@@ -990,9 +991,13 @@ fn build_browse_list_items<'a>(
         .map(|p| {
             let selected = selected_plugins.contains(&p.name);
             let (mark, style) = browse_state_block(p.installed, selected);
+            let body = match p.description.as_deref() {
+                Some(desc) if !desc.is_empty() => format!("{} — {}", p.name, desc),
+                _ => p.name.clone(),
+            };
             let spans = vec![
                 Span::styled(format!("{}{} ", LIST_ITEM_INDENT, mark), style),
-                Span::styled(&*p.name, style),
+                Span::styled(body, style),
             ];
             ListItem::new(vec![Line::from(spans), Line::raw("")])
         })

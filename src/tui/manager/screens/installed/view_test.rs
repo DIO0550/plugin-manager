@@ -62,3 +62,24 @@ fn build_plugin_row_does_not_panic_at_zero_width() {
     let plugin = make_test_plugin("p");
     let _ = build_plugin_row_spans(&plugin, false, None, 0);
 }
+
+#[test]
+fn build_plugin_row_returns_2_line_list_item() {
+    let plugin = make_test_plugin("p");
+    let item = build_plugin_row(&plugin, false, None, 80);
+    assert_eq!(item.height(), 2);
+}
+
+#[test]
+fn build_plugin_row_returns_2_line_list_item_when_marked() {
+    let plugin = make_test_plugin("p");
+    let item = build_plugin_row(&plugin, true, None, 80);
+    assert_eq!(item.height(), 2);
+}
+
+#[test]
+fn build_plugin_row_returns_2_line_list_item_when_narrow() {
+    let plugin = make_test_plugin("very-long-plugin-name");
+    let item = build_plugin_row(&plugin, false, None, 30);
+    assert_eq!(item.height(), 2);
+}
