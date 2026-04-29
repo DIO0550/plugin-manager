@@ -221,7 +221,7 @@ pub fn load_meta(plugin_dir: &Path) -> Option<PluginMeta> {
             Ok(meta) => Some(meta),
             Err(e) => {
                 eprintln!(
-                    "Warning: {} is corrupted ({}); installedAt will be unavailable. \
+                    "Warning: {} is corrupted ({}); plugin metadata will be unavailable. \
                      It will be regenerated on next install.",
                     META_FILE, e
                 );
