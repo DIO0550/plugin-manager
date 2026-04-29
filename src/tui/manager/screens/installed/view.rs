@@ -239,7 +239,9 @@ fn build_detail_action_menu(actions: &[DetailAction]) -> (Vec<ListItem<'static>>
 }
 
 /// `view_component_types` のリスト項目を 3 行 ListItem (上下空行 + 内容) として構築する。
-fn build_component_types_item<'a>(kind: ComponentKind, count: usize) -> ListItem<'a> {
+///
+/// 返される `ListItem` は所有データのみで構成されるため `'static`。
+fn build_component_types_item(kind: ComponentKind, count: usize) -> ListItem<'static> {
     let line_text = format!(
         "{}{} ({})",
         LIST_ITEM_INDENT,
@@ -250,7 +252,9 @@ fn build_component_types_item<'a>(kind: ComponentKind, count: usize) -> ListItem
 }
 
 /// `view_component_list` のリスト項目を 3 行 ListItem (上下空行 + 内容) として構築する。
-fn build_component_list_item<'a>(component_name: &str) -> ListItem<'a> {
+///
+/// 返される `ListItem` は所有データのみで構成されるため `'static`。
+fn build_component_list_item(component_name: &str) -> ListItem<'static> {
     let line_text = format!("{}{}", LIST_ITEM_INDENT, component_name);
     ListItem::new(vec![Line::raw(""), Line::from(line_text), Line::raw("")])
 }
