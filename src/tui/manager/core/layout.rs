@@ -1,7 +1,8 @@
 //! 共通レイアウト API
 //!
 //! TUI 各画面で共有するレイアウト計算ユーティリティ。
-//! 各 view からは `outer_rect` を起点として呼び、`frame_rect` は内部実装用。
+//! 各 view では通常 `outer_rect` を起点として呼ぶ。
+//! `frame_rect` は明示的にパディング量を指定したい場合に使う低レベル API。
 
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 
@@ -109,8 +110,12 @@ pub fn modal_layout(area: Rect, width_pct: u16, height_pct: u16) -> Rect {
     let modal_h = scale_with_min_visible(area.height, height_pct);
     let modal_w = modal_w.min(area.width);
     let modal_h = modal_h.min(area.height);
-    let x = area.x + (area.width.saturating_sub(modal_w)) / 2;
-    let y = area.y + (area.height.saturating_sub(modal_h)) / 2;
+    let x = area
+        .x
+        .saturating_add((area.width.saturating_sub(modal_w)) / 2);
+    let y = area
+        .y
+        .saturating_add((area.height.saturating_sub(modal_h)) / 2);
     Rect::new(x, y, modal_w, modal_h)
 }
 
