@@ -223,16 +223,14 @@ pub(super) fn build_plugin_row<'a>(
     ListItem::new(vec![highlight_line(spans, is_selected), Line::raw("")])
 }
 
-/// 詳細画面の action メニュー項目を 2 行 ListItem (内容 + 空行) として構築する。
+/// 詳細画面の action メニュー項目を 1 行 ListItem (内容のみ) として構築する。
 ///
-/// 1 行目に内容、2 行目に空行を持たせて、`highlight_symbol("> ")` を内容行に
-/// 整列させつつ行間に視覚的な余白を確保する。
-/// `is_selected = true` のとき内容行の Span に `highlight_style()` を patch する
-/// （空行には適用しない）。返される `ListItem` は所有データのみで構成されるため `'static`。
+/// `is_selected = true` のとき内容行の Span に `highlight_style()` を patch する。
+/// 返される `ListItem` は所有データのみで構成されるため `'static`。
 fn build_detail_action_item(action: &DetailAction, is_selected: bool) -> ListItem<'static> {
     let line_text = format!("{}{}", LIST_ITEM_INDENT, action.label());
     let spans = vec![Span::styled(line_text, action.style())];
-    ListItem::new(vec![highlight_line(spans, is_selected), Line::raw("")])
+    ListItem::new(vec![highlight_line(spans, is_selected)])
 }
 
 /// 詳細画面の action メニュー全体を組み立て、`(items, action_menu_rows)` を返す。
@@ -253,7 +251,7 @@ fn build_detail_action_menu(
     (items, rows)
 }
 
-/// `view_component_types` のリスト項目を 2 行 ListItem (内容 + 空行) として構築する。
+/// `view_component_types` のリスト項目を 1 行 ListItem (内容のみ) として構築する。
 ///
 /// `is_selected = true` のとき内容行の Span に `highlight_style()` を patch する。
 fn build_component_types_item(
@@ -268,16 +266,16 @@ fn build_component_types_item(
         count
     );
     let spans = vec![Span::raw(line_text)];
-    ListItem::new(vec![highlight_line(spans, is_selected), Line::raw("")])
+    ListItem::new(vec![highlight_line(spans, is_selected)])
 }
 
-/// `view_component_list` のリスト項目を 2 行 ListItem (内容 + 空行) として構築する。
+/// `view_component_list` のリスト項目を 1 行 ListItem (内容のみ) として構築する。
 ///
 /// `is_selected = true` のとき内容行の Span に `highlight_style()` を patch する。
 fn build_component_list_item(component_name: &str, is_selected: bool) -> ListItem<'static> {
     let line_text = format!("{}{}", LIST_ITEM_INDENT, component_name);
     let spans = vec![Span::raw(line_text)];
-    ListItem::new(vec![highlight_line(spans, is_selected), Line::raw("")])
+    ListItem::new(vec![highlight_line(spans, is_selected)])
 }
 
 /// 更新ステータスの表示文字列とスタイルを取得
