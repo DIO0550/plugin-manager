@@ -222,7 +222,8 @@ pub(super) fn build_plugin_row<'a>(
 /// 詳細画面の action メニュー項目を 2 行 ListItem として構築する。
 ///
 /// `LIST_ITEM_INDENT + label` を 1 行目に、空行を 2 行目に持たせる。
-fn build_detail_action_item<'a>(action: &DetailAction) -> ListItem<'a> {
+/// 返される `ListItem` は所有データのみで構成されるため `'static`。
+fn build_detail_action_item(action: &DetailAction) -> ListItem<'static> {
     let line_text = format!("{}{}", LIST_ITEM_INDENT, action.label());
     ListItem::new(vec![Line::from(line_text), Line::raw("")]).style(action.style())
 }
@@ -231,8 +232,8 @@ fn build_detail_action_item<'a>(action: &DetailAction) -> ListItem<'a> {
 ///
 /// `action_menu_rows` は描画行数（`items.iter().map(ListItem::height).sum()`）。
 /// 呼び出し側は `detail_layout` にこの値を渡して全 action の領域を確保する。
-fn build_detail_action_menu<'a>(actions: &[DetailAction]) -> (Vec<ListItem<'a>>, u16) {
-    let items: Vec<ListItem> = actions.iter().map(build_detail_action_item).collect();
+fn build_detail_action_menu(actions: &[DetailAction]) -> (Vec<ListItem<'static>>, u16) {
+    let items: Vec<ListItem<'static>> = actions.iter().map(build_detail_action_item).collect();
     let rows: u16 = items.iter().map(|i| i.height() as u16).sum();
     (items, rows)
 }

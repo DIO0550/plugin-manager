@@ -952,7 +952,9 @@ fn build_scope_list_items(highlighted_idx: usize) -> Vec<ListItem<'static>> {
 }
 
 /// `view_market_detail` の action メニュー項目を 2 行 ListItem として構築する。
-fn build_market_action_item<'a>(action: &DetailAction) -> ListItem<'a> {
+///
+/// 返される `ListItem` は所有データのみで構成されるため `'static`。
+fn build_market_action_item(action: &DetailAction) -> ListItem<'static> {
     let line_text = format!("{}{}", LIST_ITEM_INDENT, action.label());
     ListItem::new(vec![Line::from(line_text), Line::raw("")]).style(action.style())
 }
@@ -960,8 +962,8 @@ fn build_market_action_item<'a>(action: &DetailAction) -> ListItem<'a> {
 /// `view_market_detail` の action メニュー全体を組み立て、`(items, action_menu_rows)` を返す。
 ///
 /// `action_menu_rows` は描画行数（`items.iter().map(ListItem::height).sum()`）。
-fn build_market_action_menu<'a>(actions: &[DetailAction]) -> (Vec<ListItem<'a>>, u16) {
-    let items: Vec<ListItem> = actions.iter().map(build_market_action_item).collect();
+fn build_market_action_menu(actions: &[DetailAction]) -> (Vec<ListItem<'static>>, u16) {
+    let items: Vec<ListItem<'static>> = actions.iter().map(build_market_action_item).collect();
     let rows: u16 = items.iter().map(|i| i.height() as u16).sum();
     (items, rows)
 }
