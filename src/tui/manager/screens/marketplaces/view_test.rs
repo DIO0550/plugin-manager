@@ -5,6 +5,7 @@ use crate::tui::manager::core::style::{
     CHECKBOX_SELECTED, CHECKBOX_UNSELECTED, LIST_ITEM_INDENT, MARK_MARKED, RADIO_SELECTED,
     RADIO_UNSELECTED,
 };
+use crate::tui::manager::core::MarketplaceItem;
 use ratatui::prelude::{Color, Line, Style};
 use std::collections::HashSet;
 
@@ -343,4 +344,102 @@ fn build_market_action_menu_reserves_full_height() {
     for item in &items {
         assert_eq!(item.height(), 2);
     }
+}
+
+// =============================================================================
+// build_marketplaces_list_item / build_add_marketplace_item
+// =============================================================================
+
+fn make_marketplace(name: &str) -> MarketplaceItem {
+    MarketplaceItem {
+        name: name.to_string(),
+        source: "github".to_string(),
+        source_path: None,
+        plugin_count: Some(3),
+        last_updated: Some("2026-04-29".to_string()),
+    }
+}
+
+#[test]
+fn build_marketplaces_list_item_returns_height_2() {
+    let m = make_marketplace("alpha");
+    let item = build_marketplaces_list_item(&m, 80, false);
+    assert_eq!(item.height(), 2);
+}
+
+#[test]
+fn build_marketplaces_list_item_returns_height_2_when_selected() {
+    let m = make_marketplace("alpha");
+    let item = build_marketplaces_list_item(&m, 80, true);
+    assert_eq!(item.height(), 2);
+}
+
+#[test]
+fn build_add_marketplace_item_returns_height_2() {
+    let item = build_add_marketplace_item(false);
+    assert_eq!(item.height(), 2);
+}
+
+#[test]
+fn build_add_marketplace_item_returns_height_2_when_selected() {
+    let item = build_add_marketplace_item(true);
+    assert_eq!(item.height(), 2);
+}
+
+// =============================================================================
+// build_plugin_list_item
+// =============================================================================
+
+#[test]
+fn build_plugin_list_item_with_description_returns_height_2() {
+    let item = build_plugin_list_item("plugin-a", Some("description"), 80, false);
+    assert_eq!(item.height(), 2);
+}
+
+#[test]
+fn build_plugin_list_item_without_description_returns_height_2() {
+    let item = build_plugin_list_item("plugin-a", None, 80, false);
+    assert_eq!(item.height(), 2);
+}
+
+#[test]
+fn build_plugin_list_item_returns_height_2_when_selected() {
+    let item = build_plugin_list_item("plugin-a", Some("description"), 80, true);
+    assert_eq!(item.height(), 2);
+}
+
+// =============================================================================
+// installing_inner_layout
+// =============================================================================
+
+#[test]
+fn installing_inner_layout_returns_4_3_min() {
+    use ratatui::layout::Rect;
+    let rects = installing_inner_layout(Rect::new(0, 0, 80, 22));
+    assert_eq!(rects[0].height, 4);
+    assert_eq!(rects[1].height, 3);
+    assert_eq!(rects[2].height, 15);
+}
+
+#[test]
+fn installing_inner_layout_returns_continuous_y_offsets() {
+    use ratatui::layout::Rect;
+    let rects = installing_inner_layout(Rect::new(0, 0, 80, 22));
+    assert_eq!(rects[0].y + rects[0].height, rects[1].y);
+    assert_eq!(rects[1].y + rects[1].height, rects[2].y);
+}
+
+#[test]
+fn installing_inner_layout_collapses_padding_when_height_is_minimum() {
+    use ratatui::layout::Rect;
+    let rects = installing_inner_layout(Rect::new(0, 0, 80, 7));
+    assert_eq!(rects[0].height, 4);
+    assert_eq!(rects[1].height, 3);
+    assert_eq!(rects[2].height, 0);
+}
+
+#[test]
+fn installing_inner_layout_does_not_panic_for_tiny_height() {
+    use ratatui::layout::Rect;
+    let _ = installing_inner_layout(Rect::new(0, 0, 80, 5));
 }
