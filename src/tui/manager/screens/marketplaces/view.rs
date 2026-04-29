@@ -6,12 +6,18 @@ use super::model::{
 };
 use crate::component::Scope;
 use crate::marketplace::PluginSource;
+use crate::tui::manager::core::layout::{
+    framed_layout, modal_layout, outer_rect, split_horizontal,
+};
+use crate::tui::manager::core::style::{
+    bordered_block, menu_list, selectable_list, CHECKBOX_SELECTED, CHECKBOX_UNSELECTED,
+    LIST_ITEM_INDENT, MARK_MARKED, RADIO_SELECTED, RADIO_UNSELECTED,
+};
 use crate::tui::manager::core::{
-    content_rect, render_filter_bar, truncate_for_list, truncate_for_paragraph, DataStore, Tab,
-    HORIZONTAL_PADDING,
+    render_filter_bar, truncate_for_list, truncate_for_paragraph, DataStore, Tab,
 };
 use ratatui::prelude::*;
-use ratatui::widgets::{Block, Borders, Clear, Gauge, List, ListItem, ListState, Paragraph, Tabs};
+use ratatui::widgets::{Block, Borders, Clear, Gauge, ListItem, ListState, Paragraph, Tabs};
 use std::collections::HashSet;
 
 /// 描画用共通コンテキスト（DataStore + フィルタ情報）
@@ -170,24 +176,16 @@ fn view_market_list(
     let has_error = error_message.is_some();
     let extra_lines = if has_status { 1 } else { 0 } + if has_error { 1 } else { 0 };
 
-    let outer = content_rect(f.area(), HORIZONTAL_PADDING);
+    let outer = outer_rect(f.area());
     f.render_widget(Clear, outer);
 
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(1), // タブバー
-            Constraint::Length(3), // フィルタバー
-            Constraint::Min(1),    // コンテンツ
-            Constraint::Length(1), // ヘルプ
-        ])
-        .split(outer);
+    let [tabs_area, filter_area, content_area, help_area] = framed_layout(outer);
 
     // タブバー
-    render_tab_bar(f, chunks[0]);
+    render_tab_bar(f, tabs_area);
 
     // フィルタバー
-    render_filter_bar(f, chunks[1], ctx.filter_text, ctx.filter_focused);
+    render_filter_bar(f, filter_area, ctx.filter_text, ctx.filter_focused);
 
     // コンテンツ領域を分割（リスト + ステータス/エラー）
     let content_chunks = Layout::default()
@@ -196,7 +194,7 @@ fn view_market_list(
             Constraint::Min(1),              // リスト
             Constraint::Length(extra_lines), // ステータス/エラー
         ])
-        .split(chunks[2]);
+        .split(content_area);
 
     // マーケットプレイスリスト
     let title = format!(" Marketplaces ({}) ", ctx.data.marketplaces.len());
@@ -217,24 +215,24 @@ fn view_market_list(
                 .unwrap_or_default();
 
             let raw = format!(
-                "  {}    {}{}    {}    {}",
-                m.name, m.source, source_path_info, plugin_info, updated_info
+                "{}{}    {}{}    {}    {}",
+                LIST_ITEM_INDENT, m.name, m.source, source_path_info, plugin_info, updated_info
             );
-            ListItem::new(truncate_for_list(outer.width, raw))
+            let line_text = truncate_for_list(outer.width, raw).into_owned();
+            ListItem::new(vec![Line::from(line_text), Line::raw("")])
         })
         .collect();
 
     // "+ Add new marketplace" 項目を末尾に追加
-    items.push(ListItem::new("  + Add new marketplace").style(Style::default().fg(Color::Cyan)));
+    items.push(
+        ListItem::new(vec![
+            Line::from(format!("{}+ Add new marketplace", LIST_ITEM_INDENT)),
+            Line::raw(""),
+        ])
+        .style(Style::default().fg(Color::Cyan)),
+    );
 
-    let list = List::new(items)
-        .block(Block::default().title(title).borders(Borders::ALL))
-        .highlight_style(
-            Style::default()
-                .add_modifier(Modifier::BOLD)
-                .fg(Color::Green),
-        )
-        .highlight_symbol("> ");
+    let list = selectable_list(items, &title);
 
     f.render_stateful_widget(list, content_chunks[0], &mut state);
 
@@ -267,7 +265,7 @@ fn view_market_list(
         " u: update | U: update all | Tab: switch | ↑↓: move | Enter: select | q: quit",
     )
     .style(Style::default().fg(Color::DarkGray));
-    f.render_widget(help, chunks[3]);
+    f.render_widget(help, help_area);
 }
 
 /// マーケットプレイス詳細画面を描画
@@ -286,29 +284,29 @@ fn view_market_detail(
     ctx: &ViewCtx<'_>,
     error_message: &Option<String>,
 ) {
-    let outer = content_rect(f.area(), HORIZONTAL_PADDING);
+    let outer = outer_rect(f.area());
     f.render_widget(Clear, outer);
 
     let has_error = error_message.is_some();
     let error_height = if has_error { 1 } else { 0 };
 
-    let chunks = Layout::default()
+    let [tabs_area, filter_area, content_area, help_area] = framed_layout(outer);
+
+    // タブバー
+    render_tab_bar(f, tabs_area);
+
+    // フィルタバー（read-only）
+    render_filter_bar(f, filter_area, ctx.filter_text, ctx.filter_focused);
+
+    // コンテンツ領域を画面固有に再分割（info / action_menu / error）
+    let content_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(1),            // タブバー
-            Constraint::Length(3),            // フィルタバー
             Constraint::Length(6),            // マーケットプレイス情報
             Constraint::Min(1),               // アクションメニュー
             Constraint::Length(error_height), // エラー
-            Constraint::Length(1),            // ヘルプ
         ])
-        .split(outer);
-
-    // タブバー
-    render_tab_bar(f, chunks[0]);
-
-    // フィルタバー（read-only）
-    render_filter_bar(f, chunks[1], ctx.filter_text, ctx.filter_focused);
+        .split(content_area);
 
     // マーケットプレイス情報
     let marketplace = ctx.data.find_marketplace(marketplace_name);
@@ -349,34 +347,34 @@ fn view_market_detail(
         ))]
     };
 
-    let info_block = Block::default().title(title).borders(Borders::ALL);
-    let info_para = Paragraph::new(info_lines).block(info_block);
-    f.render_widget(info_para, chunks[2]);
+    let info_para = Paragraph::new(info_lines).block(bordered_block(&title));
+    f.render_widget(info_para, content_chunks[0]);
 
     // アクションメニュー
     let actions = DetailAction::all();
     let items: Vec<ListItem> = actions
         .iter()
-        .map(|a| ListItem::new(format!("  {}", a.label())).style(a.style()))
+        .map(|a| {
+            let line_text = format!("{}{}", LIST_ITEM_INDENT, a.label());
+            ListItem::new(vec![Line::from(line_text), Line::raw("")]).style(a.style())
+        })
         .collect();
 
-    let list = List::new(items)
-        .highlight_style(Style::default().add_modifier(Modifier::BOLD))
-        .highlight_symbol("> ");
+    let list = menu_list(items);
 
-    f.render_stateful_widget(list, chunks[3], &mut state);
+    f.render_stateful_widget(list, content_chunks[1], &mut state);
 
     // エラー表示
     if let Some(error) = error_message {
         let error_para =
             Paragraph::new(format!(" {}", error)).style(Style::default().fg(Color::Red));
-        f.render_widget(error_para, chunks[4]);
+        f.render_widget(error_para, content_chunks[2]);
     }
 
     // ヘルプ
     let help = Paragraph::new(" ↑↓: move | Enter: select | Esc: back")
         .style(Style::default().fg(Color::DarkGray));
-    f.render_widget(help, chunks[5]);
+    f.render_widget(help, help_area);
 }
 
 /// プラグイン一覧画面を描画
@@ -395,24 +393,16 @@ fn view_plugin_list(
     plugins: &[(String, Option<String>)],
     filter: &FilterCtx<'_>,
 ) {
-    let outer = content_rect(f.area(), HORIZONTAL_PADDING);
+    let outer = outer_rect(f.area());
     f.render_widget(Clear, outer);
 
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(1), // タブバー
-            Constraint::Length(3), // フィルタバー
-            Constraint::Min(1),    // コンテンツ
-            Constraint::Length(1), // ヘルプ
-        ])
-        .split(outer);
+    let [tabs_area, filter_area, content_area, help_area] = framed_layout(outer);
 
     // タブバー
-    render_tab_bar(f, chunks[0]);
+    render_tab_bar(f, tabs_area);
 
     // フィルタバー（read-only）
-    render_filter_bar(f, chunks[1], filter.text, filter.focused);
+    render_filter_bar(f, filter_area, filter.text, filter.focused);
 
     // プラグインリスト
     let title = format!(" {} > Plugins ({}) ", marketplace_name, plugins.len());
@@ -421,37 +411,31 @@ fn view_plugin_list(
         // 空リスト表示
         let msg = "  No cached data. Run update to fetch plugins.";
         let content = Paragraph::new(msg)
-            .block(Block::default().title(title).borders(Borders::ALL))
+            .block(bordered_block(&title))
             .style(Style::default().fg(Color::DarkGray));
-        f.render_widget(content, chunks[2]);
+        f.render_widget(content, content_area);
     } else {
         let items: Vec<ListItem> = plugins
             .iter()
             .map(|(name, desc)| {
                 let raw = if let Some(description) = desc {
-                    format!("  {} - {}", name, description)
+                    format!("{}{} - {}", LIST_ITEM_INDENT, name, description)
                 } else {
-                    format!("  {}", name)
+                    format!("{}{}", LIST_ITEM_INDENT, name)
                 };
-                ListItem::new(truncate_for_list(outer.width, raw))
+                let line_text = truncate_for_list(outer.width, raw).into_owned();
+                ListItem::new(vec![Line::from(line_text), Line::raw("")])
             })
             .collect();
 
-        let list = List::new(items)
-            .block(Block::default().title(title).borders(Borders::ALL))
-            .highlight_style(
-                Style::default()
-                    .add_modifier(Modifier::BOLD)
-                    .fg(Color::Green),
-            )
-            .highlight_symbol("> ");
+        let list = selectable_list(items, &title);
 
-        f.render_stateful_widget(list, chunks[2], &mut state);
+        f.render_stateful_widget(list, content_area, &mut state);
     }
 
     // ヘルプ
     let help = Paragraph::new(" ↑↓: move | Esc: back").style(Style::default().fg(Color::DarkGray));
-    f.render_widget(help, chunks[3]);
+    f.render_widget(help, help_area);
 }
 
 /// 追加フォーム画面を描画
@@ -463,24 +447,16 @@ fn view_plugin_list(
 /// * `filter_text` - Current filter input text.
 /// * `filter_focused` - Whether the filter bar currently has focus.
 fn view_add_form(f: &mut Frame, form: &AddFormModel, filter_text: &str, filter_focused: bool) {
-    let outer = content_rect(f.area(), HORIZONTAL_PADDING);
+    let outer = outer_rect(f.area());
     f.render_widget(Clear, outer);
 
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(1), // タブバー
-            Constraint::Length(3), // フィルタバー
-            Constraint::Min(1),    // コンテンツ
-            Constraint::Length(1), // ヘルプ
-        ])
-        .split(outer);
+    let [tabs_area, filter_area, content_area, help_area] = framed_layout(outer);
 
     // タブバー
-    render_tab_bar(f, chunks[0]);
+    render_tab_bar(f, tabs_area);
 
     // フィルタバー（read-only）
-    render_filter_bar(f, chunks[1], filter_text, filter_focused);
+    render_filter_bar(f, filter_area, filter_text, filter_focused);
 
     // フォームコンテンツ
     match form {
@@ -507,12 +483,8 @@ fn view_add_form(f: &mut Frame, form: &AddFormModel, filter_text: &str, filter_f
                     Style::default().fg(Color::Red),
                 )));
             }
-            let content = Paragraph::new(lines).block(
-                Block::default()
-                    .title(" Add Marketplace ")
-                    .borders(Borders::ALL),
-            );
-            f.render_widget(content, chunks[2]);
+            let content = Paragraph::new(lines).block(bordered_block(" Add Marketplace "));
+            f.render_widget(content, content_area);
         }
         AddFormModel::Name {
             source,
@@ -547,12 +519,8 @@ fn view_add_form(f: &mut Frame, form: &AddFormModel, filter_text: &str, filter_f
                     Style::default().fg(Color::Red),
                 )));
             }
-            let content = Paragraph::new(lines).block(
-                Block::default()
-                    .title(" Add Marketplace ")
-                    .borders(Borders::ALL),
-            );
-            f.render_widget(content, chunks[2]);
+            let content = Paragraph::new(lines).block(bordered_block(" Add Marketplace "));
+            f.render_widget(content, content_area);
         }
         AddFormModel::Confirm {
             source,
@@ -584,19 +552,15 @@ fn view_add_form(f: &mut Frame, form: &AddFormModel, filter_text: &str, filter_f
                     Style::default().fg(Color::Red),
                 )));
             }
-            let content = Paragraph::new(lines).block(
-                Block::default()
-                    .title(" Add Marketplace ")
-                    .borders(Borders::ALL),
-            );
-            f.render_widget(content, chunks[2]);
+            let content = Paragraph::new(lines).block(bordered_block(" Add Marketplace "));
+            f.render_widget(content, content_area);
         }
     }
 
     // ヘルプ
     let help = Paragraph::new(" Type to input | Enter: next | Esc: cancel")
         .style(Style::default().fg(Color::DarkGray));
-    f.render_widget(help, chunks[3]);
+    f.render_widget(help, help_area);
 }
 
 /// プラグインブラウズ画面を描画
@@ -615,66 +579,48 @@ fn view_plugin_browse(
     mut state: ListState,
     filter: &FilterCtx<'_>,
 ) {
-    let outer = content_rect(f.area(), HORIZONTAL_PADDING);
+    let outer = outer_rect(f.area());
     f.render_widget(Clear, outer);
 
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(1), // タブバー
-            Constraint::Length(3), // フィルタバー
-            Constraint::Min(1),    // コンテンツ
-            Constraint::Length(1), // ヘルプ
-        ])
-        .split(outer);
+    let [tabs_area, filter_area, content_area, help_area] = framed_layout(outer);
 
     // タブバー
-    render_tab_bar(f, chunks[0]);
+    render_tab_bar(f, tabs_area);
 
     // フィルタバー
-    render_filter_bar(f, chunks[1], filter.text, filter.focused);
+    render_filter_bar(f, filter_area, filter.text, filter.focused);
 
     // コンテンツ領域
     let title = format!(" {} > Browse ({}) ", marketplace_name, browse.plugins.len());
-    let content_area = chunks[2];
 
     if browse.plugins.is_empty() {
         let msg = Paragraph::new("  No plugins available.")
-            .block(Block::default().title(title).borders(Borders::ALL))
+            .block(bordered_block(&title))
             .style(Style::default().fg(Color::DarkGray));
         f.render_widget(msg, content_area);
     } else if !should_split_layout(content_area.width) {
         // 狭い端末: リストのみ描画
         let items = build_browse_list_items(browse.plugins, browse.selected_plugins);
-        let list = List::new(items)
-            .block(Block::default().title(title).borders(Borders::ALL))
-            .highlight_style(Style::default().add_modifier(Modifier::BOLD | Modifier::REVERSED))
-            .highlight_symbol("> ");
+        let list = selectable_list(items, &title);
         f.render_stateful_widget(list, content_area, &mut state);
     } else {
         // 水平分割レイアウト（40% リスト / 60% 詳細）
-        let h_chunks = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([Constraint::Percentage(40), Constraint::Percentage(60)])
-            .split(content_area);
+        let [list_area, detail_area] = split_horizontal(content_area, (40, 60));
 
         // 左パネル: プラグインリスト
         let items = build_browse_list_items(browse.plugins, browse.selected_plugins);
-        let list = List::new(items)
-            .block(Block::default().title(title).borders(Borders::ALL))
-            .highlight_style(Style::default().add_modifier(Modifier::BOLD | Modifier::REVERSED))
-            .highlight_symbol("> ");
-        f.render_stateful_widget(list, h_chunks[0], &mut state);
+        let list = selectable_list(items, &title);
+        f.render_stateful_widget(list, list_area, &mut state);
 
         // 右パネル: プラグイン詳細（state.selected() から導出して一貫性を保つ）
         let detail_idx = state.selected().unwrap_or(browse.highlighted_idx);
-        render_plugin_detail(f, browse.plugins, detail_idx, h_chunks[1]);
+        render_plugin_detail(f, browse.plugins, detail_idx, detail_area);
     }
 
     // ヘルプ
     let help = Paragraph::new(" Space: select | Enter/i: install | Esc: back | q: quit")
         .style(Style::default().fg(Color::DarkGray));
-    f.render_widget(help, chunks[3]);
+    f.render_widget(help, help_area);
 }
 
 /// ターゲット選択画面を描画
@@ -691,14 +637,8 @@ fn view_target_select(
     _highlighted_idx: usize,
     mut state: ListState,
 ) {
-    let outer = content_rect(f.area(), HORIZONTAL_PADDING);
-    let dialog_height = (targets.len() as u16 + 5).min(16);
-    let modal_area = Rect::new(
-        outer.x,
-        outer.y,
-        outer.width,
-        dialog_height.min(outer.height),
-    );
+    let outer = outer_rect(f.area());
+    let modal_area = modal_layout(outer, 60, 60);
     f.render_widget(Clear, modal_area);
 
     let chunks = Layout::default()
@@ -711,14 +651,7 @@ fn view_target_select(
 
     let items = build_target_list_items(targets);
 
-    let list = List::new(items)
-        .block(
-            Block::default()
-                .title(" Select targets ")
-                .borders(Borders::ALL),
-        )
-        .highlight_style(Style::default().add_modifier(Modifier::BOLD))
-        .highlight_symbol("> ");
+    let list = selectable_list(items, " Select targets ");
 
     f.render_stateful_widget(list, chunks[0], &mut state);
 
@@ -735,14 +668,8 @@ fn view_target_select(
 /// * `highlighted_idx` - Currently highlighted scope index.
 /// * `state` - List state used for scope highlight.
 fn view_scope_select(f: &mut Frame, highlighted_idx: usize, mut state: ListState) {
-    let outer = content_rect(f.area(), HORIZONTAL_PADDING);
-    let dialog_height = 8u16;
-    let modal_area = Rect::new(
-        outer.x,
-        outer.y,
-        outer.width,
-        dialog_height.min(outer.height),
-    );
+    let outer = outer_rect(f.area());
+    let modal_area = modal_layout(outer, 60, 50);
     f.render_widget(Clear, modal_area);
 
     let chunks = Layout::default()
@@ -755,14 +682,7 @@ fn view_scope_select(f: &mut Frame, highlighted_idx: usize, mut state: ListState
 
     let items = build_scope_list_items(highlighted_idx);
 
-    let list = List::new(items)
-        .block(
-            Block::default()
-                .title(" Select scope ")
-                .borders(Borders::ALL),
-        )
-        .highlight_style(Style::default().add_modifier(Modifier::BOLD))
-        .highlight_symbol("> ");
+    let list = selectable_list(items, " Select scope ");
 
     f.render_stateful_widget(list, chunks[0], &mut state);
 
@@ -780,14 +700,8 @@ fn view_scope_select(f: &mut Frame, highlighted_idx: usize, mut state: ListState
 /// * `current_idx` - Index of the plugin currently being processed.
 /// * `total` - Total number of plugins in this install batch.
 fn view_installing(f: &mut Frame, plugin_names: &[String], current_idx: usize, total: usize) {
-    let outer = content_rect(f.area(), HORIZONTAL_PADDING);
-    let dialog_height = 7u16;
-    let modal_area = Rect::new(
-        outer.x,
-        outer.y,
-        outer.width,
-        dialog_height.min(outer.height),
-    );
+    let outer = outer_rect(f.area());
+    let modal_area = modal_layout(outer, 70, 40);
     f.render_widget(Clear, modal_area);
 
     let chunks = Layout::default()
@@ -857,16 +771,8 @@ fn format_install_result_line(result: &PluginInstallResult) -> (String, Color) {
 /// * `f` - Ratatui frame to draw into.
 /// * `summary` - Aggregated install summary to display.
 fn view_install_result(f: &mut Frame, summary: &InstallSummary) {
-    let content_height = (summary.results.len() as u16 + 5).min(20);
-    let dialog_height = content_height + 3;
-
-    let outer = content_rect(f.area(), HORIZONTAL_PADDING);
-    let modal_area = Rect::new(
-        outer.x,
-        outer.y,
-        outer.width,
-        dialog_height.min(outer.height),
-    );
+    let outer = outer_rect(f.area());
+    let modal_area = modal_layout(outer, 80, 70);
     f.render_widget(Clear, modal_area);
 
     let chunks = Layout::default()
@@ -896,11 +802,7 @@ fn view_install_result(f: &mut Frame, summary: &InstallSummary) {
 
     lines.push(Line::raw(""));
 
-    let content = Paragraph::new(lines).block(
-        Block::default()
-            .title(" Install Result ")
-            .borders(Borders::ALL),
-    );
+    let content = Paragraph::new(lines).block(bordered_block(" Install Result "));
     f.render_widget(content, chunks[0]);
 
     let help =
@@ -922,7 +824,7 @@ fn render_plugin_detail(
     highlighted_idx: usize,
     area: Rect,
 ) {
-    let detail_block = Block::default().title(" Detail ").borders(Borders::ALL);
+    let detail_block = bordered_block(" Detail ");
 
     if let Some(plugin) = plugins.get(highlighted_idx) {
         let source_text = match &plugin.source {
@@ -991,9 +893,9 @@ fn should_split_layout(width: u16) -> bool {
 /// * `selected` - Whether the target is currently selected.
 fn target_checkbox(selected: bool) -> (&'static str, Style) {
     if selected {
-        ("[x] ", Style::default().fg(Color::Yellow))
+        (CHECKBOX_SELECTED, Style::default().fg(Color::Yellow))
     } else {
-        ("[ ] ", Style::default())
+        (CHECKBOX_UNSELECTED, Style::default())
     }
 }
 
@@ -1007,7 +909,8 @@ fn build_target_list_items(targets: &[(String, String, bool)]) -> Vec<ListItem<'
         .iter()
         .map(|(_name, display_name, selected)| {
             let (mark, style) = target_checkbox(*selected);
-            ListItem::new(format!("  {}{}", mark, display_name)).style(style)
+            let line_text = format!("{}{} {}", LIST_ITEM_INDENT, mark, display_name);
+            ListItem::new(vec![Line::from(line_text), Line::raw("")]).style(style)
         })
         .collect()
 }
@@ -1019,9 +922,9 @@ fn build_target_list_items(targets: &[(String, String, bool)]) -> Vec<ListItem<'
 /// * `is_current` - Whether this scope is the currently highlighted one.
 fn scope_radio(is_current: bool) -> (&'static str, Style) {
     if is_current {
-        ("(x) ", Style::default().fg(Color::Yellow))
+        (RADIO_SELECTED, Style::default().fg(Color::Yellow))
     } else {
-        ("( ) ", Style::default())
+        (RADIO_UNSELECTED, Style::default())
     }
 }
 
@@ -1039,24 +942,33 @@ fn build_scope_list_items(highlighted_idx: usize) -> Vec<ListItem<'static>> {
         .map(|(idx, (scope, path))| {
             let is_current = idx == clamped;
             let (mark, style) = scope_radio(is_current);
-            ListItem::new(format!("  {}{} {}", mark, scope.display_name(), path)).style(style)
+            let line_text = format!(
+                "{}{} {} {}",
+                LIST_ITEM_INDENT,
+                mark,
+                scope.display_name(),
+                path
+            );
+            ListItem::new(vec![Line::from(line_text), Line::raw("")]).style(style)
         })
         .collect()
 }
 
-/// チェックボックスのマークとスタイルを決定
+/// Browse 行の状態ブロックとスタイルを決定（installed / selected / idle の 3 状態）。
+///
+/// 判定優先度: `installed` > `selected` > `idle`。
 ///
 /// # Arguments
 ///
 /// * `installed` - Whether the plugin is already installed.
 /// * `selected` - Whether the plugin is currently selected for install.
-fn browse_checkbox(installed: bool, selected: bool) -> (&'static str, Style) {
+fn browse_state_block(installed: bool, selected: bool) -> (&'static str, Style) {
     if installed {
-        ("[x] ", Style::default().fg(Color::DarkGray))
+        (MARK_MARKED, Style::default().fg(Color::DarkGray))
     } else if selected {
-        ("[x] ", Style::default().fg(Color::Yellow))
+        (CHECKBOX_SELECTED, Style::default().fg(Color::Yellow))
     } else {
-        ("[ ] ", Style::default())
+        (CHECKBOX_UNSELECTED, Style::default())
     }
 }
 
@@ -1074,12 +986,12 @@ fn build_browse_list_items<'a>(
         .iter()
         .map(|p| {
             let selected = selected_plugins.contains(&p.name);
-            let (mark, style) = browse_checkbox(p.installed, selected);
+            let (mark, style) = browse_state_block(p.installed, selected);
             let spans = vec![
-                Span::styled(format!("  {}", mark), style),
+                Span::styled(format!("{}{} ", LIST_ITEM_INDENT, mark), style),
                 Span::styled(&*p.name, style),
             ];
-            ListItem::new(Line::from(spans))
+            ListItem::new(vec![Line::from(spans), Line::raw("")])
         })
         .collect()
 }

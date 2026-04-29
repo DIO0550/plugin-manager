@@ -1,7 +1,11 @@
 use super::*;
 use crate::component::Scope;
 use crate::marketplace::PluginSource;
-use ratatui::prelude::{Color, Style};
+use crate::tui::manager::core::style::{
+    CHECKBOX_SELECTED, CHECKBOX_UNSELECTED, LIST_ITEM_INDENT, MARK_MARKED, RADIO_SELECTED,
+    RADIO_UNSELECTED,
+};
+use ratatui::prelude::{Color, Line, Style};
 use std::collections::HashSet;
 
 // =============================================================================
@@ -29,35 +33,34 @@ fn should_split_layout_returns_true_above_threshold() {
 }
 
 // =============================================================================
-// browse_checkbox
+// browse_state_block
 // =============================================================================
 
 #[test]
-fn browse_checkbox_installed() {
-    let (mark, style) = browse_checkbox(true, false);
-    assert_eq!(mark, "[x] ");
+fn browse_state_block_installed() {
+    let (mark, style) = browse_state_block(true, false);
+    assert_eq!(mark, MARK_MARKED);
     assert_eq!(style, Style::default().fg(Color::DarkGray));
 }
 
 #[test]
-fn browse_checkbox_installed_and_selected() {
-    // installed が優先される
-    let (mark, style) = browse_checkbox(true, true);
-    assert_eq!(mark, "[x] ");
+fn browse_state_block_installed_takes_precedence_over_selected() {
+    let (mark, style) = browse_state_block(true, true);
+    assert_eq!(mark, MARK_MARKED);
     assert_eq!(style, Style::default().fg(Color::DarkGray));
 }
 
 #[test]
-fn browse_checkbox_selected() {
-    let (mark, style) = browse_checkbox(false, true);
-    assert_eq!(mark, "[x] ");
+fn browse_state_block_selected() {
+    let (mark, style) = browse_state_block(false, true);
+    assert_eq!(mark, CHECKBOX_SELECTED);
     assert_eq!(style, Style::default().fg(Color::Yellow));
 }
 
 #[test]
-fn browse_checkbox_unselected() {
-    let (mark, style) = browse_checkbox(false, false);
-    assert_eq!(mark, "[ ] ");
+fn browse_state_block_idle() {
+    let (mark, style) = browse_state_block(false, false);
+    assert_eq!(mark, CHECKBOX_UNSELECTED);
     assert_eq!(style, Style::default());
 }
 
@@ -102,16 +105,22 @@ fn build_browse_list_items_respects_selected_plugins() {
     let mut selected = HashSet::new();
     selected.insert("alpha".to_string());
 
-    // selected に含まれるプラグインと含まれないプラグインで異なるアイテムが生成される
     let items_with_selection = build_browse_list_items(&plugins, &selected);
     let items_without_selection = build_browse_list_items(&plugins, &HashSet::new());
 
-    // 選択状態が異なるため、生成されるアイテムも異なるはず
     assert_eq!(items_with_selection.len(), 2);
     assert_eq!(items_without_selection.len(), 2);
 
-    // "alpha" は selected に含まれるため、選択あり/なしでアイテムが異なることを確認する
     assert_ne!(items_with_selection[0], items_without_selection[0]);
+}
+
+#[test]
+fn build_browse_list_items_have_height_2() {
+    let plugins = vec![make_plugin("a", false), make_plugin("b", true)];
+    let items = build_browse_list_items(&plugins, &HashSet::new());
+    for item in &items {
+        assert_eq!(item.height(), 2);
+    }
 }
 
 // =============================================================================
@@ -121,14 +130,14 @@ fn build_browse_list_items_respects_selected_plugins() {
 #[test]
 fn target_checkbox_selected() {
     let (mark, style) = target_checkbox(true);
-    assert_eq!(mark, "[x] ");
+    assert_eq!(mark, CHECKBOX_SELECTED);
     assert_eq!(style, Style::default().fg(Color::Yellow));
 }
 
 #[test]
 fn target_checkbox_unselected() {
     let (mark, style) = target_checkbox(false);
-    assert_eq!(mark, "[ ] ");
+    assert_eq!(mark, CHECKBOX_UNSELECTED);
     assert_eq!(style, Style::default());
 }
 
@@ -139,20 +148,25 @@ fn target_checkbox_unselected() {
 #[test]
 fn scope_radio_current() {
     let (mark, style) = scope_radio(true);
-    assert_eq!(mark, "(x) ");
+    assert_eq!(mark, RADIO_SELECTED);
     assert_eq!(style, Style::default().fg(Color::Yellow));
 }
 
 #[test]
 fn scope_radio_not_current() {
     let (mark, style) = scope_radio(false);
-    assert_eq!(mark, "( ) ");
+    assert_eq!(mark, RADIO_UNSELECTED);
     assert_eq!(style, Style::default());
 }
 
 // =============================================================================
 // build_target_list_items
 // =============================================================================
+
+fn target_item(mark: &str, label: &str, style: Style) -> ListItem<'static> {
+    let line_text = format!("{}{} {}", LIST_ITEM_INDENT, mark, label);
+    ListItem::new(vec![Line::from(line_text), Line::raw("")]).style(style)
+}
 
 #[test]
 fn build_target_list_items_empty() {
@@ -169,13 +183,9 @@ fn build_target_list_items_all_selected() {
     ];
     let items = build_target_list_items(&targets);
     assert_eq!(items.len(), 2);
-    // All items should match Yellow-styled selected items
-    let expected_0 =
-        ListItem::new("  [x] Codex".to_string()).style(Style::default().fg(Color::Yellow));
-    let expected_1 =
-        ListItem::new("  [x] Copilot".to_string()).style(Style::default().fg(Color::Yellow));
-    assert_eq!(items[0], expected_0);
-    assert_eq!(items[1], expected_1);
+    let yellow = Style::default().fg(Color::Yellow);
+    assert_eq!(items[0], target_item(CHECKBOX_SELECTED, "Codex", yellow));
+    assert_eq!(items[1], target_item(CHECKBOX_SELECTED, "Copilot", yellow));
 }
 
 #[test]
@@ -186,11 +196,12 @@ fn build_target_list_items_none_selected() {
     ];
     let items = build_target_list_items(&targets);
     assert_eq!(items.len(), 2);
-    // All items should match default-styled unselected items
-    let expected_0 = ListItem::new("  [ ] Codex".to_string()).style(Style::default());
-    let expected_1 = ListItem::new("  [ ] Copilot".to_string()).style(Style::default());
-    assert_eq!(items[0], expected_0);
-    assert_eq!(items[1], expected_1);
+    let default = Style::default();
+    assert_eq!(items[0], target_item(CHECKBOX_UNSELECTED, "Codex", default));
+    assert_eq!(
+        items[1],
+        target_item(CHECKBOX_UNSELECTED, "Copilot", default)
+    );
 }
 
 #[test]
@@ -201,61 +212,104 @@ fn build_target_list_items_mixed() {
     ];
     let items = build_target_list_items(&targets);
     assert_eq!(items.len(), 2);
-    // Selected and unselected items should differ
     assert_ne!(items[0], items[1]);
-    let expected_selected =
-        ListItem::new("  [x] Codex".to_string()).style(Style::default().fg(Color::Yellow));
-    let expected_unselected = ListItem::new("  [ ] Copilot".to_string()).style(Style::default());
-    assert_eq!(items[0], expected_selected);
-    assert_eq!(items[1], expected_unselected);
+    assert_eq!(
+        items[0],
+        target_item(
+            CHECKBOX_SELECTED,
+            "Codex",
+            Style::default().fg(Color::Yellow)
+        )
+    );
+    assert_eq!(
+        items[1],
+        target_item(CHECKBOX_UNSELECTED, "Copilot", Style::default())
+    );
+}
+
+#[test]
+fn build_target_list_items_have_height_2() {
+    let targets = vec![("codex".to_string(), "Codex".to_string(), true)];
+    let items = build_target_list_items(&targets);
+    for item in &items {
+        assert_eq!(item.height(), 2);
+    }
 }
 
 // =============================================================================
 // build_scope_list_items
 // =============================================================================
 
+fn scope_item(mark: &str, scope: Scope, path: &str, style: Style) -> ListItem<'static> {
+    let line_text = format!(
+        "{}{} {} {}",
+        LIST_ITEM_INDENT,
+        mark,
+        scope.display_name(),
+        path
+    );
+    ListItem::new(vec![Line::from(line_text), Line::raw("")]).style(style)
+}
+
 #[test]
 fn build_scope_list_items_personal_selected() {
     let items = build_scope_list_items(0);
     assert_eq!(items.len(), 2);
-    let expected_personal = ListItem::new(format!(
-        "  (x) {} (~/.plm/)",
-        Scope::Personal.display_name()
-    ))
-    .style(Style::default().fg(Color::Yellow));
-    let expected_project = ListItem::new(format!("  ( ) {} (./)", Scope::Project.display_name()))
-        .style(Style::default());
-    assert_eq!(items[0], expected_personal);
-    assert_eq!(items[1], expected_project);
+    let yellow = Style::default().fg(Color::Yellow);
+    assert_eq!(
+        items[0],
+        scope_item(RADIO_SELECTED, Scope::Personal, "(~/.plm/)", yellow)
+    );
+    assert_eq!(
+        items[1],
+        scope_item(RADIO_UNSELECTED, Scope::Project, "(./)", Style::default())
+    );
 }
 
 #[test]
 fn build_scope_list_items_project_selected() {
     let items = build_scope_list_items(1);
     assert_eq!(items.len(), 2);
-    let expected_personal = ListItem::new(format!(
-        "  ( ) {} (~/.plm/)",
-        Scope::Personal.display_name()
-    ))
-    .style(Style::default());
-    let expected_project = ListItem::new(format!("  (x) {} (./)", Scope::Project.display_name()))
-        .style(Style::default().fg(Color::Yellow));
-    assert_eq!(items[0], expected_personal);
-    assert_eq!(items[1], expected_project);
+    let yellow = Style::default().fg(Color::Yellow);
+    assert_eq!(
+        items[0],
+        scope_item(
+            RADIO_UNSELECTED,
+            Scope::Personal,
+            "(~/.plm/)",
+            Style::default()
+        )
+    );
+    assert_eq!(
+        items[1],
+        scope_item(RADIO_SELECTED, Scope::Project, "(./)", yellow)
+    );
 }
 
 #[test]
 fn build_scope_list_items_out_of_range_clamps_to_last() {
     let items = build_scope_list_items(99);
     assert_eq!(items.len(), 2);
-    // Out-of-range clamps to last valid index (Project selected)
-    let expected_personal = ListItem::new(format!(
-        "  ( ) {} (~/.plm/)",
-        Scope::Personal.display_name()
-    ))
-    .style(Style::default());
-    let expected_project = ListItem::new(format!("  (x) {} (./)", Scope::Project.display_name()))
-        .style(Style::default().fg(Color::Yellow));
-    assert_eq!(items[0], expected_personal);
-    assert_eq!(items[1], expected_project);
+    let yellow = Style::default().fg(Color::Yellow);
+    assert_eq!(
+        items[0],
+        scope_item(
+            RADIO_UNSELECTED,
+            Scope::Personal,
+            "(~/.plm/)",
+            Style::default()
+        )
+    );
+    assert_eq!(
+        items[1],
+        scope_item(RADIO_SELECTED, Scope::Project, "(./)", yellow)
+    );
+}
+
+#[test]
+fn build_scope_list_items_have_height_2() {
+    let items = build_scope_list_items(0);
+    for item in &items {
+        assert_eq!(item.height(), 2);
+    }
 }
