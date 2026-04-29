@@ -42,7 +42,6 @@ fn make_cache(name: &str, plugins: Vec<MarketplacePlugin>) -> MarketplaceCache {
         source: "owner/repo".to_string(),
         owner: None,
         plugins,
-        original_manifest: None,
     }
 }
 
