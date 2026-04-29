@@ -4,7 +4,7 @@
 
 use super::model::{DetailAction, Model, UpdateStatusDisplay};
 use crate::component::ComponentKind;
-use crate::plugin::InstalledPlugin;
+use crate::application::InstalledPlugin;
 use crate::tui::manager::core::{
     content_rect, filter_plugins, render_filter_bar, truncate_to_width, DataStore, PluginId, Tab,
     HORIZONTAL_PADDING, LIST_DECORATION_WIDTH, MIN_CONTENT_WIDTH,
