@@ -219,13 +219,14 @@ fn view_market_list(
                 LIST_ITEM_INDENT, m.name, m.source, source_path_info, plugin_info, updated_info
             );
             let line_text = truncate_for_list(outer.width, raw).into_owned();
-            ListItem::new(vec![Line::from(line_text), Line::raw("")])
+            ListItem::new(vec![Line::raw(""), Line::from(line_text), Line::raw("")])
         })
         .collect();
 
     // "+ Add new marketplace" 項目を末尾に追加
     items.push(
         ListItem::new(vec![
+            Line::raw(""),
             Line::from(format!("{}+ Add new marketplace", LIST_ITEM_INDENT)),
             Line::raw(""),
         ])
@@ -418,7 +419,7 @@ fn view_plugin_list(
                     format!("{}{}", LIST_ITEM_INDENT, name)
                 };
                 let line_text = truncate_for_list(outer.width, raw).into_owned();
-                ListItem::new(vec![Line::from(line_text), Line::raw("")])
+                ListItem::new(vec![Line::raw(""), Line::from(line_text), Line::raw("")])
             })
             .collect();
 
@@ -907,7 +908,7 @@ fn build_target_list_items(targets: &[(String, String, bool)]) -> Vec<ListItem<'
         .map(|(_name, display_name, selected)| {
             let (mark, style) = target_checkbox(*selected);
             let line_text = format!("{}{} {}", LIST_ITEM_INDENT, mark, display_name);
-            ListItem::new(vec![Line::from(line_text), Line::raw("")]).style(style)
+            ListItem::new(vec![Line::raw(""), Line::from(line_text), Line::raw("")]).style(style)
         })
         .collect()
 }
@@ -946,17 +947,18 @@ fn build_scope_list_items(highlighted_idx: usize) -> Vec<ListItem<'static>> {
                 scope.display_name(),
                 path
             );
-            ListItem::new(vec![Line::from(line_text), Line::raw("")]).style(style)
+            ListItem::new(vec![Line::raw(""), Line::from(line_text), Line::raw("")]).style(style)
         })
         .collect()
 }
 
-/// `view_market_detail` の action メニュー項目を 2 行 ListItem として構築する。
+/// `view_market_detail` の action メニュー項目を 3 行 ListItem (上下空行 + 内容) として構築する。
 ///
+/// 内容行を上下空行で挟むことで、強調表示時に文字が縦中央に来る。
 /// 返される `ListItem` は所有データのみで構成されるため `'static`。
 fn build_market_action_item(action: &DetailAction) -> ListItem<'static> {
     let line_text = format!("{}{}", LIST_ITEM_INDENT, action.label());
-    ListItem::new(vec![Line::from(line_text), Line::raw("")]).style(action.style())
+    ListItem::new(vec![Line::raw(""), Line::from(line_text), Line::raw("")]).style(action.style())
 }
 
 /// `view_market_detail` の action メニュー全体を組み立て、`(items, action_menu_rows)` を返す。
@@ -1009,7 +1011,7 @@ fn build_browse_list_items<'a>(
                 Span::styled(format!("{}{} ", LIST_ITEM_INDENT, mark), style),
                 Span::styled(body, style),
             ];
-            ListItem::new(vec![Line::from(spans), Line::raw("")])
+            ListItem::new(vec![Line::raw(""), Line::from(spans), Line::raw("")])
         })
         .collect()
 }

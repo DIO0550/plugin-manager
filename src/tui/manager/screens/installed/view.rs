@@ -216,16 +216,16 @@ pub(super) fn build_plugin_row<'a>(
     content_width: u16,
 ) -> ListItem<'a> {
     let spans = build_plugin_row_spans(plugin, is_marked, update_status, content_width);
-    ListItem::new(vec![Line::from(spans), Line::raw("")])
+    ListItem::new(vec![Line::raw(""), Line::from(spans), Line::raw("")])
 }
 
-/// 詳細画面の action メニュー項目を 2 行 ListItem として構築する。
+/// 詳細画面の action メニュー項目を 3 行 ListItem (上下空行 + 内容) として構築する。
 ///
-/// `LIST_ITEM_INDENT + label` を 1 行目に、空行を 2 行目に持たせる。
+/// 内容行を上下空行で挟むことで、強調表示時に文字が縦中央に来る。
 /// 返される `ListItem` は所有データのみで構成されるため `'static`。
 fn build_detail_action_item(action: &DetailAction) -> ListItem<'static> {
     let line_text = format!("{}{}", LIST_ITEM_INDENT, action.label());
-    ListItem::new(vec![Line::from(line_text), Line::raw("")]).style(action.style())
+    ListItem::new(vec![Line::raw(""), Line::from(line_text), Line::raw("")]).style(action.style())
 }
 
 /// 詳細画面の action メニュー全体を組み立て、`(items, action_menu_rows)` を返す。
@@ -238,7 +238,7 @@ fn build_detail_action_menu(actions: &[DetailAction]) -> (Vec<ListItem<'static>>
     (items, rows)
 }
 
-/// `view_component_types` のリスト項目を 2 行 ListItem として構築する。
+/// `view_component_types` のリスト項目を 3 行 ListItem (上下空行 + 内容) として構築する。
 fn build_component_types_item<'a>(kind: ComponentKind, count: usize) -> ListItem<'a> {
     let line_text = format!(
         "{}{} ({})",
@@ -246,13 +246,13 @@ fn build_component_types_item<'a>(kind: ComponentKind, count: usize) -> ListItem
         component_kind_title(kind),
         count
     );
-    ListItem::new(vec![Line::from(line_text), Line::raw("")])
+    ListItem::new(vec![Line::raw(""), Line::from(line_text), Line::raw("")])
 }
 
-/// `view_component_list` のリスト項目を 2 行 ListItem として構築する。
+/// `view_component_list` のリスト項目を 3 行 ListItem (上下空行 + 内容) として構築する。
 fn build_component_list_item<'a>(component_name: &str) -> ListItem<'a> {
     let line_text = format!("{}{}", LIST_ITEM_INDENT, component_name);
-    ListItem::new(vec![Line::from(line_text), Line::raw("")])
+    ListItem::new(vec![Line::raw(""), Line::from(line_text), Line::raw("")])
 }
 
 /// 更新ステータスの表示文字列とスタイルを取得
