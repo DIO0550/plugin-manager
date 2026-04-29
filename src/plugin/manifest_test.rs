@@ -189,7 +189,7 @@ fn parse_legacy_manifest_with_installed_at_ignores_unknown_field() {
         "version": "1.0.0",
         "installedAt": "2024-01-01T00:00:00Z"
     }"#;
-    let manifest: PluginManifest = serde_json::from_str(json).expect("parse must not fail");
+    let manifest = PluginManifest::parse(json).expect("parse must not fail");
     assert_eq!(manifest.name, "legacy-plugin");
     assert_eq!(manifest.version, "1.0.0");
 }
