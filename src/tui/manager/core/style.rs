@@ -48,7 +48,7 @@ pub fn bordered_block<'a>(title: &'a str) -> Block<'a> {
 ///
 /// 直接 `List::highlight_style` には設定しない。`List::highlight_style` は ListItem
 /// 全体に塗布されるため、空行も緑背景になってしまう。代わりに各画面の builder が
-/// 内容行の Span にだけ `highlight_spans` 経由でこのスタイルを適用する。
+/// 内容行の Span にだけ `highlight_line` 経由でこのスタイルを適用する。
 pub fn highlight_style() -> Style {
     Style::default()
         .add_modifier(Modifier::BOLD)
@@ -81,7 +81,7 @@ pub fn highlight_line<'a>(spans: Vec<Span<'a>>, is_selected: bool) -> Line<'a> {
 /// `bordered_block(title)` + `HIGHLIGHT_SYMBOL` を組み合わせた List ファクトリ。
 ///
 /// `repeat_highlight_symbol(false)` を明示。`highlight_style` は **設定しない**：
-/// 緑背景は内容行の Span 側で `highlight_spans` 経由で適用するため、
+/// 緑背景は内容行の Span 側で `highlight_line` 経由で適用するため、
 /// ListItem 全体（空行を含む）には塗布しない。
 pub fn selectable_list<'a>(items: Vec<ListItem<'a>>, title: &'a str) -> List<'a> {
     List::new(items)
@@ -93,7 +93,7 @@ pub fn selectable_list<'a>(items: Vec<ListItem<'a>>, title: &'a str) -> List<'a>
 /// Block なしの action menu 用 List ファクトリ。
 ///
 /// `repeat_highlight_symbol(false)` を明示。`highlight_style` は **設定しない**：
-/// 緑背景は内容行の Span 側で `highlight_spans` 経由で適用する。
+/// 緑背景は内容行の Span 側で `highlight_line` 経由で適用する。
 pub fn menu_list<'a>(items: Vec<ListItem<'a>>) -> List<'a> {
     List::new(items)
         .highlight_symbol(HIGHLIGHT_SYMBOL)

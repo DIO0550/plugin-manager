@@ -1,5 +1,6 @@
 use super::*;
-use ratatui::style::{Color, Modifier};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::Span;
 use ratatui::widgets::ListItem;
 
 #[test]
@@ -68,4 +69,41 @@ fn selectable_list_smoke() {
 fn menu_list_smoke() {
     let items = vec![ListItem::new("a"), ListItem::new("b")];
     let _list = menu_list(items);
+}
+
+#[test]
+fn highlight_line_unselected_preserves_span_styles() {
+    let yellow = Style::default().fg(Color::Yellow);
+    let spans = vec![Span::styled("alpha", yellow), Span::raw(" beta")];
+    let line = highlight_line(spans.clone(), false);
+    assert_eq!(line.style, Style::default());
+    assert_eq!(line.spans, spans);
+}
+
+#[test]
+fn highlight_line_selected_paints_line_and_overrides_span_fg() {
+    let green_fg = Style::default().fg(Color::Green);
+    let yellow_fg = Style::default().fg(Color::Yellow);
+    let spans = vec![
+        Span::styled("Update now", green_fg),
+        Span::styled(" tail", yellow_fg),
+    ];
+    let line = highlight_line(spans, true);
+    let hl = highlight_style();
+    // Line.style 全体に highlight_style() が乗る → 余白セルも緑背景
+    assert_eq!(line.style, hl);
+    // 各 Span は元 fg を上書きされ、bg=Green / fg=Black / BOLD になる
+    for span in line.spans.iter() {
+        assert_eq!(span.style.fg, Some(Color::Black));
+        assert_eq!(span.style.bg, Some(Color::Green));
+        assert!(span.style.add_modifier.contains(Modifier::BOLD));
+    }
+}
+
+#[test]
+fn highlight_line_selected_with_empty_spans_returns_styled_line() {
+    let spans: Vec<Span<'static>> = Vec::new();
+    let line = highlight_line(spans, true);
+    assert_eq!(line.style, highlight_style());
+    assert!(line.spans.is_empty());
 }
