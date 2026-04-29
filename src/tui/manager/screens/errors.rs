@@ -2,7 +2,9 @@
 //!
 //! エラー表示と再試行。
 
-use crate::tui::manager::core::{dialog_rect, render_filter_bar, DataStore, Tab};
+use crate::tui::manager::core::{
+    content_rect, render_filter_bar, DataStore, Tab, HORIZONTAL_PADDING,
+};
 use crossterm::event::KeyCode;
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Tabs};
@@ -64,11 +66,8 @@ pub fn view(
     filter_text: &str,
     filter_focused: bool,
 ) {
-    let dialog_width = 55u16;
-    let dialog_height = 11u16; // +3 for filter bar
-
-    let dialog_area = dialog_rect(dialog_width, dialog_height, f.area());
-    f.render_widget(Clear, dialog_area);
+    let outer = content_rect(f.area(), HORIZONTAL_PADDING);
+    f.render_widget(Clear, outer);
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -78,7 +77,7 @@ pub fn view(
             Constraint::Min(1),    // コンテンツ
             Constraint::Length(1), // ヘルプ
         ])
-        .split(dialog_area);
+        .split(outer);
 
     let tab_titles: Vec<&str> = Tab::all().iter().map(|t| t.title()).collect();
     let tabs = Tabs::new(tab_titles)

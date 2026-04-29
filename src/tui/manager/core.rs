@@ -19,6 +19,10 @@ mod data_test;
 mod filter_test;
 
 pub use app::{update, view, Model, Tab};
-pub use common::{dialog_rect, render_filter_bar};
+#[allow(unused_imports)]
+pub use common::{
+    content_rect, render_filter_bar, truncate_to_width, BLOCK_BORDER_WIDTH, HORIZONTAL_PADDING,
+    LIST_DECORATION_WIDTH, LIST_HIGHLIGHT_WIDTH, MIN_CONTENT_WIDTH,
+};
 pub use data::{DataStore, MarketplaceItem, PluginId};
 pub use filter::filter_plugins;
