@@ -735,7 +735,10 @@ fn view_installing(f: &mut Frame, plugin_names: &[String], current_idx: usize, t
 
     let text = Paragraph::new(lines).block(
         Block::default()
-            .title(" Installing ")
+            .title(Span::styled(
+                " Installing ",
+                Style::default().add_modifier(Modifier::BOLD),
+            ))
             .borders(Borders::TOP | Borders::LEFT | Borders::RIGHT),
     );
     f.render_widget(text, inner_chunks[0]);
