@@ -138,6 +138,30 @@ fn modal_layout_with_zero_pct_returns_zero_size() {
 }
 
 #[test]
+fn modal_layout_with_tiny_area_keeps_modal_visible() {
+    // pct>0 かつ area>0 のとき、丸め誤差で 0 にならず最低 1 セル確保される。
+    let area = Rect::new(0, 0, 1, 1);
+    let inner = modal_layout(area, 50, 50);
+    assert!(inner.width >= 1, "width should stay visible: {:?}", inner);
+    assert!(inner.height >= 1, "height should stay visible: {:?}", inner);
+}
+
+#[test]
+fn modal_layout_with_one_row_keeps_modal_visible() {
+    let area = Rect::new(0, 0, 80, 1);
+    let inner = modal_layout(area, 60, 40);
+    assert!(inner.height >= 1, "height should stay visible: {:?}", inner);
+}
+
+#[test]
+fn modal_layout_with_zero_area_returns_zero_without_panic() {
+    let area = Rect::new(0, 0, 0, 0);
+    let inner = modal_layout(area, 50, 50);
+    assert_eq!(inner.width, 0);
+    assert_eq!(inner.height, 0);
+}
+
+#[test]
 fn split_horizontal_respects_ratio() {
     let area = Rect::new(0, 0, 100, 10);
     let chunks = split_horizontal(area, (30, 70));

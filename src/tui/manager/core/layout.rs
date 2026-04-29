@@ -106,30 +106,29 @@ pub fn detail_layout(content: Rect, action_menu_rows: u16) -> [Rect; 3] {
 ///
 /// `width_pct`, `height_pct` は `0..=100`。100 超は `min(100)` に丸める。
 pub fn modal_layout(area: Rect, width_pct: u16, height_pct: u16) -> Rect {
-    let w = width_pct.min(100);
-    let h = height_pct.min(100);
-    // 上下/左右の余白は剰余分を末尾に寄せて合計 100 を保ち、中央寄せを決定的にする。
-    let top = (100 - h) / 2;
-    let bottom = 100 - h - top;
-    let left = (100 - w) / 2;
-    let right = 100 - w - left;
-    let v_chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage(top),
-            Constraint::Percentage(h),
-            Constraint::Percentage(bottom),
-        ])
-        .split(area);
-    let h_chunks = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage(left),
-            Constraint::Percentage(w),
-            Constraint::Percentage(right),
-        ])
-        .split(v_chunks[1]);
-    h_chunks[1]
+    let modal_w = scale_with_min_visible(area.width, width_pct);
+    let modal_h = scale_with_min_visible(area.height, height_pct);
+    let modal_w = modal_w.min(area.width);
+    let modal_h = modal_h.min(area.height);
+    let x = area.x + (area.width.saturating_sub(modal_w)) / 2;
+    let y = area.y + (area.height.saturating_sub(modal_h)) / 2;
+    Rect::new(x, y, modal_w, modal_h)
+}
+
+/// `axis_size * pct / 100` を計算し、`pct > 0` かつ `axis_size > 0` の
+/// ときは最低 1 セルを返す（極小ターミナルでもモーダルが消えないため）。
+/// `pct` は内部で `min(100)` に丸める。
+fn scale_with_min_visible(axis_size: u16, pct: u16) -> u16 {
+    let p = pct.min(100);
+    if p == 0 || axis_size == 0 {
+        return 0;
+    }
+    let scaled = (axis_size as u32 * p as u32) / 100;
+    if scaled == 0 {
+        1
+    } else {
+        scaled as u16
+    }
 }
 
 /// 水平 2 分割。Marketplaces browse の左右分割用。
