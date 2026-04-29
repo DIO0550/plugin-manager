@@ -38,7 +38,6 @@ fn create_test_info() -> PluginInfo {
         hooks: None,
         mcp_servers: None,
         lsp_servers: None,
-        installed_at: None,
     };
     let installed = InstalledPlugin::new_for_test_full(
         manifest,
@@ -120,7 +119,6 @@ fn test_json_serialization_no_author() {
         hooks: None,
         mcp_servers: None,
         lsp_servers: None,
-        installed_at: None,
     };
     info.installed = InstalledPlugin::new_for_test_full(
         manifest,
@@ -186,7 +184,6 @@ fn table_output_contains_status() {
         hooks: None,
         mcp_servers: None,
         lsp_servers: None,
-        installed_at: None,
     };
     let disabled_info = PluginInfo {
         installed: InstalledPlugin::new_for_test_full(
@@ -224,7 +221,6 @@ fn table_output_omits_author_section_when_none() {
         hooks: None,
         mcp_servers: None,
         lsp_servers: None,
-        installed_at: None,
     };
     let info = PluginInfo {
         installed: InstalledPlugin::new_for_test_full(

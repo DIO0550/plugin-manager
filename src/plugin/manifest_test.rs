@@ -181,32 +181,15 @@ fn test_parse_empty_string() {
     assert!(PluginManifest::parse(json).is_err());
 }
 
-// === installed_at フィールドのテスト ===
-
 #[test]
-fn test_parse_with_installed_at() {
+fn parse_legacy_manifest_with_installed_at_ignores_unknown_field() {
+    // 旧 plugin.json に残る "installedAt" は unknown field として無視される
     let json = r#"{
-        "name": "test",
+        "name": "legacy-plugin",
         "version": "1.0.0",
-        "installedAt": "2025-01-15T10:30:00Z"
+        "installedAt": "2024-01-01T00:00:00Z"
     }"#;
-    let manifest = PluginManifest::parse(json).unwrap();
-    assert_eq!(
-        manifest.installed_at,
-        Some("2025-01-15T10:30:00Z".to_string())
-    );
-}
-
-#[test]
-fn test_parse_without_installed_at() {
-    let json = r#"{"name": "test", "version": "1.0.0"}"#;
-    let manifest = PluginManifest::parse(json).unwrap();
-    assert!(manifest.installed_at.is_none());
-}
-
-#[test]
-fn test_parse_installed_at_null() {
-    let json = r#"{"name": "test", "version": "1.0.0", "installedAt": null}"#;
-    let manifest = PluginManifest::parse(json).unwrap();
-    assert!(manifest.installed_at.is_none());
+    let manifest: PluginManifest = serde_json::from_str(json).expect("parse must not fail");
+    assert_eq!(manifest.name, "legacy-plugin");
+    assert_eq!(manifest.version, "1.0.0");
 }

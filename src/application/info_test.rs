@@ -218,7 +218,6 @@ fn create_marketplace_content(marketplace: &str, name: &str) -> MarketplaceConte
         hooks: None,
         mcp_servers: None,
         lsp_servers: None,
-        installed_at: None,
     };
     let cached = CachedPackage {
         name: name.to_string(),

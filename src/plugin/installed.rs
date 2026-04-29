@@ -150,7 +150,6 @@ impl InstalledPlugin {
             hooks: None,
             mcp_servers: None,
             lsp_servers: None,
-            installed_at: None,
         };
         let plugin = Plugin::new_for_test(manifest, PathBuf::from("/test"), components);
         Self {

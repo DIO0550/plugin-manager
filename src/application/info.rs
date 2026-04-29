@@ -210,7 +210,7 @@ fn build_plugin_info(content: MarketplaceContent) -> Result<PluginInfo> {
 
     let source = determine_source(marketplace_key, &dir_name);
 
-    let installed_at = meta::resolve_installed_at(&cache_path, Some(&manifest));
+    let installed_at = meta::resolve_installed_at(&cache_path);
 
     // flatten_name の prefix は manifest.name に基づくため
     // is_enabled には manifest.name を渡す。

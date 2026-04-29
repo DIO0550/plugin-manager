@@ -3,8 +3,6 @@
 //! プラグインのインストール日時などPLM固有のメタデータを `.plm-meta.json` で管理する。
 //! `plugin.json` は上流成果物として改変しない設計。
 
-use super::manifest_resolve::resolve_manifest_path;
-use super::PluginManifest;
 use crate::error::Result;
 use crate::fs::{FileSystem, RealFs};
 use chrono::Utc;
@@ -223,7 +221,7 @@ pub fn load_meta(plugin_dir: &Path) -> Option<PluginMeta> {
             Ok(meta) => Some(meta),
             Err(e) => {
                 eprintln!(
-                    "Warning: {} is corrupted ({}), falling back to plugin.json. \
+                    "Warning: {} is corrupted ({}); installedAt will be unavailable. \
                      It will be regenerated on next install.",
                     META_FILE, e
                 );
@@ -232,7 +230,7 @@ pub fn load_meta(plugin_dir: &Path) -> Option<PluginMeta> {
         },
         Err(e) => {
             eprintln!(
-                "Warning: Failed to read {} ({}), falling back to plugin.json.",
+                "Warning: Failed to read {} ({}); installedAt will be unavailable.",
                 META_FILE, e
             );
             None
@@ -240,42 +238,16 @@ pub fn load_meta(plugin_dir: &Path) -> Option<PluginMeta> {
     }
 }
 
-/// installedAt を取得（.plm-meta.json → plugin.json のフォールバック付き）
+/// installedAt を `.plm-meta.json` から取得する
 ///
-/// 優先順位:
-/// 1. `.plm-meta.json` の `installedAt` を優先
-/// 2. `.plm-meta.json` が無いか `installedAt` が欠損 → `plugin.json` の `installedAt` にフォールバック
-/// 3. 両方無い → `None`
-///
-/// manifest が None の場合は plugin.json を読み込んでフォールバック
+/// `.plm-meta.json` が存在し `installedAt` が空でない場合のみ値を返す。
+/// 旧 `plugin.json` の `installedAt` フィールドは廃止済みのため参照しない。
 ///
 /// # Arguments
 ///
 /// * `plugin_dir` - Plugin root directory where the metadata file lives.
-/// * `manifest` - Pre-loaded `PluginManifest`, or `None` to load it on demand.
-pub fn resolve_installed_at(
-    plugin_dir: &Path,
-    manifest: Option<&PluginManifest>,
-) -> Option<String> {
-    if let Some(meta) = load_meta(plugin_dir) {
-        if let Some(installed_at) = normalize_installed_at(meta.installed_at.as_deref()) {
-            return Some(installed_at);
-        }
-    }
-
-    if let Some(m) = manifest {
-        return normalize_installed_at(m.installed_at.as_deref());
-    }
-
-    // manifest が渡されていない場合は plugin.json から直接読み込む
-    let loaded_manifest =
-        resolve_manifest_path(plugin_dir).and_then(|path| PluginManifest::load(&path).ok());
-
-    if let Some(m) = loaded_manifest {
-        return normalize_installed_at(m.installed_at.as_deref());
-    }
-
-    None
+pub fn resolve_installed_at(plugin_dir: &Path) -> Option<String> {
+    load_meta(plugin_dir).and_then(|meta| normalize_installed_at(meta.installed_at.as_deref()))
 }
 
 /// プラグインが有効かどうかを判定
