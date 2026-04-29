@@ -1,7 +1,7 @@
 //! `build_plugin_row_spans` の狭幅フォールバックテスト
 
 use super::*;
-use crate::plugin::InstalledPlugin;
+use crate::application::InstalledPlugin;
 use crate::tui::manager::core::LIST_DECORATION_WIDTH;
 
 fn make_test_plugin(name: &str) -> InstalledPlugin {
