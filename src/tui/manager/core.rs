@@ -26,8 +26,8 @@ pub use app::{update, view, Model, Tab};
 // 外部から再構成できる参照点として残す）。単独利用がないため `unused_imports` lint を
 // 抑制する。他の re-export 項目には影響しない。
 pub use common::{
-    content_rect, render_filter_bar, truncate_for_list, truncate_for_paragraph, truncate_to_width,
-    HORIZONTAL_PADDING, LIST_DECORATION_WIDTH, MIN_CONTENT_WIDTH,
+    render_filter_bar, truncate_for_list, truncate_for_paragraph, truncate_to_width,
+    LIST_DECORATION_WIDTH, MIN_CONTENT_WIDTH,
 };
 #[allow(unused_imports)]
 pub use common::{BLOCK_BORDER_WIDTH, LIST_HIGHLIGHT_WIDTH};
