@@ -77,10 +77,15 @@ fn content_rect_with_huge_padding_does_not_overflow() {
 }
 
 #[test]
-fn content_rect_with_max_x_does_not_overflow() {
+fn content_rect_with_max_x_saturates_x_without_panic() {
+    // area.x = u16::MAX で `area.x + padding` が桁あふれするケース。
+    // saturating_add によって panic せず x が u16::MAX に飽和することを保証する。
+    // （`Rect::new` は `x + width` の overflow を防ぐため width を clamp する点に注意）
     let area = Rect::new(u16::MAX, 0, 10, 10);
     let result = content_rect(area, 2);
-    assert_eq!(result.x, u16::MAX);
+    assert_eq!(result.x, u16::MAX, "x should saturate to u16::MAX");
+    assert_eq!(result.y, 0);
+    assert_eq!(result.height, 10, "height is preserved");
 }
 
 // =============================================================================
