@@ -4,6 +4,7 @@
 
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Paragraph};
+use std::borrow::Cow;
 
 /// フィルタ入力欄を描画（ボーダー付き、高さ3行）
 ///
@@ -118,30 +119,41 @@ pub fn truncate_to_width(text: &str, max_width: u16) -> String {
 
 /// `content_width` が `MIN_CONTENT_WIDTH` 未満のときだけ `text` を装飾幅 `decoration_width` 引きで切り詰める。
 ///
-/// それ以外（通常幅）は `text` を所有形式に変換するだけで何も変えない。
+/// それ以外（通常幅）は入力をそのまま返す。
+/// `Cow<'a, str>` を返すことで、通常幅では呼び側が渡した `String` / `&str` を所有権ごと
+/// パススルーでき、`text.to_string()` による余分な clone/allocation を避けられる。
 /// ウィジェット種類で異なる装飾幅を呼び側が選び、共通の if 分岐をここに集約する。
-fn truncate_when_narrow(content_width: u16, decoration_width: u16, text: &str) -> String {
+fn truncate_when_narrow<'a>(
+    content_width: u16,
+    decoration_width: u16,
+    text: impl Into<Cow<'a, str>>,
+) -> Cow<'a, str> {
+    let text = text.into();
     if content_width < MIN_CONTENT_WIDTH {
         let inner_width = content_width.saturating_sub(decoration_width);
-        truncate_to_width(text, inner_width)
+        Cow::Owned(truncate_to_width(&text, inner_width))
     } else {
-        text.to_string()
+        text
     }
 }
 
 /// `List`（`Borders::ALL` + `highlight_symbol("> ")`）行用の狭幅フォールバック。
 ///
 /// `content_width < MIN_CONTENT_WIDTH` のときだけ `LIST_DECORATION_WIDTH` を差し引いた
-/// inner width で `truncate_to_width` を適用する。それ以外はそのまま返す。
-pub fn truncate_for_list(content_width: u16, text: &str) -> String {
+/// inner width で `truncate_to_width` を適用する。それ以外は入力をそのまま `Cow` で返す
+/// （`String` を渡せば所有権ごとパススルーされ、wide path での余分な clone は発生しない）。
+pub fn truncate_for_list<'a>(content_width: u16, text: impl Into<Cow<'a, str>>) -> Cow<'a, str> {
     truncate_when_narrow(content_width, LIST_DECORATION_WIDTH, text)
 }
 
 /// `Paragraph + Block(Borders::ALL)`（`highlight_symbol` なし）行用の狭幅フォールバック。
 ///
 /// `content_width < MIN_CONTENT_WIDTH` のときだけ `BLOCK_BORDER_WIDTH` を差し引いた
-/// inner width で `truncate_to_width` を適用する。それ以外はそのまま返す。
-pub fn truncate_for_paragraph(content_width: u16, text: &str) -> String {
+/// inner width で `truncate_to_width` を適用する。それ以外は入力をそのまま `Cow` で返す。
+pub fn truncate_for_paragraph<'a>(
+    content_width: u16,
+    text: impl Into<Cow<'a, str>>,
+) -> Cow<'a, str> {
     truncate_when_narrow(content_width, BLOCK_BORDER_WIDTH, text)
 }
 

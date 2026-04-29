@@ -220,7 +220,7 @@ fn view_market_list(
                 "  {}    {}{}    {}    {}",
                 m.name, m.source, source_path_info, plugin_info, updated_info
             );
-            ListItem::new(truncate_for_list(outer.width, &raw))
+            ListItem::new(truncate_for_list(outer.width, raw))
         })
         .collect();
 
@@ -433,7 +433,7 @@ fn view_plugin_list(
                 } else {
                     format!("  {}", name)
                 };
-                ListItem::new(truncate_for_list(outer.width, &raw))
+                ListItem::new(truncate_for_list(outer.width, raw))
             })
             .collect();
 
@@ -889,7 +889,7 @@ fn view_install_result(f: &mut Frame, summary: &InstallSummary) {
     for result in &summary.results {
         let (raw, color) = format_install_result_line(result);
         lines.push(Line::from(Span::styled(
-            truncate_for_paragraph(outer.width, &raw),
+            truncate_for_paragraph(outer.width, raw),
             Style::default().fg(color),
         )));
     }

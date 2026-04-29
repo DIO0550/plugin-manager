@@ -180,3 +180,24 @@ fn truncate_for_paragraph_truncates_with_block_border_width_when_narrow() {
 fn truncate_for_list_does_not_panic_at_zero_width() {
     let _ = truncate_for_list(0, "abc");
 }
+
+#[test]
+fn truncate_for_list_borrows_input_when_wide() {
+    use std::borrow::Cow;
+    let text = "a".repeat(50);
+    // 通常幅では入力を所有権パススルーし、新規アロケーションを発生させない。
+    assert!(matches!(
+        truncate_for_list(80, text.as_str()),
+        Cow::Borrowed(_)
+    ));
+}
+
+#[test]
+fn truncate_for_list_owns_truncated_text_when_narrow() {
+    use std::borrow::Cow;
+    let text = "a".repeat(50);
+    assert!(matches!(
+        truncate_for_list(30, text.as_str()),
+        Cow::Owned(_)
+    ));
+}
