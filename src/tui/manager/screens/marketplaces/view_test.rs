@@ -82,7 +82,7 @@ fn make_plugin(name: &str, installed: bool) -> BrowsePlugin {
 fn build_browse_list_items_empty() {
     let plugins: Vec<BrowsePlugin> = vec![];
     let selected = HashSet::new();
-    let items = build_browse_list_items(&plugins, &selected, 80);
+    let items = build_browse_list_items(&plugins, &selected, 80, None);
     assert!(items.is_empty());
 }
 
@@ -95,7 +95,7 @@ fn build_browse_list_items_returns_correct_count() {
     ];
     let mut selected = HashSet::new();
     selected.insert("b".to_string());
-    let items = build_browse_list_items(&plugins, &selected, 80);
+    let items = build_browse_list_items(&plugins, &selected, 80, None);
     assert_eq!(items.len(), 3);
 }
 
@@ -105,8 +105,8 @@ fn build_browse_list_items_respects_selected_plugins() {
     let mut selected = HashSet::new();
     selected.insert("alpha".to_string());
 
-    let items_with_selection = build_browse_list_items(&plugins, &selected, 80);
-    let items_without_selection = build_browse_list_items(&plugins, &HashSet::new(), 80);
+    let items_with_selection = build_browse_list_items(&plugins, &selected, 80, None);
+    let items_without_selection = build_browse_list_items(&plugins, &HashSet::new(), 80, None);
 
     assert_eq!(items_with_selection.len(), 2);
     assert_eq!(items_without_selection.len(), 2);
@@ -117,7 +117,7 @@ fn build_browse_list_items_respects_selected_plugins() {
 #[test]
 fn build_browse_list_items_have_height_2() {
     let plugins = vec![make_plugin("a", false), make_plugin("b", true)];
-    let items = build_browse_list_items(&plugins, &HashSet::new(), 80);
+    let items = build_browse_list_items(&plugins, &HashSet::new(), 80, None);
     for item in &items {
         assert_eq!(item.height(), 2);
     }
@@ -164,14 +164,18 @@ fn scope_radio_not_current() {
 // =============================================================================
 
 fn target_item(mark: &str, label: &str, style: Style) -> ListItem<'static> {
+    use ratatui::text::Span;
     let line_text = format!("{}{} {}", LIST_ITEM_INDENT, mark, label);
-    ListItem::new(vec![Line::from(line_text), Line::raw("")]).style(style)
+    ListItem::new(vec![
+        Line::from(Span::styled(line_text, style)),
+        Line::raw(""),
+    ])
 }
 
 #[test]
 fn build_target_list_items_empty() {
     let targets: Vec<(String, String, bool)> = vec![];
-    let items = build_target_list_items(&targets);
+    let items = build_target_list_items(&targets, None);
     assert!(items.is_empty());
 }
 
@@ -181,7 +185,7 @@ fn build_target_list_items_all_selected() {
         ("codex".to_string(), "Codex".to_string(), true),
         ("copilot".to_string(), "Copilot".to_string(), true),
     ];
-    let items = build_target_list_items(&targets);
+    let items = build_target_list_items(&targets, None);
     assert_eq!(items.len(), 2);
     let yellow = Style::default().fg(Color::Yellow);
     assert_eq!(items[0], target_item(CHECKBOX_SELECTED, "Codex", yellow));
@@ -194,7 +198,7 @@ fn build_target_list_items_none_selected() {
         ("codex".to_string(), "Codex".to_string(), false),
         ("copilot".to_string(), "Copilot".to_string(), false),
     ];
-    let items = build_target_list_items(&targets);
+    let items = build_target_list_items(&targets, None);
     assert_eq!(items.len(), 2);
     let default = Style::default();
     assert_eq!(items[0], target_item(CHECKBOX_UNSELECTED, "Codex", default));
@@ -210,7 +214,7 @@ fn build_target_list_items_mixed() {
         ("codex".to_string(), "Codex".to_string(), true),
         ("copilot".to_string(), "Copilot".to_string(), false),
     ];
-    let items = build_target_list_items(&targets);
+    let items = build_target_list_items(&targets, None);
     assert_eq!(items.len(), 2);
     assert_ne!(items[0], items[1]);
     assert_eq!(
@@ -230,7 +234,7 @@ fn build_target_list_items_mixed() {
 #[test]
 fn build_target_list_items_have_height_2() {
     let targets = vec![("codex".to_string(), "Codex".to_string(), true)];
-    let items = build_target_list_items(&targets);
+    let items = build_target_list_items(&targets, None);
     for item in &items {
         assert_eq!(item.height(), 2);
     }
@@ -241,6 +245,7 @@ fn build_target_list_items_have_height_2() {
 // =============================================================================
 
 fn scope_item(mark: &str, scope: Scope, path: &str, style: Style) -> ListItem<'static> {
+    use ratatui::text::Span;
     let line_text = format!(
         "{}{} {} {}",
         LIST_ITEM_INDENT,
@@ -248,12 +253,15 @@ fn scope_item(mark: &str, scope: Scope, path: &str, style: Style) -> ListItem<'s
         scope.display_name(),
         path
     );
-    ListItem::new(vec![Line::from(line_text), Line::raw("")]).style(style)
+    ListItem::new(vec![
+        Line::from(Span::styled(line_text, style)),
+        Line::raw(""),
+    ])
 }
 
 #[test]
 fn build_scope_list_items_personal_selected() {
-    let items = build_scope_list_items(0);
+    let items = build_scope_list_items(0, None);
     assert_eq!(items.len(), 2);
     let yellow = Style::default().fg(Color::Yellow);
     assert_eq!(
@@ -268,7 +276,7 @@ fn build_scope_list_items_personal_selected() {
 
 #[test]
 fn build_scope_list_items_project_selected() {
-    let items = build_scope_list_items(1);
+    let items = build_scope_list_items(1, None);
     assert_eq!(items.len(), 2);
     let yellow = Style::default().fg(Color::Yellow);
     assert_eq!(
@@ -288,7 +296,7 @@ fn build_scope_list_items_project_selected() {
 
 #[test]
 fn build_scope_list_items_out_of_range_clamps_to_last() {
-    let items = build_scope_list_items(99);
+    let items = build_scope_list_items(99, None);
     assert_eq!(items.len(), 2);
     let yellow = Style::default().fg(Color::Yellow);
     assert_eq!(
@@ -308,7 +316,7 @@ fn build_scope_list_items_out_of_range_clamps_to_last() {
 
 #[test]
 fn build_scope_list_items_have_height_2() {
-    let items = build_scope_list_items(0);
+    let items = build_scope_list_items(0, None);
     for item in &items {
         assert_eq!(item.height(), 2);
     }
@@ -321,7 +329,7 @@ fn build_scope_list_items_have_height_2() {
 #[test]
 fn build_market_action_item_returns_height_2() {
     for action in super::DetailAction::all().iter() {
-        let item = build_market_action_item(action);
+        let item = build_market_action_item(action, false);
         assert_eq!(item.height(), 2);
     }
 }
@@ -329,7 +337,7 @@ fn build_market_action_item_returns_height_2() {
 #[test]
 fn build_market_action_menu_reserves_full_height() {
     let actions = super::DetailAction::all();
-    let (items, rows) = build_market_action_menu(actions);
+    let (items, rows) = build_market_action_menu(actions, None);
     assert_eq!(items.len(), actions.len());
     assert_eq!(rows, actions.len() as u16 * 2);
     for item in &items {

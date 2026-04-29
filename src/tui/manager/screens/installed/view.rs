@@ -7,8 +7,8 @@ use crate::application::InstalledPlugin;
 use crate::component::ComponentKind;
 use crate::tui::manager::core::layout::{detail_layout, framed_layout, outer_rect};
 use crate::tui::manager::core::style::{
-    bordered_block, menu_list, selectable_list, ICON_DISABLED, ICON_ENABLED, LIST_ITEM_INDENT,
-    MARK_MARKED, MARK_UNMARKED,
+    bordered_block, highlight_spans, menu_list, selectable_list, ICON_DISABLED, ICON_ENABLED,
+    LIST_ITEM_INDENT, MARK_MARKED, MARK_UNMARKED,
 };
 use crate::tui::manager::core::{
     filter_plugins, render_filter_bar, truncate_to_width, DataStore, PluginId, Tab,
@@ -209,13 +209,18 @@ pub(super) fn build_plugin_row_spans<'a>(
 }
 
 /// プラグイン 1 行分の `ListItem` を構築する。
+///
+/// `is_selected = true` のときは内容行の Span に `highlight_style()` を patch する。
+/// 空行 (2 行目) には適用しないため、選択時に空行が緑背景にならない。
 pub(super) fn build_plugin_row<'a>(
     plugin: &'a InstalledPlugin,
     is_marked: bool,
     update_status: Option<&'a UpdateStatusDisplay>,
     content_width: u16,
+    is_selected: bool,
 ) -> ListItem<'a> {
     let spans = build_plugin_row_spans(plugin, is_marked, update_status, content_width);
+    let spans = highlight_spans(spans, is_selected);
     ListItem::new(vec![Line::from(spans), Line::raw("")])
 }
 
@@ -223,41 +228,60 @@ pub(super) fn build_plugin_row<'a>(
 ///
 /// 1 行目に内容、2 行目に空行を持たせて、`highlight_symbol("> ")` を内容行に
 /// 整列させつつ行間に視覚的な余白を確保する。
-/// 返される `ListItem` は所有データのみで構成されるため `'static`。
-fn build_detail_action_item(action: &DetailAction) -> ListItem<'static> {
+/// `is_selected = true` のとき内容行の Span に `highlight_style()` を patch する
+/// （空行には適用しない）。返される `ListItem` は所有データのみで構成されるため `'static`。
+fn build_detail_action_item(action: &DetailAction, is_selected: bool) -> ListItem<'static> {
     let line_text = format!("{}{}", LIST_ITEM_INDENT, action.label());
-    ListItem::new(vec![Line::from(line_text), Line::raw("")]).style(action.style())
+    let spans = vec![Span::styled(line_text, action.style())];
+    let spans = highlight_spans(spans, is_selected);
+    ListItem::new(vec![Line::from(spans), Line::raw("")])
 }
 
 /// 詳細画面の action メニュー全体を組み立て、`(items, action_menu_rows)` を返す。
 ///
 /// `action_menu_rows` は描画行数（`items.iter().map(ListItem::height).sum()`）。
 /// 呼び出し側は `detail_layout` にこの値を渡して全 action の領域を確保する。
-fn build_detail_action_menu(actions: &[DetailAction]) -> (Vec<ListItem<'static>>, u16) {
-    let items: Vec<ListItem<'static>> = actions.iter().map(build_detail_action_item).collect();
+/// `selected` は現在ハイライト中の論理 index。
+fn build_detail_action_menu(
+    actions: &[DetailAction],
+    selected: Option<usize>,
+) -> (Vec<ListItem<'static>>, u16) {
+    let items: Vec<ListItem<'static>> = actions
+        .iter()
+        .enumerate()
+        .map(|(i, a)| build_detail_action_item(a, Some(i) == selected))
+        .collect();
     let rows: u16 = items.iter().map(|i| i.height() as u16).sum();
     (items, rows)
 }
 
 /// `view_component_types` のリスト項目を 2 行 ListItem (内容 + 空行) として構築する。
 ///
-/// 返される `ListItem` は所有データのみで構成されるため `'static`。
-fn build_component_types_item(kind: ComponentKind, count: usize) -> ListItem<'static> {
+/// `is_selected = true` のとき内容行の Span に `highlight_style()` を patch する。
+fn build_component_types_item(
+    kind: ComponentKind,
+    count: usize,
+    is_selected: bool,
+) -> ListItem<'static> {
     let line_text = format!(
         "{}{} ({})",
         LIST_ITEM_INDENT,
         component_kind_title(kind),
         count
     );
-    ListItem::new(vec![Line::from(line_text), Line::raw("")])
+    let spans = vec![Span::raw(line_text)];
+    let spans = highlight_spans(spans, is_selected);
+    ListItem::new(vec![Line::from(spans), Line::raw("")])
 }
 
 /// `view_component_list` のリスト項目を 2 行 ListItem (内容 + 空行) として構築する。
 ///
-/// 返される `ListItem` は所有データのみで構成されるため `'static`。
-fn build_component_list_item(component_name: &str) -> ListItem<'static> {
+/// `is_selected = true` のとき内容行の Span に `highlight_style()` を patch する。
+fn build_component_list_item(component_name: &str, is_selected: bool) -> ListItem<'static> {
     let line_text = format!("{}{}", LIST_ITEM_INDENT, component_name);
-    ListItem::new(vec![Line::from(line_text), Line::raw("")])
+    let spans = vec![Span::raw(line_text)];
+    let spans = highlight_spans(spans, is_selected);
+    ListItem::new(vec![Line::from(spans), Line::raw("")])
 }
 
 /// 更新ステータスの表示文字列とスタイルを取得
@@ -347,12 +371,15 @@ fn view_plugin_list(
             .style(Style::default().fg(Color::DarkGray));
         f.render_widget(no_match, content_area);
     } else {
+        let selected_idx = state.selected();
         let items: Vec<ListItem> = filtered
             .iter()
-            .map(|p| {
+            .enumerate()
+            .map(|(i, p)| {
                 let is_marked = marked_ids.contains(p.id());
                 let update_status = update_statuses.get(p.id());
-                build_plugin_row(p, is_marked, update_status, outer.width)
+                let is_selected = Some(i) == selected_idx;
+                build_plugin_row(p, is_marked, update_status, outer.width, is_selected)
             })
             .collect();
 
@@ -438,7 +465,7 @@ fn view_plugin_detail(
 
     // アクションメニュー（enabled 状態に応じて動的に切り替え）
     let actions = DetailAction::for_plugin(plugin.enabled());
-    let (items, action_menu_rows) = build_detail_action_menu(&actions);
+    let (items, action_menu_rows) = build_detail_action_menu(&actions, state.selected());
 
     let [info_area, menu_area] = detail_layout(content_area, action_menu_rows);
 
@@ -505,9 +532,13 @@ fn view_component_types(
         f.render_widget(paragraph, chunks[1]);
     } else {
         // コンポーネントがある場合
+        let selected_idx = state.selected();
         let items: Vec<ListItem> = counts
             .iter()
-            .map(|(kind, count)| build_component_types_item(*kind, *count))
+            .enumerate()
+            .map(|(i, (kind, count))| {
+                build_component_types_item(*kind, *count, Some(i) == selected_idx)
+            })
             .collect();
 
         let list = selectable_list(items, &title);
@@ -546,9 +577,11 @@ fn view_component_list(
     };
 
     let components = ctx.data.component_names(plugin, kind);
+    let selected_idx = state.selected();
     let items: Vec<ListItem> = components
         .iter()
-        .map(|c| build_component_list_item(c))
+        .enumerate()
+        .map(|(i, c)| build_component_list_item(c, Some(i) == selected_idx))
         .collect();
 
     let outer = outer_rect(f.area());

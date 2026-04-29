@@ -66,21 +66,21 @@ fn build_plugin_row_does_not_panic_at_zero_width() {
 #[test]
 fn build_plugin_row_returns_2_line_list_item() {
     let plugin = make_test_plugin("p");
-    let item = build_plugin_row(&plugin, false, None, 80);
+    let item = build_plugin_row(&plugin, false, None, 80, false);
     assert_eq!(item.height(), 2);
 }
 
 #[test]
 fn build_plugin_row_returns_2_line_list_item_when_marked() {
     let plugin = make_test_plugin("p");
-    let item = build_plugin_row(&plugin, true, None, 80);
+    let item = build_plugin_row(&plugin, true, None, 80, false);
     assert_eq!(item.height(), 2);
 }
 
 #[test]
 fn build_plugin_row_returns_2_line_list_item_when_narrow() {
     let plugin = make_test_plugin("very-long-plugin-name");
-    let item = build_plugin_row(&plugin, false, None, 30);
+    let item = build_plugin_row(&plugin, false, None, 30, false);
     assert_eq!(item.height(), 2);
 }
 
@@ -91,7 +91,7 @@ fn build_detail_action_item_returns_height_2() {
         .iter()
         .chain(DetailAction::for_disabled().iter())
     {
-        let item = build_detail_action_item(action);
+        let item = build_detail_action_item(action, false);
         assert_eq!(item.height(), 2);
     }
 }
@@ -100,7 +100,7 @@ fn build_detail_action_item_returns_height_2() {
 fn build_detail_action_menu_reserves_full_height_for_enabled() {
     use crate::tui::manager::screens::installed::model::DetailAction;
     let actions = DetailAction::for_enabled();
-    let (items, rows) = build_detail_action_menu(&actions);
+    let (items, rows) = build_detail_action_menu(&actions, None);
     assert_eq!(items.len(), actions.len());
     assert_eq!(rows, actions.len() as u16 * 2);
     for item in &items {
@@ -112,7 +112,7 @@ fn build_detail_action_menu_reserves_full_height_for_enabled() {
 fn build_detail_action_menu_reserves_full_height_for_disabled() {
     use crate::tui::manager::screens::installed::model::DetailAction;
     let actions = DetailAction::for_disabled();
-    let (items, rows) = build_detail_action_menu(&actions);
+    let (items, rows) = build_detail_action_menu(&actions, None);
     assert_eq!(items.len(), actions.len());
     assert_eq!(rows, actions.len() as u16 * 2);
     for item in &items {
@@ -123,12 +123,12 @@ fn build_detail_action_menu_reserves_full_height_for_disabled() {
 #[test]
 fn build_component_types_item_returns_height_2() {
     use crate::component::ComponentKind;
-    let item = build_component_types_item(ComponentKind::Skill, 3);
+    let item = build_component_types_item(ComponentKind::Skill, 3, false);
     assert_eq!(item.height(), 2);
 }
 
 #[test]
 fn build_component_list_item_returns_height_2() {
-    let item = build_component_list_item("my-component");
+    let item = build_component_list_item("my-component", false);
     assert_eq!(item.height(), 2);
 }

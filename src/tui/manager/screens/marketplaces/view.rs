@@ -10,8 +10,8 @@ use crate::tui::manager::core::layout::{
     framed_layout, modal_layout, outer_rect, split_horizontal,
 };
 use crate::tui::manager::core::style::{
-    bordered_block, menu_list, selectable_list, CHECKBOX_SELECTED, CHECKBOX_UNSELECTED,
-    LIST_ITEM_INDENT, MARK_MARKED, RADIO_SELECTED, RADIO_UNSELECTED,
+    bordered_block, highlight_spans, menu_list, selectable_list, CHECKBOX_SELECTED,
+    CHECKBOX_UNSELECTED, LIST_ITEM_INDENT, MARK_MARKED, RADIO_SELECTED, RADIO_UNSELECTED,
 };
 use crate::tui::manager::core::{
     render_filter_bar, truncate_for_list, truncate_for_paragraph, DataStore, Tab,
@@ -198,11 +198,14 @@ fn view_market_list(
 
     // マーケットプレイスリスト
     let title = format!(" Marketplaces ({}) ", ctx.data.marketplaces.len());
+    let selected_idx = state.selected();
+    let total_items = ctx.data.marketplaces.len() + 1; // +1 = "+ Add new marketplace"
     let mut items: Vec<ListItem> = ctx
         .data
         .marketplaces
         .iter()
-        .map(|m| {
+        .enumerate()
+        .map(|(i, m)| {
             let plugin_info = m
                 .plugin_count
                 .map(|c| format!("{} plugins", c))
@@ -219,18 +222,21 @@ fn view_market_list(
                 LIST_ITEM_INDENT, m.name, m.source, source_path_info, plugin_info, updated_info
             );
             let line_text = truncate_for_list(outer.width, raw).into_owned();
-            ListItem::new(vec![Line::from(line_text), Line::raw("")])
+            let spans = highlight_spans(vec![Span::raw(line_text)], Some(i) == selected_idx);
+            ListItem::new(vec![Line::from(spans), Line::raw("")])
         })
         .collect();
 
     // "+ Add new marketplace" 項目を末尾に追加
-    items.push(
-        ListItem::new(vec![
-            Line::from(format!("{}+ Add new marketplace", LIST_ITEM_INDENT)),
-            Line::raw(""),
-        ])
-        .style(Style::default().fg(Color::Cyan)),
+    let add_idx = total_items - 1;
+    let add_spans = highlight_spans(
+        vec![Span::styled(
+            format!("{}+ Add new marketplace", LIST_ITEM_INDENT),
+            Style::default().fg(Color::Cyan),
+        )],
+        Some(add_idx) == selected_idx,
     );
+    items.push(ListItem::new(vec![Line::from(add_spans), Line::raw("")]));
 
     let list = selectable_list(items, &title);
 
@@ -300,7 +306,7 @@ fn view_market_detail(
 
     // アクションメニュー（先に組み立て、描画行数を算出して area を確保する）
     let actions = DetailAction::all();
-    let (items, action_menu_rows) = build_market_action_menu(actions);
+    let (items, action_menu_rows) = build_market_action_menu(actions, state.selected());
 
     // コンテンツ領域を画面固有に再分割（info / action_menu / error）
     let content_chunks = Layout::default()
@@ -409,16 +415,19 @@ fn view_plugin_list(
             .style(Style::default().fg(Color::DarkGray));
         f.render_widget(content, content_area);
     } else {
+        let selected_idx = state.selected();
         let items: Vec<ListItem> = plugins
             .iter()
-            .map(|(name, desc)| {
+            .enumerate()
+            .map(|(i, (name, desc))| {
                 let raw = if let Some(description) = desc {
                     format!("{}{} - {}", LIST_ITEM_INDENT, name, description)
                 } else {
                     format!("{}{}", LIST_ITEM_INDENT, name)
                 };
                 let line_text = truncate_for_list(outer.width, raw).into_owned();
-                ListItem::new(vec![Line::from(line_text), Line::raw("")])
+                let spans = highlight_spans(vec![Span::raw(line_text)], Some(i) == selected_idx);
+                ListItem::new(vec![Line::from(spans), Line::raw("")])
             })
             .collect();
 
@@ -594,8 +603,12 @@ fn view_plugin_browse(
         f.render_widget(msg, content_area);
     } else if !should_split_layout(content_area.width) {
         // 狭い端末: リストのみ描画
-        let items =
-            build_browse_list_items(browse.plugins, browse.selected_plugins, content_area.width);
+        let items = build_browse_list_items(
+            browse.plugins,
+            browse.selected_plugins,
+            content_area.width,
+            state.selected(),
+        );
         let list = selectable_list(items, &title);
         f.render_stateful_widget(list, content_area, &mut state);
     } else {
@@ -603,8 +616,12 @@ fn view_plugin_browse(
         let [list_area, detail_area] = split_horizontal(content_area, (40, 60));
 
         // 左パネル: プラグインリスト
-        let items =
-            build_browse_list_items(browse.plugins, browse.selected_plugins, list_area.width);
+        let items = build_browse_list_items(
+            browse.plugins,
+            browse.selected_plugins,
+            list_area.width,
+            state.selected(),
+        );
         let list = selectable_list(items, &title);
         f.render_stateful_widget(list, list_area, &mut state);
 
@@ -645,7 +662,7 @@ fn view_target_select(
         ])
         .split(modal_area);
 
-    let items = build_target_list_items(targets);
+    let items = build_target_list_items(targets, state.selected());
 
     let list = selectable_list(items, " Select targets ");
 
@@ -676,7 +693,7 @@ fn view_scope_select(f: &mut Frame, highlighted_idx: usize, mut state: ListState
         ])
         .split(modal_area);
 
-    let items = build_scope_list_items(highlighted_idx);
+    let items = build_scope_list_items(highlighted_idx, state.selected());
 
     let list = selectable_list(items, " Select scope ");
 
@@ -903,13 +920,19 @@ fn target_checkbox(selected: bool) -> (&'static str, Style) {
 /// # Arguments
 ///
 /// * `targets` - Target list as `(name, display_name, selected)` tuples.
-fn build_target_list_items(targets: &[(String, String, bool)]) -> Vec<ListItem<'static>> {
+fn build_target_list_items(
+    targets: &[(String, String, bool)],
+    highlighted: Option<usize>,
+) -> Vec<ListItem<'static>> {
     targets
         .iter()
-        .map(|(_name, display_name, selected)| {
+        .enumerate()
+        .map(|(i, (_name, display_name, selected))| {
             let (mark, style) = target_checkbox(*selected);
             let line_text = format!("{}{} {}", LIST_ITEM_INDENT, mark, display_name);
-            ListItem::new(vec![Line::from(line_text), Line::raw("")]).style(style)
+            let spans =
+                highlight_spans(vec![Span::styled(line_text, style)], Some(i) == highlighted);
+            ListItem::new(vec![Line::from(spans), Line::raw("")])
         })
         .collect()
 }
@@ -932,7 +955,10 @@ fn scope_radio(is_current: bool) -> (&'static str, Style) {
 /// # Arguments
 ///
 /// * `highlighted_idx` - Currently highlighted scope index.
-fn build_scope_list_items(highlighted_idx: usize) -> Vec<ListItem<'static>> {
+fn build_scope_list_items(
+    highlighted_idx: usize,
+    highlighted: Option<usize>,
+) -> Vec<ListItem<'static>> {
     let scopes = [(Scope::Personal, "(~/.plm/)"), (Scope::Project, "(./)")];
     let clamped = highlighted_idx.min(scopes.len() - 1);
     scopes
@@ -948,26 +974,39 @@ fn build_scope_list_items(highlighted_idx: usize) -> Vec<ListItem<'static>> {
                 scope.display_name(),
                 path
             );
-            ListItem::new(vec![Line::from(line_text), Line::raw("")]).style(style)
+            let spans = highlight_spans(
+                vec![Span::styled(line_text, style)],
+                Some(idx) == highlighted,
+            );
+            ListItem::new(vec![Line::from(spans), Line::raw("")])
         })
         .collect()
 }
 
 /// `view_market_detail` の action メニュー項目を 2 行 ListItem (内容 + 空行) として構築する。
 ///
-/// 1 行目に内容、2 行目に空行を持たせて、`highlight_symbol("> ")` を内容行に
-/// 整列させつつ行間に視覚的な余白を確保する。
-/// 返される `ListItem` は所有データのみで構成されるため `'static`。
-fn build_market_action_item(action: &DetailAction) -> ListItem<'static> {
+/// `is_selected = true` のとき内容行の Span に `highlight_style()` を patch する
+/// （空行には適用しない）。返される `ListItem` は所有データのみで構成されるため `'static`。
+fn build_market_action_item(action: &DetailAction, is_selected: bool) -> ListItem<'static> {
     let line_text = format!("{}{}", LIST_ITEM_INDENT, action.label());
-    ListItem::new(vec![Line::from(line_text), Line::raw("")]).style(action.style())
+    let spans = vec![Span::styled(line_text, action.style())];
+    let spans = highlight_spans(spans, is_selected);
+    ListItem::new(vec![Line::from(spans), Line::raw("")])
 }
 
 /// `view_market_detail` の action メニュー全体を組み立て、`(items, action_menu_rows)` を返す。
 ///
 /// `action_menu_rows` は描画行数（`items.iter().map(ListItem::height).sum()`）。
-fn build_market_action_menu(actions: &[DetailAction]) -> (Vec<ListItem<'static>>, u16) {
-    let items: Vec<ListItem<'static>> = actions.iter().map(build_market_action_item).collect();
+/// `selected` は現在ハイライト中の論理 index。
+fn build_market_action_menu(
+    actions: &[DetailAction],
+    selected: Option<usize>,
+) -> (Vec<ListItem<'static>>, u16) {
+    let items: Vec<ListItem<'static>> = actions
+        .iter()
+        .enumerate()
+        .map(|(i, a)| build_market_action_item(a, Some(i) == selected))
+        .collect();
     let rows: u16 = items.iter().map(|i| i.height() as u16).sum();
     (items, rows)
 }
@@ -1000,10 +1039,12 @@ fn build_browse_list_items(
     plugins: &[BrowsePlugin],
     selected_plugins: &HashSet<String>,
     content_width: u16,
+    highlighted: Option<usize>,
 ) -> Vec<ListItem<'static>> {
     plugins
         .iter()
-        .map(|p| {
+        .enumerate()
+        .map(|(i, p)| {
             let selected = selected_plugins.contains(&p.name);
             let (mark, style) = browse_state_block(p.installed, selected);
             let raw = match p.description.as_deref() {
@@ -1013,10 +1054,9 @@ fn build_browse_list_items(
                 _ => format!("{}{} {}", LIST_ITEM_INDENT, mark, p.name),
             };
             let line_text = truncate_for_list(content_width, raw).into_owned();
-            ListItem::new(vec![
-                Line::from(Span::styled(line_text, style)),
-                Line::raw(""),
-            ])
+            let spans =
+                highlight_spans(vec![Span::styled(line_text, style)], Some(i) == highlighted);
+            ListItem::new(vec![Line::from(spans), Line::raw("")])
         })
         .collect()
 }
