@@ -219,6 +219,31 @@ pub(super) fn build_plugin_row<'a>(
     ListItem::new(vec![Line::from(spans), Line::raw("")])
 }
 
+/// 詳細画面の action メニュー項目を 2 行 ListItem として構築する。
+///
+/// `LIST_ITEM_INDENT + label` を 1 行目に、空行を 2 行目に持たせる。
+fn build_detail_action_item<'a>(action: &DetailAction) -> ListItem<'a> {
+    let line_text = format!("{}{}", LIST_ITEM_INDENT, action.label());
+    ListItem::new(vec![Line::from(line_text), Line::raw("")]).style(action.style())
+}
+
+/// `view_component_types` のリスト項目を 2 行 ListItem として構築する。
+fn build_component_types_item<'a>(kind: ComponentKind, count: usize) -> ListItem<'a> {
+    let line_text = format!(
+        "{}{} ({})",
+        LIST_ITEM_INDENT,
+        component_kind_title(kind),
+        count
+    );
+    ListItem::new(vec![Line::from(line_text), Line::raw("")])
+}
+
+/// `view_component_list` のリスト項目を 2 行 ListItem として構築する。
+fn build_component_list_item<'a>(component_name: &str) -> ListItem<'a> {
+    let line_text = format!("{}{}", LIST_ITEM_INDENT, component_name);
+    ListItem::new(vec![Line::from(line_text), Line::raw("")])
+}
+
 /// 更新ステータスの表示文字列とスタイルを取得
 ///
 /// # Arguments
@@ -397,13 +422,7 @@ fn view_plugin_detail(
 
     // アクションメニュー（enabled 状態に応じて動的に切り替え）
     let actions = DetailAction::for_plugin(plugin.enabled());
-    let items: Vec<ListItem> = actions
-        .iter()
-        .map(|a| {
-            let line_text = format!("{}{}", LIST_ITEM_INDENT, a.label());
-            ListItem::new(vec![Line::from(line_text), Line::raw("")]).style(a.style())
-        })
-        .collect();
+    let items: Vec<ListItem> = actions.iter().map(build_detail_action_item).collect();
 
     let action_menu_rows: u16 = items.iter().map(|i| i.height() as u16).sum();
     let [info_area, menu_area, _detail_help] = detail_layout(content_area, action_menu_rows);
@@ -473,15 +492,7 @@ fn view_component_types(
         // コンポーネントがある場合
         let items: Vec<ListItem> = counts
             .iter()
-            .map(|(kind, count)| {
-                let line_text = format!(
-                    "{}{} ({})",
-                    LIST_ITEM_INDENT,
-                    component_kind_title(*kind),
-                    count
-                );
-                ListItem::new(vec![Line::from(line_text), Line::raw("")])
-            })
+            .map(|(kind, count)| build_component_types_item(*kind, *count))
             .collect();
 
         let list = selectable_list(items, &title);
@@ -522,10 +533,7 @@ fn view_component_list(
     let components = ctx.data.component_names(plugin, kind);
     let items: Vec<ListItem> = components
         .iter()
-        .map(|c| {
-            let line_text = format!("{}{}", LIST_ITEM_INDENT, c);
-            ListItem::new(vec![Line::from(line_text), Line::raw("")])
-        })
+        .map(|c| build_component_list_item(c))
         .collect();
 
     let outer = outer_rect(f.area());

@@ -313,3 +313,25 @@ fn build_scope_list_items_have_height_2() {
         assert_eq!(item.height(), 2);
     }
 }
+
+// =============================================================================
+// build_market_action_item
+// =============================================================================
+
+#[test]
+fn build_market_action_item_returns_height_2() {
+    for action in super::DetailAction::all().iter() {
+        let item = build_market_action_item(action);
+        assert_eq!(item.height(), 2);
+    }
+}
+
+#[test]
+fn view_market_detail_action_menu_renders_all_actions_with_2line_items() {
+    let actions = super::DetailAction::all();
+    let total: u16 = actions
+        .iter()
+        .map(|a| build_market_action_item(a).height() as u16)
+        .sum();
+    assert_eq!(total, actions.len() as u16 * 2);
+}

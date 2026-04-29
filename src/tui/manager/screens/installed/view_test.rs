@@ -83,3 +83,41 @@ fn build_plugin_row_returns_2_line_list_item_when_narrow() {
     let item = build_plugin_row(&plugin, false, None, 30);
     assert_eq!(item.height(), 2);
 }
+
+#[test]
+fn build_detail_action_item_returns_height_2() {
+    use crate::component::ComponentKind;
+    use crate::tui::manager::screens::installed::model::DetailAction;
+    let _ = ComponentKind::Skill;
+    for action in DetailAction::for_enabled()
+        .iter()
+        .chain(DetailAction::for_disabled().iter())
+    {
+        let item = build_detail_action_item(action);
+        assert_eq!(item.height(), 2);
+    }
+}
+
+#[test]
+fn view_plugin_detail_action_menu_renders_all_actions_with_2line_items() {
+    use crate::tui::manager::screens::installed::model::DetailAction;
+    let actions = DetailAction::for_enabled();
+    let total: u16 = actions
+        .iter()
+        .map(|a| build_detail_action_item(a).height() as u16)
+        .sum();
+    assert_eq!(total, actions.len() as u16 * 2);
+}
+
+#[test]
+fn build_component_types_item_returns_height_2() {
+    use crate::component::ComponentKind;
+    let item = build_component_types_item(ComponentKind::Skill, 3);
+    assert_eq!(item.height(), 2);
+}
+
+#[test]
+fn build_component_list_item_returns_height_2() {
+    let item = build_component_list_item("my-component");
+    assert_eq!(item.height(), 2);
+}
