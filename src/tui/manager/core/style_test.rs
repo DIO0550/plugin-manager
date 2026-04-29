@@ -21,7 +21,7 @@ fn icon_constants_values() {
 }
 
 #[test]
-fn icon_constants_are_single_grapheme() {
+fn icon_constants_are_single_char() {
     assert_eq!(ICON_ENABLED.chars().count(), 1);
     assert_eq!(ICON_DISABLED.chars().count(), 1);
     assert_eq!(ICON_CHECK.chars().count(), 1);

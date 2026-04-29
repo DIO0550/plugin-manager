@@ -83,8 +83,9 @@ pub fn framed_layout(outer: Rect) -> [Rect; 4] {
 /// `(info_pane: Min(1), action_menu: Length(action_menu_rows), help: Length(1))`
 ///
 /// `action_menu_rows` は **action menu の描画行数（論理 action 件数ではない）**。
-/// 2 行 ListItem 採用後は呼び出し側で `items.iter().map(ListItem::height).sum()`
-/// もしくは `actions.len() as u16 * 2` を渡すこと。
+/// 呼び出し側では固定係数で見積もらず、
+/// `items.iter().map(ListItem::height).sum()` のように
+/// 実際に描画する item の高さ合計を渡すこと。
 pub fn detail_layout(content: Rect, action_menu_rows: u16) -> [Rect; 3] {
     let chunks = Layout::default()
         .direction(Direction::Vertical)

@@ -115,7 +115,7 @@ fn build_browse_list_items_respects_selected_plugins() {
 }
 
 #[test]
-fn build_browse_list_items_have_height_2() {
+fn build_browse_list_items_have_height_3() {
     let plugins = vec![make_plugin("a", false), make_plugin("b", true)];
     let items = build_browse_list_items(&plugins, &HashSet::new());
     for item in &items {
@@ -228,7 +228,7 @@ fn build_target_list_items_mixed() {
 }
 
 #[test]
-fn build_target_list_items_have_height_2() {
+fn build_target_list_items_have_height_3() {
     let targets = vec![("codex".to_string(), "Codex".to_string(), true)];
     let items = build_target_list_items(&targets);
     for item in &items {
@@ -307,7 +307,7 @@ fn build_scope_list_items_out_of_range_clamps_to_last() {
 }
 
 #[test]
-fn build_scope_list_items_have_height_2() {
+fn build_scope_list_items_have_height_3() {
     let items = build_scope_list_items(0);
     for item in &items {
         assert_eq!(item.height(), 3);
@@ -319,7 +319,7 @@ fn build_scope_list_items_have_height_2() {
 // =============================================================================
 
 #[test]
-fn build_market_action_item_returns_height_2() {
+fn build_market_action_item_returns_height_3() {
     for action in super::DetailAction::all().iter() {
         let item = build_market_action_item(action);
         assert_eq!(item.height(), 3);

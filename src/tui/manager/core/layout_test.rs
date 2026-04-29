@@ -96,7 +96,7 @@ fn detail_layout_returns_3_chunks_with_specified_action_menu_height() {
 }
 
 #[test]
-fn detail_layout_action_menu_rows_respected_for_2line_items() {
+fn detail_layout_respects_action_menu_rows() {
     let content = Rect::new(0, 0, 80, 20);
     let chunks = detail_layout(content, 10);
     assert_eq!(chunks[0].height, 9);
