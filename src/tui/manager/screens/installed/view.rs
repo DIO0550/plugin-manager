@@ -302,7 +302,7 @@ fn view_plugin_list(
 ) {
     let filtered = filter_plugins(&ctx.data.plugins, ctx.filter_text);
     let outer = outer_rect(f.area());
-    f.render_widget(Clear, outer);
+    f.render_widget(Clear, f.area());
 
     let [tabs_area, filter_area, content_area, help_area] = framed_layout(outer);
 
@@ -387,7 +387,7 @@ fn view_plugin_detail(
     };
 
     let outer = outer_rect(f.area());
-    f.render_widget(Clear, outer);
+    f.render_widget(Clear, f.area());
 
     let [tabs_area, filter_area, content_area, help_area] = framed_layout(outer);
 
@@ -474,7 +474,7 @@ fn view_component_types(
     let counts = ctx.data.available_component_kinds(plugin);
 
     let outer = outer_rect(f.area());
-    f.render_widget(Clear, outer);
+    f.render_widget(Clear, f.area());
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -551,7 +551,7 @@ fn view_component_list(
         .collect();
 
     let outer = outer_rect(f.area());
-    f.render_widget(Clear, outer);
+    f.render_widget(Clear, f.area());
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)

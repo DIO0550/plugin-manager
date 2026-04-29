@@ -67,7 +67,7 @@ pub fn view(
     filter_focused: bool,
 ) {
     let outer = outer_rect(f.area());
-    f.render_widget(Clear, outer);
+    f.render_widget(Clear, f.area());
 
     let [tabs_area, filter_area, content_area, help_area] = framed_layout(outer);
 

@@ -177,7 +177,7 @@ fn view_market_list(
     let extra_lines = if has_status { 1 } else { 0 } + if has_error { 1 } else { 0 };
 
     let outer = outer_rect(f.area());
-    f.render_widget(Clear, outer);
+    f.render_widget(Clear, f.area());
 
     let [tabs_area, filter_area, content_area, help_area] = framed_layout(outer);
 
@@ -286,7 +286,7 @@ fn view_market_detail(
     error_message: &Option<String>,
 ) {
     let outer = outer_rect(f.area());
-    f.render_widget(Clear, outer);
+    f.render_widget(Clear, f.area());
 
     let has_error = error_message.is_some();
     let error_height = if has_error { 1 } else { 0 };
@@ -389,7 +389,7 @@ fn view_plugin_list(
     filter: &FilterCtx<'_>,
 ) {
     let outer = outer_rect(f.area());
-    f.render_widget(Clear, outer);
+    f.render_widget(Clear, f.area());
 
     let [tabs_area, filter_area, content_area, help_area] = framed_layout(outer);
 
@@ -443,7 +443,7 @@ fn view_plugin_list(
 /// * `filter_focused` - Whether the filter bar currently has focus.
 fn view_add_form(f: &mut Frame, form: &AddFormModel, filter_text: &str, filter_focused: bool) {
     let outer = outer_rect(f.area());
-    f.render_widget(Clear, outer);
+    f.render_widget(Clear, f.area());
 
     let [tabs_area, filter_area, content_area, help_area] = framed_layout(outer);
 
@@ -575,7 +575,7 @@ fn view_plugin_browse(
     filter: &FilterCtx<'_>,
 ) {
     let outer = outer_rect(f.area());
-    f.render_widget(Clear, outer);
+    f.render_widget(Clear, f.area());
 
     let [tabs_area, filter_area, content_area, help_area] = framed_layout(outer);
 
