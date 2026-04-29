@@ -82,7 +82,7 @@ fn make_plugin(name: &str, installed: bool) -> BrowsePlugin {
 fn build_browse_list_items_empty() {
     let plugins: Vec<BrowsePlugin> = vec![];
     let selected = HashSet::new();
-    let items = build_browse_list_items(&plugins, &selected);
+    let items = build_browse_list_items(&plugins, &selected, 80);
     assert!(items.is_empty());
 }
 
@@ -95,7 +95,7 @@ fn build_browse_list_items_returns_correct_count() {
     ];
     let mut selected = HashSet::new();
     selected.insert("b".to_string());
-    let items = build_browse_list_items(&plugins, &selected);
+    let items = build_browse_list_items(&plugins, &selected, 80);
     assert_eq!(items.len(), 3);
 }
 
@@ -105,8 +105,8 @@ fn build_browse_list_items_respects_selected_plugins() {
     let mut selected = HashSet::new();
     selected.insert("alpha".to_string());
 
-    let items_with_selection = build_browse_list_items(&plugins, &selected);
-    let items_without_selection = build_browse_list_items(&plugins, &HashSet::new());
+    let items_with_selection = build_browse_list_items(&plugins, &selected, 80);
+    let items_without_selection = build_browse_list_items(&plugins, &HashSet::new(), 80);
 
     assert_eq!(items_with_selection.len(), 2);
     assert_eq!(items_without_selection.len(), 2);
@@ -117,7 +117,7 @@ fn build_browse_list_items_respects_selected_plugins() {
 #[test]
 fn build_browse_list_items_have_height_2() {
     let plugins = vec![make_plugin("a", false), make_plugin("b", true)];
-    let items = build_browse_list_items(&plugins, &HashSet::new());
+    let items = build_browse_list_items(&plugins, &HashSet::new(), 80);
     for item in &items {
         assert_eq!(item.height(), 2);
     }

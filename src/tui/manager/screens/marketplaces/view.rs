@@ -594,7 +594,8 @@ fn view_plugin_browse(
         f.render_widget(msg, content_area);
     } else if !should_split_layout(content_area.width) {
         // 狭い端末: リストのみ描画
-        let items = build_browse_list_items(browse.plugins, browse.selected_plugins);
+        let items =
+            build_browse_list_items(browse.plugins, browse.selected_plugins, content_area.width);
         let list = selectable_list(items, &title);
         f.render_stateful_widget(list, content_area, &mut state);
     } else {
@@ -602,7 +603,8 @@ fn view_plugin_browse(
         let [list_area, detail_area] = split_horizontal(content_area, (40, 60));
 
         // 左パネル: プラグインリスト
-        let items = build_browse_list_items(browse.plugins, browse.selected_plugins);
+        let items =
+            build_browse_list_items(browse.plugins, browse.selected_plugins, list_area.width);
         let list = selectable_list(items, &title);
         f.render_stateful_widget(list, list_area, &mut state);
 
@@ -994,27 +996,27 @@ fn browse_state_block(installed: bool, selected: bool) -> (&'static str, Style) 
 ///
 /// * `plugins` - Browse plugin list to render.
 /// * `selected_plugins` - Plugin names currently selected for install.
-fn build_browse_list_items<'a>(
-    plugins: &'a [BrowsePlugin],
+fn build_browse_list_items(
+    plugins: &[BrowsePlugin],
     selected_plugins: &HashSet<String>,
-) -> Vec<ListItem<'a>> {
+    content_width: u16,
+) -> Vec<ListItem<'static>> {
     plugins
         .iter()
         .map(|p| {
             let selected = selected_plugins.contains(&p.name);
             let (mark, style) = browse_state_block(p.installed, selected);
-            // description が空でない場合のみ "name — desc" を確保。それ以外は p.name を借用。
-            let body: std::borrow::Cow<'a, str> = match p.description.as_deref() {
+            let raw = match p.description.as_deref() {
                 Some(desc) if !desc.is_empty() => {
-                    std::borrow::Cow::Owned(format!("{} — {}", p.name, desc))
+                    format!("{}{} {} — {}", LIST_ITEM_INDENT, mark, p.name, desc)
                 }
-                _ => std::borrow::Cow::Borrowed(p.name.as_str()),
+                _ => format!("{}{} {}", LIST_ITEM_INDENT, mark, p.name),
             };
-            let spans = vec![
-                Span::styled(format!("{}{} ", LIST_ITEM_INDENT, mark), style),
-                Span::styled(body, style),
-            ];
-            ListItem::new(vec![Line::from(spans), Line::raw("")])
+            let line_text = truncate_for_list(content_width, raw).into_owned();
+            ListItem::new(vec![
+                Line::from(Span::styled(line_text, style)),
+                Line::raw(""),
+            ])
         })
         .collect()
 }
