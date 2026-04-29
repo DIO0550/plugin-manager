@@ -33,10 +33,12 @@ pub const RADIO_UNSELECTED: &str = "( )";
 pub const RADIO_LEN: usize = 3;
 
 /// BOLD タイトル付きのボーダーブロックを返す。
-pub fn bordered_block(title: &str) -> Block<'_> {
+///
+/// `title` はそのまま `Block` に借用させ、レンダリングごとの `String` 確保を避ける。
+pub fn bordered_block<'a>(title: &'a str) -> Block<'a> {
     Block::default()
         .title(Span::styled(
-            title.to_string(),
+            title,
             Style::default().add_modifier(Modifier::BOLD),
         ))
         .borders(Borders::ALL)
