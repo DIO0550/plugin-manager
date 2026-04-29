@@ -793,7 +793,7 @@ fn view_install_result(f: &mut Frame, summary: &InstallSummary) {
     for result in &summary.results {
         let (raw, color) = format_install_result_line(result);
         lines.push(Line::from(Span::styled(
-            truncate_for_paragraph(outer.width, raw),
+            truncate_for_paragraph(modal_area.width, raw),
             Style::default().fg(color),
         )));
     }
@@ -1003,9 +1003,12 @@ fn build_browse_list_items<'a>(
         .map(|p| {
             let selected = selected_plugins.contains(&p.name);
             let (mark, style) = browse_state_block(p.installed, selected);
-            let body = match p.description.as_deref() {
-                Some(desc) if !desc.is_empty() => format!("{} — {}", p.name, desc),
-                _ => p.name.clone(),
+            // description が空でない場合のみ "name — desc" を確保。それ以外は p.name を借用。
+            let body: std::borrow::Cow<'a, str> = match p.description.as_deref() {
+                Some(desc) if !desc.is_empty() => {
+                    std::borrow::Cow::Owned(format!("{} — {}", p.name, desc))
+                }
+                _ => std::borrow::Cow::Borrowed(p.name.as_str()),
             };
             let spans = vec![
                 Span::styled(format!("{}{} ", LIST_ITEM_INDENT, mark), style),
