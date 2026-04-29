@@ -300,7 +300,7 @@ fn view_market_detail(
 
     // アクションメニュー（先に組み立て、描画行数を算出して area を確保する）
     let actions = DetailAction::all();
-    let (items, action_menu_rows) = build_market_action_menu(&actions);
+    let (items, action_menu_rows) = build_market_action_menu(actions);
 
     // コンテンツ領域を画面固有に再分割（info / action_menu / error）
     let content_chunks = Layout::default()
