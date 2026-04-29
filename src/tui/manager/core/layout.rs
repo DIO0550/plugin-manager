@@ -107,20 +107,25 @@ pub fn detail_layout(content: Rect, action_menu_rows: u16) -> [Rect; 3] {
 pub fn modal_layout(area: Rect, width_pct: u16, height_pct: u16) -> Rect {
     let w = width_pct.min(100);
     let h = height_pct.min(100);
+    // 上下/左右の余白は剰余分を末尾に寄せて合計 100 を保ち、中央寄せを決定的にする。
+    let top = (100 - h) / 2;
+    let bottom = 100 - h - top;
+    let left = (100 - w) / 2;
+    let right = 100 - w - left;
     let v_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Percentage((100 - h) / 2),
+            Constraint::Percentage(top),
             Constraint::Percentage(h),
-            Constraint::Percentage((100 - h) / 2),
+            Constraint::Percentage(bottom),
         ])
         .split(area);
     let h_chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
-            Constraint::Percentage((100 - w) / 2),
+            Constraint::Percentage(left),
             Constraint::Percentage(w),
-            Constraint::Percentage((100 - w) / 2),
+            Constraint::Percentage(right),
         ])
         .split(v_chunks[1]);
     h_chunks[1]
