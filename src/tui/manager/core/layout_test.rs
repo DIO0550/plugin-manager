@@ -111,27 +111,41 @@ fn detail_layout_action_menu_rows_zero_returns_empty_menu() {
 }
 
 #[test]
-fn modal_layout_centers_within_area() {
-    let area = Rect::new(0, 0, 100, 50);
+fn modal_layout_anchors_to_top_left() {
+    let area = Rect::new(10, 5, 100, 50);
     let inner = modal_layout(area, 50, 50);
-    // 中央寄せ。height=25 (50%), width=50 (50%)
+    // 左上基準。height=25 (50%), width=50 (50%)、原点は area.x/area.y。
+    assert_eq!(inner.x, area.x);
+    assert_eq!(inner.y, area.y);
     assert_eq!(inner.width, 50);
     assert_eq!(inner.height, 25);
 }
 
 #[test]
+fn modal_layout_with_full_size_matches_area() {
+    let area = Rect::new(2, 3, 100, 50);
+    let inner = modal_layout(area, 100, 100);
+    assert_eq!(inner, area);
+}
+
+#[test]
 fn modal_layout_with_pct_over_100_clamps_to_100() {
-    let area = Rect::new(0, 0, 100, 50);
+    let area = Rect::new(2, 3, 100, 50);
     let inner = modal_layout(area, 150, 200);
+    assert_eq!(inner.x, area.x);
+    assert_eq!(inner.y, area.y);
     assert_eq!(inner.width, area.width);
     assert_eq!(inner.height, area.height);
 }
 
 #[test]
 fn modal_layout_with_zero_pct_returns_zero_size() {
-    let area = Rect::new(0, 0, 100, 50);
+    let area = Rect::new(4, 6, 100, 50);
     let inner = modal_layout(area, 0, 0);
-    assert!(inner.width == 0 || inner.height == 0);
+    assert_eq!(inner.x, area.x);
+    assert_eq!(inner.y, area.y);
+    assert_eq!(inner.width, 0);
+    assert_eq!(inner.height, 0);
 }
 
 #[test]
@@ -139,14 +153,18 @@ fn modal_layout_with_tiny_area_keeps_modal_visible() {
     // pct>0 かつ area>0 のとき、丸め誤差で 0 にならず最低 1 セル確保される。
     let area = Rect::new(0, 0, 1, 1);
     let inner = modal_layout(area, 50, 50);
+    assert_eq!(inner.x, 0);
+    assert_eq!(inner.y, 0);
     assert!(inner.width >= 1, "width should stay visible: {:?}", inner);
     assert!(inner.height >= 1, "height should stay visible: {:?}", inner);
 }
 
 #[test]
 fn modal_layout_with_one_row_keeps_modal_visible() {
-    let area = Rect::new(0, 0, 80, 1);
+    let area = Rect::new(7, 9, 80, 1);
     let inner = modal_layout(area, 60, 40);
+    assert_eq!(inner.x, area.x);
+    assert_eq!(inner.y, area.y);
     assert!(inner.height >= 1, "height should stay visible: {:?}", inner);
 }
 
@@ -154,6 +172,8 @@ fn modal_layout_with_one_row_keeps_modal_visible() {
 fn modal_layout_with_zero_area_returns_zero_without_panic() {
     let area = Rect::new(0, 0, 0, 0);
     let inner = modal_layout(area, 50, 50);
+    assert_eq!(inner.x, 0);
+    assert_eq!(inner.y, 0);
     assert_eq!(inner.width, 0);
     assert_eq!(inner.height, 0);
 }

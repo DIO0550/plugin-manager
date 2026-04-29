@@ -98,25 +98,20 @@ pub fn detail_layout(content: Rect, action_menu_rows: u16) -> [Rect; 2] {
     [chunks[0], chunks[1]]
 }
 
-/// 中央寄せモーダルの **外枠 (centered area) のみ** を返す。
+/// 左上基準モーダルの **外枠 (top-left anchored area) のみ** を返す。
 ///
 /// 内部分割（コンテンツ / help / gauge など）は本 API の責務外。
 /// 各モーダル側で `Layout::default().direction(Vertical).constraints([...]).split(outer)`
 /// として内部分割する。
 ///
 /// `width_pct`, `height_pct` は `0..=100`。100 超は `min(100)` に丸める。
+/// 現行の呼び出し側はすべて `(100, 100)` を渡してフルスクリーン配置として用いる。
 pub fn modal_layout(area: Rect, width_pct: u16, height_pct: u16) -> Rect {
     let modal_w = scale_with_min_visible(area.width, width_pct);
     let modal_h = scale_with_min_visible(area.height, height_pct);
     let modal_w = modal_w.min(area.width);
     let modal_h = modal_h.min(area.height);
-    let x = area
-        .x
-        .saturating_add((area.width.saturating_sub(modal_w)) / 2);
-    let y = area
-        .y
-        .saturating_add((area.height.saturating_sub(modal_h)) / 2);
-    Rect::new(x, y, modal_w, modal_h)
+    Rect::new(area.x, area.y, modal_w, modal_h)
 }
 
 /// `axis_size * pct / 100` を計算し、`pct > 0` かつ `axis_size > 0` の
