@@ -97,7 +97,7 @@ PLMがサポートするAI開発環境（ターゲット）について説明し
 | Prompts | `*.prompt.md` | - | `.github/prompts/<marketplace>/<plugin>/` |
 | Instructions | `AGENTS.md` | - | `AGENTS.md` |
 | Instructions | `copilot-instructions.md` | - | `.github/copilot-instructions.md` |
-| Hooks | `*.json` | - | `.github/hooks/<marketplace>/<plugin>/` |
+| Hooks | `*.json` | `~/.copilot/hooks/<marketplace>/<plugin>/` | `.github/hooks/<marketplace>/<plugin>/` |
 
 ### Hooks（Preview）
 
