@@ -461,9 +461,14 @@ fn view_plugin_detail(
     let actions = DetailAction::for_plugin(plugin.enabled());
     let (items, action_menu_rows) = build_detail_action_menu(&actions, state.selected());
 
-    let [info_area, menu_area] = detail_layout(content_area, action_menu_rows);
+    // bordered_block の内側下端にアクションメニューを配置する
+    let block = bordered_block(&title);
+    let inner_area = block.inner(content_area);
+    f.render_widget(block, content_area);
 
-    let info_para = Paragraph::new(info_lines).block(bordered_block(&title));
+    let [info_area, menu_area] = detail_layout(inner_area, action_menu_rows);
+
+    let info_para = Paragraph::new(info_lines);
     f.render_widget(info_para, info_area);
 
     let list = menu_list(items);

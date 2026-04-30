@@ -282,15 +282,16 @@ fn view_market_detail(
     let actions = DetailAction::all();
     let (items, action_menu_rows) = build_market_action_menu(actions, state.selected());
 
-    // コンテンツ領域を画面固有に再分割（info / action_menu / error）
+    // コンテンツ領域を画面固有に再分割（block / error）
     let content_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Min(1),                   // マーケットプレイス情報
-            Constraint::Length(action_menu_rows), // アクションメニュー
-            Constraint::Length(error_height),     // エラー
+            Constraint::Min(1),               // ダイアログ枠（info + action_menu）
+            Constraint::Length(error_height), // エラー
         ])
         .split(content_area);
+    let block_area = content_chunks[0];
+    let error_area = content_chunks[1];
 
     // マーケットプレイス情報
     let marketplace = ctx.data.find_marketplace(marketplace_name);
@@ -331,18 +332,30 @@ fn view_market_detail(
         ))]
     };
 
-    let info_para = Paragraph::new(info_lines).block(bordered_block(&title));
-    f.render_widget(info_para, content_chunks[0]);
+    // bordered_block の内側下端にアクションメニューを配置する
+    let block = bordered_block(&title);
+    let inner_area = block.inner(block_area);
+    f.render_widget(block, block_area);
+
+    let inner_chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Min(1),                   // info
+            Constraint::Length(action_menu_rows), // action menu
+        ])
+        .split(inner_area);
+
+    let info_para = Paragraph::new(info_lines);
+    f.render_widget(info_para, inner_chunks[0]);
 
     let list = menu_list(items);
-
-    f.render_stateful_widget(list, content_chunks[1], &mut state);
+    f.render_stateful_widget(list, inner_chunks[1], &mut state);
 
     // エラー表示
     if let Some(error) = error_message {
         let error_para =
             Paragraph::new(format!(" {}", error)).style(Style::default().fg(Color::Red));
-        f.render_widget(error_para, content_chunks[2]);
+        f.render_widget(error_para, error_area);
     }
 
     // ヘルプ
