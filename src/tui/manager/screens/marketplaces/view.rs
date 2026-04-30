@@ -14,7 +14,7 @@ use crate::tui::manager::core::style::{
     CHECKBOX_UNSELECTED, LIST_ITEM_INDENT, MARK_MARKED, RADIO_SELECTED, RADIO_UNSELECTED,
 };
 use crate::tui::manager::core::{
-    render_filter_bar, truncate_for_list, truncate_for_paragraph, DataStore, Tab,
+    render_filter_bar, truncate_for_list, truncate_for_paragraph, DataStore, MarketplaceItem, Tab,
 };
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Clear, Gauge, ListItem, ListState, Paragraph, Tabs};
@@ -205,38 +205,12 @@ fn view_market_list(
         .marketplaces
         .iter()
         .enumerate()
-        .map(|(i, m)| {
-            let plugin_info = m
-                .plugin_count
-                .map(|c| format!("{} plugins", c))
-                .unwrap_or_else(|| "no cache".to_string());
-            let updated_info = m.last_updated.as_deref().unwrap_or("-");
-            let source_path_info = m
-                .source_path
-                .as_ref()
-                .map(|p| format!(" ({})", p))
-                .unwrap_or_default();
-
-            let raw = format!(
-                "{}{}    {}{}    {}    {}",
-                LIST_ITEM_INDENT, m.name, m.source, source_path_info, plugin_info, updated_info
-            );
-            let line_text = truncate_for_list(outer.width, raw).into_owned();
-            let line = highlight_line(vec![Span::raw(line_text)], Some(i) == selected_idx);
-            ListItem::new(vec![line, Line::raw("")])
-        })
+        .map(|(i, m)| build_marketplaces_list_item(m, outer.width, Some(i) == selected_idx))
         .collect();
 
     // "+ Add new marketplace" 項目を末尾に追加
     let add_idx = total_items - 1;
-    let add_line = highlight_line(
-        vec![Span::styled(
-            format!("{}+ Add new marketplace", LIST_ITEM_INDENT),
-            Style::default().fg(Color::Cyan),
-        )],
-        Some(add_idx) == selected_idx,
-    );
-    items.push(ListItem::new(vec![add_line, Line::raw("")]));
+    items.push(build_add_marketplace_item(Some(add_idx) == selected_idx));
 
     let list = selectable_list(items, &title);
 
@@ -308,15 +282,16 @@ fn view_market_detail(
     let actions = DetailAction::all();
     let (items, action_menu_rows) = build_market_action_menu(actions, state.selected());
 
-    // コンテンツ領域を画面固有に再分割（info / action_menu / error）
+    // コンテンツ領域を画面固有に再分割（block / error）
     let content_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Min(1),                   // マーケットプレイス情報
-            Constraint::Length(action_menu_rows), // アクションメニュー
-            Constraint::Length(error_height),     // エラー
+            Constraint::Min(1),               // ダイアログ枠（info + action_menu）
+            Constraint::Length(error_height), // エラー
         ])
         .split(content_area);
+    let block_area = content_chunks[0];
+    let error_area = content_chunks[1];
 
     // マーケットプレイス情報
     let marketplace = ctx.data.find_marketplace(marketplace_name);
@@ -357,18 +332,30 @@ fn view_market_detail(
         ))]
     };
 
-    let info_para = Paragraph::new(info_lines).block(bordered_block(&title));
-    f.render_widget(info_para, content_chunks[0]);
+    // bordered_block の内側下端にアクションメニューを配置する
+    let block = bordered_block(&title);
+    let inner_area = block.inner(block_area);
+    f.render_widget(block, block_area);
+
+    let inner_chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Min(1),                   // info
+            Constraint::Length(action_menu_rows), // action menu
+        ])
+        .split(inner_area);
+
+    let info_para = Paragraph::new(info_lines);
+    f.render_widget(info_para, inner_chunks[0]);
 
     let list = menu_list(items);
-
-    f.render_stateful_widget(list, content_chunks[1], &mut state);
+    f.render_stateful_widget(list, inner_chunks[1], &mut state);
 
     // エラー表示
     if let Some(error) = error_message {
         let error_para =
             Paragraph::new(format!(" {}", error)).style(Style::default().fg(Color::Red));
-        f.render_widget(error_para, content_chunks[2]);
+        f.render_widget(error_para, error_area);
     }
 
     // ヘルプ
@@ -420,14 +407,7 @@ fn view_plugin_list(
             .iter()
             .enumerate()
             .map(|(i, (name, desc))| {
-                let raw = if let Some(description) = desc {
-                    format!("{}{} - {}", LIST_ITEM_INDENT, name, description)
-                } else {
-                    format!("{}{}", LIST_ITEM_INDENT, name)
-                };
-                let line_text = truncate_for_list(outer.width, raw).into_owned();
-                let line = highlight_line(vec![Span::raw(line_text)], Some(i) == selected_idx);
-                ListItem::new(vec![line, Line::raw("")])
+                build_plugin_list_item(name, desc.as_deref(), outer.width, Some(i) == selected_idx)
             })
             .collect();
 
@@ -651,8 +631,8 @@ fn view_target_select(
     mut state: ListState,
 ) {
     let outer = outer_rect(f.area());
-    let modal_area = modal_layout(outer, 60, 60);
-    f.render_widget(Clear, modal_area);
+    let modal_area = modal_layout(outer, 100, 100);
+    f.render_widget(Clear, f.area());
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -682,8 +662,8 @@ fn view_target_select(
 /// * `state` - List state used for scope highlight.
 fn view_scope_select(f: &mut Frame, highlighted_idx: usize, mut state: ListState) {
     let outer = outer_rect(f.area());
-    let modal_area = modal_layout(outer, 60, 50);
-    f.render_widget(Clear, modal_area);
+    let modal_area = modal_layout(outer, 100, 100);
+    f.render_widget(Clear, f.area());
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -714,8 +694,8 @@ fn view_scope_select(f: &mut Frame, highlighted_idx: usize, mut state: ListState
 /// * `total` - Total number of plugins in this install batch.
 fn view_installing(f: &mut Frame, plugin_names: &[String], current_idx: usize, total: usize) {
     let outer = outer_rect(f.area());
-    let modal_area = modal_layout(outer, 70, 40);
-    f.render_widget(Clear, modal_area);
+    let modal_area = modal_layout(outer, 100, 100);
+    f.render_widget(Clear, f.area());
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -741,10 +721,7 @@ fn view_installing(f: &mut Frame, plugin_names: &[String], current_idx: usize, t
     ];
 
     // Gauge doesn't support mixed content, so render text + gauge separately
-    let inner_chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Length(4), Constraint::Min(1)])
-        .split(chunks[0]);
+    let inner_chunks = installing_inner_layout(chunks[0]);
 
     let text = Paragraph::new(lines).block(
         Block::default()
@@ -762,6 +739,22 @@ fn view_installing(f: &mut Frame, plugin_names: &[String], current_idx: usize, t
         .ratio(ratio)
         .label(format!("{}/{}", display_idx, total));
     f.render_widget(gauge, inner_chunks[1]);
+}
+
+/// `view_installing` の内側レイアウトを `[title_text, gauge, padding]` に分割する。
+///
+/// `Length(4) + Length(3) + Min(0)` 構成。`modal_area.height < 7` の縮退ケースでは
+/// `ratatui::Layout` の既定動作で先頭から優先割り当てされ、後続は 0 に縮む。
+fn installing_inner_layout(modal_area: Rect) -> [Rect; 3] {
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(4), // タイトル + Installing テキスト
+            Constraint::Length(3), // Gauge（固定 3 行）
+            Constraint::Min(0),    // 残り余白（描画なし）
+        ])
+        .split(modal_area);
+    [chunks[0], chunks[1], chunks[2]]
 }
 
 /// インストール結果 1 件を描画用の `(行テキスト, 色)` に整形する。
@@ -788,8 +781,8 @@ fn format_install_result_line(result: &PluginInstallResult) -> (String, Color) {
 /// * `summary` - Aggregated install summary to display.
 fn view_install_result(f: &mut Frame, summary: &InstallSummary) {
     let outer = outer_rect(f.area());
-    let modal_area = modal_layout(outer, 80, 70);
-    f.render_widget(Clear, modal_area);
+    let modal_area = modal_layout(outer, 100, 100);
+    f.render_widget(Clear, f.area());
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -931,7 +924,7 @@ fn build_target_list_items(
             let (mark, style) = target_checkbox(*selected);
             let line_text = format!("{}{} {}", LIST_ITEM_INDENT, mark, display_name);
             let line = highlight_line(vec![Span::styled(line_text, style)], Some(i) == highlighted);
-            ListItem::new(vec![line, Line::raw("")])
+            ListItem::new(vec![line])
         })
         .collect()
 }
@@ -977,19 +970,19 @@ fn build_scope_list_items(
                 vec![Span::styled(line_text, style)],
                 Some(idx) == highlighted,
             );
-            ListItem::new(vec![line, Line::raw("")])
+            ListItem::new(vec![line])
         })
         .collect()
 }
 
-/// `view_market_detail` の action メニュー項目を 2 行 ListItem (内容 + 空行) として構築する。
+/// `view_market_detail` の action メニュー項目を 1 行 ListItem (内容のみ) として構築する。
 ///
-/// `is_selected = true` のとき内容行に `highlight_style()` を適用する
-/// （空行には適用しない）。返される `ListItem` は所有データのみで構成されるため `'static`。
+/// `is_selected = true` のとき内容行に `highlight_style()` を適用する。
+/// 返される `ListItem` は所有データのみで構成されるため `'static`。
 fn build_market_action_item(action: &DetailAction, is_selected: bool) -> ListItem<'static> {
     let line_text = format!("{}{}", LIST_ITEM_INDENT, action.label());
     let spans = vec![Span::styled(line_text, action.style())];
-    ListItem::new(vec![highlight_line(spans, is_selected), Line::raw("")])
+    ListItem::new(vec![highlight_line(spans, is_selected)])
 }
 
 /// `view_market_detail` の action メニュー全体を組み立て、`(items, action_menu_rows)` を返す。
@@ -1056,6 +1049,68 @@ fn build_browse_list_items(
             ListItem::new(vec![line, Line::raw("")])
         })
         .collect()
+}
+
+/// マーケットプレイス一覧の 1 行ぶんを 2 行 ListItem (内容 + 空行) として構築する。
+///
+/// 一覧系は spacing を残す方針（`PR #239` で導入）。
+fn build_marketplaces_list_item<'a>(
+    marketplace: &'a MarketplaceItem,
+    outer_width: u16,
+    is_selected: bool,
+) -> ListItem<'a> {
+    let plugin_info = marketplace
+        .plugin_count
+        .map(|c| format!("{} plugins", c))
+        .unwrap_or_else(|| "no cache".to_string());
+    let updated_info = marketplace.last_updated.as_deref().unwrap_or("-");
+    let source_path_info = marketplace
+        .source_path
+        .as_ref()
+        .map(|p| format!(" ({})", p))
+        .unwrap_or_default();
+
+    let raw = format!(
+        "{}{}    {}{}    {}    {}",
+        LIST_ITEM_INDENT,
+        marketplace.name,
+        marketplace.source,
+        source_path_info,
+        plugin_info,
+        updated_info
+    );
+    let line_text = truncate_for_list(outer_width, raw).into_owned();
+    let line = highlight_line(vec![Span::raw(line_text)], is_selected);
+    ListItem::new(vec![line, Line::raw("")])
+}
+
+/// "+ Add new marketplace" 行を 2 行 ListItem (内容 + 空行) として構築する。
+fn build_add_marketplace_item(is_selected: bool) -> ListItem<'static> {
+    let line = highlight_line(
+        vec![Span::styled(
+            format!("{}+ Add new marketplace", LIST_ITEM_INDENT),
+            Style::default().fg(Color::Cyan),
+        )],
+        is_selected,
+    );
+    ListItem::new(vec![line, Line::raw("")])
+}
+
+/// プラグイン一覧 (in marketplace) の 1 行ぶんを 2 行 ListItem (内容 + 空行) として構築する。
+fn build_plugin_list_item<'a>(
+    name: &'a str,
+    desc: Option<&'a str>,
+    outer_width: u16,
+    is_selected: bool,
+) -> ListItem<'a> {
+    let raw = if let Some(description) = desc {
+        format!("{}{} - {}", LIST_ITEM_INDENT, name, description)
+    } else {
+        format!("{}{}", LIST_ITEM_INDENT, name)
+    };
+    let line_text = truncate_for_list(outer_width, raw).into_owned();
+    let line = highlight_line(vec![Span::raw(line_text)], is_selected);
+    ListItem::new(vec![line, Line::raw("")])
 }
 
 #[cfg(test)]
