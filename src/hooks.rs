@@ -9,6 +9,7 @@ pub(crate) mod copilot;
 pub(crate) mod event;
 pub(crate) mod hook_definition;
 pub(crate) mod name;
+pub(crate) mod script_path;
 pub(crate) mod tool;
 
 #[cfg(test)]
