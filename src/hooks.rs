@@ -20,3 +20,5 @@ mod converter_test;
 mod copilot_test;
 #[cfg(test)]
 mod name_test;
+#[cfg(test)]
+mod script_path_test;
