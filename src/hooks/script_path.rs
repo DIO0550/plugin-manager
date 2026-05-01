@@ -29,7 +29,10 @@
 //! - `./scripts/x.sh` の `./` 正規化
 //!   (例: `/cache/./scripts/x.sh` をそのまま返す)
 //! - 空白を含む入力のトークン分割やシェルエスケープ
-//!   (シェルエスケープは呼び出し側 `shell_escape` / `escape_for_bash_double_quote`)
+//!   (シェルエスケープは呼び出し側責務。`hooks` 配下からは crate 公開の
+//!   `crate::hooks::converter::shell_escape` を利用する。
+//!   `component::deployment::bash::escape_for_bash_double_quote` は
+//!   `pub(super)` で `component::deployment` 配下からのみ参照可能)
 
 use std::path::Path;
 
