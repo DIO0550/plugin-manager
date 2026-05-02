@@ -37,7 +37,7 @@ plm/
 │   │   │   ├── antigravity_test.rs   # antigravity.rs テスト
 │   │   │   ├── codex.rs              # OpenAI Codex
 │   │   │   ├── codex_test.rs         # codex.rs テスト
-│   │   │   ├── copilot.rs            # VSCode Copilot
+│   │   │   ├── copilot.rs            # GitHub Copilot
 │   │   │   ├── copilot_test.rs       # copilot.rs テスト
 │   │   │   ├── gemini_cli.rs         # Gemini CLI
 │   │   │   └── gemini_cli_test.rs    # gemini_cli.rs テスト
