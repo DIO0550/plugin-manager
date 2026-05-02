@@ -58,27 +58,33 @@ fn classify_hook_warnings_collects_unsupported_event_into_skipped() {
 }
 
 #[test]
-fn classify_hook_warnings_extracts_event_from_unsupported_hook_type() {
+fn classify_hook_warnings_routes_unsupported_hook_type_to_others() {
+    // `UnsupportedHookType` は「イベント内の特定フックのみ除外」されたケースで発生する。
+    // イベント全体がスキップされたかのような誤解を防ぐため、`skipped` には入れず
+    // `others` に流して個別 Warning として `Display` の正確な文言で出す。
     let warnings = vec![ConversionWarning::UnsupportedHookType {
         hook_type: "weird".to_string(),
         event: "PreCompact".to_string(),
     }];
     let classified = classify_hook_warnings(&warnings);
-    assert_eq!(classified.skipped.len(), 1);
-    assert!(classified.skipped.contains("PreCompact"));
+    assert!(classified.skipped.is_empty());
     assert!(classified.stubs.is_empty());
-    assert!(classified.others.is_empty());
+    assert_eq!(classified.others.len(), 1);
+    assert!(matches!(
+        classified.others[0],
+        ConversionWarning::UnsupportedHookType { .. }
+    ));
 }
 
 #[test]
-fn classify_hook_warnings_dedupes_events_via_btreeset() {
-    // 3 件混在（重複あり）→ BTreeSet で 2 件に一意化、アルファベット順
+fn classify_hook_warnings_dedupes_unsupported_events_via_btreeset() {
+    // `UnsupportedEvent` のみ 3 件（重複あり）→ BTreeSet で 2 件に一意化、アルファベット順。
+    // `UnsupportedHookType` は別ルートに行くため、ここでは混ぜない。
     let warnings = vec![
         ConversionWarning::UnsupportedEvent {
             event: "Foo".to_string(),
         },
-        ConversionWarning::UnsupportedHookType {
-            hook_type: "weird".to_string(),
+        ConversionWarning::UnsupportedEvent {
             event: "Foo".to_string(),
         },
         ConversionWarning::UnsupportedEvent {
@@ -90,6 +96,30 @@ fn classify_hook_warnings_dedupes_events_via_btreeset() {
     let ordered: Vec<&String> = classified.skipped.iter().collect();
     assert_eq!(ordered[0], "Bar");
     assert_eq!(ordered[1], "Foo");
+}
+
+#[test]
+fn classify_hook_warnings_separates_unsupported_event_from_unsupported_hook_type() {
+    // 同じ event 名でも、`UnsupportedEvent` は skipped、`UnsupportedHookType` は others に
+    // 分かれることを固定する。これにより「イベント全体除外」と「イベント内の一部除外」が
+    // 出力上も明確に区別される。
+    let warnings = vec![
+        ConversionWarning::UnsupportedEvent {
+            event: "PreToolUse".to_string(),
+        },
+        ConversionWarning::UnsupportedHookType {
+            hook_type: "weird".to_string(),
+            event: "PreToolUse".to_string(),
+        },
+    ];
+    let classified = classify_hook_warnings(&warnings);
+    assert_eq!(classified.skipped.len(), 1);
+    assert!(classified.skipped.contains("PreToolUse"));
+    assert_eq!(classified.others.len(), 1);
+    assert!(matches!(
+        classified.others[0],
+        ConversionWarning::UnsupportedHookType { .. }
+    ));
 }
 
 #[test]

@@ -30,11 +30,17 @@ pub fn should_show_converted_suffix(source: Option<SourceFormat>) -> bool {
 /// 将来 `ConversionWarning` に新 variant が追加されても、既知の集約対象に
 /// 該当しないものは全て `others` に流れる（`match` 末尾の `_ =>` で網羅）。
 pub struct ClassifiedWarnings<'a> {
-    /// `UnsupportedEvent` / `UnsupportedHookType` から抽出した event 名（一意化・整列済み）
+    /// `UnsupportedEvent` から抽出した event 名（一意化・整列済み）。
+    ///
+    /// **注意**: ここに入るのは「イベント全体が除外された」ケースのみ。
+    /// `UnsupportedHookType` は同じイベント内の他のフックが残ることがあるため
+    /// `others` 側へ流し、個別の Warning として `Display` の正確な文言で表示する。
     pub skipped: BTreeSet<String>,
     /// `PromptAgentHookStub` の `(hook_type, event)` ペア（入力順保持）
     pub stubs: Vec<(String, String)>,
-    /// 上記カテゴリ以外の warning（`RemovedField` / `MissingVersion` / 将来 variant）
+    /// 上記カテゴリ以外の warning（`UnsupportedHookType` / `RemovedField` /
+    /// `MissingVersion` / 将来 variant）。CLI では `format_individual_warning`
+    /// 経由で 1 件ずつ出力する。
     pub others: Vec<&'a ConversionWarning>,
 }
 
@@ -49,13 +55,13 @@ pub fn classify_hook_warnings(warnings: &[ConversionWarning]) -> ClassifiedWarni
             ConversionWarning::UnsupportedEvent { event } => {
                 skipped.insert(event.clone());
             }
-            ConversionWarning::UnsupportedHookType { event, .. } => {
-                skipped.insert(event.clone());
-            }
             ConversionWarning::PromptAgentHookStub { hook_type, event } => {
                 stubs.push((hook_type.clone(), event.clone()));
             }
-            // `RemovedField` / `MissingVersion` / 将来追加 variant はすべて others へ。
+            // `UnsupportedHookType` は「イベント内の特定フックのみ除外」を意味するため
+            // 「イベント全体がスキップされた」を示す skipped バケットには入れない。
+            // `RemovedField` / `MissingVersion` / 将来追加 variant も含めて others へ流し、
+            // `Display` の正確な文言を保ったまま 1 件ずつ出力する。
             _ => {
                 others.push(w);
             }
