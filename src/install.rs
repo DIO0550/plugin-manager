@@ -81,7 +81,13 @@ pub struct PlaceSuccess {
     /// Hook 変換時の警告（`HookConverted` 以外は空）。
     pub hook_warnings: Vec<ConversionWarning>,
     /// `HookConverted` 時に生成されたスクリプト数（それ以外は 0）。
-    /// 「全イベント除外」判定（`script_count == 0 && skipped_count > 0`）に使う。
+    ///
+    /// ClaudeCode 入力では各 hook が必ず 1 つのスクリプト（command / http / stub）を
+    /// 生成するため、`script_count == 0` ⇔ 変換後の `hooks.json` が空、という
+    /// 不変条件が成立する。`format::format_empty_hooks_warning` はこの不変条件と
+    /// `hook_source_format == Some(SourceFormat::ClaudeCode)` の組み合わせで
+    /// 「空 `hooks.json` 配置警告」を出す。除外の主因が `UnsupportedEvent` /
+    /// `UnsupportedHookType` / `RemovedField` のいずれかは問わない。
     pub script_count: usize,
     /// Hook 変換時の入力形式。`Some(SourceFormat::ClaudeCode)` のときのみ
     /// `(converted from Claude Code format)` サフィックスを表示する。
