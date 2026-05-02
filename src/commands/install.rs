@@ -9,12 +9,50 @@
 //! 3. 配置
 
 use crate::component::ComponentKind;
-use crate::install::{self, PlaceRequest};
+use crate::install::format::render_hook_success;
+use crate::install::{self, PlaceRequest, PlaceSuccess};
 use crate::output::CommandSummary;
 use crate::target::{all_targets, parse_target, Scope, TargetKind};
 use crate::tui;
 use clap::Parser;
 use std::env;
+
+/// `PlaceSuccess` を表示用の `(stdout 行, stderr ブロック群)` に変換する pure function。
+///
+/// stdout 1 行は `+ {target} {kind}: {name} -> {path}{suffix}` の形式。
+/// suffix は次の優先順で決定する：
+/// 1. Hook の場合: `render_hook_success` の `stdout_suffix`（cyan）
+/// 2. それ以外で `source_format` / `dest_format` が両方 `Some`: ` (Converted: src → dst)`
+/// 3. その他: 空
+///
+/// stderr ブロック群は Hook のみ `render_hook_success` の `stderr_blocks` を返す。
+pub fn render_place_success_to_strings(success: &PlaceSuccess) -> (String, Vec<String>) {
+    let rendered = render_hook_success(
+        success.component_kind,
+        success.hook_source_format,
+        &success.hook_warnings,
+        success.script_count,
+    );
+
+    let suffix = match rendered.stdout_suffix {
+        Some(s) => s,
+        None => match (&success.source_format, &success.dest_format) {
+            (Some(src), Some(dst)) => format!(" (Converted: {} → {})", src, dst),
+            _ => String::new(),
+        },
+    };
+
+    let stdout_line = format!(
+        "  + {} {}: {} -> {}{}",
+        success.target,
+        success.component_kind,
+        success.component_name,
+        success.target_path.display(),
+        suffix
+    );
+
+    (stdout_line, rendered.stderr_blocks)
+}
 
 #[derive(Debug, Parser)]
 pub struct Args {
@@ -127,21 +165,10 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
         let mut target_success = true;
 
         for success in result.successes.iter().filter(|s| &s.target == target_name) {
-            let suffix = match (&success.source_format, &success.dest_format) {
-                (Some(src), Some(dst)) => format!(" (Converted: {} → {})", src, dst),
-                _ => String::new(),
-            };
-            println!(
-                "  + {} {}: {} -> {}{}",
-                success.target,
-                success.component_kind,
-                success.component_name,
-                success.target_path.display(),
-                suffix
-            );
-
-            for warning in &success.hook_warnings {
-                eprintln!("Warning: {}", warning);
+            let (stdout_line, stderr_blocks) = render_place_success_to_strings(success);
+            println!("{}", stdout_line);
+            for block in &stderr_blocks {
+                eprintln!("{}", block);
             }
         }
 
@@ -163,3 +190,7 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
 
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "install_test.rs"]
+mod tests;
