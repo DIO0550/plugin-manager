@@ -84,16 +84,22 @@ pub(crate) use prompt::CodexPrompt;
 
 ## 6. `#[path]` 形式と `mod foo_test;` 形式の使い分け
 
-リポジトリ内の慣習として 2 形式が混在する。サブ階層化時の選択指針:
+リポジトリ内には 2 形式が混在しており、本ガイドラインで一方に統一する意図はない。**現状の主流は形式 A**（leaf 単独ファイルでは `host.rs` `config.rs` `env.rs` `install.rs` `path_ext.rs` 等の多数で採用）であり、形式 B はモジュール階層を `{parent}.rs` に集約する場面（`hooks.rs` `parser.rs` `tui/manager/core.rs` `marketplace/config.rs` `plugin/plugin_content.rs` 等）で採用されている。サブ階層化時はモジュールの集約構造に合わせていずれかを選ぶ。
 
 形式 A — `#[cfg(test)] #[path = "foo_test.rs"] mod tests;`
 
 - 本体 `foo.rs` の末尾に置き、テストモジュール名を `tests` に統一する
 - 移動時は `#[path = "..."]` の相対パスが**同一フォルダなら不変**
+- **leaf 単独ファイル（同階層に他の `mod` 宣言を集める親が存在しない場合）の既定**
 
 形式 B — `#[cfg(test)] mod foo_test;`
 
 - 親 `{parent}.rs` 側に `mod foo_test;` を並べる
 - 移動時は親側の `mod foo_test;` 宣言行を移動先 `{subgroup}.rs` へ追従させる
+- **サブグループ親 `{parent}.rs` が `mod` 宣言と `pub use` を集約しているケース**で、テスト宣言も同じ場所に並べる用途に向く
 
-**サブ階層化時の選択**: サブグループ内で完結するテストは形式 B を `{subgroup}.rs` 側に集約することを推奨。形式 A は親フォルダ集約テストでのみ使用する。
+**サブ階層化時の選択**:
+
+- 移動元のテスト宣言形式（A / B）を**そのまま保持する**ことを最優先とする。形式変更は別 PR で扱う
+- `parser/` は移行前から形式 B（`parser.rs` 側で `#[cfg(test)] mod *_test;` を集約）であり、本リファクタもサブ親 `parser/{claude_code, codex, copilot}.rs` で同形式を維持している
+- 既存が形式 A の親フォルダ（`application/`, `component/`, `target/` 等）をサブ階層化する場合は、形式 A のまま `#[path]` の相対パスのみ更新する（`mod tests;` を `{parent}.rs` に移し替える必要はない）
