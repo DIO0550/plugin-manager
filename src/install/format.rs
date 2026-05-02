@@ -137,13 +137,19 @@ pub fn format_manual_rewrite_section(stubs: &[(String, String)]) -> Option<Strin
     Some(lines.join("\n"))
 }
 
-/// 全イベント除外時の追加警告（stderr / yellow）。
+/// 変換結果として hook が 1 件も残らなかった場合の追加警告（stderr / yellow）。
 ///
-/// `script_count == 0 && skipped_count > 0` のとき返す。それ以外は `None`。
-pub fn format_empty_hooks_warning(script_count: usize, skipped_count: usize) -> Option<String> {
-    if script_count == 0 && skipped_count > 0 {
+/// 「空 `hooks.json` を放置したまま気づかれない」状況を防ぐためのセーフティネット。
+/// `script_count == 0 && dropped_count > 0` のとき返す。それ以外は `None`。
+///
+/// `dropped_count` は **何らかの理由で除外された hook** の総件数（呼び出し側で集計）。
+/// `UnsupportedEvent` で event 単位に除外されたケースだけでなく、
+/// `UnsupportedHookType` で event 内の全 hook が除外され `convert_event_hooks` が
+/// その event ごと落としたケース（`UnsupportedEvent` は出ない）もカバーする。
+pub fn format_empty_hooks_warning(script_count: usize, dropped_count: usize) -> Option<String> {
+    if script_count == 0 && dropped_count > 0 {
         Some(format!(
-            "  {} All events were skipped; an empty hooks.json was placed.",
+            "  {} An empty hooks.json was placed; no hooks remained after conversion.",
             "Warning:".yellow()
         ))
     } else {
@@ -205,7 +211,17 @@ pub fn render_hook_success(
     if let Some(section) = format_manual_rewrite_section(&classified.stubs) {
         stderr_blocks.push(section);
     }
-    if let Some(line) = format_empty_hooks_warning(script_count, classified.skipped.len()) {
+    // 空 `hooks.json` 警告は「除外が起きたか」で判定する。`UnsupportedEvent`
+    // による event 全体除外だけでなく、`UnsupportedHookType` で event 内の全
+    // hook が除外され `convert_event_hooks` がその event ごと落としたケース
+    // （`UnsupportedEvent` は出ない）も含めてカウントする。
+    let unsupported_hook_type_count = classified
+        .others
+        .iter()
+        .filter(|w| matches!(w, ConversionWarning::UnsupportedHookType { .. }))
+        .count();
+    let dropped_count = classified.skipped.len() + unsupported_hook_type_count;
+    if let Some(line) = format_empty_hooks_warning(script_count, dropped_count) {
         stderr_blocks.push(line);
     }
     for w in &classified.others {

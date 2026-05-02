@@ -228,10 +228,10 @@ fn format_manual_rewrite_section_renders_header_lines_and_note() {
 // ============================================================================
 
 #[test]
-fn format_empty_hooks_warning_some_when_zero_scripts_with_skipped() {
+fn format_empty_hooks_warning_some_when_zero_scripts_with_drops() {
     let actual = format_empty_hooks_warning(0, 3).unwrap();
     let expected = format!(
-        "  {} All events were skipped; an empty hooks.json was placed.",
+        "  {} An empty hooks.json was placed; no hooks remained after conversion.",
         "Warning:".yellow()
     );
     assert_eq!(actual, expected);
@@ -243,7 +243,7 @@ fn format_empty_hooks_warning_none_when_scripts_present() {
 }
 
 #[test]
-fn format_empty_hooks_warning_none_when_no_skipped() {
+fn format_empty_hooks_warning_none_when_no_drops() {
     assert!(format_empty_hooks_warning(0, 0).is_none());
 }
 
@@ -349,7 +349,47 @@ fn render_hook_success_all_events_skipped_includes_empty_hooks_warning() {
     // skipped events warning + empty hooks warning の 2 ブロック
     assert_eq!(rendered.stderr_blocks.len(), 2);
     assert!(rendered.stderr_blocks[0].contains("2 events skipped"));
-    assert!(rendered.stderr_blocks[1].contains("All events were skipped"));
+    assert!(rendered.stderr_blocks[1].contains("no hooks remained after conversion"));
+}
+
+#[test]
+fn render_hook_success_all_unsupported_hook_types_emits_empty_hooks_warning() {
+    // `UnsupportedHookType` で event 内の全 hook が落ちると、`convert_event_hooks` は
+    // その event ごと JSON から落とす（`UnsupportedEvent` は出ない）。この経路では
+    // `skipped_count == 0` だが `script_count == 0` で空 `hooks.json` が配置されるため、
+    // 空配置警告を出す必要がある。
+    let warnings = vec![
+        ConversionWarning::UnsupportedHookType {
+            hook_type: "weird".to_string(),
+            event: "PreToolUse".to_string(),
+        },
+        ConversionWarning::UnsupportedHookType {
+            hook_type: "weird".to_string(),
+            event: "PostToolUse".to_string(),
+        },
+    ];
+    let rendered = render_hook_success(
+        ComponentKind::Hook,
+        Some(SourceFormat::ClaudeCode),
+        &warnings,
+        0,
+    );
+    assert!(rendered.stdout_suffix.is_some());
+    // 空配置警告 + 個別 warning 2 件 = 3 ブロック
+    assert_eq!(rendered.stderr_blocks.len(), 3);
+    assert!(
+        rendered
+            .stderr_blocks
+            .iter()
+            .any(|b| b.contains("no hooks remained after conversion")),
+        "empty hooks warning should appear when all hooks are filtered as UnsupportedHookType"
+    );
+    let individual_count = rendered
+        .stderr_blocks
+        .iter()
+        .filter(|b| b.contains("Hook type 'weird' for event"))
+        .count();
+    assert_eq!(individual_count, 2);
 }
 
 #[test]
