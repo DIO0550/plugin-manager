@@ -9,6 +9,9 @@ use crate::plugin::{
 use crate::source::parse_source;
 use crate::target::{PluginOrigin, Target, TargetKind};
 
+pub mod format;
+pub use crate::hooks::converter::{ConversionWarning, SourceFormat};
+
 /// スキャン済みプラグイン
 ///
 /// ダウンロード済みプラグインからコンポーネントをスキャンした結果。
@@ -75,7 +78,15 @@ pub struct PlaceSuccess {
     pub target_path: PathBuf,
     pub source_format: Option<String>,
     pub dest_format: Option<String>,
-    pub hook_warnings: Vec<String>,
+    /// Hook 変換時の警告（`HookConverted` 以外は空）。
+    pub hook_warnings: Vec<ConversionWarning>,
+    /// `HookConverted` 時に生成されたスクリプト数（それ以外は 0）。
+    /// 「全イベント除外」判定（`script_count == 0 && skipped_count > 0`）に使う。
+    pub script_count: usize,
+    /// Hook 変換時の入力形式（`HookConverted` 以外は `None`）。
+    /// `Some(SourceFormat::ClaudeCode)` のときのみ
+    /// `(converted from Claude Code format)` サフィックスを表示する。
+    pub hook_source_format: Option<SourceFormat>,
 }
 
 /// 配置失敗の段階
@@ -239,11 +250,11 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
                         _ => (None, None),
                     };
 
-                    let hook_warnings = match &result {
+                    let (hook_warnings, script_count, hook_source_format) = match &result {
                         DeploymentOutput::HookConverted(hr) => {
-                            hr.warnings.iter().map(|w| w.to_string()).collect()
+                            (hr.warnings.clone(), hr.script_count, Some(hr.source_format))
                         }
-                        _ => vec![],
+                        _ => (Vec::new(), 0, None),
                     };
 
                     successes.push(PlaceSuccess {
@@ -254,6 +265,8 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
                         source_format,
                         dest_format,
                         hook_warnings,
+                        script_count,
+                        hook_source_format,
                     });
                 }
                 Err(e) => {

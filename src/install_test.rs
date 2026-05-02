@@ -5,6 +5,7 @@ use tempfile::TempDir;
 
 use super::*;
 use crate::component::ComponentKind;
+use crate::hooks::converter::{ConversionWarning, SourceFormat};
 use crate::plugin::{CachedPackage, MarketplaceContent, PluginManifest};
 use crate::target::{CodexTarget, CopilotTarget};
 
@@ -324,4 +325,122 @@ async fn test_download_plugin_with_cache_invalid_source_returns_error() {
     // "/" のような不正なソース文字列は parse_source で確実に失敗し、早期にエラーとなる
     let result = download_plugin_with_cache("/", false, &cache).await;
     assert!(result.is_err());
+}
+
+// =============================================================================
+// Hook 配置時の hook_source_format 伝播テスト
+// =============================================================================
+
+/// `hooks/` 配下に 1 つの hook ファイルを持つ test fixture を作成
+fn create_test_hook_package(base_dir: &Path, hook_name: &str, hook_json: &str) -> CachedPackage {
+    let manifest_content = serde_json::json!({
+        "name": "test-plugin",
+        "version": "1.0.0",
+        "description": "A test plugin"
+    });
+    fs::write(base_dir.join("plugin.json"), manifest_content.to_string()).unwrap();
+
+    let hooks_dir = base_dir.join("hooks");
+    fs::create_dir_all(&hooks_dir).unwrap();
+    fs::write(hooks_dir.join(format!("{}.json", hook_name)), hook_json).unwrap();
+
+    let manifest = PluginManifest::load(&base_dir.join("plugin.json")).unwrap();
+
+    CachedPackage {
+        name: "test-plugin".to_string(),
+        id: None,
+        marketplace: Some("test-marketplace".to_string()),
+        path: base_dir.to_path_buf(),
+        manifest,
+        git_ref: "main".to_string(),
+        commit_sha: "abc123".to_string(),
+        marketplace_manifest: None,
+    }
+}
+
+#[test]
+fn test_place_plugin_claude_code_hook_propagates_source_format() {
+    let temp = TempDir::new().unwrap();
+    let project_dir = TempDir::new().unwrap();
+
+    // Claude Code 形式 Hook（PreToolUse, command 型 → wrapper を生成）
+    let claude_code_hook = r#"{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'pre check'"
+          }
+        ]
+      }
+    ]
+  }
+}"#;
+    let cached = create_test_hook_package(temp.path(), "my-hook", claude_code_hook);
+    let package = MarketplaceContent::try_from(cached).unwrap();
+    let scanned = scan_plugin(&package, None).unwrap();
+
+    let targets: Vec<Box<dyn crate::target::Target>> = vec![Box::new(CopilotTarget::new())];
+
+    let result = place_plugin(&PlaceRequest {
+        scanned: &scanned,
+        targets: &targets,
+        scope: crate::component::Scope::Project,
+        project_root: project_dir.path(),
+    });
+
+    assert_eq!(result.successes.len(), 1, "failures: {:?}", result.failures);
+    let success = &result.successes[0];
+    assert_eq!(success.component_kind, ComponentKind::Hook);
+    assert_eq!(
+        success.hook_source_format,
+        Some(SourceFormat::ClaudeCode),
+        "Claude Code 形式 Hook では hook_source_format == Some(ClaudeCode) であるべき"
+    );
+    assert!(
+        success.script_count > 0,
+        "Claude Code 形式の command フックは wrapper を生成するため script_count > 0"
+    );
+}
+
+#[test]
+fn test_place_plugin_copilot_hook_with_missing_version_propagates_target_format() {
+    let temp = TempDir::new().unwrap();
+    let project_dir = TempDir::new().unwrap();
+
+    // Copilot 形式 + version 欠落 → MissingVersion warning が 1 件、wrapper なし。
+    // この経路で `hook_source_format == Some(SourceFormat::TargetFormat)` を担保する
+    // （false positive 防止：suffix を出さないことの根拠）。
+    let copilot_hook = r#"{"hooks":{"preToolUse":[{"type":"command","bash":"echo hi"}]}}"#;
+    let cached = create_test_hook_package(temp.path(), "copilot-hook", copilot_hook);
+    let package = MarketplaceContent::try_from(cached).unwrap();
+    let scanned = scan_plugin(&package, None).unwrap();
+
+    let targets: Vec<Box<dyn crate::target::Target>> = vec![Box::new(CopilotTarget::new())];
+
+    let result = place_plugin(&PlaceRequest {
+        scanned: &scanned,
+        targets: &targets,
+        scope: crate::component::Scope::Project,
+        project_root: project_dir.path(),
+    });
+
+    assert_eq!(result.successes.len(), 1, "failures: {:?}", result.failures);
+    let success = &result.successes[0];
+    assert_eq!(success.component_kind, ComponentKind::Hook);
+    assert_eq!(
+        success.hook_source_format,
+        Some(SourceFormat::TargetFormat),
+        "Copilot 形式 passthrough では hook_source_format == Some(TargetFormat) であるべき"
+    );
+    assert!(
+        success
+            .hook_warnings
+            .iter()
+            .any(|w| matches!(w, ConversionWarning::MissingVersion)),
+        "MissingVersion warning が伝播しているはず"
+    );
+    assert_eq!(success.script_count, 0);
 }
