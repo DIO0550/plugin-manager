@@ -140,14 +140,29 @@ pub fn format_manual_rewrite_section(stubs: &[(String, String)]) -> Option<Strin
 /// 変換結果として hook が 1 件も残らなかった場合の追加警告（stderr / yellow）。
 ///
 /// 「空 `hooks.json` を放置したまま気づかれない」状況を防ぐためのセーフティネット。
-/// `script_count == 0 && dropped_count > 0` のとき返す。それ以外は `None`。
+/// `source_format == Some(SourceFormat::ClaudeCode) && script_count == 0` のとき返す。
+/// それ以外は `None`。
 ///
-/// `dropped_count` は **何らかの理由で除外された hook** の総件数（呼び出し側で集計）。
-/// `UnsupportedEvent` で event 単位に除外されたケースだけでなく、
-/// `UnsupportedHookType` で event 内の全 hook が除外され `convert_event_hooks` が
-/// その event ごと落としたケース（`UnsupportedEvent` は出ない）もカバーする。
-pub fn format_empty_hooks_warning(script_count: usize, dropped_count: usize) -> Option<String> {
-    if script_count == 0 && dropped_count > 0 {
+/// **判定方針**: ClaudeCode 入力時は各 hook が必ずスクリプトを生成するため、
+/// `script_count == 0` ⇔「変換後の `hooks.json` が空」という不変条件が成立する。
+/// この単一の条件で、除外の主因が `UnsupportedEvent` / `UnsupportedHookType` /
+/// `RemovedField`（イベント値が配列でない、matcher group の `hooks` 配列欠落 など、
+/// 詳細は `src/hooks/converter.rs::flatten_matchers`）のいずれであっても取りこぼさず
+/// 警告を出せる。
+///
+/// **`source_format == Some(TargetFormat)` の扱い**: passthrough では入力 JSON が
+/// そのまま配置され `script_count == 0` でも `hooks.json` は空ではない（例:
+/// `MissingVersion` 警告つきの Copilot 形式入力）。誤検知を避けるためここでは
+/// 警告を出さない。
+///
+/// **`source_format == None` の扱い**: Hook 以外（Skill / Agent / ...）または
+/// `DeploymentOutput::Copied` 経路の Hook（version 付き Copilot 完全 passthrough）。
+/// どちらも警告対象外。
+pub fn format_empty_hooks_warning(
+    script_count: usize,
+    source_format: Option<SourceFormat>,
+) -> Option<String> {
+    if script_count == 0 && source_format == Some(SourceFormat::ClaudeCode) {
         Some(format!(
             "  {} An empty hooks.json was placed; no hooks remained after conversion.",
             "Warning:".yellow()
@@ -211,17 +226,10 @@ pub fn render_hook_success(
     if let Some(section) = format_manual_rewrite_section(&classified.stubs) {
         stderr_blocks.push(section);
     }
-    // 空 `hooks.json` 警告は「除外が起きたか」で判定する。`UnsupportedEvent`
-    // による event 全体除外だけでなく、`UnsupportedHookType` で event 内の全
-    // hook が除外され `convert_event_hooks` がその event ごと落としたケース
-    // （`UnsupportedEvent` は出ない）も含めてカウントする。
-    let unsupported_hook_type_count = classified
-        .others
-        .iter()
-        .filter(|w| matches!(w, ConversionWarning::UnsupportedHookType { .. }))
-        .count();
-    let dropped_count = classified.skipped.len() + unsupported_hook_type_count;
-    if let Some(line) = format_empty_hooks_warning(script_count, dropped_count) {
+    // 空 `hooks.json` 警告は ClaudeCode 入力時の `script_count == 0` だけで判定する
+    // （除外の主因が `UnsupportedEvent` / `UnsupportedHookType` / `RemovedField` の
+    // どれであっても 1 つの不変条件で取りこぼさない）。
+    if let Some(line) = format_empty_hooks_warning(script_count, hook_source_format) {
         stderr_blocks.push(line);
     }
     for w in &classified.others {

@@ -228,8 +228,8 @@ fn format_manual_rewrite_section_renders_header_lines_and_note() {
 // ============================================================================
 
 #[test]
-fn format_empty_hooks_warning_some_when_zero_scripts_with_drops() {
-    let actual = format_empty_hooks_warning(0, 3).unwrap();
+fn format_empty_hooks_warning_some_for_claude_code_with_zero_scripts() {
+    let actual = format_empty_hooks_warning(0, Some(SourceFormat::ClaudeCode)).unwrap();
     let expected = format!(
         "  {} An empty hooks.json was placed; no hooks remained after conversion.",
         "Warning:".yellow()
@@ -239,12 +239,20 @@ fn format_empty_hooks_warning_some_when_zero_scripts_with_drops() {
 
 #[test]
 fn format_empty_hooks_warning_none_when_scripts_present() {
-    assert!(format_empty_hooks_warning(2, 3).is_none());
+    // 明示的な hook が 1 件以上残っているケース
+    assert!(format_empty_hooks_warning(2, Some(SourceFormat::ClaudeCode)).is_none());
 }
 
 #[test]
-fn format_empty_hooks_warning_none_when_no_drops() {
-    assert!(format_empty_hooks_warning(0, 0).is_none());
+fn format_empty_hooks_warning_none_for_target_format_passthrough() {
+    // TargetFormat passthrough は入力 JSON が保持されるので空配置警告対象外（false positive 防止）
+    assert!(format_empty_hooks_warning(0, Some(SourceFormat::TargetFormat)).is_none());
+}
+
+#[test]
+fn format_empty_hooks_warning_none_when_source_format_is_none() {
+    // Hook 以外、または Copied 経路の Hook（version 付き Copilot passthrough）はこの警告対象外
+    assert!(format_empty_hooks_warning(0, None).is_none());
 }
 
 // ============================================================================
@@ -390,6 +398,64 @@ fn render_hook_success_all_unsupported_hook_types_emits_empty_hooks_warning() {
         .filter(|b| b.contains("Hook type 'weird' for event"))
         .count();
     assert_eq!(individual_count, 2);
+}
+
+#[test]
+fn render_hook_success_only_removed_field_warnings_still_emits_empty_hooks_warning() {
+    // `RemovedField` 経路でも空 `hooks.json` が配置され得る:
+    // `flatten_matchers` がイベント値を配列として読めなかった、または matcher group の
+    // `hooks` 配列が欠落していた場合（`src/hooks/converter.rs::flatten_matchers`）に
+    // `RemovedField` のみが出力され、`UnsupportedEvent` / `UnsupportedHookType` は出ない。
+    // ClaudeCode 入力の `script_count == 0` という不変条件で取りこぼさないことを固定する。
+    let warnings = vec![
+        ConversionWarning::RemovedField {
+            field: "PreToolUse".to_string(),
+            reason: "Event 'PreToolUse' value is not an array; expected matcher group structure"
+                .to_string(),
+        },
+        ConversionWarning::RemovedField {
+            field: "hooks".to_string(),
+            reason: "Matcher group in event 'PostToolUse' is missing 'hooks' array; skipped"
+                .to_string(),
+        },
+    ];
+    let rendered = render_hook_success(
+        ComponentKind::Hook,
+        Some(SourceFormat::ClaudeCode),
+        &warnings,
+        0,
+    );
+    assert!(rendered.stdout_suffix.is_some());
+    // 空配置警告 + 個別 warning 2 件 = 3 ブロック
+    assert_eq!(rendered.stderr_blocks.len(), 3);
+    assert!(
+        rendered
+            .stderr_blocks
+            .iter()
+            .any(|b| b.contains("no hooks remained after conversion")),
+        "empty hooks warning should appear even when only RemovedField warnings are emitted"
+    );
+}
+
+#[test]
+fn render_hook_success_target_format_with_zero_scripts_does_not_emit_empty_hooks_warning() {
+    // TargetFormat passthrough は入力 JSON がそのまま配置されるので `script_count == 0`
+    // でも空配置警告は出してはいけない（false positive 防止）。
+    let warnings = vec![ConversionWarning::MissingVersion];
+    let rendered = render_hook_success(
+        ComponentKind::Hook,
+        Some(SourceFormat::TargetFormat),
+        &warnings,
+        0,
+    );
+    assert!(rendered.stdout_suffix.is_none());
+    assert!(
+        !rendered
+            .stderr_blocks
+            .iter()
+            .any(|b| b.contains("no hooks remained after conversion")),
+        "empty hooks warning must NOT appear for TargetFormat passthrough"
+    );
 }
 
 #[test]
