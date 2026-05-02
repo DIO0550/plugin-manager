@@ -1,7 +1,7 @@
 use crate::component::{
     Component, ComponentDeployment, ComponentKind, ConversionConfig, DeploymentOutput, Scope,
 };
-use crate::hooks::converter::ConversionWarning;
+use crate::hooks::converter::{ConversionWarning, SourceFormat};
 use crate::hooks::name::HookName;
 use crate::target::TargetKind;
 use std::fs;
@@ -80,6 +80,8 @@ fn test_hook_convert_without_plugin_root_ok_for_warnings_only() {
         DeploymentOutput::HookConverted(hr) => {
             assert!(!hr.warnings.is_empty());
             assert_eq!(hr.script_count, 0);
+            // Copilot 形式（version 欠落）入力では source_format は TargetFormat になる。
+            assert_eq!(hr.source_format, SourceFormat::TargetFormat);
         }
         _ => panic!("Expected HookConverted with warnings only"),
     }
@@ -129,6 +131,8 @@ fn test_hook_convert_true_deploys_converted() {
     match result {
         DeploymentOutput::HookConverted(hr) => {
             assert!(hr.script_count > 0);
+            // Claude Code 形式入力 → source_format は ClaudeCode
+            assert_eq!(hr.source_format, SourceFormat::ClaudeCode);
         }
         _ => panic!("Expected HookConverted"),
     }

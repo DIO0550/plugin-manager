@@ -111,6 +111,7 @@ impl ComponentDeployment {
             return Ok(DeploymentOutput::HookConverted(HookConvertOutput {
                 warnings: convert_result.warnings,
                 script_count: 0,
+                source_format: convert_result.source_format,
             }));
         }
 
@@ -148,6 +149,7 @@ impl ComponentDeployment {
         Ok(DeploymentOutput::HookConverted(HookConvertOutput {
             warnings: convert_result.warnings,
             script_count,
+            source_format: convert_result.source_format,
         }))
     }
 }

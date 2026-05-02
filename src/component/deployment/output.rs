@@ -5,7 +5,7 @@
 //! `~Output` 命名を採用している（`std::process::Output` などの慣用に倣う）。
 
 use crate::component::convert::{AgentConversionResult, ConversionResult};
-use crate::hooks::converter::ConversionWarning;
+use crate::hooks::converter::{ConversionWarning, SourceFormat};
 
 /// デプロイ結果
 #[derive(Debug)]
@@ -25,6 +25,9 @@ pub enum DeploymentOutput {
 pub struct HookConvertOutput {
     pub warnings: Vec<ConversionWarning>,
     pub script_count: usize,
+    /// 入力 JSON が Claude Code 形式だったか Copilot 形式（passthrough）だったか。
+    /// `(converted from Claude Code format)` サフィックスの判定に使う。
+    pub source_format: SourceFormat,
 }
 
 impl std::fmt::Display for DeploymentOutput {
