@@ -1,7 +1,7 @@
 //! Tests for Claude Code Command parser.
 
-use super::claude_code::ClaudeCodeCommand;
-use super::convert::TargetType;
+use super::super::convert::TargetType;
+use super::command::ClaudeCodeCommand;
 use std::io::Write;
 use tempfile::NamedTempFile;
 
