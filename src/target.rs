@@ -19,21 +19,17 @@
 //! let location = target.placement_location(&ctx);
 //! ```
 
+mod core;
 mod effect;
 mod env;
-mod id;
-pub(crate) mod paths;
 mod placed;
-mod registry;
 
-pub use id::TargetId;
-pub use placed::scanner;
-pub(crate) use placed::{list_all_placed, placed_common};
-
-pub use registry::{AddResult, RemoveResult, TargetRegistry};
-
+pub(crate) use core::paths;
+pub use core::{AddResult, RemoveResult, TargetId, TargetRegistry};
 pub use effect::{AffectedTargets, OperationResult};
 pub use env::{AntigravityTarget, CodexTarget, CopilotTarget, GeminiCliTarget};
+pub use placed::scanner;
+pub(crate) use placed::{list_all_placed, placed_common};
 // PluginOrigin はモジュール内で定義されているのでここでは再エクスポート不要
 
 use crate::component::{AgentFormat, CommandFormat, ComponentKind};
