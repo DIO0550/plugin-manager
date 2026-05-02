@@ -1,7 +1,7 @@
 //! Tests for Codex Prompt parser.
 
-use super::codex::CodexPrompt;
-use super::convert::TargetFormat;
+use super::super::convert::TargetFormat;
+use super::prompt::CodexPrompt;
 use std::io::Write;
 use tempfile::NamedTempFile;
 

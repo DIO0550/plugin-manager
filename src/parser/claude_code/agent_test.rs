@@ -1,6 +1,5 @@
-use super::claude_code_agent::ClaudeCodeAgent;
-use super::convert::TargetType;
-use super::copilot_agent::CopilotAgent;
+use super::super::convert::TargetType;
+use super::agent::ClaudeCodeAgent;
 use std::io::Write;
 use tempfile::NamedTempFile;
 

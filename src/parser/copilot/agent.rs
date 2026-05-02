@@ -7,9 +7,9 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 
-use super::convert;
-use super::convert::TargetFormat;
-use super::frontmatter::{parse_frontmatter, ParsedDocument};
+use super::super::convert;
+use super::super::convert::TargetFormat;
+use super::super::frontmatter::{parse_frontmatter, ParsedDocument};
 
 /// Copilot Agent handoff entry.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

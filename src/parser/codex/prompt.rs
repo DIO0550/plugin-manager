@@ -1,37 +1,37 @@
-//! Codex Agent parser.
+//! Codex Prompt parser.
 //!
-//! Parses `.codex/agents/<name>.agent.md` files.
+//! Parses `~/.codex/prompts/<name>.md` files.
 
 use crate::error::Result;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 
-use super::convert;
-use super::convert::TargetFormat;
-use super::frontmatter::{parse_frontmatter, ParsedDocument};
+use super::super::convert;
+use super::super::convert::TargetFormat;
+use super::super::frontmatter::{parse_frontmatter, ParsedDocument};
 
-/// Codex Agent frontmatter fields.
+/// Codex Prompt frontmatter fields.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct CodexAgentFrontmatter {
-    /// Agent description.
+pub struct CodexPromptFrontmatter {
+    /// Prompt description.
     #[serde(default)]
     pub description: Option<String>,
 }
 
-/// Parsed Codex Agent.
+/// Parsed Codex Prompt.
 #[derive(Debug, Clone)]
-pub struct CodexAgent {
-    /// Agent name (from filename, Codex doesn't have name in frontmatter).
+pub struct CodexPrompt {
+    /// Prompt name (from filename, Codex doesn't have name in frontmatter).
     pub name: Option<String>,
-    /// Agent description.
+    /// Prompt description.
     pub description: Option<String>,
-    /// Agent body.
+    /// Prompt body.
     pub body: String,
 }
 
-impl CodexAgent {
-    /// Parses a Codex Agent from content string.
+impl CodexPrompt {
+    /// Parses a Codex Prompt from content string.
     ///
     /// Note: Codex frontmatter doesn't have a name field, so name is always None
     /// when using parse(). Use load() to get the name from the filename.
@@ -41,35 +41,35 @@ impl CodexAgent {
     /// * `content` - Raw markdown content including optional YAML frontmatter.
     pub fn parse(content: &str) -> Result<Self> {
         let ParsedDocument { frontmatter, body } =
-            parse_frontmatter::<CodexAgentFrontmatter>(content)?;
+            parse_frontmatter::<CodexPromptFrontmatter>(content)?;
 
         let fm = frontmatter.unwrap_or_default();
 
-        Ok(CodexAgent {
-            name: None,
+        Ok(CodexPrompt {
+            name: None, // Codex doesn't have name field in frontmatter
             description: fm.description,
             body,
         })
     }
 
-    /// Loads and parses a Codex Agent from a file.
+    /// Loads and parses a Codex Prompt from a file.
     ///
-    /// The filename (without extension) is used as the agent name.
+    /// The filename (without .md extension) is used as the prompt name.
     ///
     /// # Arguments
     ///
-    /// * `path` - Path to the `.codex/agents/<name>.agent.md` file to load.
+    /// * `path` - Path to the `~/.codex/prompts/<name>.md` file to load.
     pub fn load(path: &Path) -> Result<Self> {
         let content = fs::read_to_string(path)?;
-        let mut agent = Self::parse(&content)?;
+        let mut prompt = Self::parse(&content)?;
 
-        agent.name = extract_name_from_path(path);
+        prompt.name = extract_name_from_path(path);
 
-        Ok(agent)
+        Ok(prompt)
     }
 }
 
-impl TargetFormat for CodexAgent {
+impl TargetFormat for CodexPrompt {
     fn to_markdown(&self) -> String {
         let mut fields: Vec<String> = Vec::new();
 
@@ -86,21 +86,16 @@ impl TargetFormat for CodexAgent {
     }
 }
 
-/// Extracts agent name from file path.
+/// Extracts prompt name from file path.
 ///
-/// Removes `.agent.md` or `.md` extension from the filename.
+/// Removes the `.md` extension from the filename.
 ///
 /// # Arguments
 ///
-/// * `path` - File path whose stem will be used as the agent name.
+/// * `path` - File path whose stem will be used as the prompt name.
 fn extract_name_from_path(path: &Path) -> Option<String> {
     path.file_name()
         .and_then(|s| s.to_str())
-        .map(|s| {
-            s.strip_suffix(".agent.md")
-                .or_else(|| s.strip_suffix(".md"))
-                .unwrap_or(s)
-                .to_string()
-        })
+        .map(|s| s.strip_suffix(".md").unwrap_or(s).to_string())
         .filter(|s| !s.is_empty())
 }

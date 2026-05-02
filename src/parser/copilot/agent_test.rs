@@ -1,5 +1,5 @@
-use super::convert::TargetFormat;
-use super::copilot_agent::{CopilotAgent, CopilotAgentHandoff};
+use super::super::convert::TargetFormat;
+use super::agent::{CopilotAgent, CopilotAgentHandoff};
 use std::io::Write;
 use tempfile::NamedTempFile;
 

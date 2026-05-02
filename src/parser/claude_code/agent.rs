@@ -7,10 +7,10 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 
-use super::codex_agent::CodexAgent;
-use super::convert::{self, TargetFormat, TargetType};
-use super::copilot_agent::CopilotAgent;
-use super::frontmatter::{parse_frontmatter, ParsedDocument};
+use super::super::codex::CodexAgent;
+use super::super::convert::{self, TargetFormat, TargetType};
+use super::super::copilot::CopilotAgent;
+use super::super::frontmatter::{parse_frontmatter, ParsedDocument};
 
 /// Claude Code Agent frontmatter fields.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

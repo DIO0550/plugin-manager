@@ -1,7 +1,7 @@
 //! Tests for Copilot Prompt parser.
 
-use super::convert::TargetFormat;
-use super::copilot::CopilotPrompt;
+use super::super::convert::TargetFormat;
+use super::prompt::CopilotPrompt;
 use std::io::Write;
 use tempfile::NamedTempFile;
 
