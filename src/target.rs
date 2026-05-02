@@ -19,11 +19,8 @@
 //! let location = target.placement_location(&ctx);
 //! ```
 
-mod antigravity;
-mod codex;
-mod copilot;
 mod effect;
-mod gemini_cli;
+mod env;
 mod id;
 pub(crate) mod paths;
 mod placed;
@@ -36,11 +33,8 @@ pub(crate) use placed::list_all_placed;
 
 pub use registry::{AddResult, RemoveResult, TargetRegistry};
 
-pub use antigravity::AntigravityTarget;
-pub use codex::CodexTarget;
-pub use copilot::CopilotTarget;
 pub use effect::{AffectedTargets, OperationResult};
-pub use gemini_cli::GeminiCliTarget;
+pub use env::{AntigravityTarget, CodexTarget, CopilotTarget, GeminiCliTarget};
 // PluginOrigin はモジュール内で定義されているのでここでは再エクスポート不要
 
 use crate::component::{AgentFormat, CommandFormat, ComponentKind};
