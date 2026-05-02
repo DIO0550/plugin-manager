@@ -206,6 +206,16 @@ fn format_manual_rewrite_section_returns_none_for_empty() {
 }
 
 #[test]
+fn format_manual_rewrite_section_uses_singular_for_one_stub() {
+    // user-facing CLI の英文として「(1 hooks)」は誤りなので、件数 1 のときは "hook"。
+    let stubs = vec![("prompt".to_string(), "preToolUse".to_string())];
+    let actual = format_manual_rewrite_section(&stubs).unwrap();
+    let header = "Manual rewrite required (1 hook):";
+    assert!(actual.contains(&header.magenta().bold().to_string()));
+    assert!(!actual.contains("(1 hooks)"));
+}
+
+#[test]
 fn format_manual_rewrite_section_renders_header_lines_and_note() {
     let stubs = vec![
         ("prompt".to_string(), "preToolUse".to_string()),

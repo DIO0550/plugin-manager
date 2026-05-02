@@ -126,7 +126,8 @@ pub fn format_manual_rewrite_section(stubs: &[(String, String)]) -> Option<Strin
         return None;
     }
     let count = stubs.len();
-    let header = format!("Manual rewrite required ({} hooks):", count);
+    let noun = if count == 1 { "hook" } else { "hooks" };
+    let header = format!("Manual rewrite required ({} {}):", count, noun);
     let mut lines: Vec<String> = Vec::with_capacity(stubs.len() + 2);
     lines.push(format!("  {}", header.magenta().bold()));
     for (hook_type, event) in stubs {
