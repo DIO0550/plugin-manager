@@ -83,9 +83,14 @@ pub struct PlaceSuccess {
     /// `HookConverted` 時に生成されたスクリプト数（それ以外は 0）。
     /// 「全イベント除外」判定（`script_count == 0 && skipped_count > 0`）に使う。
     pub script_count: usize,
-    /// Hook 変換時の入力形式（`HookConverted` 以外は `None`）。
-    /// `Some(SourceFormat::ClaudeCode)` のときのみ
+    /// Hook 変換時の入力形式。`Some(SourceFormat::ClaudeCode)` のときのみ
     /// `(converted from Claude Code format)` サフィックスを表示する。
+    ///
+    /// `None` になるケース:
+    /// - **Hook 以外**（Skill / Agent / Command / Instruction）
+    /// - **Hook だが `DeploymentOutput::Copied` 経路**を通った場合（version 付き
+    ///   Copilot 形式の完全 passthrough。`HookConvertOutput` を経由しないため
+    ///   `source_format` を保持しない）
     pub hook_source_format: Option<SourceFormat>,
 }
 

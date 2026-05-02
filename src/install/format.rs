@@ -13,8 +13,15 @@ use std::collections::BTreeSet;
 ///
 /// 仕様（必須 3 分岐）:
 /// - `Some(SourceFormat::ClaudeCode)` → `true`（Claude Code 形式から変換された Hook のみ）
-/// - `Some(SourceFormat::TargetFormat)` → `false`（Copilot 形式 passthrough、false positive 防止）
-/// - `None` → `false`（Hook 以外）
+/// - `Some(SourceFormat::TargetFormat)` → `false`（Copilot 形式 passthrough の `HookConverted`
+///   ルートで warning を伴うケース。false positive 防止）
+/// - `None` → `false`。`None` は次の 2 ケースで発生する:
+///     1. **Hook 以外**（Skill / Agent / Command / Instruction）。`PlaceSuccess` 構築時に
+///        `hook_source_format` が `None` で初期化される
+///     2. **Hook だが `DeploymentOutput::Copied` 経路**を通ったケース（version 付き
+///        Copilot 形式の完全 passthrough。`HookConvertOutput` を経由しないため
+///        `source_format` を持たない）
+///   どちらのケースでも suffix は表示しない。
 ///
 /// この関数は **stdout の suffix 表示専用**。stderr の Hook 警告セクション
 /// （skipped events 集約 / Manual rewrite / All events skipped / 個別 Warning）の
