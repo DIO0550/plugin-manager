@@ -54,15 +54,21 @@ plm/
 │   │   ├── update.rs             # 更新ロジック
 │   │   └── version.rs            # バージョン管理
 │   ├── parser.rs                 # パーサーモジュール定義
-│   ├── parser/                   # ファイルパーサー
-│   │   ├── claude_code.rs        # Claude Code形式
-│   │   ├── claude_code_agent.rs  # Claude Code Agent形式
-│   │   ├── codex.rs              # Codex形式
-│   │   ├── codex_agent.rs        # Codex Agent形式
-│   │   ├── copilot.rs            # Copilot形式
-│   │   ├── copilot_agent.rs      # Copilot Agent形式
-│   │   ├── convert.rs            # フォーマット変換
-│   │   └── frontmatter.rs        # YAML frontmatterパーサー
+│   ├── parser/                   # ファイルパーサー（環境別サブフォルダ）
+│   │   ├── claude_code.rs        # Claude Code サブグループ親（command + agent）
+│   │   ├── claude_code/          #
+│   │   │   ├── command.rs        # Claude Code Command形式
+│   │   │   └── agent.rs          # Claude Code Agent形式
+│   │   ├── codex.rs              # Codex サブグループ親（prompt + agent）
+│   │   ├── codex/                #
+│   │   │   ├── prompt.rs         # Codex Prompt形式
+│   │   │   └── agent.rs          # Codex Agent形式
+│   │   ├── copilot.rs            # Copilot サブグループ親（prompt + agent）
+│   │   ├── copilot/              #
+│   │   │   ├── prompt.rs         # Copilot Prompt形式
+│   │   │   └── agent.rs          # Copilot Agent形式
+│   │   ├── convert.rs            # フォーマット変換（cross-cutting, ルート維持）
+│   │   └── frontmatter.rs        # YAML frontmatterパーサー（cross-cutting, ルート維持）
 │   ├── source.rs                 # ソースモジュール定義
 │   ├── source/                   # プラグインソース
 │   │   ├── github_source.rs      # GitHub実装
