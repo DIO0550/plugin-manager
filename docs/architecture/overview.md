@@ -29,21 +29,51 @@ plm/
 │   │   ├── import.rs             # Claude Plugin インポート
 │   │   └── managed.rs            # TUI管理画面起動
 │   ├── target.rs                 # Target trait定義
-│   ├── target/                   # AI環境アダプター
-│   │   ├── antigravity.rs        # Google Antigravity
-│   │   ├── codex.rs              # OpenAI Codex
-│   │   ├── copilot.rs            # VSCode Copilot
-│   │   ├── gemini_cli.rs         # Gemini CLI
-│   │   ├── effect.rs             # ターゲット操作結果
-│   │   ├── registry.rs           # ターゲットレジストリ
-│   │   └── scanner.rs            # ターゲットスキャン
+│   ├── target_test.rs            # target.rs の単体テスト
+│   ├── target/                   # AI環境アダプター（環境/配置/コアの3サブグループ）
+│   │   ├── env.rs                # 環境実装サブグループ親
+│   │   ├── env/                  #
+│   │   │   ├── antigravity.rs        # Google Antigravity
+│   │   │   ├── antigravity_test.rs   # antigravity.rs テスト
+│   │   │   ├── codex.rs              # OpenAI Codex
+│   │   │   ├── codex_test.rs         # codex.rs テスト
+│   │   │   ├── copilot.rs            # GitHub Copilot
+│   │   │   ├── copilot_test.rs       # copilot.rs テスト
+│   │   │   ├── gemini_cli.rs         # Gemini CLI
+│   │   │   └── gemini_cli_test.rs    # gemini_cli.rs テスト
+│   │   ├── placed.rs             # 配置ユーティリティサブグループ親
+│   │   ├── placed/               #
+│   │   │   ├── placed.rs         # 全ターゲット横断スキャン
+│   │   │   ├── placed_common.rs  # Instruction placement 共通ロジック
+│   │   │   ├── scanner.rs        # フラット1階層スキャナ
+│   │   │   └── scanner_test.rs   # scanner.rs テスト
+│   │   ├── core.rs               # コアドメインサブグループ親
+│   │   ├── core/                 #
+│   │   │   ├── id.rs             # TargetId 値オブジェクト
+│   │   │   ├── id_test.rs        # id.rs テスト
+│   │   │   ├── paths.rs          # home_dir / base_dir 共通パス計算
+│   │   │   ├── paths_test.rs     # paths.rs テスト
+│   │   │   ├── registry.rs       # TargetRegistry 状態マシン
+│   │   │   └── registry_test.rs  # registry.rs テスト
+│   │   ├── effect.rs             # ターゲット操作結果（ルート維持）
+│   │   └── effect_test.rs        # effect.rs テスト
 │   ├── component.rs              # コンポーネントモジュール定義
-│   ├── component/                # コンポーネント種別
-│   │   ├── kind.rs               # ComponentKind enum
-│   │   ├── deployment.rs         # デプロイメント情報
-│   │   ├── convert.rs            # コンポーネント変換
-│   │   ├── placement.rs          # 配置ロジック
-│   │   └── summary.rs            # コンポーネントサマリー
+│   ├── component/                # コンポーネント種別（model サブグループ + ルート）
+│   │   ├── model.rs              # 値オブジェクト群サブグループ親
+│   │   ├── model/                #
+│   │   │   ├── kind.rs                  # ComponentKind / Component / Scope
+│   │   │   ├── kind_test.rs             # kind.rs テスト
+│   │   │   ├── placement.rs             # ComponentRef / PlacementContext / PlacementLocation
+│   │   │   ├── placement_test.rs        # placement.rs テスト
+│   │   │   ├── scoped_path.rs           # ScopedPath
+│   │   │   ├── scoped_path_test.rs      # scoped_path.rs テスト
+│   │   │   ├── file_operation.rs        # FileOperation
+│   │   │   └── file_operation_test.rs   # file_operation.rs テスト
+│   │   ├── convert.rs            # コンポーネント変換（ルート維持）
+│   │   ├── convert_test.rs       # convert.rs テスト
+│   │   ├── deployment.rs         # デプロイメント情報サブグループ親（ルート維持）
+│   │   ├── deployment_test.rs    # deployment.rs テスト
+│   │   └── deployment/           # デプロイメント実装
 │   ├── plugin.rs                 # プラグインモジュール定義
 │   ├── plugin/                   # プラグイン管理
 │   │   ├── cache.rs              # プラグインキャッシュ管理
@@ -131,25 +161,35 @@ Featureベースのモジュール構成を採用。レイヤーベース（doma
 
 ```
 src/
-├── target/           # Target 関連の全て
-│   ├── antigravity.rs # Antigravity ターゲット実装
-│   ├── codex.rs      # Codex ターゲット実装
-│   ├── copilot.rs    # Copilot ターゲット実装
-│   ├── gemini_cli.rs # Gemini CLI ターゲット実装
-│   ├── effect.rs     # ターゲット操作の結果
-│   ├── registry.rs   # ターゲットレジストリ
-│   └── scanner.rs    # ターゲットスキャン
+├── target/           # Target 関連の全て（env/placed/core サブグループ）
+│   ├── env/          # 環境実装サブグループ
+│   │   ├── antigravity.rs # Antigravity ターゲット実装
+│   │   ├── codex.rs      # Codex ターゲット実装
+│   │   ├── copilot.rs    # Copilot ターゲット実装
+│   │   └── gemini_cli.rs # Gemini CLI ターゲット実装
+│   ├── placed/       # 配置ユーティリティサブグループ
+│   │   ├── placed.rs        # 全ターゲット横断スキャン
+│   │   ├── placed_common.rs # Instruction placement 共通ロジック
+│   │   └── scanner.rs       # ターゲットスキャン
+│   ├── core/         # コアドメインサブグループ
+│   │   ├── id.rs        # TargetId 値オブジェクト
+│   │   ├── paths.rs     # home_dir / base_dir 共通パス計算
+│   │   └── registry.rs  # TargetRegistry 状態マシン
+│   └── effect.rs     # ターゲット操作の結果（ルート維持）
 ├── plugin/           # Plugin 関連の全て
 │   ├── cache.rs      # キャッシュ管理
 │   ├── cached_plugin.rs # キャッシュ済みプラグイン
 │   ├── manifest.rs   # マニフェスト
 │   ├── update.rs     # 更新ロジック
 │   └── version.rs    # バージョン管理
-└── component/        # Component 関連の全て
-    ├── kind.rs       # コンポーネント種別
-    ├── deployment.rs # デプロイメント
-    ├── convert.rs    # コンポーネント変換
-    └── placement.rs  # 配置ロジック
+└── component/        # Component 関連の全て（model サブグループ + ルート）
+    ├── model/        # 値オブジェクト群サブグループ
+    │   ├── kind.rs           # ComponentKind / Component / Scope
+    │   ├── placement.rs      # ComponentRef / PlacementContext / PlacementLocation
+    │   ├── scoped_path.rs    # ScopedPath
+    │   └── file_operation.rs # FileOperation
+    ├── convert.rs    # コンポーネント変換（ルート維持）
+    └── deployment/   # デプロイメント（ルート維持）
 ```
 
 ## 依存クレート
