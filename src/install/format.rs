@@ -99,19 +99,20 @@ pub fn format_converted_hook_suffix() -> String {
 /// 集約済み event 集合（`BTreeSet` で一意化・整列済み）を受け取る。
 /// 0 件のときは `None`。
 ///
-/// 文言仕様: 件数によらず常に複数形 `events skipped` を使う（1 件でも
-/// `1 events skipped`）。issue #190 受入基準例文と整合する単純化（hearing-notes
-/// 論点 5 採択）。
+/// 文言: 件数に応じて単数形 `1 event skipped` / 複数形 `N events skipped` を
+/// 切り替える（user-facing CLI なので英語の単複は正確に出す）。
 pub fn format_skipped_events_warning(events: &BTreeSet<String>) -> Option<String> {
     if events.is_empty() {
         return None;
     }
     let count = events.len();
+    let noun = if count == 1 { "event" } else { "events" };
     let list = events.iter().cloned().collect::<Vec<_>>().join(", ");
     Some(format!(
-        "  {} {} events skipped (not supported in Copilot CLI): {}",
+        "  {} {} {} skipped (not supported in Copilot CLI): {}",
         "Warning:".yellow(),
         count,
+        noun,
         list
     ))
 }

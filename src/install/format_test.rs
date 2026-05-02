@@ -170,13 +170,13 @@ fn format_skipped_events_warning_returns_none_for_empty() {
 }
 
 #[test]
-fn format_skipped_events_warning_uses_plural_even_for_single_event() {
-    // 件数 1 でも複数形 `events` を使う仕様（hearing-notes 論点 5 採択）
+fn format_skipped_events_warning_uses_singular_for_one_event() {
+    // user-facing CLI の英文として「1 events」は誤りなので、件数 1 のとき "event" を使う。
     let mut events = BTreeSet::new();
     events.insert("Notification".to_string());
     let actual = format_skipped_events_warning(&events).unwrap();
     let expected = format!(
-        "  {} 1 events skipped (not supported in Copilot CLI): Notification",
+        "  {} 1 event skipped (not supported in Copilot CLI): Notification",
         "Warning:".yellow()
     );
     assert_eq!(actual, expected);
