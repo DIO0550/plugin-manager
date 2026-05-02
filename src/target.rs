@@ -24,12 +24,11 @@ mod env;
 mod id;
 pub(crate) mod paths;
 mod placed;
-pub(crate) mod placed_common;
 mod registry;
-pub mod scanner;
 
 pub use id::TargetId;
-pub(crate) use placed::list_all_placed;
+pub use placed::scanner;
+pub(crate) use placed::{list_all_placed, placed_common};
 
 pub use registry::{AddResult, RemoveResult, TargetRegistry};
 
