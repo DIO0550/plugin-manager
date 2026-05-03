@@ -1,12 +1,138 @@
 //! Sync endpoint sub-parent.
 //!
-//! Groups source/destination wrappers around a Target environment used by
-//! the sync orchestrator. The leaves keep test form A
-//! (`#[path = "*_test.rs"] mod tests;` at the bottom of each leaf file), so
-//! no test declarations are needed at this sub-parent.
+//! Hosts the shared `EndpointInner` (common fields/methods of source/destination)
+//! and the crate-internal `Endpoint` enum used for variant-aware dispatch.
+//!
+//! 形式 A（`#[path = "*_test.rs"] mod tests;` を leaf 末尾に置く）に加えて、
+//! 共通テスト集約用の `endpoint_test.rs` を本ファイル末尾でも宣言する。
 
 mod destination;
+mod inner;
 mod source;
 
 pub use self::destination::SyncDestination;
 pub use self::source::SyncSource;
+use self::inner::EndpointInner;
+
+use std::path::{Path, PathBuf};
+
+use crate::component::CommandFormat;
+use crate::error::{PlmError, Result};
+use crate::scan::is_instruction_file;
+use crate::sync::model::{PlacedComponent, SyncOptions};
+use crate::target::PluginOrigin;
+
+/// Crate-internal abstraction over a sync endpoint variant.
+///
+/// External callers must continue to use `SyncSource` / `SyncDestination`.
+/// `Endpoint` exists to deduplicate dispatch logic inside the `sync` feature.
+#[derive(Debug)]
+pub(crate) enum Endpoint {
+    Source(SyncSource),
+    Destination(SyncDestination),
+}
+
+impl Endpoint {
+    /// `Source` variant ならその `&SyncSource` を返す
+    pub(crate) fn as_source(&self) -> Option<&SyncSource> {
+        match self {
+            Self::Source(s) => Some(s),
+            Self::Destination(_) => None,
+        }
+    }
+
+    /// `Destination` variant ならその `&SyncDestination` を返す
+    pub(crate) fn as_destination(&self) -> Option<&SyncDestination> {
+        match self {
+            Self::Source(_) => None,
+            Self::Destination(d) => Some(d),
+        }
+    }
+
+    /// ターゲット名（共通メソッド・variant 別ディスパッチ）
+    pub(crate) fn name(&self) -> &'static str {
+        match self {
+            Self::Source(s) => s.name(),
+            Self::Destination(d) => d.name(),
+        }
+    }
+
+    /// Command フォーマット（共通メソッド・variant 別ディスパッチ）
+    pub(crate) fn command_format(&self) -> CommandFormat {
+        match self {
+            Self::Source(s) => s.command_format(),
+            Self::Destination(d) => d.command_format(),
+        }
+    }
+
+    /// 配置済みコンポーネント一覧（共通メソッド・variant 別ディスパッチ）
+    pub(crate) fn placed_components(&self, options: &SyncOptions) -> Result<Vec<PlacedComponent>> {
+        match self {
+            Self::Source(s) => s.placed_components(options),
+            Self::Destination(d) => d.placed_components(options),
+        }
+    }
+
+    /// 配置済みコンポーネントのパスを解決（共通メソッド・variant 別ディスパッチ）
+    pub(crate) fn path_for(&self, component: &PlacedComponent) -> Result<PathBuf> {
+        match self {
+            Self::Source(s) => s.path_for(component),
+            Self::Destination(d) => d.path_for(component),
+        }
+    }
+}
+
+/// コンポーネント名をパース。
+///
+/// フラット化後の識別子は `flattened_name` 単一セグメントのみ。Instruction
+/// (AGENTS.md / copilot-instructions.md / GEMINI.md) はそのままファイル名で
+/// 受け取る特例とする。空文字・パス区切り (`/` `\`) ・null バイト・`.` / `..` ・
+/// 複合パスを含むレガシー識別子は `InvalidArgument` で拒否する
+/// (`placement_location` が `base.join(name)` を直接行うためベースディレクトリ
+/// 外への書き込みを防ぐ)。
+///
+/// `endpoint` サブ親直下に配置することで、`source` / `destination` 両 leaf から
+/// `super::parse_component_name` で参照できる。
+pub(super) fn parse_component_name(name: &str) -> Result<(PluginOrigin, &str)> {
+    if is_instruction_file(name) {
+        return Ok((PluginOrigin::from_marketplace("", ""), name));
+    }
+
+    validate_flattened_name(name)?;
+
+    Ok((PluginOrigin::placeholder(), name))
+}
+
+/// `flattened_name` が単一の安全なパスセグメントであることを検証する。
+fn validate_flattened_name(name: &str) -> Result<()> {
+    if name.is_empty() {
+        return Err(PlmError::InvalidArgument(
+            "Component name must not be empty".to_string(),
+        ));
+    }
+    if name.contains('/') || name.contains('\\') || name.contains('\0') {
+        return Err(PlmError::InvalidArgument(format!(
+            "Invalid component name '{}': must not contain path separators or null bytes",
+            name
+        )));
+    }
+    if name == "." || name == ".." {
+        return Err(PlmError::InvalidArgument(format!(
+            "Invalid component name '{}': must not be a parent/current directory reference",
+            name
+        )));
+    }
+    let mut components = Path::new(name).components();
+    let first = components.next();
+    if components.next().is_some() || !matches!(first, Some(std::path::Component::Normal(_))) {
+        return Err(PlmError::InvalidArgument(format!(
+            "Invalid component name '{}': must be a single flattened segment",
+            name
+        )));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+#[path = "endpoint/endpoint_test.rs"]
+mod tests;
