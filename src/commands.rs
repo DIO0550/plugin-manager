@@ -1,11 +1,10 @@
 use crate::cli::Command;
 
-pub mod disable;
-pub mod enable;
 pub mod import;
 pub mod info;
 pub mod init;
 pub mod install;
+pub mod lifecycle;
 pub mod link;
 pub mod list;
 pub mod managed;
@@ -13,9 +12,7 @@ pub mod marketplace;
 pub mod pack;
 pub mod sync;
 pub mod target;
-pub mod uninstall;
 pub mod unlink;
-pub mod update;
 
 /// Dispatch the parsed CLI command to the matching handler.
 ///
@@ -28,10 +25,10 @@ pub async fn dispatch(cli: crate::cli::Cli) -> Result<(), String> {
         Command::Install(args) => install::run(args).await,
         Command::List(args) => list::run(args).await,
         Command::Info(args) => info::run(args).await,
-        Command::Enable(args) => enable::run(args).await,
-        Command::Disable(args) => disable::run(args).await,
-        Command::Uninstall(args) => uninstall::run(args).await,
-        Command::Update(args) => update::run(args).await,
+        Command::Enable(args) => lifecycle::enable::run(args).await,
+        Command::Disable(args) => lifecycle::disable::run(args).await,
+        Command::Uninstall(args) => lifecycle::uninstall::run(args).await,
+        Command::Update(args) => lifecycle::update::run(args).await,
         Command::Init(args) => init::run(args).await,
         Command::Pack(args) => pack::run(args).await,
         Command::Link(args) => link::run(args).await,
