@@ -1,9 +1,10 @@
 use clap::{Parser, Subcommand};
 
 use crate::commands::{
-    import, info, init, install,
+    deploy::{import, install, link, sync, unlink},
+    info, init,
     lifecycle::{disable, enable, uninstall, update},
-    link, list, marketplace, pack, sync, target, unlink,
+    list, marketplace, pack, target,
 };
 
 #[derive(Debug, Parser)]
