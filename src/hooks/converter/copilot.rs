@@ -11,8 +11,8 @@ use crate::hooks::converter::{
 };
 use crate::hooks::hook_definition::{CommandHook, HttpHook, StubHook};
 
+pub(crate) use super::super::event::copilot::CopilotEventMap;
 use super::converter::{KeyMap, ScriptGenerator, StructureConverter};
-pub(crate) use super::event::copilot::CopilotEventMap;
 
 /// Exit code and stdout conversion logic for command hook scripts.
 const EXIT_CODE_HANDLER: &str = r#"# --- execute original command and capture result ---

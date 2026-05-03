@@ -2,11 +2,11 @@
 
 use serde_json::json;
 
+use super::super::hook_definition::{CommandHook, HttpHook, StubHook};
 use super::converter::{ConversionWarning, EventMap, KeyMap, ScriptGenerator, StructureConverter};
 use super::copilot::{
     CopilotEventMap, CopilotKeyMap, CopilotScriptGenerator, CopilotStructureConverter,
 };
-use super::hook_definition::{CommandHook, HttpHook, StubHook};
 
 // ============================================================================
 // EventMap
