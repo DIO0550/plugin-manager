@@ -6,9 +6,9 @@
 
 use serde_json::Value;
 
+use super::super::model::{CommandHook, HttpHook, StubHook};
 use crate::error::PlmError;
 use crate::hooks::converter::{ConversionWarning, ScriptInfo, SourceFormat};
-use crate::hooks::hook_definition::{CommandHook, HttpHook, StubHook};
 
 use super::converter::{KeyMap, ScriptGenerator, StructureConverter};
 

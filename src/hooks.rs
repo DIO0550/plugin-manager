@@ -5,12 +5,9 @@
 
 pub mod converter;
 pub(crate) mod event;
-pub(crate) mod hook_definition;
-pub(crate) mod name;
-pub(crate) mod script_path;
+mod model;
 pub(crate) mod tool;
 
-#[cfg(test)]
-mod name_test;
-#[cfg(test)]
-mod script_path_test;
+// crate::hooks::name::HookName 経路据置のためのモジュール再エクスポート
+// （rustc E0365 回避: model.rs 側で `pub(crate) mod name;` 宣言済み）
+pub(crate) use model::name;

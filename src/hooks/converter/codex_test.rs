@@ -3,7 +3,7 @@
 use serde_json::json;
 
 use super::super::event::codex::CodexEventMap;
-use super::super::hook_definition::HttpHook;
+use super::super::model::HttpHook;
 use super::codex::{CodexKeyMap, CodexScriptGenerator, CodexStructureConverter};
 use super::converter::{EventMap, KeyMap, ScriptGenerator, SourceFormat, StructureConverter};
 

@@ -13,8 +13,8 @@ use std::fmt;
 
 use serde_json::Value;
 
+use super::super::model::{CommandHook, HttpHook, StubHook};
 use crate::error::PlmError;
-use crate::hooks::hook_definition::{CommandHook, HttpHook, StubHook};
 use crate::target::TargetKind;
 
 /// スクリプトの配置ディレクトリ prefix（値は後方互換のため "wrappers" のまま）
@@ -499,7 +499,7 @@ fn convert_hook_definition(
     layers: &HookConversionLayers,
     out: &mut ConvertOutput<'_>,
 ) -> Result<Option<Value>, PlmError> {
-    use crate::hooks::hook_definition::HookDefinition;
+    use super::super::model::HookDefinition;
 
     let hook_obj = hook
         .as_object()
