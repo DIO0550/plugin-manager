@@ -1,7 +1,6 @@
 //! 同期元の定義
 
-use super::options::{SyncOptions, SyncableKind};
-use super::placed::{PlacedComponent, PlacedRef};
+use super::super::model::{PlacedComponent, PlacedRef, SyncOptions, SyncableKind};
 use crate::component::{
     CommandFormat, ComponentKind, ComponentRef, PlacementContext, PlacementScope, ProjectContext,
     Scope,

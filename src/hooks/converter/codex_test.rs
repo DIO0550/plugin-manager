@@ -2,10 +2,10 @@
 
 use serde_json::json;
 
+use super::super::event::codex::CodexEventMap;
+use super::super::model::HttpHook;
 use super::codex::{CodexKeyMap, CodexScriptGenerator, CodexStructureConverter};
 use super::converter::{EventMap, KeyMap, ScriptGenerator, SourceFormat, StructureConverter};
-use super::event::codex::CodexEventMap;
-use super::hook_definition::HttpHook;
 
 #[test]
 fn test_codex_event_map_returns_none() {

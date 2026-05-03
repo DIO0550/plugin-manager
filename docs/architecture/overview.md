@@ -114,6 +114,20 @@ plm/
 │   │   │   └── agent.rs          # Copilot Agent形式
 │   │   ├── convert.rs            # フォーマット変換（cross-cutting, ルート維持）
 │   │   └── frontmatter.rs        # YAML frontmatterパーサー（cross-cutting, ルート維持）
+│   ├── hooks.rs                  # フック変換モジュール定義
+│   ├── hooks/                    # フック設定変換（converter / model + 既存 event/tool 維持）
+│   │   ├── converter.rs          # converter サブグループ親
+│   │   ├── converter/            # フック変換器サブグループ
+│   │   │   ├── codex.rs          # Codex 用変換層
+│   │   │   ├── converter.rs      # ポリモルフィック変換エンジン
+│   │   │   └── copilot.rs        # Copilot CLI 用変換層
+│   │   ├── event/                # （既存維持）イベント名マップ
+│   │   ├── model.rs              # model サブグループ親
+│   │   ├── model/                # フック値オブジェクトサブグループ
+│   │   │   ├── hook_definition.rs # CommandHook / HttpHook / StubHook / HookDefinition
+│   │   │   ├── name.rs           # HookName
+│   │   │   └── script_path.rs    # resolve_script_path
+│   │   └── tool/                 # （既存維持）ツール名マップ
 │   ├── source.rs                 # ソースモジュール定義
 │   ├── source/                   # プラグインソース
 │   │   ├── github_source.rs      # GitHub実装
@@ -128,14 +142,18 @@ plm/
 │   │   │   ├── plugin_source_path.rs # プラグインソースパス
 │   │   │   └── windows_path.rs   # Windowsパス処理
 │   │   └── registry.rs           # マーケットプレイスレジストリ（ルート維持）
-│   ├── sync.rs                   # 同期モジュール定義
-│   ├── sync/                     # 環境間同期
-│   │   ├── action.rs             # 同期アクション
-│   │   ├── destination.rs        # 同期先
-│   │   ├── options.rs            # 同期オプション
-│   │   ├── placed.rs             # 配置済みコンポーネント
-│   │   ├── result.rs             # 同期結果
-│   │   └── source.rs             # 同期元
+│   ├── sync.rs                   # 同期モジュール定義（オーケストレータはルート維持）
+│   ├── sync/                     # 環境間同期（endpoint / model サブグループ）
+│   │   ├── endpoint.rs           # endpoint サブグループ親
+│   │   ├── endpoint/             # 同期両端 Target ラッパーサブグループ
+│   │   │   ├── destination.rs    # 同期先
+│   │   │   └── source.rs         # 同期元
+│   │   ├── model.rs              # model サブグループ親
+│   │   └── model/                # 同期値オブジェクトサブグループ
+│   │       ├── action.rs         # 同期アクション
+│   │       ├── options.rs        # 同期オプション
+│   │       ├── placed.rs         # 配置済みコンポーネント
+│   │       └── result.rs         # 同期結果
 │   ├── scan.rs                   # スキャンモジュール定義
 │   ├── scan/                     # コンポーネントスキャン
 │   │   ├── components.rs         # コンポーネントスキャン
@@ -203,6 +221,14 @@ src/
 │   ├── download.rs   # marketplace.json取得（ルート維持）
 │   ├── path/         # パスユーティリティサブグループ
 │   └── registry.rs   # マーケットプレイスレジストリ（ルート維持）
+├── hooks/           # Hooks 関連の全て（converter / model + 既存 event/tool）
+│   ├── converter/   # フック変換器サブグループ
+│   ├── event/       # （既存）イベント名マップサブグループ
+│   ├── model/       # フック値オブジェクトサブグループ
+│   └── tool/        # （既存）ツール名マップサブグループ
+├── sync/            # 同期関連の全て（endpoint / model サブグループ + ルートロジック）
+│   ├── endpoint/    # 同期両端 Target ラッパーサブグループ
+│   └── model/       # 同期値オブジェクトサブグループ
 └── component/        # Component 関連の全て（model サブグループ + ルート）
     ├── model/        # 値オブジェクト群サブグループ
     │   ├── kind.rs           # ComponentKind / Component / Scope

@@ -5,14 +5,14 @@
 
 use serde_json::Value;
 
+use super::super::model::{CommandHook, HttpHook, StubHook};
 use crate::error::PlmError;
 use crate::hooks::converter::{
     generate_matcher_filter, shell_escape, ConversionWarning, ScriptInfo, SourceFormat, SCRIPTS_DIR,
 };
-use crate::hooks::hook_definition::{CommandHook, HttpHook, StubHook};
 
+pub(crate) use super::super::event::copilot::CopilotEventMap;
 use super::converter::{KeyMap, ScriptGenerator, StructureConverter};
-pub(crate) use super::event::copilot::CopilotEventMap;
 
 /// Exit code and stdout conversion logic for command hook scripts.
 const EXIT_CODE_HANDLER: &str = r#"# --- execute original command and capture result ---
