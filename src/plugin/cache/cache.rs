@@ -4,7 +4,7 @@
 
 use crate::error::{PlmError, Result};
 use crate::fs::{FileSystem, RealFs};
-use crate::plugin::manifest_resolve::resolve_manifest_path;
+use crate::plugin::meta::resolve_manifest_path;
 use crate::plugin::MarketplaceContent;
 use crate::plugin::{meta, PluginManifest};
 use std::io::{Cursor, Read};
@@ -13,7 +13,7 @@ use zip::ZipArchive;
 
 // Re-export
 pub use super::cached_package::CachedPackage;
-pub use crate::plugin::manifest_resolve::has_manifest;
+pub use crate::plugin::meta::has_manifest;
 
 /// cache.list() の生タプルからのマッピング型（変更吸収層）
 struct PluginCacheKey {
