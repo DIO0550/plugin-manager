@@ -13,7 +13,7 @@ use zip::ZipArchive;
 
 // Re-export
 pub use super::cached_package::CachedPackage;
-pub use crate::plugin::meta::has_manifest;
+pub(crate) use crate::plugin::meta::has_manifest;
 
 /// cache.list() の生タプルからのマッピング型（変更吸収層）
 struct PluginCacheKey {
