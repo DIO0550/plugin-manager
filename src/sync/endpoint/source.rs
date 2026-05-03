@@ -1,13 +1,13 @@
 //! 同期元の定義
 
-use super::options::{SyncOptions, SyncableKind};
-use super::placed::{PlacedComponent, PlacedRef};
 use crate::component::{
     CommandFormat, ComponentKind, ComponentRef, PlacementContext, PlacementScope, ProjectContext,
     Scope,
 };
 use crate::error::{PlmError, Result};
 use crate::scan::is_instruction_file;
+use crate::sync::options::{SyncOptions, SyncableKind};
+use crate::sync::placed::{PlacedComponent, PlacedRef};
 use crate::target::{parse_target, PluginOrigin, Target, TargetKind};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};

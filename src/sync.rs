@@ -22,19 +22,17 @@
 //! ```
 
 mod action;
-mod destination;
+mod endpoint;
 mod options;
 mod placed;
 mod result;
-mod source;
 
 pub use crate::fs::{FileSystem, RealFs};
 pub use action::SyncAction;
-pub use destination::SyncDestination;
+pub use endpoint::{SyncDestination, SyncSource};
 pub use options::{SyncOptions, SyncableKind};
 pub use placed::{PlacedComponent, PlacedRef};
 pub use result::{SyncFailure, SyncResult};
-pub use source::SyncSource;
 
 use crate::component::{convert, ComponentKind};
 use crate::error::Result;
