@@ -10,8 +10,8 @@ use crate::plugin::PluginManifest;
 use crate::target::PluginOrigin;
 use std::path::{Path, PathBuf};
 
-use super::cached_package::CachedPackage;
 use super::plugin_content::Plugin;
+use crate::plugin::CachedPackage;
 
 /// マーケットプレイスコンテンツ（内部ドメイン型）
 ///
