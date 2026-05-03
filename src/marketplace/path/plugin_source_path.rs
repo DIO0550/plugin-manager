@@ -2,8 +2,8 @@
 //!
 //! marketplace.json の source フィールドで指定されるローカルプラグインへの相対パス。
 
+use super::windows_path::{starts_with_drive_letter, starts_with_unc};
 use crate::error::PlmError;
-use crate::marketplace::windows_path::{starts_with_drive_letter, starts_with_unc};
 use std::path::{Component, Path};
 use std::str::FromStr;
 
