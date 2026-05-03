@@ -11,23 +11,39 @@ plm/
 │   ├── main.rs                   # tokio非同期エントリポイント
 │   ├── cli.rs                    # Clap CLI定義（16コマンド）
 │   ├── commands.rs               # コマンドディスパッチャー
-│   ├── commands/
-│   │   ├── install.rs            # インストール処理
-│   │   ├── uninstall.rs          # 削除処理
-│   │   ├── list.rs               # 一覧表示
-│   │   ├── info.rs               # 詳細情報
-│   │   ├── enable.rs             # 有効化
-│   │   ├── disable.rs            # 無効化
-│   │   ├── update.rs             # 更新処理
-│   │   ├── target.rs             # ターゲット環境管理
-│   │   ├── marketplace.rs        # マーケットプレイス管理
-│   │   ├── init.rs               # テンプレート作成
-│   │   ├── pack.rs               # パッケージ化
-│   │   ├── link.rs               # シンボリックリンク作成
-│   │   ├── unlink.rs             # シンボリックリンク削除
-│   │   ├── sync.rs               # 環境間同期
-│   │   ├── import.rs             # Claude Plugin インポート
-│   │   └── managed.rs            # TUI管理画面起動
+│   ├── commands/                 # コマンド群（ライフサイクル/配置/管理の3サブグループ + info/list 既存維持）
+│   │   ├── lifecycle.rs          # ライフサイクル系コマンド集約親
+│   │   ├── lifecycle/            #
+│   │   │   ├── disable.rs            # 無効化
+│   │   │   ├── disable_test.rs       # disable.rs テスト
+│   │   │   ├── enable.rs             # 有効化
+│   │   │   ├── enable_test.rs        # enable.rs テスト
+│   │   │   ├── uninstall.rs          # 削除処理
+│   │   │   ├── uninstall_test.rs     # uninstall.rs テスト
+│   │   │   └── update.rs             # 更新処理
+│   │   ├── deploy.rs             # 配置系コマンド集約親
+│   │   ├── deploy/               #
+│   │   │   ├── install.rs            # インストール処理
+│   │   │   ├── install_test.rs       # install.rs テスト
+│   │   │   ├── link.rs               # シンボリックリンク作成
+│   │   │   ├── link_test.rs          # link.rs テスト
+│   │   │   ├── unlink.rs             # シンボリックリンク削除
+│   │   │   ├── unlink_test.rs        # unlink.rs テスト
+│   │   │   ├── sync.rs               # 環境間同期
+│   │   │   ├── sync_test.rs          # sync.rs テスト
+│   │   │   ├── import.rs             # Claude Plugin インポート
+│   │   │   └── import_test.rs        # import.rs テスト
+│   │   ├── manage.rs             # 管理系コマンド集約親
+│   │   ├── manage/               #
+│   │   │   ├── init.rs               # テンプレート作成
+│   │   │   ├── pack.rs               # パッケージ化
+│   │   │   ├── target.rs             # ターゲット環境管理
+│   │   │   ├── marketplace.rs        # マーケットプレイス管理
+│   │   │   └── managed.rs            # TUI管理画面起動
+│   │   ├── info.rs               # 詳細情報（既存維持）
+│   │   ├── info/                 # 出力フォーマット別実装
+│   │   ├── list.rs               # 一覧表示（既存維持）
+│   │   └── list/                 # 出力フォーマット別実装
 │   ├── target.rs                 # Target trait定義
 │   ├── target_test.rs            # target.rs の単体テスト
 │   ├── target/                   # AI環境アダプター（環境/配置/コアの3サブグループ）
