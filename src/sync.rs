@@ -21,18 +21,14 @@
 //! println!("Deleted: {}", result.delete_count());
 //! ```
 
-mod action;
 mod endpoint;
-mod options;
-mod placed;
-mod result;
+mod model;
 
 pub use crate::fs::{FileSystem, RealFs};
-pub use action::SyncAction;
 pub use endpoint::{SyncDestination, SyncSource};
-pub use options::{SyncOptions, SyncableKind};
-pub use placed::{PlacedComponent, PlacedRef};
-pub use result::{SyncFailure, SyncResult};
+pub use model::{
+    PlacedComponent, PlacedRef, SyncAction, SyncFailure, SyncOptions, SyncResult, SyncableKind,
+};
 
 use crate::component::{convert, ComponentKind};
 use crate::error::Result;
