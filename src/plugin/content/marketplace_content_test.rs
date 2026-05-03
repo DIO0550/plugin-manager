@@ -1,7 +1,7 @@
 use super::*;
 use crate::component::ComponentKind;
 use crate::marketplace::MarketplaceManifest;
-use crate::plugin::cached_package::CachedPackage;
+use crate::plugin::CachedPackage;
 use std::fs;
 use tempfile::TempDir;
 

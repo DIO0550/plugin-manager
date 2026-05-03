@@ -75,14 +75,29 @@ plm/
 │   │   ├── deployment_test.rs    # deployment.rs テスト
 │   │   └── deployment/           # デプロイメント実装
 │   ├── plugin.rs                 # プラグインモジュール定義
-│   ├── plugin/                   # プラグイン管理
-│   │   ├── cache.rs              # プラグインキャッシュ管理
-│   │   ├── cached_plugin.rs      # キャッシュ済みプラグイン
-│   │   ├── manifest.rs           # plugin.json パーサー
-│   │   ├── manifest_resolve.rs   # マニフェスト解決
-│   │   ├── meta.rs               # プラグインメタデータ
-│   │   ├── update.rs             # 更新ロジック
-│   │   └── version.rs            # バージョン管理
+│   ├── plugin/                   # プラグイン管理（4 サブグループ）
+│   │   ├── cache.rs              # cache サブグループ親
+│   │   ├── cache/                # キャッシュ管理サブグループ
+│   │   │   ├── cache.rs          # PackageCache / PackageCacheAccess
+│   │   │   ├── cached_package.rs # CachedPackage
+│   │   │   └── cleanup.rs        # cleanup_legacy_hierarchy / cleanup_plugin_directories
+│   │   ├── content.rs            # content サブグループ親
+│   │   ├── content/              # コンテンツサブグループ
+│   │   │   ├── installed.rs      # InstalledPlugin
+│   │   │   ├── loader.rs         # load_plugin
+│   │   │   ├── marketplace_content.rs # MarketplaceContent
+│   │   │   └── plugin_content.rs # Plugin
+│   │   ├── lifecycle.rs          # lifecycle サブグループ親
+│   │   ├── lifecycle/            # ライフサイクルサブグループ
+│   │   │   ├── action.rs         # PluginAction
+│   │   │   ├── intent.rs         # PluginIntent
+│   │   │   └── update.rs         # update_plugin / update_all_plugins
+│   │   ├── meta.rs               # meta サブグループ親
+│   │   └── meta/                 # メタデータサブグループ
+│   │       ├── manifest.rs       # plugin.json パーサー
+│   │       ├── manifest_resolve.rs # マニフェスト解決
+│   │       ├── meta.rs           # プラグインメタデータ
+│   │       └── version.rs        # バージョン管理
 │   ├── parser.rs                 # パーサーモジュール定義
 │   ├── parser/                   # ファイルパーサー（環境別サブフォルダ）
 │   │   ├── claude_code.rs        # Claude Code サブグループ親（command + agent）
@@ -105,12 +120,14 @@ plm/
 │   │   ├── marketplace_source.rs # マーケットプレイス実装
 │   │   └── search_source.rs      # 検索実装
 │   ├── marketplace.rs            # マーケットプレイスモジュール定義
-│   ├── marketplace/              # マーケットプレイス
-│   │   ├── config.rs             # マーケットプレイス設定
-│   │   ├── fetcher.rs            # marketplace.json取得
-│   │   ├── plugin_source_path.rs # プラグインソースパス
-│   │   ├── registry.rs           # マーケットプレイスレジストリ
-│   │   └── windows_path.rs       # Windowsパス処理
+│   ├── marketplace/              # マーケットプレイス（path サブグループ + ルート 3 ファイル）
+│   │   ├── config.rs             # マーケットプレイス設定（ルート維持）
+│   │   ├── download.rs           # marketplace.json取得（ルート維持）
+│   │   ├── path.rs               # path サブグループ親
+│   │   ├── path/                 # パスユーティリティサブグループ
+│   │   │   ├── plugin_source_path.rs # プラグインソースパス
+│   │   │   └── windows_path.rs   # Windowsパス処理
+│   │   └── registry.rs           # マーケットプレイスレジストリ（ルート維持）
 │   ├── sync.rs                   # 同期モジュール定義
 │   ├── sync/                     # 環境間同期
 │   │   ├── action.rs             # 同期アクション
@@ -176,12 +193,16 @@ src/
 │   │   ├── paths.rs     # home_dir / base_dir 共通パス計算
 │   │   └── registry.rs  # TargetRegistry 状態マシン
 │   └── effect.rs     # ターゲット操作の結果（ルート維持）
-├── plugin/           # Plugin 関連の全て
-│   ├── cache.rs      # キャッシュ管理
-│   ├── cached_plugin.rs # キャッシュ済みプラグイン
-│   ├── manifest.rs   # マニフェスト
-│   ├── update.rs     # 更新ロジック
-│   └── version.rs    # バージョン管理
+├── plugin/           # Plugin 関連の全て（4 サブグループ）
+│   ├── cache/        # キャッシュ管理サブグループ
+│   ├── content/      # コンテンツサブグループ
+│   ├── lifecycle/    # ライフサイクルサブグループ
+│   └── meta/         # メタデータサブグループ
+├── marketplace/     # Marketplace 関連の全て（path サブグループ + ルート 3 ファイル）
+│   ├── config.rs     # マーケットプレイス設定（ルート維持）
+│   ├── download.rs   # marketplace.json取得（ルート維持）
+│   ├── path/         # パスユーティリティサブグループ
+│   └── registry.rs   # マーケットプレイスレジストリ（ルート維持）
 └── component/        # Component 関連の全て（model サブグループ + ルート）
     ├── model/        # 値オブジェクト群サブグループ
     │   ├── kind.rs           # ComponentKind / Component / Scope

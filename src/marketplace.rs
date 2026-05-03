@@ -1,8 +1,7 @@
 mod config;
 mod download;
-mod plugin_source_path;
+mod path;
 mod registry;
-mod windows_path;
 
 pub use config::{
     normalize_name, normalize_source_path, to_display_source, to_internal_source,
@@ -12,7 +11,7 @@ pub use config::{
 #[cfg(test)]
 pub use config::validate_name;
 pub use download::download_marketplace_plugin_with_cache;
-pub use plugin_source_path::PluginSourcePath;
+pub use path::PluginSourcePath;
 // Re-exported for tests
 #[cfg(test)]
 pub use registry::MarketplacePlugin;
