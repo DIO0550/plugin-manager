@@ -6,6 +6,7 @@
 use super::model::UpdateStatusDisplay;
 use crate::application;
 use crate::plugin::{update_plugin, PackageCache, UpdateStatus};
+use crate::tui::manager::core::PluginKey;
 use crate::tui::output_suppress::OutputSuppressGuard;
 use std::env;
 use std::path::Path;
@@ -86,8 +87,8 @@ pub fn enable_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionResu
 ///
 /// # Arguments
 ///
-/// * `plugin_names` - Plugin ids to update in order.
-pub fn batch_update_plugins(plugin_names: &[String]) -> Vec<(String, UpdateStatusDisplay)> {
+/// * `keys` - Plugin keys to update in order.
+pub fn batch_update_plugins(keys: &[PluginKey]) -> Vec<(PluginKey, UpdateStatusDisplay)> {
     let project_root = env::current_dir().unwrap_or_else(|_| ".".into());
 
     // stdout/stderr をリダイレクト
@@ -95,11 +96,10 @@ pub fn batch_update_plugins(plugin_names: &[String]) -> Vec<(String, UpdateStatu
     // TUI 代替スクリーン上では eprintln! が表示されないため、ログ出力は行わない。
     let _guard = OutputSuppressGuard::new();
 
-    plugin_names
-        .iter()
-        .map(|name| {
-            let status = run_update_plugin(name, &project_root);
-            (name.clone(), status)
+    keys.iter()
+        .map(|key| {
+            let status = run_update_plugin(key, &project_root);
+            (key.clone(), status)
         })
         .collect()
 }
@@ -108,9 +108,9 @@ pub fn batch_update_plugins(plugin_names: &[String]) -> Vec<(String, UpdateStatu
 ///
 /// # Arguments
 ///
-/// * `plugin_name` - Target plugin id.
+/// * `key` - Target plugin key (`marketplace` + `cache_id`).
 /// * `project_root` - Project root directory used for deployment paths.
-fn run_update_plugin(plugin_name: &str, project_root: &Path) -> UpdateStatusDisplay {
+fn run_update_plugin(key: &PluginKey, project_root: &Path) -> UpdateStatusDisplay {
     let handle = match tokio::runtime::Handle::try_current() {
         Ok(h) => h,
         Err(_) => {
@@ -124,7 +124,13 @@ fn run_update_plugin(plugin_name: &str, project_root: &Path) -> UpdateStatusDisp
     };
 
     let result = tokio::task::block_in_place(|| {
-        handle.block_on(update_plugin(&cache, plugin_name, project_root, None))
+        handle.block_on(update_plugin(
+            &cache,
+            &key.cache_id,
+            key.marketplace.as_deref(),
+            project_root,
+            None,
+        ))
     });
 
     match result.status {

@@ -4,7 +4,7 @@
 
 use super::actions;
 use super::model::{DetailAction, Model, Msg, UpdateStatusDisplay};
-use crate::tui::manager::core::{filter_plugins, DataStore};
+use crate::tui::manager::core::{filter_plugins, DataStore, PluginKey};
 use ratatui::widgets::ListState;
 use std::collections::{HashMap, HashSet};
 
@@ -195,7 +195,7 @@ fn execute_batch_with(
     model: &mut Model,
     data: &mut DataStore,
     filter_text: &str,
-    run_updates: impl FnOnce(&[String]) -> Vec<(String, UpdateStatusDisplay)>,
+    run_updates: impl FnOnce(&[PluginKey]) -> Vec<(PluginKey, UpdateStatusDisplay)>,
     reload: impl FnOnce(&mut DataStore) -> std::io::Result<()>,
 ) {
     if let Model::PluginList {
@@ -208,18 +208,24 @@ fn execute_batch_with(
         // update_statuses から Updating のプラグイン ID を収集
         // O(n) の HashSet で存在チェックし、find_plugin の線形探索 O(n^2) を回避
         let existing_ids: HashSet<&str> = data.plugins.iter().map(|p| p.id()).collect();
-        let plugin_ids: Vec<String> = update_statuses
+        let plugin_keys: Vec<PluginKey> = update_statuses
             .iter()
             .filter(|(_, status)| matches!(status, UpdateStatusDisplay::Updating))
-            .map(|(id, _)| id.clone())
-            .filter(|id| existing_ids.contains(id.as_str()))
+            .filter(|(id, _)| existing_ids.contains(id.as_str()))
+            .filter_map(|(id, _)| {
+                data.plugins
+                    .iter()
+                    .find(|p| p.id() == id.as_str())
+                    .map(PluginKey::from_installed)
+            })
             .collect();
 
-        let results = run_updates(&plugin_ids);
+        let results = run_updates(&plugin_keys);
 
         let mut new_statuses = HashMap::new();
         let mut batch_errors: Vec<String> = Vec::new();
-        for (name, status) in results {
+        for (key, status) in results {
+            let name = key.cache_id;
             if let UpdateStatusDisplay::Failed(ref reason) = status {
                 batch_errors.push(format!("Update failed for {}: {}", name, reason));
             }

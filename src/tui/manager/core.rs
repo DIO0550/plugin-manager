@@ -31,5 +31,5 @@ pub use common::{
 };
 #[allow(unused_imports)]
 pub use common::{BLOCK_BORDER_WIDTH, LIST_HIGHLIGHT_WIDTH};
-pub use data::{DataStore, MarketplaceItem, PluginId};
+pub use data::{DataStore, MarketplaceItem, PluginId, PluginKey};
 pub use filter::filter_plugins;

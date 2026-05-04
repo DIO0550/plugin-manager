@@ -190,6 +190,50 @@ pub trait PackageCacheAccess: Send + Sync {
         name: &str,
         archive: &[u8],
     ) -> Result<PathBuf>;
+
+    /// `source_path` 対応のアトミック更新
+    ///
+    /// staging dir に展開してから target dir と swap する。失敗時は staging を破棄。
+    /// 呼び出し側が事前に backup してから呼ぶことで rollback 可能にする。
+    ///
+    /// # Arguments
+    ///
+    /// * `marketplace` - マーケットプレイス名（None の場合は "github"）
+    /// * `name` - プラグイン名
+    /// * `archive` - zipアーカイブのバイト列
+    /// * `source_path` - 抽出するソースパス（正規化済み）
+    fn atomic_update_with_source_path(
+        &self,
+        marketplace: Option<&str>,
+        name: &str,
+        archive: &[u8],
+        source_path: Option<&str>,
+    ) -> Result<PathBuf>;
+
+    /// marketplace 配下に指定 entry が存在するか確認
+    ///
+    /// # Arguments
+    ///
+    /// * `marketplace` - マーケットプレイス名
+    /// * `entry` - ディレクトリ名
+    fn has_marketplace_entry(&self, marketplace: &str, entry: &str) -> Result<bool>;
+
+    /// marketplace 配下の特定 entry のみを削除する
+    ///
+    /// （marketplace 配下全削除はしない）
+    ///
+    /// # Arguments
+    ///
+    /// * `marketplace` - マーケットプレイス名
+    /// * `entry` - ディレクトリ名
+    fn remove_marketplace_entry(&self, marketplace: &str, entry: &str) -> Result<()>;
+
+    /// marketplace 配下に存在するキャッシュディレクトリ名一覧を返す
+    ///
+    /// # Arguments
+    ///
+    /// * `marketplace` - マーケットプレイス名
+    fn list_marketplace_entries(&self, marketplace: &str) -> Result<Vec<String>>;
 }
 
 /// パッケージキャッシュマネージャ
@@ -436,6 +480,16 @@ impl PackageCacheAccess for PackageCache {
         name: &str,
         archive: &[u8],
     ) -> Result<PathBuf> {
+        self.atomic_update_with_source_path(marketplace, name, archive, None)
+    }
+
+    fn atomic_update_with_source_path(
+        &self,
+        marketplace: Option<&str>,
+        name: &str,
+        archive: &[u8],
+        source_path: Option<&str>,
+    ) -> Result<PathBuf> {
         let fs = RealFs;
         let target = self.plugin_path(marketplace, name);
         let temp_dir = self.temp_path(marketplace, name);
@@ -450,12 +504,15 @@ impl PackageCacheAccess for PackageCache {
             fs.create_dir_all(parent)?;
         }
 
-        // temp に展開（source_path なし）
-        extract_archive_with_source_path(&temp_dir, archive, None)?;
+        // temp に展開（source_path 適用）— 失敗時は temp を破棄
+        if let Err(e) = extract_archive_with_source_path(&temp_dir, archive, source_path) {
+            let _ = fs.remove_dir_all(&temp_dir);
+            return Err(e);
+        }
 
         // 検証: plugin.json の存在確認
         if !has_manifest(&temp_dir) {
-            fs.remove_dir_all(&temp_dir)?;
+            let _ = fs.remove_dir_all(&temp_dir);
             return Err(PlmError::InvalidManifest("plugin.json not found".into()));
         }
 
@@ -468,6 +525,38 @@ impl PackageCacheAccess for PackageCache {
         fs.rename(&temp_dir, &target)?;
 
         Ok(target)
+    }
+
+    fn has_marketplace_entry(&self, marketplace: &str, entry: &str) -> Result<bool> {
+        let fs = RealFs;
+        let path = self.cache_dir.join(marketplace).join(entry);
+        Ok(fs.exists(&path))
+    }
+
+    fn remove_marketplace_entry(&self, marketplace: &str, entry: &str) -> Result<()> {
+        let fs = RealFs;
+        let path = self.cache_dir.join(marketplace).join(entry);
+        if fs.exists(&path) {
+            fs.remove_dir_all(&path)?;
+        }
+        Ok(())
+    }
+
+    fn list_marketplace_entries(&self, marketplace: &str) -> Result<Vec<String>> {
+        let fs = RealFs;
+        let mp_dir = self.cache_dir.join(marketplace);
+        let mut entries = Vec::new();
+        if !fs.exists(&mp_dir) {
+            return Ok(entries);
+        }
+        for entry in fs.read_dir(&mp_dir)? {
+            if entry.is_dir() {
+                if let Some(name) = entry.path.file_name() {
+                    entries.push(name.to_string_lossy().to_string());
+                }
+            }
+        }
+        Ok(entries)
     }
 }
 

@@ -10,7 +10,42 @@ use crate::plugin::PackageCache;
 use std::io;
 
 /// プラグインID（`InstalledPlugin::id()` の値で識別。リポジトリ名と異なる場合あり）
+///
+/// 注: 同名 plugin が複数 marketplace に同居するケースを区別できない。
+/// 内部識別が必要な場合は `PluginKey` を使う。
 pub type PluginId = String;
+
+/// プラグインの内部識別キー
+///
+/// 同名 plugin が複数 marketplace に同居するケースを区別するために使用する。
+/// `marketplace == None` は直接 GitHub install。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct PluginKey {
+    pub marketplace: Option<String>,
+    pub cache_id: String,
+}
+
+impl PluginKey {
+    /// `InstalledPlugin` から `PluginKey` を構築する
+    ///
+    /// # Arguments
+    ///
+    /// * `plugin` - The installed plugin to build a key from.
+    pub fn from_installed(plugin: &InstalledPlugin) -> Self {
+        Self {
+            marketplace: plugin.marketplace().map(|s| s.to_string()),
+            cache_id: plugin.id().to_string(),
+        }
+    }
+
+    /// ユーザー表示用ラベル（曖昧時の候補表示などに使用）
+    pub fn display_label(&self) -> String {
+        match &self.marketplace {
+            Some(m) => format!("{}@{}", self.cache_id, m),
+            None => self.cache_id.clone(),
+        }
+    }
+}
 
 /// マーケットプレイスアイテム（TUI表示用）
 #[derive(Debug, Clone)]

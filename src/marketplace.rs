@@ -12,7 +12,7 @@ pub use config::{
 pub use config::validate_name;
 pub use download::download_marketplace_plugin_with_cache;
 pub use path::PluginSourcePath;
-// Re-exported for tests
-#[cfg(test)]
-pub use registry::MarketplacePlugin;
-pub use registry::{MarketplaceCache, MarketplaceManifest, MarketplaceRegistry, PluginSource};
+pub use registry::{
+    validate_plugin_name, validate_plugin_names, MarketplaceCache, MarketplaceManifest,
+    MarketplacePlugin, MarketplaceRegistry, PluginSource,
+};
