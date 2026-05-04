@@ -52,6 +52,18 @@ pub enum PlmError {
         candidates: Vec<String>,
     },
 
+    #[error("Ambiguous plugin name: '{name}' matches multiple plugins ({})", candidates.join(", "))]
+    AmbiguousPluginName {
+        name: String,
+        candidates: Vec<String>,
+    },
+
+    #[error("Invalid plugin name: {0}")]
+    InvalidPluginName(String),
+
+    #[error("Duplicate plugin name in marketplace manifest: {0}")]
+    DuplicatePluginName(String),
+
     #[error("Marketplace not found: {0}")]
     MarketplaceNotFound(String),
 
@@ -180,6 +192,31 @@ impl From<PlmError> for RichError {
                     candidates.join(", ")
                 );
                 (ErrorCode::Plg003, msg, ctx)
+            }
+            PlmError::AmbiguousPluginName { name, candidates } => {
+                let ctx = ErrorContext::new().with_plugin_name(name.clone());
+                let msg = format!(
+                    "Ambiguous plugin name '{}' matches multiple plugins: {}",
+                    name,
+                    candidates.join(", ")
+                );
+                (ErrorCode::Plg003, msg, ctx)
+            }
+            PlmError::InvalidPluginName(name) => {
+                let ctx = ErrorContext::new().with_plugin_name(name.clone());
+                (
+                    ErrorCode::Val002,
+                    format!("Invalid plugin name: {}", name),
+                    ctx,
+                )
+            }
+            PlmError::DuplicatePluginName(name) => {
+                let ctx = ErrorContext::new().with_plugin_name(name.clone());
+                (
+                    ErrorCode::Plg002,
+                    format!("Duplicate plugin name in marketplace manifest: {}", name),
+                    ctx,
+                )
             }
             PlmError::MarketplaceNotFound(name) => (
                 ErrorCode::Mkt001,

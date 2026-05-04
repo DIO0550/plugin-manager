@@ -61,7 +61,18 @@ pub async fn run(args: Args) -> Result<(), String> {
             return Err("All updates failed".to_string());
         }
     } else if let Some(name) = &args.name {
-        let result = update_plugin(&cache, name, &project_root, target_filter).await;
+        let (plugin_input, marketplace_hint) = match name.split_once('@') {
+            Some((p, m)) if !p.is_empty() && !m.is_empty() => (p, Some(m)),
+            _ => (name.as_str(), None),
+        };
+        let result = update_plugin(
+            &cache,
+            plugin_input,
+            marketplace_hint,
+            &project_root,
+            target_filter,
+        )
+        .await;
         display_single_result(&result);
 
         if matches!(result.status, UpdateStatus::Failed) {

@@ -1,5 +1,6 @@
 mod action;
 mod intent;
+pub(crate) mod plugin_resolver;
 mod update;
 
 pub use action::PluginAction;

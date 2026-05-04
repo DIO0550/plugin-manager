@@ -1,8 +1,10 @@
 use crate::error::{PlmError, Result};
 use crate::host::HostClient;
+use crate::marketplace::config::normalize_name;
 use crate::repo::Repo;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 
@@ -62,6 +64,42 @@ pub struct MarketplaceCache {
     #[serde(default)]
     pub owner: Option<MarketplaceOwner>,
     pub plugins: Vec<MarketplacePlugin>,
+}
+
+/// MarketplacePlugin.name のパス安全性検証。
+///
+/// - 空文字 / `.` / `..` を拒否
+/// - パス区切り (`/`, `\\`) を含む名前を拒否
+/// - 絶対パス的な前置 (`~`) を拒否
+/// - 制御文字を拒否
+pub fn validate_plugin_name(name: &str) -> Result<()> {
+    if name.is_empty() || name == "." || name == ".." {
+        return Err(PlmError::InvalidPluginName(name.to_string()));
+    }
+    if name.contains('/') || name.contains('\\') || name.starts_with('~') {
+        return Err(PlmError::InvalidPluginName(name.to_string()));
+    }
+    if name.chars().any(|c| c.is_control()) {
+        return Err(PlmError::InvalidPluginName(name.to_string()));
+    }
+    Ok(())
+}
+
+/// MarketplaceCache を構築・取得する直前で呼ぶ。
+///
+/// (a) 各 plugin.name のパス安全性を validate
+/// (b) `normalize_name` 後の重複を検出
+pub fn validate_plugin_names(plugins: &[MarketplacePlugin]) -> Result<()> {
+    let mut seen: HashSet<String> = HashSet::new();
+    for p in plugins {
+        validate_plugin_name(&p.name)?;
+        let normalized = normalize_name(&p.name)
+            .map_err(|msg| PlmError::InvalidPluginName(format!("{}: {}", p.name, msg)))?;
+        if !seen.insert(normalized) {
+            return Err(PlmError::DuplicatePluginName(p.name.clone()));
+        }
+    }
+    Ok(())
 }
 
 impl MarketplaceCache {
@@ -146,6 +184,7 @@ impl MarketplaceRegistry {
 
         let content = fs::read_to_string(&path)?;
         let cache: MarketplaceCache = serde_json::from_str(&content)?;
+        validate_plugin_names(&cache.plugins)?;
         Ok(Some(cache))
     }
 
@@ -155,6 +194,7 @@ impl MarketplaceRegistry {
     ///
     /// * `cache` - Marketplace cache entry to persist to disk.
     pub fn store(&self, cache: &MarketplaceCache) -> Result<()> {
+        validate_plugin_names(&cache.plugins)?;
         let path = self.cache_path(&cache.name);
         let content = serde_json::to_string_pretty(cache)?;
         fs::write(path, content)?;

@@ -2,9 +2,10 @@
 
 use crate::error::{PlmError, Result};
 use crate::marketplace::{
-    MarketplaceManifest, MarketplaceRegistry, PluginSource as MpPluginSource, PluginSourcePath,
+    validate_plugin_names, MarketplaceManifest, MarketplaceRegistry,
+    PluginSource as MpPluginSource, PluginSourcePath,
 };
-use crate::plugin::{CachedPackage, PackageCacheAccess};
+use crate::plugin::{CachedPackage, LegacyCacheCleaner, PackageCacheAccess};
 use crate::repo;
 use std::future::Future;
 use std::pin::Pin;
@@ -45,6 +46,12 @@ impl PackageSource for MarketplaceSource {
                 .get(&self.marketplace)?
                 .ok_or_else(|| PlmError::MarketplaceNotFound(self.marketplace.clone()))?;
 
+            // 取得した manifest の plugin name 群を再検証（保険）
+            validate_plugin_names(&mp_cache.plugins)?;
+
+            // 旧レイアウト残骸の自動掃除（ピンポイント。空 plugins / rename / 別形式は no-op）
+            LegacyCacheCleaner::clean_if_legacy(cache, &self.marketplace, &mp_cache)?;
+
             let plugin_entry = mp_cache
                 .plugins
                 .iter()
@@ -56,6 +63,9 @@ impl PackageSource for MarketplaceSource {
                 owner: mp_cache.owner.clone(),
                 plugins: mp_cache.plugins.clone(),
             });
+
+            // plugin_identifier は MarketplacePlugin.name (registry 側で validated 済み)
+            let plugin_identifier = plugin_entry.name.clone();
 
             let mut cached = match &plugin_entry.source {
                 MpPluginSource::Local(path) => {
@@ -76,19 +86,25 @@ impl PackageSource for MarketplaceSource {
 
                     let source_path: PluginSourcePath = path.parse()?;
 
-                    GitHubSource::with_marketplace_and_source_path(
+                    GitHubSource::with_marketplace_plugin(
                         repo,
                         self.marketplace.clone(),
-                        source_path.into(),
+                        Some(source_path.into()),
+                        plugin_identifier.clone(),
                     )
                     .download(cache, force)
                     .await?
                 }
                 MpPluginSource::External { repo: repo_url, .. } => {
                     let repo = repo::from_url(repo_url)?;
-                    GitHubSource::with_marketplace(repo, self.marketplace.clone())
-                        .download(cache, force)
-                        .await?
+                    GitHubSource::with_marketplace_plugin(
+                        repo,
+                        self.marketplace.clone(),
+                        None,
+                        plugin_identifier.clone(),
+                    )
+                    .download(cache, force)
+                    .await?
                 }
             };
 

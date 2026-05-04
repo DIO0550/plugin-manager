@@ -19,6 +19,11 @@ pub struct GitHubSource {
     /// プラグインのソースパス（正規化済み）
     /// マーケットプレイス内の Local プラグイン用
     source_path: Option<String>,
+    /// marketplace 内でユニークなプラグイン識別子
+    ///
+    /// marketplace 経由 install のときに `MarketplacePlugin.name` (validated) を入れる。
+    /// `None` の場合は `repo.name()` にフォールバックする（直接 GitHub install 経路）。
+    plugin_identifier: Option<String>,
 }
 
 impl GitHubSource {
@@ -32,6 +37,7 @@ impl GitHubSource {
             repo,
             marketplace: None,
             source_path: None,
+            plugin_identifier: None,
         }
     }
 
@@ -46,6 +52,7 @@ impl GitHubSource {
             repo,
             marketplace: Some(marketplace),
             source_path: None,
+            plugin_identifier: None,
         }
     }
 
@@ -66,6 +73,47 @@ impl GitHubSource {
             repo,
             marketplace: Some(marketplace),
             source_path: Some(source_path),
+            plugin_identifier: None,
+        }
+    }
+
+    /// marketplace 経由インストール用フルコンストラクタ。
+    ///
+    /// - `marketplace`: marketplace 名（必須）
+    /// - `source_path`: External プラグインで `None`、Local プラグインで `Some` を渡す
+    /// - `plugin_identifier`: validated 済みのプラグイン識別子（cache key として使用）
+    ///
+    /// # Arguments
+    ///
+    /// * `repo` - Repository descriptor for the underlying Git source.
+    /// * `marketplace` - Name of the marketplace that surfaced this plugin.
+    /// * `source_path` - Optional normalized sub-path for Local plugins, `None` for External.
+    /// * `plugin_identifier` - Validated unique plugin name within the marketplace.
+    pub fn with_marketplace_plugin(
+        repo: Repo,
+        marketplace: String,
+        source_path: Option<String>,
+        plugin_identifier: String,
+    ) -> Self {
+        Self {
+            repo,
+            marketplace: Some(marketplace),
+            source_path,
+            plugin_identifier: Some(plugin_identifier),
+        }
+    }
+
+    /// このソースの cache key を算出する
+    ///
+    /// - marketplace 経由: `plugin_identifier` を優先。`None` のときは `repo.name()` フォールバック
+    /// - 直接 GitHub: `"{owner}--{repo}"`
+    fn compute_cache_name(&self) -> String {
+        if self.marketplace.is_none() {
+            format!("{}--{}", self.repo.owner(), self.repo.name())
+        } else {
+            self.plugin_identifier
+                .clone()
+                .unwrap_or_else(|| self.repo.name().to_string())
         }
     }
 }
@@ -79,20 +127,16 @@ impl PackageSource for GitHubSource {
         Box::pin(async move {
             let factory = HostClientFactory::with_defaults();
             let client = factory.create(self.repo.host());
-            let plugin_name = self.repo.name();
+            let display_name = self.repo.name();
             let marketplace = self.marketplace.as_deref();
 
-            // 直接GitHubインストールの場合は owner--repo 形式にする
-            let cache_name = if self.marketplace.is_none() {
-                format!("{}--{}", self.repo.owner(), self.repo.name())
-            } else {
-                plugin_name.to_string()
-            };
+            let cache_name = self.compute_cache_name();
+            let log_label = self.plugin_identifier.as_deref().unwrap_or(display_name);
 
             if !force && cache.is_cached(marketplace, &cache_name) {
                 println!(
                     "Using cached plugin: {} (cache key: {})",
-                    plugin_name, cache_name
+                    log_label, cache_name
                 );
                 return cache.load_package(marketplace, &cache_name);
             }

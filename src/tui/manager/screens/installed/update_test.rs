@@ -1,13 +1,12 @@
 use super::{execute_batch_with, update};
 use crate::application::InstalledPlugin;
-use crate::tui::manager::core::DataStore;
+use crate::tui::manager::core::{DataStore, PluginKey};
 use crate::tui::manager::screens::installed::model::{Model, Msg, UpdateStatusDisplay};
 
 /// スタブ: 全プラグインを Updated として返す
-fn stub_run_updates(names: &[String]) -> Vec<(String, UpdateStatusDisplay)> {
-    names
-        .iter()
-        .map(|name| (name.clone(), UpdateStatusDisplay::Updated))
+fn stub_run_updates(keys: &[PluginKey]) -> Vec<(PluginKey, UpdateStatusDisplay)> {
+    keys.iter()
+        .map(|k| (k.clone(), UpdateStatusDisplay::Updated))
         .collect()
 }
 
@@ -711,12 +710,11 @@ fn execute_batch_sets_error_on_failed_updates() {
     }
 
     // スタブ: 全プラグインを Failed として返す
-    let fail_updates = |names: &[String]| -> Vec<(String, UpdateStatusDisplay)> {
-        names
-            .iter()
-            .map(|name| {
+    let fail_updates = |keys: &[PluginKey]| -> Vec<(PluginKey, UpdateStatusDisplay)> {
+        keys.iter()
+            .map(|k| {
                 (
-                    name.clone(),
+                    k.clone(),
                     UpdateStatusDisplay::Failed("test error".to_string()),
                 )
             })
