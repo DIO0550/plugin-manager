@@ -1,4 +1,4 @@
-use super::*;
+use super::super::parse_component_name;
 
 #[test]
 fn test_parse_component_name_single_segment() {
