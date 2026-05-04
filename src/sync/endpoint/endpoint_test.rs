@@ -1,4 +1,4 @@
-//! 共通テスト集約: `Endpoint` ディスパッチ + `EndpointInner` 経由の共通振る舞い
+//! 共通テスト集約: `Endpoint` ディスパッチ + `TargetBinding` 経由の共通振る舞い
 //!
 //! 実環境（ホームディレクトリ・プロジェクト直下 `AGENTS.md`）に依存しないよう
 //! `FakeTarget` を内部定義し `with_target` 経由で注入する。
@@ -289,7 +289,7 @@ fn test_resolve_path_rejects_invalid_name() {
 
 // --- target_kinds / target_scopes フィルタ ---
 //
-// `target_kinds` / `target_scopes` は `EndpointInner` の private なメソッドだが、
+// `target_kinds` / `target_scopes` は `TargetBinding` の private なメソッドだが、
 // `placed_components` 経由で間接的に観測する。`list_placed` を呼び出すたびに
 // FakeTarget の `placement_calls` 履歴が積まれる動作を利用してフィルタ尊重を検証する。
 

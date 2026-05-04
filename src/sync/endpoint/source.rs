@@ -3,13 +3,13 @@
 use std::path::{Path, PathBuf};
 
 use super::super::model::{PlacedComponent, SyncOptions};
-use super::EndpointInner;
+use super::TargetBinding;
 use crate::component::CommandFormat;
 use crate::error::Result;
 use crate::target::{Target, TargetKind};
 
 /// 同期元
-pub struct SyncSource(EndpointInner);
+pub struct SyncSource(TargetBinding);
 
 impl std::fmt::Debug for SyncSource {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -28,7 +28,7 @@ impl SyncSource {
     /// * `kind` - Target environment kind to read components from.
     /// * `project_root` - Project root directory used when resolving placement paths.
     pub fn new(kind: TargetKind, project_root: &Path) -> Result<Self> {
-        Ok(Self(EndpointInner::new(kind, project_root)?))
+        Ok(Self(TargetBinding::new(kind, project_root)?))
     }
 
     /// テスト用コンストラクタ（Target を注入）
@@ -38,7 +38,7 @@ impl SyncSource {
     /// * `target` - Injected target implementation to use in tests.
     /// * `project_root` - Project root directory used when resolving placement paths.
     pub fn with_target(target: Box<dyn Target>, project_root: &Path) -> Self {
-        Self(EndpointInner::with_target(target, project_root))
+        Self(TargetBinding::with_target(target, project_root))
     }
 
     /// ターゲット名を取得

@@ -1,18 +1,18 @@
 //! Sync endpoint sub-parent.
 //!
-//! Hosts the shared `EndpointInner` (common fields/methods of source/destination)
+//! Hosts the shared `TargetBinding` (common fields/methods of source/destination)
 //! and the crate-internal `Endpoint` enum used for variant-aware dispatch.
 //!
 //! 形式 A（`#[path = "*_test.rs"] mod tests;` を leaf 末尾に置く）に加えて、
 //! 共通テスト集約用の `endpoint_test.rs` を本ファイル末尾でも宣言する。
 
+mod binding;
 mod destination;
-mod inner;
 mod source;
 
+use self::binding::TargetBinding;
 pub use self::destination::SyncDestination;
 pub use self::source::SyncSource;
-use self::inner::EndpointInner;
 
 use std::path::{Path, PathBuf};
 

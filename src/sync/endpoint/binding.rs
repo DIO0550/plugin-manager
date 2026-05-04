@@ -1,7 +1,7 @@
-//! Endpoint の共通本体（共有 inner struct）
+//! Target を project_root に束ねた共通本体（共有 binding struct）
 //!
 //! `SyncSource` / `SyncDestination` の共通フィールド・共通メソッドを集約した
-//! `pub(super)` 構造体。両 newtype が `EndpointInner` を内包し、共通メソッドを
+//! `pub(super)` 構造体。両 newtype が `TargetBinding` を内包し、共通メソッドを
 //! 委譲する形で重複を解消する。
 
 use std::collections::HashSet;
@@ -16,26 +16,28 @@ use crate::component::{
 use crate::error::{PlmError, Result};
 use crate::target::{parse_target, Target, TargetKind};
 
-/// `SyncSource` / `SyncDestination` の共通フィールド・共通メソッドを保持する内部型
+/// `Target` を `project_root` に束ねた共通本体
 ///
-/// `pub(super)` により `endpoint` サブ親配下のみ可視。`endpoint.rs` 側では
-/// 非公開の `use self::inner::EndpointInner;` でサブ親に再導入し、`source` /
-/// `destination` 子モジュールから `super::EndpointInner` で参照できるようにする。
-pub(super) struct EndpointInner {
+/// `SyncSource` / `SyncDestination` がそれぞれ newtype として内包し、共通
+/// メソッドを委譲する。`pub(super)` により `endpoint` サブ親配下のみ可視。
+/// `endpoint.rs` 側で非公開の `use self::binding::TargetBinding;` でサブ親に
+/// 再導入し、`source` / `destination` 子モジュールから `super::TargetBinding`
+/// で参照できるようにする。
+pub(super) struct TargetBinding {
     pub(super) target: Box<dyn Target>,
     pub(super) project_root: PathBuf,
 }
 
-impl std::fmt::Debug for EndpointInner {
+impl std::fmt::Debug for TargetBinding {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("EndpointInner")
+        f.debug_struct("TargetBinding")
             .field("target", &self.target.name())
             .field("project_root", &self.project_root)
             .finish()
     }
 }
 
-impl EndpointInner {
+impl TargetBinding {
     /// 本番用コンストラクタ
     pub(super) fn new(kind: TargetKind, project_root: &Path) -> Result<Self> {
         let target = parse_target(kind.as_str())?;
