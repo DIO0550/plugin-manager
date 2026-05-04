@@ -10,9 +10,9 @@ use crate::plugin::cache::PackageCacheAccess;
 use std::collections::HashSet;
 
 /// 旧キャッシュレイアウトを安全に掃除するヘルパー
-pub struct LegacyLayoutSweeper;
+pub struct LegacyCacheCleaner;
 
-impl LegacyLayoutSweeper {
+impl LegacyCacheCleaner {
     /// 旧バグ固有のレイアウトを検出し、旧 `<repo.name()>` ディレクトリだけを削除する
     ///
     /// 副作用は idempotent。
@@ -32,7 +32,7 @@ impl LegacyLayoutSweeper {
     /// # Returns
     ///
     /// `Ok(true)` when the legacy directory was removed, `Ok(false)` when no-op.
-    pub fn sweep_if_legacy(
+    pub fn clean_if_legacy(
         cache: &dyn PackageCacheAccess,
         marketplace_name: &str,
         mp_cache: &MarketplaceCache,
@@ -63,7 +63,7 @@ impl LegacyLayoutSweeper {
 /// `"github:owner/repo"` → `Some("repo")`
 ///
 /// パストラバーサル防止のため、抽出した名前が空 / `.` / `..` /
-/// パス区切り（`/`, `\`）を含む場合は `None` を返し、sweep を無効化する。
+/// パス区切り（`/`, `\`）を含む場合は `None` を返し、clean を無効化する。
 ///
 /// # Arguments
 ///
@@ -83,5 +83,5 @@ fn extract_repo_name(source: &str) -> Option<String> {
 }
 
 #[cfg(test)]
-#[path = "legacy_layout_sweeper_test.rs"]
+#[path = "legacy_cache_cleaner_test.rs"]
 mod tests;

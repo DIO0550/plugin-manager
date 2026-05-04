@@ -5,7 +5,7 @@ use crate::marketplace::{
     validate_plugin_names, MarketplaceManifest, MarketplaceRegistry,
     PluginSource as MpPluginSource, PluginSourcePath,
 };
-use crate::plugin::{CachedPackage, LegacyLayoutSweeper, PackageCacheAccess};
+use crate::plugin::{CachedPackage, LegacyCacheCleaner, PackageCacheAccess};
 use crate::repo;
 use std::future::Future;
 use std::pin::Pin;
@@ -50,7 +50,7 @@ impl PackageSource for MarketplaceSource {
             validate_plugin_names(&mp_cache.plugins)?;
 
             // 旧レイアウト残骸の自動掃除（ピンポイント。空 plugins / rename / 別形式は no-op）
-            LegacyLayoutSweeper::sweep_if_legacy(cache, &self.marketplace, &mp_cache)?;
+            LegacyCacheCleaner::clean_if_legacy(cache, &self.marketplace, &mp_cache)?;
 
             let plugin_entry = mp_cache
                 .plugins
