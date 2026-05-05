@@ -51,10 +51,10 @@ impl Endpoint {
 
     /// variant に内包された `TargetBinding` への参照を返す集約点。
     ///
-    /// `TargetBinding` 自体が `pub(super)` で `endpoint` モジュール配下にのみ可視
-    /// なため、accessor も同等以下の可視性に揃える（private = `endpoint.rs` モジ
-    /// ュール配下のみ）。子モジュールである `mod tests;` からは可視なのでテスト
-    /// から呼び出せる。
+    /// `TargetBinding` は `pub(super)` で `endpoint` モジュール配下にのみ可視。
+    /// accessor も同等以下の可視性（private = `endpoint.rs` モジュール配下のみ）
+    /// に揃える。子モジュールである `mod tests;` からは可視のため、テストから
+    /// 呼び出せる。
     fn binding(&self) -> &TargetBinding {
         match self {
             Self::Source(s) => s.binding(),
