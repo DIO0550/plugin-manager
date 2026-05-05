@@ -60,7 +60,9 @@
 | Marketplaces | `PluginList` | `selected_idx` | `usize` | marketplace 内プラグイン一覧の選択位置 | no | `marketplaces/model.rs:131-135` |
 | Marketplaces | `PluginList` | `state` | `ListState` | marketplace 内プラグイン一覧の選択状態 | no | `marketplaces/model.rs:131-135` |
 | Marketplaces | `PluginList` | `plugins` | `Vec<(String, Option<String>)>` | ディスクI/O回避用のキャッシュ済みプラグインリスト | no | `marketplaces/model.rs:131-137` |
-| Marketplaces | `AddForm` | `source_input` / `name_input` / `default_name` / `error_message` | `String`, `Option<String>` | marketplace 追加フォームの入力・確認・エラー状態 | no | `marketplaces/model.rs:66-85`, `marketplaces/model.rs:249` |
+| Marketplaces | `AddFormModel::Source` | `source_input` / `error_message` | `String`, `Option<String>` | marketplace 追加フォームの source 入力状態 | no | `marketplaces/model.rs:66-72`, `marketplaces/model.rs:249` |
+| Marketplaces | `AddFormModel::Name` | `source` / `name_input` / `default_name` / `error_message` | `String`, `Option<String>` | marketplace 追加フォームの name 入力状態 | no | `marketplaces/model.rs:73-79`, `marketplaces/model.rs:249` |
+| Marketplaces | `AddFormModel::Confirm` | `source` / `name` / `error_message` | `String`, `Option<String>` | marketplace 追加フォームの確認状態 | no | `marketplaces/model.rs:80-85`, `marketplaces/model.rs:249` |
 | Marketplaces | browse/install flow | `selected_plugins` | `HashSet<String>` | インストール対象として選択したプラグイン名集合 | no | `marketplaces/model.rs:141-165` |
 | Marketplaces | browse/install flow | `highlighted_idx` | `usize` | ブラウズ/ターゲット/スコープ選択のハイライト位置 | no | `marketplaces/model.rs:141-165` |
 | Marketplaces | `Installing` | `current_idx` / `total` | `usize` | インストール進捗表示用の位置と総数 | no | `marketplaces/model.rs:167-175` |
