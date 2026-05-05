@@ -430,3 +430,81 @@ fn test_endpoint_source_binding_accessor_exists() {
     let endpoint = Endpoint::Source(src);
     let _binding: &super::TargetBinding = endpoint.binding();
 }
+
+// --- (T4 Green 安全網) dispatch 整合性: newtype 経路と Endpoint 経路の戻り値一致 ---
+
+#[test]
+fn test_endpoint_source_name_parity() {
+    let src = fake_source(
+        FakeTarget {
+            name: "fake-src",
+            ..Default::default()
+        },
+        Path::new("."),
+    );
+    let direct = src.name();
+    let via_endpoint = Endpoint::Source(src).name();
+    assert_eq!(direct, via_endpoint);
+}
+
+#[test]
+fn test_endpoint_destination_name_parity() {
+    let dst = fake_destination(
+        FakeTarget {
+            name: "fake-dst",
+            ..Default::default()
+        },
+        Path::new("."),
+    );
+    let direct = dst.name();
+    let via_endpoint = Endpoint::Destination(dst).name();
+    assert_eq!(direct, via_endpoint);
+}
+
+#[test]
+fn test_endpoint_source_dispatch_placed_components_matches_newtype() {
+    use crate::sync::model::PlacedComponent;
+
+    let target = FakeTarget {
+        name: "fake-src",
+        placed: vec![(
+            ComponentKind::Skill,
+            Scope::Project,
+            vec!["skill-a".to_string()],
+        )],
+        location: Some(PathBuf::from("/tmp/fake/skill-a")),
+        ..Default::default()
+    };
+    let opt = SyncOptions::default()
+        .with_component_type(SyncableKind::Skill)
+        .with_scope(Scope::Project);
+
+    let src = fake_source(target, Path::new("/tmp/fake"));
+    let direct: Vec<PlacedComponent> = src.placed_components(&opt).unwrap();
+    let via_endpoint: Vec<PlacedComponent> = Endpoint::Source(src).placed_components(&opt).unwrap();
+
+    assert_eq!(direct, via_endpoint);
+}
+
+#[test]
+fn test_endpoint_destination_dispatch_path_for_matches_newtype() {
+    use crate::sync::model::PlacedComponent;
+
+    let target = FakeTarget {
+        name: "fake-dst",
+        location: Some(PathBuf::from("/tmp/fake/dest/skill-a")),
+        ..Default::default()
+    };
+    let comp = PlacedComponent::new(
+        ComponentKind::Skill,
+        "skill-a",
+        Scope::Project,
+        PathBuf::from("/tmp/fake/dest/skill-a"),
+    );
+
+    let dst = fake_destination(target, Path::new("/tmp/fake"));
+    let direct = dst.path_for(&comp).unwrap();
+    let via_endpoint = Endpoint::Destination(dst).path_for(&comp).unwrap();
+
+    assert_eq!(direct, via_endpoint);
+}
