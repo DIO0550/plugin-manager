@@ -151,6 +151,24 @@ fn test_endpoint_dispatch_command_format() {
     assert_eq!(ep.command_format(), CommandFormat::Codex);
 }
 
+#[test]
+fn test_endpoint_source_command_format_parity() {
+    let src = fake_source(FakeTarget::default(), Path::new("."));
+    let direct = src.command_format();
+    let via_endpoint = Endpoint::Source(src).command_format();
+
+    assert_eq!(direct, via_endpoint);
+}
+
+#[test]
+fn test_endpoint_destination_command_format_parity() {
+    let dst = fake_destination(FakeTarget::default(), Path::new("."));
+    let direct = dst.command_format();
+    let via_endpoint = Endpoint::Destination(dst).command_format();
+
+    assert_eq!(direct, via_endpoint);
+}
+
 // --- placed_components / path_for / resolve_path 経由 ---
 
 #[test]
@@ -487,6 +505,55 @@ fn test_endpoint_source_dispatch_placed_components_matches_newtype() {
 }
 
 #[test]
+fn test_endpoint_destination_dispatch_placed_components_matches_newtype() {
+    use crate::sync::model::PlacedComponent;
+
+    let target = FakeTarget {
+        name: "fake-dst",
+        placed: vec![(
+            ComponentKind::Skill,
+            Scope::Project,
+            vec!["skill-a".to_string()],
+        )],
+        location: Some(PathBuf::from("/tmp/fake/dst/skill-a")),
+        ..Default::default()
+    };
+    let opt = SyncOptions::default()
+        .with_component_type(SyncableKind::Skill)
+        .with_scope(Scope::Project);
+
+    let dst = fake_destination(target, Path::new("/tmp/fake"));
+    let direct: Vec<PlacedComponent> = dst.placed_components(&opt).unwrap();
+    let via_endpoint: Vec<PlacedComponent> =
+        Endpoint::Destination(dst).placed_components(&opt).unwrap();
+
+    assert_eq!(direct, via_endpoint);
+}
+
+#[test]
+fn test_endpoint_source_dispatch_path_for_matches_newtype() {
+    use crate::sync::model::PlacedComponent;
+
+    let target = FakeTarget {
+        name: "fake-src",
+        location: Some(PathBuf::from("/tmp/fake/src/skill-a")),
+        ..Default::default()
+    };
+    let comp = PlacedComponent::new(
+        ComponentKind::Skill,
+        "skill-a",
+        Scope::Project,
+        PathBuf::from("/tmp/fake/src/skill-a"),
+    );
+
+    let src = fake_source(target, Path::new("/tmp/fake"));
+    let direct = src.path_for(&comp).unwrap();
+    let via_endpoint = Endpoint::Source(src).path_for(&comp).unwrap();
+
+    assert_eq!(direct, via_endpoint);
+}
+
+#[test]
 fn test_endpoint_destination_dispatch_path_for_matches_newtype() {
     use crate::sync::model::PlacedComponent;
 
@@ -505,6 +572,32 @@ fn test_endpoint_destination_dispatch_path_for_matches_newtype() {
     let dst = fake_destination(target, Path::new("/tmp/fake"));
     let direct = dst.path_for(&comp).unwrap();
     let via_endpoint = Endpoint::Destination(dst).path_for(&comp).unwrap();
+
+    assert_eq!(direct, via_endpoint);
+}
+
+#[test]
+fn test_endpoint_source_dispatch_invalid_name_matches_newtype() {
+    use crate::sync::model::PlacedComponent;
+
+    let target = FakeTarget {
+        name: "fake-src",
+        location: Some(PathBuf::from("/tmp/fake/src/skill-a")),
+        ..Default::default()
+    };
+    let comp = PlacedComponent::new(
+        ComponentKind::Skill,
+        "nested/skill-a",
+        Scope::Project,
+        PathBuf::from("/ignored"),
+    );
+
+    let src = fake_source(target, Path::new("/tmp/fake"));
+    let direct = src.path_for(&comp).unwrap_err().to_string();
+    let via_endpoint = Endpoint::Source(src)
+        .path_for(&comp)
+        .unwrap_err()
+        .to_string();
 
     assert_eq!(direct, via_endpoint);
 }
