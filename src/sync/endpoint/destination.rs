@@ -83,6 +83,11 @@ impl SyncDestination {
         let target = self.0.target();
         target.supports(placed_ref.kind) && target.supports_scope(placed_ref.kind, placed_ref.scope)
     }
+
+    /// `Endpoint` enum から内包する `TargetBinding` に到達するための accessor
+    pub(super) fn binding(&self) -> &TargetBinding {
+        &self.0
+    }
 }
 
 #[cfg(test)]

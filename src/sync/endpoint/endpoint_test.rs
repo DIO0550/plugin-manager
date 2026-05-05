@@ -415,3 +415,18 @@ fn test_sync_destination_debug_format_preserved() {
     assert!(dbg.contains("target: \"fake-dst\""), "got: {dbg}");
     assert!(dbg.contains("project_root:"), "got: {dbg}");
 }
+
+// --- (T2 Red) binding accessor 存在確認: メソッド未実装時はコンパイル Red になる ---
+
+#[test]
+fn test_endpoint_source_binding_accessor_exists() {
+    let src = fake_source(
+        FakeTarget {
+            name: "fake-src",
+            ..Default::default()
+        },
+        Path::new("."),
+    );
+    let endpoint = Endpoint::Source(src);
+    let _binding: &super::TargetBinding = endpoint.binding();
+}

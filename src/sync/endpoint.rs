@@ -49,6 +49,14 @@ impl Endpoint {
         }
     }
 
+    /// variant に内包された `TargetBinding` への参照を返す集約点。
+    pub(crate) fn binding(&self) -> &TargetBinding {
+        match self {
+            Self::Source(s) => s.binding(),
+            Self::Destination(d) => d.binding(),
+        }
+    }
+
     /// ターゲット名（共通メソッド・variant 別ディスパッチ）
     pub(crate) fn name(&self) -> &'static str {
         match self {
