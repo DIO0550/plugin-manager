@@ -38,10 +38,14 @@
 | Installed | `ComponentTypes` | `plugin_id` | `PluginId` | コンポーネント種別選択の対象プラグインID | yes | `installed/model.rs:123-131`, `installed/model.rs:226-230` |
 | Installed | `ComponentTypes` | `selected_kind_idx` | `usize` | コンポーネント種別の選択位置 | no | `installed/model.rs:123-127` |
 | Installed | `ComponentTypes` | `state` | `ListState` | 種別リストの選択状態 | no | `installed/model.rs:123-127` |
+| Installed | `ComponentTypes` | `saved_marked_ids` | `HashSet<PluginId>` | PluginList から遷移チェーンで引き継いだマーク状態 | yes | `installed/model.rs:128-131`, `installed/model.rs:226-230` |
+| Installed | `ComponentTypes` | `saved_update_statuses` | `HashMap<PluginId, UpdateStatusDisplay>` | PluginList から遷移チェーンで引き継いだ更新表示状態。cache には含めない | no | `installed/model.rs:128-131` |
 | Installed | `ComponentList` | `plugin_id` | `PluginId` | コンポーネント一覧の対象プラグインID | yes | `installed/model.rs:133-142` |
 | Installed | `ComponentList` | `kind` | `ComponentKind` | 表示するコンポーネント種別 | no | `installed/model.rs:133-138` |
 | Installed | `ComponentList` | `selected_idx` | `usize` | コンポーネント一覧の選択位置 | no | `installed/model.rs:133-138` |
 | Installed | `ComponentList` | `state` | `ListState` | コンポーネント一覧の選択状態 | no | `installed/model.rs:133-138` |
+| Installed | `ComponentList` | `saved_marked_ids` | `HashSet<PluginId>` | PluginList から遷移チェーンで引き継いだマーク状態 | yes | `installed/model.rs:139-142` |
+| Installed | `ComponentList` | `saved_update_statuses` | `HashMap<PluginId, UpdateStatusDisplay>` | PluginList から遷移チェーンで引き継いだ更新表示状態。cache には含めない | no | `installed/model.rs:139-142` |
 | Marketplaces | `CacheState` | `selected_id` | `Option<String>` | タブ切替時に保持する選択中 marketplace 名 | yes | `marketplaces/model.rs:19-23` |
 | Marketplaces | `MarketList` | `selected_id` | `Option<String>` | 一覧で選択中の marketplace 名。`+ Add new` では `None` になり得る | yes | `marketplaces/model.rs:115-120`, `marketplaces/model.rs:210-223` |
 | Marketplaces | `MarketList` | `state` | `ListState` | 一覧の選択インデックス | no | `marketplaces/model.rs:115-120`, `marketplaces/model.rs:222-229` |
