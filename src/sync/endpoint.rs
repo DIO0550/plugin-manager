@@ -26,26 +26,26 @@ use crate::target::PluginOrigin;
 ///
 /// External callers must continue to use `SyncSource` / `SyncDestination`.
 /// `Endpoint` exists to deduplicate dispatch logic inside the `sync` feature.
-#[derive(Debug)]
-pub(super) enum Endpoint {
-    Source(SyncSource),
-    Destination(SyncDestination),
+#[derive(Debug, Clone, Copy)]
+pub(super) enum Endpoint<'a> {
+    Source(&'a SyncSource),
+    Destination(&'a SyncDestination),
 }
 
-impl Endpoint {
+impl<'a> Endpoint<'a> {
     /// `Source` variant ならその `&SyncSource` を返す
-    pub(super) fn as_source(&self) -> Option<&SyncSource> {
+    pub(super) fn as_source(&self) -> Option<&'a SyncSource> {
         match self {
-            Self::Source(s) => Some(s),
+            Self::Source(s) => Some(*s),
             Self::Destination(_) => None,
         }
     }
 
     /// `Destination` variant ならその `&SyncDestination` を返す
-    pub(super) fn as_destination(&self) -> Option<&SyncDestination> {
+    pub(super) fn as_destination(&self) -> Option<&'a SyncDestination> {
         match self {
             Self::Source(_) => None,
-            Self::Destination(d) => Some(d),
+            Self::Destination(d) => Some(*d),
         }
     }
 

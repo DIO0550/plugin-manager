@@ -123,7 +123,7 @@ fn test_endpoint_source_dispatch_name() {
         },
         Path::new("."),
     );
-    let ep = Endpoint::Source(src);
+    let ep = Endpoint::Source(&src);
     assert_eq!(ep.name(), "fake-src");
     assert!(ep.as_source().is_some());
     assert!(ep.as_destination().is_none());
@@ -138,7 +138,7 @@ fn test_endpoint_destination_dispatch_name() {
         },
         Path::new("."),
     );
-    let ep = Endpoint::Destination(dst);
+    let ep = Endpoint::Destination(&dst);
     assert_eq!(ep.name(), "fake-dst");
     assert!(ep.as_destination().is_some());
     assert!(ep.as_source().is_none());
@@ -147,7 +147,7 @@ fn test_endpoint_destination_dispatch_name() {
 #[test]
 fn test_endpoint_dispatch_command_format() {
     let src = fake_source(FakeTarget::default(), Path::new("."));
-    let ep = Endpoint::Source(src);
+    let ep = Endpoint::Source(&src);
     assert_eq!(ep.command_format(), CommandFormat::Codex);
 }
 
@@ -155,7 +155,7 @@ fn test_endpoint_dispatch_command_format() {
 fn test_endpoint_source_command_format_parity() {
     let src = fake_source(FakeTarget::default(), Path::new("."));
     let direct = src.command_format();
-    let via_endpoint = Endpoint::Source(src).command_format();
+    let via_endpoint = Endpoint::Source(&src).command_format();
 
     assert_eq!(direct, via_endpoint);
 }
@@ -164,7 +164,7 @@ fn test_endpoint_source_command_format_parity() {
 fn test_endpoint_destination_command_format_parity() {
     let dst = fake_destination(FakeTarget::default(), Path::new("."));
     let direct = dst.command_format();
-    let via_endpoint = Endpoint::Destination(dst).command_format();
+    let via_endpoint = Endpoint::Destination(&dst).command_format();
 
     assert_eq!(direct, via_endpoint);
 }
@@ -445,7 +445,7 @@ fn test_endpoint_source_binding_accessor_exists() {
         },
         Path::new("."),
     );
-    let endpoint = Endpoint::Source(src);
+    let endpoint = Endpoint::Source(&src);
     let _binding: &super::TargetBinding = endpoint.binding();
 }
 
@@ -461,7 +461,7 @@ fn test_endpoint_source_name_parity() {
         Path::new("."),
     );
     let direct = src.name();
-    let via_endpoint = Endpoint::Source(src).name();
+    let via_endpoint = Endpoint::Source(&src).name();
     assert_eq!(direct, via_endpoint);
 }
 
@@ -475,7 +475,7 @@ fn test_endpoint_destination_name_parity() {
         Path::new("."),
     );
     let direct = dst.name();
-    let via_endpoint = Endpoint::Destination(dst).name();
+    let via_endpoint = Endpoint::Destination(&dst).name();
     assert_eq!(direct, via_endpoint);
 }
 
@@ -499,7 +499,8 @@ fn test_endpoint_source_dispatch_placed_components_matches_newtype() {
 
     let src = fake_source(target, Path::new("/tmp/fake"));
     let direct: Vec<PlacedComponent> = src.placed_components(&opt).unwrap();
-    let via_endpoint: Vec<PlacedComponent> = Endpoint::Source(src).placed_components(&opt).unwrap();
+    let via_endpoint: Vec<PlacedComponent> =
+        Endpoint::Source(&src).placed_components(&opt).unwrap();
 
     assert_eq!(direct, via_endpoint);
 }
@@ -525,7 +526,7 @@ fn test_endpoint_destination_dispatch_placed_components_matches_newtype() {
     let dst = fake_destination(target, Path::new("/tmp/fake"));
     let direct: Vec<PlacedComponent> = dst.placed_components(&opt).unwrap();
     let via_endpoint: Vec<PlacedComponent> =
-        Endpoint::Destination(dst).placed_components(&opt).unwrap();
+        Endpoint::Destination(&dst).placed_components(&opt).unwrap();
 
     assert_eq!(direct, via_endpoint);
 }
@@ -548,7 +549,7 @@ fn test_endpoint_source_dispatch_path_for_matches_newtype() {
 
     let src = fake_source(target, Path::new("/tmp/fake"));
     let direct = src.path_for(&comp).unwrap();
-    let via_endpoint = Endpoint::Source(src).path_for(&comp).unwrap();
+    let via_endpoint = Endpoint::Source(&src).path_for(&comp).unwrap();
 
     assert_eq!(direct, via_endpoint);
 }
@@ -571,7 +572,7 @@ fn test_endpoint_destination_dispatch_path_for_matches_newtype() {
 
     let dst = fake_destination(target, Path::new("/tmp/fake"));
     let direct = dst.path_for(&comp).unwrap();
-    let via_endpoint = Endpoint::Destination(dst).path_for(&comp).unwrap();
+    let via_endpoint = Endpoint::Destination(&dst).path_for(&comp).unwrap();
 
     assert_eq!(direct, via_endpoint);
 }
@@ -594,7 +595,7 @@ fn test_endpoint_source_dispatch_invalid_name_matches_newtype() {
 
     let src = fake_source(target, Path::new("/tmp/fake"));
     let direct = src.path_for(&comp).unwrap_err().to_string();
-    let via_endpoint = Endpoint::Source(src)
+    let via_endpoint = Endpoint::Source(&src)
         .path_for(&comp)
         .unwrap_err()
         .to_string();
