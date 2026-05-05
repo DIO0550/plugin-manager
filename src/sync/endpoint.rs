@@ -27,14 +27,14 @@ use crate::target::PluginOrigin;
 /// External callers must continue to use `SyncSource` / `SyncDestination`.
 /// `Endpoint` exists to deduplicate dispatch logic inside the `sync` feature.
 #[derive(Debug)]
-pub(crate) enum Endpoint {
+pub(super) enum Endpoint {
     Source(SyncSource),
     Destination(SyncDestination),
 }
 
 impl Endpoint {
     /// `Source` variant ならその `&SyncSource` を返す
-    pub(crate) fn as_source(&self) -> Option<&SyncSource> {
+    pub(super) fn as_source(&self) -> Option<&SyncSource> {
         match self {
             Self::Source(s) => Some(s),
             Self::Destination(_) => None,
@@ -42,7 +42,7 @@ impl Endpoint {
     }
 
     /// `Destination` variant ならその `&SyncDestination` を返す
-    pub(crate) fn as_destination(&self) -> Option<&SyncDestination> {
+    pub(super) fn as_destination(&self) -> Option<&SyncDestination> {
         match self {
             Self::Source(_) => None,
             Self::Destination(d) => Some(d),
@@ -50,7 +50,7 @@ impl Endpoint {
     }
 
     /// variant に内包された `TargetBinding` への参照を返す集約点。
-    pub(crate) fn binding(&self) -> &TargetBinding {
+    pub(super) fn binding(&self) -> &TargetBinding {
         match self {
             Self::Source(s) => s.binding(),
             Self::Destination(d) => d.binding(),
@@ -58,22 +58,22 @@ impl Endpoint {
     }
 
     /// ターゲット名（`binding()` 経由で `TargetBinding` に集約）
-    pub(crate) fn name(&self) -> &'static str {
+    pub(super) fn name(&self) -> &'static str {
         self.binding().name()
     }
 
     /// Command フォーマット（`binding()` 経由で `TargetBinding` に集約）
-    pub(crate) fn command_format(&self) -> CommandFormat {
+    pub(super) fn command_format(&self) -> CommandFormat {
         self.binding().command_format()
     }
 
     /// 配置済みコンポーネント一覧（`binding()` 経由で `TargetBinding` に集約）
-    pub(crate) fn placed_components(&self, options: &SyncOptions) -> Result<Vec<PlacedComponent>> {
+    pub(super) fn placed_components(&self, options: &SyncOptions) -> Result<Vec<PlacedComponent>> {
         self.binding().placed_components(options)
     }
 
     /// 配置済みコンポーネントのパスを解決（`binding()` 経由で `TargetBinding` に集約）
-    pub(crate) fn path_for(&self, component: &PlacedComponent) -> Result<PathBuf> {
+    pub(super) fn path_for(&self, component: &PlacedComponent) -> Result<PathBuf> {
         self.binding().path_for(component)
     }
 }
