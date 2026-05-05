@@ -57,36 +57,24 @@ impl Endpoint {
         }
     }
 
-    /// ターゲット名（共通メソッド・variant 別ディスパッチ）
+    /// ターゲット名（`binding()` 経由で `TargetBinding` に集約）
     pub(crate) fn name(&self) -> &'static str {
-        match self {
-            Self::Source(s) => s.name(),
-            Self::Destination(d) => d.name(),
-        }
+        self.binding().name()
     }
 
-    /// Command フォーマット（共通メソッド・variant 別ディスパッチ）
+    /// Command フォーマット（`binding()` 経由で `TargetBinding` に集約）
     pub(crate) fn command_format(&self) -> CommandFormat {
-        match self {
-            Self::Source(s) => s.command_format(),
-            Self::Destination(d) => d.command_format(),
-        }
+        self.binding().command_format()
     }
 
-    /// 配置済みコンポーネント一覧（共通メソッド・variant 別ディスパッチ）
+    /// 配置済みコンポーネント一覧（`binding()` 経由で `TargetBinding` に集約）
     pub(crate) fn placed_components(&self, options: &SyncOptions) -> Result<Vec<PlacedComponent>> {
-        match self {
-            Self::Source(s) => s.placed_components(options),
-            Self::Destination(d) => d.placed_components(options),
-        }
+        self.binding().placed_components(options)
     }
 
-    /// 配置済みコンポーネントのパスを解決（共通メソッド・variant 別ディスパッチ）
+    /// 配置済みコンポーネントのパスを解決（`binding()` 経由で `TargetBinding` に集約）
     pub(crate) fn path_for(&self, component: &PlacedComponent) -> Result<PathBuf> {
-        match self {
-            Self::Source(s) => s.path_for(component),
-            Self::Destination(d) => d.path_for(component),
-        }
+        self.binding().path_for(component)
     }
 }
 
