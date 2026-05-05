@@ -27,14 +27,14 @@ use crate::target::PluginOrigin;
 /// External callers must continue to use `SyncSource` / `SyncDestination`.
 /// `Endpoint` exists to deduplicate dispatch logic inside the `sync` feature.
 #[derive(Debug)]
-pub(crate) enum Endpoint {
+pub(super) enum Endpoint {
     Source(SyncSource),
     Destination(SyncDestination),
 }
 
 impl Endpoint {
     /// `Source` variant ならその `&SyncSource` を返す
-    pub(crate) fn as_source(&self) -> Option<&SyncSource> {
+    pub(super) fn as_source(&self) -> Option<&SyncSource> {
         match self {
             Self::Source(s) => Some(s),
             Self::Destination(_) => None,
@@ -42,43 +42,44 @@ impl Endpoint {
     }
 
     /// `Destination` variant ならその `&SyncDestination` を返す
-    pub(crate) fn as_destination(&self) -> Option<&SyncDestination> {
+    pub(super) fn as_destination(&self) -> Option<&SyncDestination> {
         match self {
             Self::Source(_) => None,
             Self::Destination(d) => Some(d),
         }
     }
 
-    /// ターゲット名（共通メソッド・variant 別ディスパッチ）
-    pub(crate) fn name(&self) -> &'static str {
+    /// variant に内包された `TargetBinding` への参照を返す集約点。
+    ///
+    /// `TargetBinding` は `pub(super)` で `endpoint` モジュール配下にのみ可視。
+    /// accessor も同等以下の可視性（private = `endpoint.rs` モジュール配下のみ）
+    /// に揃える。子モジュールである `mod tests;` からは可視のため、テストから
+    /// 呼び出せる。
+    fn binding(&self) -> &TargetBinding {
         match self {
-            Self::Source(s) => s.name(),
-            Self::Destination(d) => d.name(),
+            Self::Source(s) => s.binding(),
+            Self::Destination(d) => d.binding(),
         }
     }
 
-    /// Command フォーマット（共通メソッド・variant 別ディスパッチ）
-    pub(crate) fn command_format(&self) -> CommandFormat {
-        match self {
-            Self::Source(s) => s.command_format(),
-            Self::Destination(d) => d.command_format(),
-        }
+    /// ターゲット名（`binding()` 経由で `TargetBinding` に集約）
+    pub(super) fn name(&self) -> &'static str {
+        self.binding().name()
     }
 
-    /// 配置済みコンポーネント一覧（共通メソッド・variant 別ディスパッチ）
-    pub(crate) fn placed_components(&self, options: &SyncOptions) -> Result<Vec<PlacedComponent>> {
-        match self {
-            Self::Source(s) => s.placed_components(options),
-            Self::Destination(d) => d.placed_components(options),
-        }
+    /// Command フォーマット（`binding()` 経由で `TargetBinding` に集約）
+    pub(super) fn command_format(&self) -> CommandFormat {
+        self.binding().command_format()
     }
 
-    /// 配置済みコンポーネントのパスを解決（共通メソッド・variant 別ディスパッチ）
-    pub(crate) fn path_for(&self, component: &PlacedComponent) -> Result<PathBuf> {
-        match self {
-            Self::Source(s) => s.path_for(component),
-            Self::Destination(d) => d.path_for(component),
-        }
+    /// 配置済みコンポーネント一覧（`binding()` 経由で `TargetBinding` に集約）
+    pub(super) fn placed_components(&self, options: &SyncOptions) -> Result<Vec<PlacedComponent>> {
+        self.binding().placed_components(options)
+    }
+
+    /// 配置済みコンポーネントのパスを解決（`binding()` 経由で `TargetBinding` に集約）
+    pub(super) fn path_for(&self, component: &PlacedComponent) -> Result<PathBuf> {
+        self.binding().path_for(component)
     }
 }
 

@@ -70,6 +70,11 @@ impl SyncSource {
     pub fn path_for(&self, component: &PlacedComponent) -> Result<PathBuf> {
         self.0.path_for(component)
     }
+
+    /// `Endpoint` enum から内包する `TargetBinding` に到達するための accessor
+    pub(super) fn binding(&self) -> &TargetBinding {
+        &self.0
+    }
 }
 
 #[cfg(test)]
