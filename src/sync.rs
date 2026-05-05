@@ -32,6 +32,7 @@ pub use model::{
 
 use crate::component::{convert, ComponentKind};
 use crate::error::Result;
+use endpoint::Endpoint;
 use std::collections::HashMap;
 
 /// 同期を実行
@@ -66,8 +67,8 @@ pub(crate) fn sync_with_fs(
     options: &SyncOptions,
     fs: &dyn FileSystem,
 ) -> Result<SyncResult> {
-    let source_components = source.placed_components(options)?;
-    let dest_components = dest.placed_components(options)?;
+    let source_components = collect_components(Endpoint::Source(source), options)?;
+    let dest_components = collect_components(Endpoint::Destination(dest), options)?;
 
     let source_map: HashMap<&PlacedRef, &PlacedComponent> = source_components
         .iter()
@@ -123,6 +124,13 @@ pub(crate) fn sync_with_fs(
         to_delete,
     };
     execute_sync(source, dest, plan, fs)
+}
+
+fn collect_components(
+    endpoint: Endpoint<'_>,
+    options: &SyncOptions,
+) -> Result<Vec<PlacedComponent>> {
+    endpoint.placed_components(options)
 }
 
 /// 更新が必要かを判定（mtime または内容比較）
