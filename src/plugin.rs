@@ -8,7 +8,8 @@ pub use cache::{CachedPackage, LegacyCacheCleaner, PackageCache, PackageCacheAcc
 pub(crate) use content::{load_plugin, Plugin};
 pub use content::{InstalledPlugin, MarketplaceContent};
 pub use lifecycle::{
-    update_all_plugins, update_plugin, PluginAction, PluginIntent, UpdateResult, UpdateStatus,
+    update_all_plugins, update_plugin, PluginAction, PluginIntent, UpdateOutcome, UpdateResult,
+    UpdateStatus,
 };
 pub use meta::manifest::{Author, PluginManifest};
 

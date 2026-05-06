@@ -3,7 +3,7 @@
 //! プラグインを無効化する。ターゲット環境からコンポーネントを削除し（キャッシュは残す）、
 //! `.plm-meta.json` の `statusByTarget` を更新する。
 
-use crate::application::{disable_plugin, OperationResult};
+use crate::application::{disable_plugin, OperationOutcome};
 use crate::plugin::{meta, PackageCache, PackageCacheAccess};
 use clap::{Parser, ValueEnum};
 use std::env;
@@ -93,7 +93,7 @@ pub async fn run(args: Args) -> Result<(), String> {
 ///
 /// * `plugin_path` - Filesystem path of the cached plugin.
 /// * `result` - Outcome returned by `disable_plugin`.
-fn update_status_after_disable(plugin_path: &std::path::Path, result: &OperationResult) {
+fn update_status_after_disable(plugin_path: &std::path::Path, result: &OperationOutcome) {
     let mut plugin_meta = meta::load_meta(plugin_path).unwrap_or_default();
 
     let target_names = result.affected_targets.target_names();
@@ -116,7 +116,7 @@ fn update_status_after_disable(plugin_path: &std::path::Path, result: &Operation
 /// * `plugin_name` - Plugin identifier shown in the output.
 /// * `result` - Outcome returned by `disable_plugin`.
 /// * `target_filter` - Optional target name filter that was requested.
-fn display_result(plugin_name: &str, result: &OperationResult, target_filter: Option<&str>) {
+fn display_result(plugin_name: &str, result: &OperationOutcome, target_filter: Option<&str>) {
     let targets = result.affected_targets.target_names();
     if targets.is_empty() {
         if let Some(filter) = target_filter {
