@@ -14,6 +14,7 @@ fn make_success(
     dest_format: Option<&str>,
     hook_warnings: Vec<ConversionWarning>,
     script_count: usize,
+    hook_count: usize,
     hook_source_format: Option<SourceFormat>,
 ) -> PlaceSuccess {
     PlaceSuccess {
@@ -25,7 +26,7 @@ fn make_success(
         dest_format: dest_format.map(|s| s.to_string()),
         hook_warnings,
         script_count,
-        hook_count: script_count,
+        hook_count,
         hook_source_format,
     }
 }
@@ -51,6 +52,7 @@ fn render_place_success_hook_claude_code_with_unsupported_events() {
             },
         ],
         1,
+        1,
         Some(SourceFormat::ClaudeCode),
     );
     let (stdout, stderr) = render_place_success_to_strings(&success);
@@ -70,6 +72,7 @@ fn render_place_success_hook_target_format_with_missing_version() {
         None,
         None,
         vec![ConversionWarning::MissingVersion],
+        0,
         0,
         Some(SourceFormat::TargetFormat),
     );
@@ -95,6 +98,7 @@ fn render_place_success_hook_passthrough_copied_no_warnings() {
         None,
         vec![],
         0,
+        0,
         None,
     );
     let (stdout, stderr) = render_place_success_to_strings(&success);
@@ -113,6 +117,7 @@ fn render_place_success_command_keeps_legacy_converted_suffix() {
         Some("ClaudeCode"),
         Some("Copilot"),
         vec![],
+        0,
         0,
         None,
     );
@@ -133,6 +138,7 @@ fn render_place_success_agent_keeps_legacy_converted_suffix() {
         Some("Copilot"),
         vec![],
         0,
+        0,
         None,
     );
     let (stdout, stderr) = render_place_success_to_strings(&success);
@@ -151,6 +157,7 @@ fn render_place_success_skill_no_suffix_no_stderr() {
         None,
         None,
         vec![],
+        0,
         0,
         None,
     );
@@ -172,12 +179,32 @@ fn render_place_success_instruction_no_suffix_no_stderr() {
         None,
         vec![],
         0,
+        0,
         None,
     );
     let (stdout, stderr) = render_place_success_to_strings(&success);
     assert!(!stdout.contains("(Converted:"));
     assert!(!stdout.contains("(converted from Claude Code format)"));
     assert!(stderr.is_empty());
+}
+
+#[test]
+fn make_success_keeps_hook_count_independent_from_script_count() {
+    let success = make_success(
+        ComponentKind::Hook,
+        "codex-hook",
+        "codex",
+        "/dest/codex/hooks.json",
+        None,
+        None,
+        vec![],
+        0,
+        1,
+        Some(SourceFormat::ClaudeCode),
+    );
+
+    assert_eq!(success.script_count, 0);
+    assert_eq!(success.hook_count, 1);
 }
 
 #[test]
@@ -194,6 +221,7 @@ fn update_status_after_install_marks_successful_targets_enabled() {
             None,
             vec![],
             0,
+            1,
             Some(SourceFormat::ClaudeCode),
         )],
         failures: vec![],
