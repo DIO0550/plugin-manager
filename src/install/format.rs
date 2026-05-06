@@ -149,10 +149,10 @@ pub fn format_manual_rewrite_section(stubs: &[(String, String)]) -> Option<Strin
 /// script_count と一致するが、Codex 変換では command hook を inline のまま残すため
 /// script_count が 0 でも hook_count は 1 以上になり得る。
 ///
-/// **`source_format == Some(TargetFormat)` の扱い**: passthrough では入力 JSON が
-/// そのまま配置され `script_count == 0` でも `hooks.json` は空ではない（例:
-/// `MissingVersion` 警告つきの Copilot 形式入力）。誤検知を避けるためここでは
-/// 警告を出さない。
+/// **`source_format == Some(TargetFormat)` の扱い**: passthrough では変換後の
+/// `hook_count` を算出しないため 0 になり得るが、入力 JSON はそのまま配置され
+/// `hooks.json` が空とは限らない（例: `MissingVersion` 警告つきの Copilot
+/// 形式入力）。誤検知を避けるためここでは警告を出さない。
 ///
 /// **`source_format == None` の扱い**: Hook 以外（Skill / Agent / ...）または
 /// `DeploymentOutput::Copied` 経路の Hook（version 付き Copilot 完全 passthrough）。
