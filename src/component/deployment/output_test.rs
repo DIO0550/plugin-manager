@@ -12,11 +12,13 @@ fn test_hook_convert_result_has_expected_fields() {
     let result = HookConvertOutput {
         warnings: vec![ConversionWarning::MissingVersion],
         script_count: 2,
+        hook_count: 2,
         source_format: SourceFormat::ClaudeCode,
     };
 
     assert_eq!(result.warnings.len(), 1);
     assert_eq!(result.script_count, 2);
+    assert_eq!(result.hook_count, 2);
     assert_eq!(result.source_format, SourceFormat::ClaudeCode);
 }
 
@@ -25,6 +27,7 @@ fn test_deployment_result_hook_converted_variant() {
     let hook_result = HookConvertOutput {
         warnings: vec![],
         script_count: 0,
+        hook_count: 0,
         source_format: SourceFormat::ClaudeCode,
     };
     let result = DeploymentOutput::HookConverted(hook_result);
@@ -93,6 +96,7 @@ fn test_display_hook_converted() {
     let result = DeploymentOutput::HookConverted(HookConvertOutput {
         warnings: vec![ConversionWarning::MissingVersion],
         script_count: 3,
+        hook_count: 3,
         source_format: SourceFormat::ClaudeCode,
     });
     assert_eq!(result.to_string(), "Hook converted (3 scripts, 1 warning)");

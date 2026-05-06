@@ -444,3 +444,64 @@ fn test_place_plugin_copilot_hook_with_missing_version_propagates_target_format(
     );
     assert_eq!(success.script_count, 0);
 }
+
+#[test]
+fn test_place_plugin_codex_hook_installs_inline_hooks_json() {
+    let temp = TempDir::new().unwrap();
+    let project_dir = TempDir::new().unwrap();
+
+    let claude_code_hook = r#"{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'pre check'",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}"#;
+    let cached = create_test_hook_package(temp.path(), "my-hook", claude_code_hook);
+    let package = MarketplaceContent::try_from(cached).unwrap();
+    let scanned = scan_plugin(&package, None).unwrap();
+
+    let targets: Vec<Box<dyn crate::target::Target>> = vec![Box::new(CodexTarget::new())];
+
+    let result = place_plugin(&PlaceRequest {
+        scanned: &scanned,
+        targets: &targets,
+        scope: crate::component::Scope::Project,
+        project_root: project_dir.path(),
+    });
+
+    assert_eq!(result.successes.len(), 1, "failures: {:?}", result.failures);
+    let success = &result.successes[0];
+    assert_eq!(success.target, "codex");
+    assert_eq!(success.component_kind, ComponentKind::Hook);
+    assert_eq!(
+        success.target_path,
+        project_dir.path().join(".codex/hooks.json")
+    );
+    assert_eq!(success.hook_source_format, Some(SourceFormat::ClaudeCode));
+    assert_eq!(
+        success.script_count, 0,
+        "Codex command hooks stay inline and do not generate wrapper scripts"
+    );
+    assert_eq!(success.hook_count, 1);
+
+    let rendered = fs::read_to_string(&success.target_path).unwrap();
+    let json: serde_json::Value = serde_json::from_str(&rendered).unwrap();
+    assert_eq!(json["hooks"]["PreToolUse"][0]["matcher"], "Bash");
+    assert_eq!(
+        json["hooks"]["PreToolUse"][0]["hooks"][0]["command"],
+        "echo 'pre check'"
+    );
+    assert!(json["hooks"]["PreToolUse"][0]["hooks"][0]
+        .get("bash")
+        .is_none());
+}

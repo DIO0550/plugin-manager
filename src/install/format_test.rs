@@ -311,6 +311,7 @@ fn render_hook_success_claude_code_with_unsupported_events_emits_suffix_and_one_
         Some(SourceFormat::ClaudeCode),
         &warnings,
         1,
+        1,
     );
     assert!(rendered.stdout_suffix.is_some());
     assert_eq!(rendered.stderr_blocks.len(), 1);
@@ -325,6 +326,7 @@ fn render_hook_success_copilot_format_with_missing_version_no_suffix_only_indivi
         ComponentKind::Hook,
         Some(SourceFormat::TargetFormat),
         &warnings,
+        0,
         0,
     );
     assert!(rendered.stdout_suffix.is_none());
@@ -341,6 +343,7 @@ fn render_hook_success_skill_returns_empty_output() {
         ComponentKind::Skill,
         Some(SourceFormat::ClaudeCode),
         &[ConversionWarning::MissingVersion],
+        1,
         1,
     );
     assert!(rendered.stdout_suffix.is_none());
@@ -362,12 +365,32 @@ fn render_hook_success_all_events_skipped_includes_empty_hooks_warning() {
         Some(SourceFormat::ClaudeCode),
         &warnings,
         0,
+        0,
     );
     assert!(rendered.stdout_suffix.is_some());
     // skipped events warning + empty hooks warning の 2 ブロック
     assert_eq!(rendered.stderr_blocks.len(), 2);
     assert!(rendered.stderr_blocks[0].contains("2 events skipped"));
     assert!(rendered.stderr_blocks[1].contains("no hooks remained after conversion"));
+}
+
+#[test]
+fn render_hook_success_inline_hooks_do_not_emit_empty_hooks_warning() {
+    let rendered = render_hook_success(
+        ComponentKind::Hook,
+        Some(SourceFormat::ClaudeCode),
+        &[],
+        0,
+        1,
+    );
+    assert!(rendered.stdout_suffix.is_some());
+    assert!(
+        !rendered
+            .stderr_blocks
+            .iter()
+            .any(|b| b.contains("no hooks remained after conversion")),
+        "inline Codex hooks should not be treated as an empty hooks.json"
+    );
 }
 
 #[test]
@@ -390,6 +413,7 @@ fn render_hook_success_all_unsupported_hook_types_emits_empty_hooks_warning() {
         ComponentKind::Hook,
         Some(SourceFormat::ClaudeCode),
         &warnings,
+        0,
         0,
     );
     assert!(rendered.stdout_suffix.is_some());
@@ -434,6 +458,7 @@ fn render_hook_success_only_removed_field_warnings_still_emits_empty_hooks_warni
         Some(SourceFormat::ClaudeCode),
         &warnings,
         0,
+        0,
     );
     assert!(rendered.stdout_suffix.is_some());
     // 空配置警告 + 個別 warning 2 件 = 3 ブロック
@@ -457,6 +482,7 @@ fn render_hook_success_target_format_with_zero_scripts_does_not_emit_empty_hooks
         Some(SourceFormat::TargetFormat),
         &warnings,
         0,
+        0,
     );
     assert!(rendered.stdout_suffix.is_none());
     assert!(
@@ -472,7 +498,7 @@ fn render_hook_success_target_format_with_zero_scripts_does_not_emit_empty_hooks
 fn render_hook_success_hook_with_none_source_format_and_no_warnings_returns_empty() {
     // version 付き Copilot 形式 Hook は DeploymentOutput::Copied 経路で
     // hook_source_format == None / warnings 0 になる。既存挙動の固定。
-    let rendered = render_hook_success(ComponentKind::Hook, None, &[], 0);
+    let rendered = render_hook_success(ComponentKind::Hook, None, &[], 0, 0);
     assert!(rendered.stdout_suffix.is_none());
     assert!(rendered.stderr_blocks.is_empty());
 }
@@ -496,6 +522,7 @@ fn render_hook_success_prompt_agent_stub_emits_manual_rewrite_section() {
         ComponentKind::Hook,
         Some(SourceFormat::ClaudeCode),
         &warnings,
+        2,
         2,
     );
     assert!(rendered.stdout_suffix.is_some());

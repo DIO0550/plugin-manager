@@ -24,6 +24,7 @@ fn make_success(
         dest_format: dest_format.map(|s| s.to_string()),
         hook_warnings,
         script_count,
+        hook_count: script_count,
         hook_source_format,
     }
 }

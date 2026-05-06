@@ -1,5 +1,6 @@
 use super::*;
 use crate::component::{ComponentRef, PlacementScope, ProjectContext};
+use crate::target::paths::home_dir;
 use crate::target::PluginOrigin;
 
 #[test]
@@ -15,8 +16,8 @@ fn test_codex_supported_components() {
     assert!(target.supports(ComponentKind::Skill));
     assert!(target.supports(ComponentKind::Agent));
     assert!(target.supports(ComponentKind::Instruction));
+    assert!(target.supports(ComponentKind::Hook));
     assert!(!target.supports(ComponentKind::Command));
-    assert!(!target.supports(ComponentKind::Hook));
 }
 
 #[test]
@@ -159,4 +160,40 @@ fn test_codex_command_not_supported() {
         project: ProjectContext::new(project_root),
     };
     assert!(target.placement_location(&ctx).is_none());
+}
+
+#[test]
+fn test_codex_placement_location_hook_project_scope() {
+    let target = CodexTarget::new();
+    let project_root = Path::new("/project");
+    let origin = PluginOrigin::from_marketplace("test", "test");
+
+    let ctx = PlacementContext {
+        component: ComponentRef::new(ComponentKind::Hook, "test_pre-tool-use"),
+        origin: &origin,
+        scope: PlacementScope::new(Scope::Project),
+        project: ProjectContext::new(project_root),
+    };
+    let location = target.placement_location(&ctx).unwrap();
+
+    assert!(location.is_file());
+    assert_eq!(location.as_path(), Path::new("/project/.codex/hooks.json"));
+}
+
+#[test]
+fn test_codex_placement_location_hook_personal_scope() {
+    let target = CodexTarget::new();
+    let project_root = Path::new("/project");
+    let origin = PluginOrigin::from_marketplace("test", "test");
+
+    let ctx = PlacementContext {
+        component: ComponentRef::new(ComponentKind::Hook, "test_pre-tool-use"),
+        origin: &origin,
+        scope: PlacementScope::new(Scope::Personal),
+        project: ProjectContext::new(project_root),
+    };
+    let location = target.placement_location(&ctx).unwrap();
+
+    assert!(location.is_file());
+    assert_eq!(location.as_path(), home_dir().join(".codex/hooks.json"));
 }
