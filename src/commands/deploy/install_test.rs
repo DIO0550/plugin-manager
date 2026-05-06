@@ -1,8 +1,9 @@
 use super::*;
 use crate::component::ComponentKind;
 use crate::hooks::converter::{ConversionWarning, SourceFormat};
-use crate::install::PlaceSuccess;
+use crate::install::{PlaceResult, PlaceSuccess};
 use std::path::PathBuf;
+use tempfile::TempDir;
 
 fn make_success(
     component_kind: ComponentKind,
@@ -177,4 +178,29 @@ fn render_place_success_instruction_no_suffix_no_stderr() {
     assert!(!stdout.contains("(Converted:"));
     assert!(!stdout.contains("(converted from Claude Code format)"));
     assert!(stderr.is_empty());
+}
+
+#[test]
+fn update_status_after_install_marks_successful_targets_enabled() {
+    let temp = TempDir::new().unwrap();
+    let result = PlaceResult {
+        plugin_name: "test-plugin".to_string(),
+        successes: vec![make_success(
+            ComponentKind::Hook,
+            "test-plugin_hooks",
+            "codex",
+            "/dest/codex/hooks.json",
+            None,
+            None,
+            vec![],
+            0,
+            Some(SourceFormat::ClaudeCode),
+        )],
+        failures: vec![],
+    };
+
+    update_status_after_install(temp.path(), &result);
+
+    let plugin_meta = crate::plugin::meta::load_meta(temp.path()).unwrap();
+    assert_eq!(plugin_meta.get_status("codex"), Some("enabled"));
 }

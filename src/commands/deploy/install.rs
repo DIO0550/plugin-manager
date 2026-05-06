@@ -11,8 +11,9 @@
 use crate::commands::args::{InteractiveScopeArgs, MultiTargetArgs};
 use crate::component::ComponentKind;
 use crate::install::format::render_hook_success;
-use crate::install::{self, PlaceRequest, PlaceSuccess};
+use crate::install::{self, PlaceRequest, PlaceResult, PlaceSuccess};
 use crate::output::CommandSummary;
+use crate::plugin::meta;
 use crate::target::{all_targets, parse_target, Scope};
 use crate::tui;
 use clap::Parser;
@@ -157,6 +158,7 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
         scope,
         project_root: &project_root,
     });
+    update_status_after_install(package.path(), &result);
 
     // Results are grouped by target to stay compatible with the legacy layout.
     println!("\nPlacement Results:");
@@ -189,6 +191,28 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
     println!("\n{} {}", summary.prefix, summary.message);
 
     Ok(())
+}
+
+/// install 後のステータス更新
+///
+/// 配置スキャンではプラグイン名を復元できないターゲット固有ファイル
+/// （例: Codex の `.codex/hooks.json`）もあるため、成功した target は
+/// `.plm-meta.json` の `statusByTarget` に記録して enabled 判定を安定させる。
+///
+/// # Arguments
+///
+/// * `plugin_path` - Filesystem path of the cached plugin.
+/// * `result` - Outcome returned by `place_plugin`.
+fn update_status_after_install(plugin_path: &std::path::Path, result: &PlaceResult) {
+    let mut plugin_meta = meta::load_meta(plugin_path).unwrap_or_default();
+
+    for success in &result.successes {
+        plugin_meta.set_status(&success.target, "enabled");
+    }
+
+    if let Err(e) = meta::write_meta(plugin_path, &plugin_meta) {
+        eprintln!("Warning: Failed to update .plm-meta.json: {}", e);
+    }
 }
 
 #[cfg(test)]
