@@ -173,17 +173,9 @@ Codex形式の扱い:
 
 Codexは command hook をそのまま実行できるため、command hook では script を生成しない設計にしたい。ただし既存の `convert_hook_definition()` は `ScriptGenerator` が必ず `ScriptInfo` を返し、`bash` フィールドを挿入する前提になっている。
 
-そのため、実装では次のどちらかを選ぶ。
+実装では最小変更として、`CodexScriptGenerator` が空 path の `ScriptInfo` を返し、共通変換側が `script_info.path.is_empty()` を script 生成なしの inline hook として扱う。Copilot既存挙動は維持し、Codex command hook だけ元の `command` を保持する。
 
-1. 推奨: `ScriptGenerator` の戻り値を `HookActionOutput` のような enum に拡張する。
-   - `Inline(Value)` または `NoScript`
-   - `GeneratedScript(ScriptInfo)`
-   - Copilot は `GeneratedScript`
-   - Codex command は `Inline`
-2. 最小変更: `CodexScriptGenerator` にだけ特別扱いを入れ、空 path を script 生成なしとして解釈する。
-   - 既存設計の意味が崩れるため非推奨。
-
-計画としては 1 を採用する。Copilot既存挙動は維持し、Codexだけ inline command を返す。
+この方式は抽象としては暫定であり、将来的に `ScriptGenerator` の戻り値を `Inline(Value)` / `GeneratedScript(ScriptInfo)` のような enum に拡張すると、意図を型で表現できる。
 
 ### `CodexTarget`
 
@@ -211,7 +203,7 @@ Codexは command hook をそのまま実行できるため、command hook では
 2. `CodexKeyMap` で command hook の許可フィールドを整理する。
 3. `CodexStructureConverter` で `version` 非追加、`disableAllHooks` 除去、PascalCase維持を実装する。
 4. `create_layers(TargetKind::Codex)` を登録する。
-5. `ScriptGenerator` 周辺を inline command を表現できる設計へ拡張する。
+5. `ScriptGenerator` 周辺で空 path を inline command として扱う暫定経路を追加する。
 6. `CodexTarget` で `ComponentKind::Hook` をサポートする。
 7. Project/Personal の配置先を `.codex/hooks.json` / `~/.codex/hooks.json` にする。
 
@@ -305,7 +297,7 @@ Codex公式の代表パスは `<repo>/.codex/hooks.json` と `~/.codex/hooks.jso
 
 現在は全hookが script を生成し、その path を `bash` に入れる設計。Codex command hook ではこの前提が不要。
 
-判断: `ScriptGenerator` を enum戻り値に拡張し、Copilotのwrapper生成とCodexのinline保持を同じ抽象で表現する。
+判断: Phase 1では空 path を inline保持の sentinel として扱う最小変更で実装する。将来的には `ScriptGenerator` を enum戻り値に拡張し、Copilotのwrapper生成とCodexのinline保持を同じ抽象で表現する。
 
 ### 3. feature flag
 
