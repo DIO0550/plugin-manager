@@ -8,11 +8,12 @@
 //! 2. ダウンロード
 //! 3. 配置
 
+use crate::commands::args::{InteractiveScopeArgs, MultiTargetArgs};
 use crate::component::ComponentKind;
 use crate::install::format::render_hook_success;
 use crate::install::{self, PlaceRequest, PlaceSuccess};
 use crate::output::CommandSummary;
-use crate::target::{all_targets, parse_target, Scope, TargetKind};
+use crate::target::{all_targets, parse_target, Scope};
 use crate::tui;
 use clap::Parser;
 use std::env;
@@ -63,13 +64,11 @@ pub struct Args {
     #[arg(long = "type", value_enum)]
     pub component_type: Option<Vec<ComponentKind>>,
 
-    /// デプロイ先ターゲット（複数指定可、未指定ならTUIで選択）
-    #[arg(long, value_enum)]
-    pub target: Option<Vec<TargetKind>>,
+    #[command(flatten)]
+    pub target: MultiTargetArgs,
 
-    /// デプロイスコープ（未指定ならTUIで選択）
-    #[arg(long, value_enum)]
-    pub scope: Option<Scope>,
+    #[command(flatten)]
+    pub scope: InteractiveScopeArgs,
 
     /// キャッシュを無視して再ダウンロード
     #[arg(long)]
@@ -82,7 +81,7 @@ pub struct Args {
 pub async fn run(args: Args) -> std::result::Result<(), String> {
     // Target and scope selection happen before download so the user can cancel
     // without paying the download cost.
-    let target_names: Vec<String> = match &args.target {
+    let target_names: Vec<String> = match &args.target.target {
         Some(targets) => targets.iter().map(|t| t.as_str().to_string()).collect(),
         None => {
             let available = all_targets();
@@ -98,7 +97,7 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
         return Err("No targets selected".to_string());
     }
 
-    let scope: Scope = match args.scope {
+    let scope: Scope = match args.scope.scope {
         Some(s) => s,
         None => tui::select_scope().map_err(|e| e.to_string())?,
     };

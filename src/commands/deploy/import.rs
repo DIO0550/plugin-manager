@@ -3,6 +3,7 @@
 //! Claude Code Plugin形式のGitHubリポジトリから、
 //! 特定のコンポーネントを選択してインポートする。
 
+use crate::commands::args::{InteractiveScopeArgs, MultiTargetArgs};
 use crate::component::{
     AgentFormat, Component, ComponentDeployment, ComponentKind, ConversionConfig,
 };
@@ -32,13 +33,11 @@ pub struct Args {
     #[arg(long = "type", value_enum, conflicts_with = "component")]
     pub component_type: Vec<ComponentKind>,
 
-    /// Target environments to deploy to (if not specified, TUI selection)
-    #[arg(long, value_enum)]
-    pub target: Option<Vec<TargetKind>>,
+    #[command(flatten)]
+    pub target: MultiTargetArgs,
 
-    /// Deployment scope (if not specified, TUI selection)
-    #[arg(long, value_enum)]
-    pub scope: Option<Scope>,
+    #[command(flatten)]
+    pub scope: InteractiveScopeArgs,
 
     /// Force re-download even if cached
     #[arg(long)]
@@ -359,7 +358,7 @@ pub async fn run(args: Args) -> Result<(), String> {
 
     // Target and scope selection happen before download so the user can cancel
     // without paying the download cost.
-    let target_names: Vec<String> = match &args.target {
+    let target_names: Vec<String> = match &args.target.target {
         Some(targets) => targets.iter().map(|t| t.as_str().to_string()).collect(),
         None => {
             let available = all_targets();
@@ -374,7 +373,7 @@ pub async fn run(args: Args) -> Result<(), String> {
         return Err("No targets selected".to_string());
     }
 
-    let scope: Scope = match args.scope {
+    let scope: Scope = match args.scope.scope {
         Some(s) => s,
         None => tui::select_scope().map_err(|e| e.to_string())?,
     };

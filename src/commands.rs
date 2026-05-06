@@ -1,5 +1,6 @@
 use crate::cli::Command;
 
+pub(crate) mod args;
 pub mod deploy;
 pub mod info;
 pub mod lifecycle;
