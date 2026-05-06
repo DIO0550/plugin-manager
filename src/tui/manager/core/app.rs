@@ -80,9 +80,9 @@ impl Tab {
 
 /// アクティブ画面の状態
 pub enum Screen {
-    Installed(installed::Model),
+    Installed(installed::InstalledModel),
     Discover(discover::Model),
-    Marketplaces(marketplaces::Model),
+    Marketplaces(marketplaces::MarketplacesModel),
     Errors(errors::Model),
 }
 
