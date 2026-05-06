@@ -239,14 +239,12 @@ impl Model {
     }
 
     /// 現在選択中の ListState を取得
-    pub fn current_state_mut(&mut self) -> &mut ListState {
+    pub fn current_state_mut(&mut self) -> Option<&mut ListState> {
         match self {
-            Model::PluginList { .. } => {
-                unreachable!("PluginList selection is managed through SelectionState")
-            }
-            Model::PluginDetail { state, .. } => state,
-            Model::ComponentTypes { state, .. } => state,
-            Model::ComponentList { state, .. } => state,
+            Model::PluginList { .. } => None,
+            Model::PluginDetail { state, .. } => Some(state),
+            Model::ComponentTypes { state, .. } => Some(state),
+            Model::ComponentList { state, .. } => Some(state),
         }
     }
 }

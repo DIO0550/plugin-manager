@@ -299,19 +299,20 @@ fn select_prev(model: &mut Model, data: &DataStore, filter_text: &str) -> bool {
         return false;
     }
 
-    let state = model.current_state_mut();
-    let current = state.selected().unwrap_or(0);
-    if current == 0 {
-        // PluginList の先頭ならフィルタへフォーカス移動
-        if matches!(model, Model::PluginList { .. }) {
-            return true;
+    if let Some(state) = model.current_state_mut() {
+        let current = state.selected().unwrap_or(0);
+        if current == 0 {
+            // PluginList の先頭ならフィルタへフォーカス移動
+            if matches!(model, Model::PluginList { .. }) {
+                return true;
+            }
+            return false;
         }
-        return false;
-    }
-    let prev = current.saturating_sub(1);
-    state.select(Some(prev));
+        let prev = current.saturating_sub(1);
+        state.select(Some(prev));
 
-    update_selected_id(model, data, filter_text);
+        update_selected_id(model, data, filter_text);
+    }
     false
 }
 
@@ -329,12 +330,13 @@ fn select_next(model: &mut Model, data: &DataStore, filter_text: &str) {
         return;
     }
 
-    let state = model.current_state_mut();
-    let current = state.selected().unwrap_or(0);
-    let next = (current + 1).min(len.saturating_sub(1));
-    state.select(Some(next));
+    if let Some(state) = model.current_state_mut() {
+        let current = state.selected().unwrap_or(0);
+        let next = (current + 1).min(len.saturating_sub(1));
+        state.select(Some(next));
 
-    update_selected_id(model, data, filter_text);
+        update_selected_id(model, data, filter_text);
+    }
 }
 
 /// 次の階層へ遷移
