@@ -4,7 +4,7 @@
 
 use super::actions;
 use super::model::{DetailAction, Model, Msg, UpdateStatusDisplay};
-use crate::tui::manager::core::{filter_plugins, DataStore, PluginKey};
+use crate::tui::manager::core::{filter_plugins, DataStore, PluginKey, SelectionState};
 use ratatui::widgets::ListState;
 use std::collections::{HashMap, HashSet};
 
@@ -92,12 +92,12 @@ pub fn update(
 /// 個別プラグインのマークをトグル
 fn toggle_mark(model: &mut Model) {
     if let Model::PluginList {
-        selected_id,
+        selection,
         marked_ids,
         ..
     } = model
     {
-        if let Some(id) = selected_id.as_ref() {
+        if let Some(id) = selection.selected_id() {
             if marked_ids.contains(id) {
                 marked_ids.remove(id);
             } else {
@@ -201,8 +201,7 @@ fn execute_batch_with(
     if let Model::PluginList {
         marked_ids,
         update_statuses,
-        selected_id,
-        state,
+        selection,
     } = model
     {
         // update_statuses から Updating のプラグイン ID を収集
@@ -265,13 +264,15 @@ fn execute_batch_with(
 
         // reload 後にフィルタ済みリストに対して選択状態を再同期
         let filtered = filter_plugins(&data.plugins, filter_text);
-        let current_selected = selected_id.as_ref();
+        let current_selected = selection.selected_id();
         let new_idx = current_selected
             .and_then(|id| filtered.iter().position(|p| p.id() == id.as_str()))
             .or(if filtered.is_empty() { None } else { Some(0) });
 
-        state.select(new_idx);
-        *selected_id = new_idx.and_then(|idx| filtered.get(idx).map(|p| p.id().to_string()));
+        selection.set(
+            new_idx.and_then(|idx| filtered.get(idx).map(|p| p.id().to_string())),
+            new_idx,
+        );
     }
 }
 
@@ -287,19 +288,27 @@ fn select_prev(model: &mut Model, data: &DataStore, filter_text: &str) -> bool {
         }
         return false;
     }
-    let state = model.current_state_mut();
-    let current = state.selected().unwrap_or(0);
-    if current == 0 {
-        // PluginList の先頭ならフィルタへフォーカス移動
-        if matches!(model, Model::PluginList { .. }) {
+    if let Model::PluginList { selection, .. } = model {
+        let current = selection.selected_index().unwrap_or(0);
+        if current == 0 {
             return true;
         }
+        let prev = current.saturating_sub(1);
+        selection.select_index(Some(prev));
+        update_selected_id(model, data, filter_text);
         return false;
     }
-    let prev = current.saturating_sub(1);
-    state.select(Some(prev));
 
-    update_selected_id(model, data, filter_text);
+    if let Some(state) = model.current_state_mut() {
+        let current = state.selected().unwrap_or(0);
+        if current == 0 {
+            return false;
+        }
+        let prev = current.saturating_sub(1);
+        state.select(Some(prev));
+
+        update_selected_id(model, data, filter_text);
+    }
     false
 }
 
@@ -309,25 +318,34 @@ fn select_next(model: &mut Model, data: &DataStore, filter_text: &str) {
     if len == 0 {
         return;
     }
-    let state = model.current_state_mut();
-    let current = state.selected().unwrap_or(0);
-    let next = (current + 1).min(len.saturating_sub(1));
-    state.select(Some(next));
+    if let Model::PluginList { selection, .. } = model {
+        let current = selection.selected_index().unwrap_or(0);
+        let next = (current + 1).min(len.saturating_sub(1));
+        selection.select_index(Some(next));
+        update_selected_id(model, data, filter_text);
+        return;
+    }
 
-    update_selected_id(model, data, filter_text);
+    if let Some(state) = model.current_state_mut() {
+        let current = state.selected().unwrap_or(0);
+        let next = (current + 1).min(len.saturating_sub(1));
+        state.select(Some(next));
+
+        update_selected_id(model, data, filter_text);
+    }
 }
 
 /// 次の階層へ遷移
 fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) -> UpdateEffect {
     match model {
         Model::PluginList {
-            selected_id,
+            selection,
             marked_ids,
             update_statuses,
             ..
         } => {
             // PluginList → PluginDetail へ遷移（マーク状態を保存）
-            if let Some(plugin_id) = selected_id.clone() {
+            if let Some(plugin_id) = selection.selected_id().cloned() {
                 if data.find_plugin(&plugin_id).is_some() {
                     let saved_marked = std::mem::take(marked_ids);
                     let saved_statuses = std::mem::take(update_statuses);
@@ -406,8 +424,7 @@ fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) -> UpdateEf
                                 None
                             };
                             *model = Model::PluginList {
-                                selected_id,
-                                state: new_state,
+                                selection: SelectionState::new(selected_id, new_state.selected()),
                                 marked_ids: restored_marks,
                                 update_statuses: restored_statuses,
                             };
@@ -449,8 +466,7 @@ fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) -> UpdateEf
                         None
                     };
                     *model = Model::PluginList {
-                        selected_id,
-                        state: new_state,
+                        selection: SelectionState::new(selected_id, new_state.selected()),
                         marked_ids: restored_marks,
                         update_statuses: restored_statuses,
                     };
@@ -477,8 +493,7 @@ fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) -> UpdateEf
                         None
                     };
                     *model = Model::PluginList {
-                        selected_id,
-                        state: new_state,
+                        selection: SelectionState::new(selected_id, new_state.selected()),
                         marked_ids: restored_marks,
                         update_statuses: restored_statuses,
                     };
@@ -557,8 +572,7 @@ fn back(model: &mut Model, filter_text: &str, data: &DataStore) {
                 None
             };
             *model = Model::PluginList {
-                selected_id,
-                state: new_state,
+                selection: SelectionState::new(selected_id, new_state.selected()),
                 marked_ids: restored_marks,
                 update_statuses: restored_statuses,
             };
@@ -634,13 +648,10 @@ fn list_len(model: &Model, data: &DataStore, filter_text: &str) -> usize {
 
 /// selected_id を現在のインデックスから更新
 fn update_selected_id(model: &mut Model, data: &DataStore, filter_text: &str) {
-    if let Model::PluginList {
-        selected_id, state, ..
-    } = model
-    {
-        if let Some(idx) = state.selected() {
+    if let Model::PluginList { selection, .. } = model {
+        if let Some(idx) = selection.selected_index() {
             let filtered = filter_plugins(&data.plugins, filter_text);
-            *selected_id = filtered.get(idx).map(|p| p.id().to_string());
+            selection.set(filtered.get(idx).map(|p| p.id().to_string()), Some(idx));
         }
     }
 }

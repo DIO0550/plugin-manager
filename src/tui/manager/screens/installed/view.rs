@@ -63,12 +63,18 @@ pub fn view(
     };
     match model {
         Model::PluginList {
-            state,
+            selection,
             marked_ids,
             update_statuses,
             ..
         } => {
-            view_plugin_list(f, *state, &ctx, marked_ids, update_statuses);
+            view_plugin_list(
+                f,
+                *selection.list_state(),
+                &ctx,
+                marked_ids,
+                update_statuses,
+            );
         }
         Model::PluginDetail {
             plugin_id, state, ..

@@ -3,7 +3,7 @@
 //! 画面状態とメッセージ型を定義。
 
 use crate::component::ComponentKind;
-use crate::tui::manager::core::{DataStore, PluginId};
+use crate::tui::manager::core::{DataStore, PluginId, SelectionState};
 use crossterm::event::KeyCode;
 use ratatui::prelude::*;
 use ratatui::widgets::ListState;
@@ -106,8 +106,7 @@ impl DetailAction {
 pub enum Model {
     /// プラグイン一覧画面
     PluginList {
-        selected_id: Option<PluginId>,
-        state: ListState,
+        selection: SelectionState<PluginId>,
         marked_ids: HashSet<PluginId>,
         update_statuses: HashMap<PluginId, UpdateStatusDisplay>,
     },
@@ -151,13 +150,9 @@ impl Model {
     /// * `data` - Data store providing the installed plugin list.
     pub fn new(data: &DataStore) -> Self {
         let selected_id = data.plugins.first().map(|p| p.id().to_string());
-        let mut state = ListState::default();
-        if selected_id.is_some() {
-            state.select(Some(0));
-        }
+        let selected_index = selected_id.as_ref().map(|_| 0);
         Model::PluginList {
-            selected_id,
-            state,
+            selection: SelectionState::new(selected_id, selected_index),
             marked_ids: HashSet::new(),
             update_statuses: HashMap::new(),
         }
@@ -185,9 +180,6 @@ impl Model {
                 Some(0)
             });
 
-        let mut state = ListState::default();
-        state.select(index);
-
         // マーク状態を復元（DataStore に存在しないプラグインIDは除外）
         let marked_ids = cache
             .marked_ids
@@ -197,8 +189,7 @@ impl Model {
             .collect();
 
         Model::PluginList {
-            selected_id,
-            state,
+            selection: SelectionState::new(selected_id, index),
             marked_ids,
             update_statuses: HashMap::new(),
         }
@@ -208,11 +199,11 @@ impl Model {
     pub fn to_cache(&self) -> CacheState {
         match self {
             Model::PluginList {
-                selected_id,
+                selection,
                 marked_ids,
                 ..
             } => CacheState {
-                selected_plugin_id: selected_id.clone(),
+                selected_plugin_id: selection.selected_id().cloned(),
                 marked_ids: marked_ids.clone(),
             },
             Model::PluginDetail {
@@ -248,12 +239,12 @@ impl Model {
     }
 
     /// 現在選択中の ListState を取得
-    pub fn current_state_mut(&mut self) -> &mut ListState {
+    pub fn current_state_mut(&mut self) -> Option<&mut ListState> {
         match self {
-            Model::PluginList { state, .. } => state,
-            Model::PluginDetail { state, .. } => state,
-            Model::ComponentTypes { state, .. } => state,
-            Model::ComponentList { state, .. } => state,
+            Model::PluginList { .. } => None,
+            Model::PluginDetail { state, .. } => Some(state),
+            Model::ComponentTypes { state, .. } => Some(state),
+            Model::ComponentList { state, .. } => Some(state),
         }
     }
 }

@@ -4,7 +4,7 @@ use super::actions;
 use super::model::{AddFormModel, DetailAction, Model, Msg, OperationStatus};
 use crate::marketplace::normalize_name;
 use crate::repo;
-use crate::tui::manager::core::{DataStore, MarketplaceItem};
+use crate::tui::manager::core::{DataStore, MarketplaceItem, SelectionState};
 use ratatui::widgets::ListState;
 use std::collections::HashSet;
 
@@ -93,19 +93,26 @@ fn market_list_len(data: &DataStore) -> usize {
     data.marketplaces.len() + 1
 }
 
+fn market_selection(
+    selected_id: Option<String>,
+    selected_index: Option<usize>,
+) -> SelectionState<String> {
+    SelectionState::new(selected_id, selected_index)
+}
+
 /// 選択を上に移動
 fn select_prev(model: &mut Model, data: &DataStore) {
     match model {
-        Model::MarketList {
-            state, selected_id, ..
-        } => {
-            let current = state.selected().unwrap_or(0);
+        Model::MarketList { selection, .. } => {
+            let current = selection.selected_index().unwrap_or(0);
             if current == 0 {
                 return;
             }
             let prev = current - 1;
-            state.select(Some(prev));
-            *selected_id = data.marketplaces.get(prev).map(|m| m.name.clone());
+            selection.set(
+                data.marketplaces.get(prev).map(|m| m.name.clone()),
+                Some(prev),
+            );
         }
         Model::MarketDetail { state, .. } => {
             let current = state.selected().unwrap_or(0);
@@ -170,14 +177,14 @@ fn select_prev(model: &mut Model, data: &DataStore) {
 /// 選択を下に移動
 fn select_next(model: &mut Model, data: &DataStore) {
     match model {
-        Model::MarketList {
-            state, selected_id, ..
-        } => {
+        Model::MarketList { selection, .. } => {
             let len = market_list_len(data);
-            let current = state.selected().unwrap_or(0);
+            let current = selection.selected_index().unwrap_or(0);
             let next = (current + 1).min(len - 1);
-            state.select(Some(next));
-            *selected_id = data.marketplaces.get(next).map(|m| m.name.clone());
+            selection.set(
+                data.marketplaces.get(next).map(|m| m.name.clone()),
+                Some(next),
+            );
         }
         Model::MarketDetail { state, .. } => {
             let len = DetailAction::all().len();
@@ -242,7 +249,7 @@ fn select_next(model: &mut Model, data: &DataStore) {
 fn enter(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
     match model {
         Model::MarketList {
-            selected_id,
+            selection,
             operation_status,
             ..
         } => {
@@ -251,7 +258,7 @@ fn enter(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
                 return UpdateEffect::none();
             }
 
-            if let Some(name) = selected_id.clone() {
+            if let Some(name) = selection.selected_id().cloned() {
                 // 通常項目 -> MarketDetail
                 let mut state = ListState::default();
                 state.select(Some(0));
@@ -284,8 +291,7 @@ fn enter(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
                     let mut new_state = ListState::default();
                     new_state.select(Some(data.marketplace_index(&name).unwrap_or(0)));
                     *model = Model::MarketList {
-                        selected_id: Some(name.clone()),
-                        state: new_state,
+                        selection: market_selection(Some(name.clone()), new_state.selected()),
                         operation_status: Some(OperationStatus::Updating(name)),
                         error_message: None,
                     };
@@ -296,8 +302,7 @@ fn enter(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
                     let mut new_state = ListState::default();
                     new_state.select(Some(data.marketplace_index(&name).unwrap_or(0)));
                     *model = Model::MarketList {
-                        selected_id: Some(name.clone()),
-                        state: new_state,
+                        selection: market_selection(Some(name.clone()), new_state.selected()),
                         operation_status: Some(OperationStatus::Removing(name)),
                         error_message: None,
                     };
@@ -490,8 +495,7 @@ fn execute_add_with(
             let mut state = ListState::default();
             state.select(Some(idx));
             *model = Model::MarketList {
-                selected_id: Some(name_owned),
-                state,
+                selection: market_selection(Some(name_owned), state.selected()),
                 operation_status: None,
                 error_message: None,
             };
@@ -543,8 +547,7 @@ fn back(model: &mut Model, data: &DataStore) {
             let mut state = ListState::default();
             state.select(Some(0));
             *model = Model::MarketList {
-                selected_id,
-                state,
+                selection: market_selection(selected_id, state.selected()),
                 operation_status: None,
                 error_message: None,
             };
@@ -554,8 +557,7 @@ fn back(model: &mut Model, data: &DataStore) {
             let old = std::mem::replace(
                 model,
                 Model::MarketList {
-                    selected_id: None,
-                    state: ListState::default(),
+                    selection: SelectionState::default(),
                     operation_status: None,
                     error_message: None,
                 },
@@ -583,8 +585,7 @@ fn back(model: &mut Model, data: &DataStore) {
             let old = std::mem::replace(
                 model,
                 Model::MarketList {
-                    selected_id: None,
-                    state: ListState::default(),
+                    selection: SelectionState::default(),
                     operation_status: None,
                     error_message: None,
                 },
@@ -614,8 +615,7 @@ fn back(model: &mut Model, data: &DataStore) {
             let old = std::mem::replace(
                 model,
                 Model::MarketList {
-                    selected_id: None,
-                    state: ListState::default(),
+                    selection: SelectionState::default(),
                     operation_status: None,
                     error_message: None,
                 },
@@ -664,8 +664,7 @@ fn back_to_market_list(model: &mut Model, data: &DataStore, marketplace_name: St
     let mut state = ListState::default();
     state.select(Some(idx));
     *model = Model::MarketList {
-        selected_id,
-        state,
+        selection: market_selection(selected_id, state.selected()),
         operation_status: None,
         error_message: None,
     };
@@ -688,8 +687,7 @@ fn start_install(model: &mut Model) -> UpdateEffect {
     let (marketplace_name, plugins, selected_plugins) = match std::mem::replace(
         model,
         Model::MarketList {
-            selected_id: None,
-            state: ListState::default(),
+            selection: SelectionState::default(),
             operation_status: None,
             error_message: None,
         },
@@ -733,8 +731,7 @@ fn confirm_scope(model: &mut Model) -> UpdateEffect {
     let old = std::mem::replace(
         model,
         Model::MarketList {
-            selected_id: None,
-            state: ListState::default(),
+            selection: SelectionState::default(),
             operation_status: None,
             error_message: None,
         },
@@ -789,8 +786,7 @@ fn back_to_plugin_browse(model: &mut Model, data: &DataStore) -> UpdateEffect {
     let old = std::mem::replace(
         model,
         Model::MarketList {
-            selected_id: None,
-            state: ListState::default(),
+            selection: SelectionState::default(),
             operation_status: None,
             error_message: None,
         },
@@ -849,8 +845,7 @@ pub(super) fn execute_install_with(
     let old = std::mem::replace(
         model,
         Model::MarketList {
-            selected_id: None,
-            state: ListState::default(),
+            selection: SelectionState::default(),
             operation_status: None,
             error_message: None,
         },
@@ -895,8 +890,7 @@ fn confirm_targets(model: &mut Model) -> UpdateEffect {
     let old = std::mem::replace(
         model,
         Model::MarketList {
-            selected_id: None,
-            state: ListState::default(),
+            selection: SelectionState::default(),
             operation_status: None,
             error_message: None,
         },
@@ -1007,7 +1001,7 @@ fn form_backspace(model: &mut Model) {
 /// 'u' キー: 選択中のマーケットプレイスを更新
 fn update_market(model: &mut Model) -> UpdateEffect {
     if let Model::MarketList {
-        selected_id,
+        selection,
         operation_status,
         error_message,
         ..
@@ -1016,7 +1010,7 @@ fn update_market(model: &mut Model) -> UpdateEffect {
         if operation_status.is_some() {
             return UpdateEffect::none();
         }
-        if let Some(name) = selected_id.clone() {
+        if let Some(name) = selection.selected_id().cloned() {
             *error_message = None;
             *operation_status = Some(OperationStatus::Updating(name));
             return UpdateEffect::phase2(Msg::ExecuteUpdate);
@@ -1068,8 +1062,7 @@ fn execute_update_with(
     if let Model::MarketList {
         operation_status,
         error_message,
-        selected_id,
-        state,
+        selection,
     } = model
     {
         match operation_status.take() {
@@ -1077,8 +1070,7 @@ fn execute_update_with(
                 Ok(_) => {
                     reload(data);
                     let idx = data.marketplace_index(&name).unwrap_or(0);
-                    state.select(Some(idx));
-                    *selected_id = Some(name);
+                    selection.set(Some(name), Some(idx));
                     *error_message = None;
                 }
                 Err(e) => {
@@ -1100,9 +1092,9 @@ fn execute_update_with(
                     *error_message = Some(format!("Failed to update: {}", errors.join(", ")));
                 }
                 // 選択状態を維持
-                if let Some(id) = selected_id.as_ref() {
+                if let Some(id) = selection.selected_id() {
                     let idx = data.marketplace_index(id).unwrap_or(0);
-                    state.select(Some(idx));
+                    selection.select_index(Some(idx));
                 }
             }
             other => {
@@ -1131,8 +1123,7 @@ fn execute_remove_with(
     if let Model::MarketList {
         operation_status,
         error_message,
-        selected_id,
-        state,
+        selection,
     } = model
     {
         match operation_status.take() {
@@ -1142,8 +1133,7 @@ fn execute_remove_with(
                         reload(data);
                         // 先頭にクランプ
                         let new_selected = data.marketplaces.first().map(|m| m.name.clone());
-                        *selected_id = new_selected;
-                        state.select(Some(0));
+                        selection.set(new_selected, Some(0));
                         *error_message = None;
                     }
                     Err(e) => {

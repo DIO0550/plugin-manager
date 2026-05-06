@@ -4,7 +4,7 @@
 
 use crate::component::Scope;
 use crate::marketplace::PluginSource;
-use crate::tui::manager::core::DataStore;
+use crate::tui::manager::core::{DataStore, SelectionState};
 use crossterm::event::KeyCode;
 use ratatui::widgets::ListState;
 use std::collections::HashSet;
@@ -113,8 +113,7 @@ pub struct InstallSummary {
 pub enum Model {
     /// マーケットプレイス一覧
     MarketList {
-        selected_id: Option<String>,
-        state: ListState,
+        selection: SelectionState<String>,
         operation_status: Option<OperationStatus>,
         error_message: Option<String>,
     },
@@ -190,12 +189,9 @@ impl Model {
     /// * `data` - Data store providing the marketplace list.
     pub fn new(data: &DataStore) -> Self {
         let selected_id = data.marketplaces.first().map(|m| m.name.clone());
-        let mut state = ListState::default();
         // マーケットプレイスがあれば最初を選択、なければ "+ Add new" (index 0) を選択
-        state.select(Some(0));
         Model::MarketList {
-            selected_id,
-            state,
+            selection: SelectionState::new(selected_id, Some(0)),
             operation_status: None,
             error_message: None,
         }
@@ -219,12 +215,8 @@ impl Model {
             .and_then(|id| data.marketplace_index(id))
             .unwrap_or(0);
 
-        let mut state = ListState::default();
-        state.select(Some(index));
-
         Model::MarketList {
-            selected_id,
-            state,
+            selection: SelectionState::new(selected_id, Some(index)),
             operation_status: None,
             error_message: None,
         }
@@ -233,8 +225,8 @@ impl Model {
     /// キャッシュ状態を取得
     pub fn to_cache(&self) -> CacheState {
         match self {
-            Model::MarketList { selected_id, .. } => CacheState {
-                selected_id: selected_id.clone(),
+            Model::MarketList { selection, .. } => CacheState {
+                selected_id: selection.selected_id().cloned(),
             },
             Model::MarketDetail {
                 marketplace_name, ..
