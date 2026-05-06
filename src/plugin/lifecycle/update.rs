@@ -43,6 +43,8 @@ pub struct UpdateResult {
     pub failed_targets: Vec<String>,
 }
 
+pub type UpdateOutcome = UpdateResult;
+
 impl UpdateResult {
     /// 更新成功
     ///

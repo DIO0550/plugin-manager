@@ -164,6 +164,8 @@ pub struct OperationResult {
     pub affected_targets: AffectedTargets,
 }
 
+pub type OperationOutcome = OperationResult;
+
 impl OperationResult {
     /// エラー結果を生成（事前検証失敗用）
     ///

@@ -9,6 +9,7 @@ mod table;
 mod wire;
 
 use crate::application::list_installed_plugins;
+use crate::commands::args::{ListOutputArgs, SingleTargetArgs};
 use crate::component::ComponentKind;
 use crate::plugin::{InstalledPlugin, PackageCache};
 use crate::target::TargetKind;
@@ -20,21 +21,11 @@ pub struct Args {
     #[arg(long = "type", value_enum)]
     pub component_type: Option<ComponentKind>,
 
-    /// Filter by target environment (currently filters by enabled status)
-    #[arg(long, value_enum)]
-    pub target: Option<TargetKind>,
+    #[command(flatten)]
+    pub target: SingleTargetArgs,
 
-    /// Output in JSON format
-    #[arg(long, conflicts_with = "simple")]
-    pub json: bool,
-
-    /// Output only plugin names
-    #[arg(long, conflicts_with = "json")]
-    pub simple: bool,
-
-    /// Show only plugins with available updates. Note: --json includes all plugins with update info.
-    #[arg(long, conflicts_with = "simple")]
-    pub outdated: bool,
+    #[command(flatten)]
+    pub output: ListOutputArgs,
 }
 
 /// # Arguments
@@ -51,11 +42,11 @@ pub async fn run(args: Args) -> Result<(), String> {
 
     let filtered = filter_plugins(plugins, &args);
 
-    if args.outdated {
-        outdated::run_outdated(&cache, &filtered, args.json, total_count).await?;
-    } else if args.json {
+    if args.output.outdated {
+        outdated::run_outdated(&cache, &filtered, args.output.json, total_count).await?;
+    } else if args.output.json {
         json::print_json(&filtered)?;
-    } else if args.simple {
+    } else if args.output.simple {
         simple::print_simple(&filtered, total_count);
     } else {
         table::print_table(&filtered, total_count);
@@ -87,7 +78,7 @@ fn filter_plugins(plugins: Vec<InstalledPlugin>, args: &Args) -> Vec<InstalledPl
     plugins
         .into_iter()
         .filter(|p| filter_by_type(p, args.component_type.as_ref()))
-        .filter(|p| filter_by_target(p, args.target.as_ref()))
+        .filter(|p| filter_by_target(p, args.target.target.as_ref()))
         .collect()
 }
 

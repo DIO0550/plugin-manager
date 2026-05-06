@@ -1,6 +1,6 @@
 //! plm sync コマンド
 
-use crate::component::Scope;
+use crate::commands::args::SyncScopeArgs;
 use crate::sync::{
     sync, PlacedComponent, SyncDestination, SyncOptions, SyncResult, SyncSource, SyncableKind,
 };
@@ -24,9 +24,8 @@ pub struct Args {
     #[arg(long = "type", value_enum)]
     pub component_type: Option<SyncableKind>,
 
-    /// Scope to sync (both if not specified)
-    #[arg(long, value_enum)]
-    pub scope: Option<Scope>,
+    #[command(flatten)]
+    pub scope: SyncScopeArgs,
 
     /// Preview only, do not actually sync
     #[arg(long)]
@@ -48,7 +47,7 @@ pub async fn run(args: Args) -> Result<(), String> {
 
     let options = SyncOptions {
         component_type: args.component_type,
-        scope: args.scope,
+        scope: args.scope.scope,
         dry_run: args.dry_run,
     };
 

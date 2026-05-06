@@ -1,5 +1,6 @@
 use super::table::format_components;
 use super::*;
+use crate::commands::args::{ListOutputArgs, SingleTargetArgs};
 use crate::component::{Component, ComponentKind};
 use std::path::PathBuf;
 
@@ -166,10 +167,14 @@ fn test_filter_plugins_combined() {
 
     let args = Args {
         component_type: Some(ComponentKind::Skill),
-        target: Some(TargetKind::Codex),
-        json: false,
-        simple: false,
-        outdated: false,
+        target: SingleTargetArgs {
+            target: Some(TargetKind::Codex),
+        },
+        output: ListOutputArgs {
+            json: false,
+            simple: false,
+            outdated: false,
+        },
     };
 
     let filtered = filter_plugins(plugins, &args);

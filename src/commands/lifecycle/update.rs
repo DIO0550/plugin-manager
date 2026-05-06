@@ -2,7 +2,9 @@
 //!
 //! プラグインを最新バージョンに更新する。
 
-use crate::plugin::{update_all_plugins, update_plugin, PackageCache, UpdateResult, UpdateStatus};
+use crate::plugin::{
+    update_all_plugins, update_plugin, PackageCache, UpdateOutcome, UpdateResult, UpdateStatus,
+};
 use clap::{Parser, ValueEnum};
 use std::env;
 
@@ -86,7 +88,7 @@ pub async fn run(args: Args) -> Result<(), String> {
 /// # Arguments
 ///
 /// * `result` - Single-plugin update outcome to render.
-fn display_single_result(result: &UpdateResult) {
+fn display_single_result(result: &UpdateOutcome) {
     match &result.status {
         UpdateStatus::Updated { from_sha, to_sha } => {
             let from = from_sha.as_deref().unwrap_or("unknown");

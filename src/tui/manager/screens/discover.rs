@@ -18,7 +18,7 @@ pub struct CacheState {
 /// Discover タブの画面状態
 pub struct Model {
     pub selected_id: Option<PluginId>,
-    pub state: ListState,
+    pub list_state: ListState,
 }
 
 impl Model {
@@ -30,7 +30,7 @@ impl Model {
     pub fn new(_data: &DataStore) -> Self {
         Self {
             selected_id: None,
-            state: ListState::default(),
+            list_state: ListState::default(),
         }
     }
 
@@ -43,7 +43,7 @@ impl Model {
     pub fn from_cache(_data: &DataStore, cache: &CacheState) -> Self {
         Self {
             selected_id: cache.selected_id.clone(),
-            state: ListState::default(),
+            list_state: ListState::default(),
         }
     }
 

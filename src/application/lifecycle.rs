@@ -14,7 +14,7 @@ use crate::plugin::{
     cleanup_legacy_hierarchy, cleanup_plugin_directories, load_plugin, PackageCacheAccess,
     PluginAction, PluginIntent,
 };
-use crate::target::{all_targets, OperationResult};
+use crate::target::{all_targets, OperationOutcome};
 use std::path::Path;
 
 /// プラグインを Disable（デプロイ先から削除、キャッシュは残す）
@@ -32,15 +32,15 @@ pub fn disable_plugin(
     marketplace: Option<&str>,
     project_root: &Path,
     target_filter: Option<&str>,
-) -> OperationResult {
+) -> OperationOutcome {
     if !cache.is_cached(marketplace, plugin_name) {
-        return OperationResult::error(format!("Plugin '{}' not found in cache", plugin_name));
+        return OperationOutcome::error(format!("Plugin '{}' not found in cache", plugin_name));
     }
 
     // Imperative Shell: コンポーネントをスキャン（I/O）
     let plugin = match load_plugin(cache, marketplace, plugin_name) {
         Ok(p) => p,
-        Err(e) => return OperationResult::error(e),
+        Err(e) => return OperationOutcome::error(e),
     };
     let components = plugin.components().to_vec();
 
@@ -91,15 +91,15 @@ pub fn enable_plugin(
     marketplace: Option<&str>,
     project_root: &Path,
     target_filter: Option<&str>,
-) -> OperationResult {
+) -> OperationOutcome {
     if !cache.is_cached(marketplace, plugin_name) {
-        return OperationResult::error(format!("Plugin '{}' not found in cache", plugin_name));
+        return OperationOutcome::error(format!("Plugin '{}' not found in cache", plugin_name));
     }
 
     // Imperative Shell: コンポーネントをスキャン（I/O）
     let plugin = match load_plugin(cache, marketplace, plugin_name) {
         Ok(p) => p,
-        Err(e) => return OperationResult::error(e),
+        Err(e) => return OperationOutcome::error(e),
     };
     let components = plugin.components().to_vec();
 
@@ -188,7 +188,7 @@ pub fn uninstall_plugin(
     plugin_name: &str,
     marketplace: Option<&str>,
     project_root: &Path,
-) -> OperationResult {
+) -> OperationOutcome {
     // まずデプロイ先から削除（全ターゲット）
     let disable_result = disable_plugin(cache, plugin_name, marketplace, project_root, None);
     if !disable_result.success {
@@ -196,7 +196,7 @@ pub fn uninstall_plugin(
     }
 
     if let Err(e) = cache.remove(marketplace, plugin_name) {
-        return OperationResult::error(format!("Failed to remove from cache: {}", e));
+        return OperationOutcome::error(format!("Failed to remove from cache: {}", e));
     }
 
     disable_result
