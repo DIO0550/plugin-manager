@@ -67,12 +67,18 @@ pub fn view(
     };
     match model {
         Model::MarketList {
-            state,
+            selection,
             operation_status,
             error_message,
             ..
         } => {
-            view_market_list(f, *state, &ctx, operation_status, error_message);
+            view_market_list(
+                f,
+                selection.state.clone(),
+                &ctx,
+                operation_status,
+                error_message,
+            );
         }
         Model::MarketDetail {
             marketplace_name,

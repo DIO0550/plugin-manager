@@ -1,5 +1,5 @@
 use super::{execute_add_with, execute_remove_with, execute_update_with, update, AddEntry};
-use crate::tui::manager::core::{DataStore, MarketplaceItem};
+use crate::tui::manager::core::{DataStore, MarketplaceItem, SelectionState};
 use crate::tui::manager::screens::marketplaces::actions::AddResult;
 use crate::tui::manager::screens::marketplaces::model::{
     AddFormModel, DetailAction, Model, Msg, OperationStatus,
@@ -34,6 +34,13 @@ fn make_add_result(name: &str) -> AddResult {
     }
 }
 
+fn market_selection(
+    selected_id: Option<&str>,
+    selected_index: Option<usize>,
+) -> SelectionState<String> {
+    SelectionState::new(selected_id.map(str::to_string), selected_index)
+}
+
 // ============================================================================
 // Up/Down ナビゲーション
 // ============================================================================
@@ -44,22 +51,16 @@ fn down_moves_selection_in_market_list() {
     let mut model = Model::new(&data);
 
     // 初期状態: index 0 (mp-a), selected_id = Some("mp-a")
-    if let Model::MarketList {
-        selected_id, state, ..
-    } = &model
-    {
-        assert_eq!(state.selected(), Some(0));
-        assert_eq!(selected_id.as_deref(), Some("mp-a"));
+    if let Model::MarketList { selection, .. } = &model {
+        assert_eq!(selection.state.selected(), Some(0));
+        assert_eq!(selection.selected_id.as_deref(), Some("mp-a"));
     }
 
     update(&mut model, Msg::Down, &mut data);
 
-    if let Model::MarketList {
-        selected_id, state, ..
-    } = &model
-    {
-        assert_eq!(state.selected(), Some(1));
-        assert_eq!(selected_id.as_deref(), Some("mp-b"));
+    if let Model::MarketList { selection, .. } = &model {
+        assert_eq!(selection.state.selected(), Some(1));
+        assert_eq!(selection.selected_id.as_deref(), Some("mp-b"));
     } else {
         panic!("Expected MarketList");
     }
@@ -73,13 +74,10 @@ fn down_past_last_marketplace_selects_add_new() {
     // Move past mp-a to "+ Add new" (index 1)
     update(&mut model, Msg::Down, &mut data);
 
-    if let Model::MarketList {
-        selected_id, state, ..
-    } = &model
-    {
-        assert_eq!(state.selected(), Some(1));
+    if let Model::MarketList { selection, .. } = &model {
+        assert_eq!(selection.state.selected(), Some(1));
         assert_eq!(
-            selected_id, &None,
+            selection.selected_id, None,
             "At '+ Add new', selected_id should be None"
         );
     } else {
@@ -96,8 +94,8 @@ fn down_does_not_go_past_add_new() {
     update(&mut model, Msg::Down, &mut data); // index 1 (Add new)
     update(&mut model, Msg::Down, &mut data); // should stay at 1
 
-    if let Model::MarketList { state, .. } = &model {
-        assert_eq!(state.selected(), Some(1));
+    if let Model::MarketList { selection, .. } = &model {
+        assert_eq!(selection.state.selected(), Some(1));
     } else {
         panic!("Expected MarketList");
     }
@@ -110,8 +108,8 @@ fn up_does_not_go_past_zero() {
 
     update(&mut model, Msg::Up, &mut data);
 
-    if let Model::MarketList { state, .. } = &model {
-        assert_eq!(state.selected(), Some(0));
+    if let Model::MarketList { selection, .. } = &model {
+        assert_eq!(selection.state.selected(), Some(0));
     } else {
         panic!("Expected MarketList");
     }
@@ -129,12 +127,9 @@ fn up_from_add_new_returns_to_last_marketplace() {
     // Move back up
     update(&mut model, Msg::Up, &mut data);
 
-    if let Model::MarketList {
-        selected_id, state, ..
-    } = &model
-    {
-        assert_eq!(state.selected(), Some(1));
-        assert_eq!(selected_id.as_deref(), Some("mp-b"));
+    if let Model::MarketList { selection, .. } = &model {
+        assert_eq!(selection.state.selected(), Some(1));
+        assert_eq!(selection.selected_id.as_deref(), Some("mp-b"));
     } else {
         panic!("Expected MarketList");
     }
@@ -359,8 +354,8 @@ fn detail_back_action_returns_to_market_list() {
     update(&mut model, Msg::Down, &mut data);
     update(&mut model, Msg::Enter, &mut data);
 
-    if let Model::MarketList { selected_id, .. } = &model {
-        assert_eq!(selected_id.as_deref(), Some("mp-a"));
+    if let Model::MarketList { selection, .. } = &model {
+        assert_eq!(selection.selected_id.as_deref(), Some("mp-a"));
     } else {
         panic!("Expected MarketList");
     }
@@ -719,8 +714,6 @@ fn toggle_select_in_plugin_browse_adds_to_selected() {
 
 #[test]
 fn toggle_select_in_plugin_browse_removes_from_selected() {
-    use std::collections::HashSet;
-
     let (_temp_dir, mut data) = make_data(&["mp-a"]);
     let mut model = make_plugin_browse("mp-a", 3);
 
@@ -1126,8 +1119,6 @@ fn back_from_plugin_browse_returns_to_detail() {
 
 #[test]
 fn back_from_target_select_returns_to_plugin_browse() {
-    use std::collections::HashSet;
-
     let (_temp_dir, mut data) = make_data(&["mp-a"]);
     let mut model = make_target_select("mp-a");
 
@@ -1277,8 +1268,8 @@ fn back_from_detail_returns_to_market_list() {
     // Back -> MarketList
     update(&mut model, Msg::Back, &mut data);
 
-    if let Model::MarketList { selected_id, .. } = &model {
-        assert_eq!(selected_id.as_deref(), Some("mp-a"));
+    if let Model::MarketList { selection, .. } = &model {
+        assert_eq!(selection.selected_id.as_deref(), Some("mp-a"));
     } else {
         panic!("Expected MarketList");
     }
@@ -1580,12 +1571,12 @@ fn execute_add_success_transitions_to_market_list() {
     );
 
     if let Model::MarketList {
-        selected_id,
+        selection,
         operation_status,
         ..
     } = &model
     {
-        assert_eq!(selected_id.as_deref(), Some("my-repo"));
+        assert_eq!(selection.selected_id.as_deref(), Some("my-repo"));
         assert!(operation_status.is_none());
     } else {
         panic!("Expected MarketList after successful add");
@@ -1642,8 +1633,7 @@ fn execute_update_success_clears_status() {
     let mut state = ListState::default();
     state.select(Some(0));
     let mut model = Model::MarketList {
-        selected_id: Some("mp-a".to_string()),
-        state,
+        selection: market_selection(Some("mp-a"), state.selected()),
         operation_status: Some(OperationStatus::Updating("mp-a".to_string())),
         error_message: None,
     };
@@ -1659,13 +1649,13 @@ fn execute_update_success_clears_status() {
     if let Model::MarketList {
         operation_status,
         error_message,
-        selected_id,
+        selection,
         ..
     } = &model
     {
         assert!(operation_status.is_none(), "Should clear operation_status");
         assert!(error_message.is_none(), "Should have no error");
-        assert_eq!(selected_id.as_deref(), Some("mp-a"));
+        assert_eq!(selection.selected_id.as_deref(), Some("mp-a"));
     } else {
         panic!("Expected MarketList");
     }
@@ -1677,8 +1667,7 @@ fn execute_update_failure_sets_error_message() {
     let mut state = ListState::default();
     state.select(Some(0));
     let mut model = Model::MarketList {
-        selected_id: Some("mp-a".to_string()),
-        state,
+        selection: market_selection(Some("mp-a"), state.selected()),
         operation_status: Some(OperationStatus::Updating("mp-a".to_string())),
         error_message: None,
     };
@@ -1714,8 +1703,7 @@ fn execute_update_all_success() {
     let mut state = ListState::default();
     state.select(Some(0));
     let mut model = Model::MarketList {
-        selected_id: Some("mp-a".to_string()),
-        state,
+        selection: market_selection(Some("mp-a"), state.selected()),
         operation_status: Some(OperationStatus::UpdatingAll),
         error_message: None,
     };
@@ -1752,8 +1740,7 @@ fn execute_update_all_partial_failure_sets_error() {
     let mut state = ListState::default();
     state.select(Some(0));
     let mut model = Model::MarketList {
-        selected_id: Some("mp-a".to_string()),
-        state,
+        selection: market_selection(Some("mp-a"), state.selected()),
         operation_status: Some(OperationStatus::UpdatingAll),
         error_message: None,
     };
@@ -1799,8 +1786,7 @@ fn execute_remove_success_reloads_and_clamps() {
     let mut state = ListState::default();
     state.select(Some(0));
     let mut model = Model::MarketList {
-        selected_id: Some("mp-a".to_string()),
-        state,
+        selection: market_selection(Some("mp-a"), state.selected()),
         operation_status: Some(OperationStatus::Removing("mp-a".to_string())),
         error_message: None,
     };
@@ -1815,15 +1801,14 @@ fn execute_remove_success_reloads_and_clamps() {
     );
 
     if let Model::MarketList {
-        selected_id,
+        selection,
         operation_status,
-        state,
         ..
     } = &model
     {
         assert!(operation_status.is_none());
-        assert_eq!(selected_id.as_deref(), Some("mp-b"));
-        assert_eq!(state.selected(), Some(0));
+        assert_eq!(selection.selected_id.as_deref(), Some("mp-b"));
+        assert_eq!(selection.state.selected(), Some(0));
     } else {
         panic!("Expected MarketList");
     }
@@ -1835,8 +1820,7 @@ fn execute_remove_failure_sets_error() {
     let mut state = ListState::default();
     state.select(Some(0));
     let mut model = Model::MarketList {
-        selected_id: Some("mp-a".to_string()),
-        state,
+        selection: market_selection(Some("mp-a"), state.selected()),
         operation_status: Some(OperationStatus::Removing("mp-a".to_string())),
         error_message: None,
     };
@@ -1981,8 +1965,7 @@ fn error_message_cleared_on_up() {
     let mut state = ListState::default();
     state.select(Some(1));
     let mut model = Model::MarketList {
-        selected_id: Some("mp-b".to_string()),
-        state,
+        selection: market_selection(Some("mp-b"), state.selected()),
         operation_status: None,
         error_message: Some("some error".to_string()),
     };
@@ -1998,12 +1981,7 @@ fn error_message_cleared_on_up() {
 fn error_message_cleared_on_down() {
     let (_temp_dir, mut data) = make_data(&["mp-a", "mp-b"]);
     let mut model = Model::MarketList {
-        selected_id: Some("mp-a".to_string()),
-        state: {
-            let mut s = ListState::default();
-            s.select(Some(0));
-            s
-        },
+        selection: market_selection(Some("mp-a"), Some(0)),
         operation_status: None,
         error_message: Some("some error".to_string()),
     };
@@ -2019,12 +1997,7 @@ fn error_message_cleared_on_down() {
 fn error_message_cleared_on_enter() {
     let (_temp_dir, mut data) = make_data(&["mp-a"]);
     let mut model = Model::MarketList {
-        selected_id: Some("mp-a".to_string()),
-        state: {
-            let mut s = ListState::default();
-            s.select(Some(0));
-            s
-        },
+        selection: market_selection(Some("mp-a"), Some(0)),
         operation_status: None,
         error_message: Some("some error".to_string()),
     };
@@ -2070,12 +2043,7 @@ fn error_message_cleared_on_back() {
 fn stale_error_cleared_on_update_market_start() {
     let (_temp_dir, mut data) = make_data(&["mp-a"]);
     let mut model = Model::MarketList {
-        selected_id: Some("mp-a".to_string()),
-        state: {
-            let mut s = ListState::default();
-            s.select(Some(0));
-            s
-        },
+        selection: market_selection(Some("mp-a"), Some(0)),
         operation_status: None,
         error_message: Some("previous error".to_string()),
     };
@@ -2095,12 +2063,7 @@ fn stale_error_cleared_on_update_market_start() {
 fn stale_error_cleared_on_update_all_start() {
     let (_temp_dir, mut data) = make_data(&["mp-a"]);
     let mut model = Model::MarketList {
-        selected_id: Some("mp-a".to_string()),
-        state: {
-            let mut s = ListState::default();
-            s.select(Some(0));
-            s
-        },
+        selection: market_selection(Some("mp-a"), Some(0)),
         operation_status: None,
         error_message: Some("previous error".to_string()),
     };
@@ -2122,8 +2085,7 @@ fn stale_error_cleared_on_successful_update_retry() {
     let mut state = ListState::default();
     state.select(Some(0));
     let mut model = Model::MarketList {
-        selected_id: Some("mp-a".to_string()),
-        state,
+        selection: market_selection(Some("mp-a"), state.selected()),
         operation_status: Some(OperationStatus::Updating("mp-a".to_string())),
         error_message: Some("previous failure".to_string()),
     };
@@ -2152,8 +2114,7 @@ fn stale_error_cleared_on_successful_remove_retry() {
     let mut state = ListState::default();
     state.select(Some(0));
     let mut model = Model::MarketList {
-        selected_id: Some("mp-a".to_string()),
-        state,
+        selection: market_selection(Some("mp-a"), state.selected()),
         operation_status: Some(OperationStatus::Removing("mp-a".to_string())),
         error_message: Some("previous failure".to_string()),
     };
@@ -2183,8 +2144,7 @@ fn stale_error_cleared_on_successful_update_all_retry() {
     let mut state = ListState::default();
     state.select(Some(0));
     let mut model = Model::MarketList {
-        selected_id: Some("mp-a".to_string()),
-        state,
+        selection: market_selection(Some("mp-a"), state.selected()),
         operation_status: Some(OperationStatus::UpdatingAll),
         error_message: Some("previous failure".to_string()),
     };

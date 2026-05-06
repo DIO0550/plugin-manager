@@ -322,25 +322,19 @@ pub fn update(model: &mut Model, msg: Msg) -> AppUpdateEffect {
 fn clamp_selection(model: &mut Model) {
     if let Screen::Installed(m) = &mut model.screen {
         let filtered = filter_plugins(&model.data.plugins, &model.filter_text);
-        if let installed::Model::PluginList {
-            selected_id, state, ..
-        } = m
-        {
-            if let Some(id) = selected_id.as_ref() {
+        if let installed::Model::PluginList { selection, .. } = m {
+            if let Some(id) = selection.selected_id.as_ref() {
                 if let Some(idx) = filtered.iter().position(|p| p.id() == id.as_str()) {
-                    state.select(Some(idx));
+                    selection.state.select(Some(idx));
                 } else if !filtered.is_empty() {
-                    state.select(Some(0));
-                    *selected_id = Some(filtered[0].id().to_string());
+                    selection.set(Some(filtered[0].id().to_string()), Some(0));
                 } else {
-                    state.select(None);
-                    *selected_id = None;
+                    selection.set(None, None);
                 }
             } else if !filtered.is_empty() {
-                state.select(Some(0));
-                *selected_id = Some(filtered[0].id().to_string());
+                selection.set(Some(filtered[0].id().to_string()), Some(0));
             } else {
-                state.select(None);
+                selection.state.select(None);
             }
         }
     }

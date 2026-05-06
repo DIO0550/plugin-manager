@@ -11,6 +11,7 @@ mod common;
 mod data;
 pub mod filter;
 pub mod layout;
+mod selection_state;
 pub mod style;
 
 #[cfg(test)]
@@ -33,3 +34,4 @@ pub use common::{
 pub use common::{BLOCK_BORDER_WIDTH, LIST_HIGHLIGHT_WIDTH};
 pub use data::{DataStore, MarketplaceItem, PluginId, PluginKey};
 pub use filter::filter_plugins;
+pub use selection_state::SelectionState;
