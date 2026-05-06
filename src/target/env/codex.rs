@@ -34,7 +34,7 @@ impl CodexTarget {
     ///
     /// * `kind` - Component kind to check.
     fn can_place(kind: ComponentKind) -> bool {
-        kind != ComponentKind::Command && kind != ComponentKind::Hook
+        kind != ComponentKind::Command
     }
 
     /// コンポーネント種別に応じたフィルタリング
@@ -54,6 +54,7 @@ impl CodexTarget {
             ComponentKind::Agent if !c.is_dir && c.name.ends_with(".agent.md") => {
                 Some(c.name.trim_end_matches(".agent.md").to_string())
             }
+            ComponentKind::Hook if !c.is_dir && c.name == "hooks.json" => Some("hooks".to_string()),
             _ => None,
         }
     }
@@ -83,6 +84,7 @@ impl Target for CodexTarget {
             ComponentKind::Skill,
             ComponentKind::Agent,
             ComponentKind::Instruction,
+            ComponentKind::Hook,
         ]
     }
 
@@ -109,7 +111,8 @@ impl Target for CodexTarget {
                 Scope::Project => PlacementLocation::file(project_root.join("AGENTS.md")),
                 Scope::Personal => PlacementLocation::file(base.join("AGENTS.md")),
             },
-            ComponentKind::Command | ComponentKind::Hook => return None,
+            ComponentKind::Hook => PlacementLocation::file(base.join("hooks.json")),
+            ComponentKind::Command => return None,
         })
     }
 
@@ -136,6 +139,7 @@ impl Target for CodexTarget {
         let dir_path = match kind {
             ComponentKind::Skill => base.join("skills"),
             ComponentKind::Agent => base.join("agents"),
+            ComponentKind::Hook => base.clone(),
             _ => return Ok(vec![]),
         };
 

@@ -185,6 +185,7 @@ struct ImportContext<'a> {
     origin: &'a PluginOrigin,
     scope: Scope,
     project_root: &'a Path,
+    plugin_root: &'a Path,
     source_repo: &'a str,
     git_ref: &'a str,
     commit_sha: &'a str,
@@ -228,6 +229,12 @@ fn build_deployment(
             source: AgentFormat::ClaudeCode,
             dest: target.agent_format(),
         },
+        ComponentKind::Hook if matches!(target.kind(), TargetKind::Codex | TargetKind::Copilot) => {
+            ConversionConfig::Hook {
+                target_kind: target.kind(),
+                plugin_root: Some(ctx.plugin_root.to_path_buf()),
+            }
+        }
         _ => ConversionConfig::None,
     };
 
@@ -429,6 +436,7 @@ pub async fn run(args: Args) -> Result<(), String> {
         origin: &origin,
         scope,
         project_root: &project_root,
+        plugin_root: &cached_plugin.path,
         source_repo: &args.source,
         git_ref: &cached_plugin.git_ref,
         commit_sha: &cached_plugin.commit_sha,

@@ -25,6 +25,7 @@ pub enum DeploymentOutput {
 pub struct HookConvertOutput {
     pub warnings: Vec<ConversionWarning>,
     pub script_count: usize,
+    pub hook_count: usize,
     /// 入力 JSON が Claude Code 形式だったか Copilot 形式（passthrough）だったか。
     /// `(converted from Claude Code format)` サフィックスの判定に使う。
     pub source_format: SourceFormat,

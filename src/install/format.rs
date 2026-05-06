@@ -142,15 +142,12 @@ pub fn format_manual_rewrite_section(stubs: &[(String, String)]) -> Option<Strin
 /// 変換結果として hook が 1 件も残らなかった場合の追加警告（stderr / yellow）。
 ///
 /// 「空 `hooks.json` を放置したまま気づかれない」状況を防ぐためのセーフティネット。
-/// `source_format == Some(SourceFormat::ClaudeCode) && script_count == 0` のとき返す。
+/// `source_format == Some(SourceFormat::ClaudeCode) && hook_count == 0` のとき返す。
 /// それ以外は `None`。
 ///
-/// **判定方針**: ClaudeCode 入力時は各 hook が必ずスクリプトを生成するため、
-/// `script_count == 0` ⇔「変換後の `hooks.json` が空」という不変条件が成立する。
-/// この単一の条件で、除外の主因が `UnsupportedEvent` / `UnsupportedHookType` /
-/// `RemovedField`（イベント値が配列でない、matcher group の `hooks` 配列欠落 など、
-/// 詳細は `src/hooks/converter.rs::flatten_matchers`）のいずれであっても取りこぼさず
-/// 警告を出せる。
+/// **判定方針**: 変換後 JSON に残った hook 定義数で判定する。Copilot 変換では
+/// script_count と一致するが、Codex 変換では command hook を inline のまま残すため
+/// script_count が 0 でも hook_count は 1 以上になり得る。
 ///
 /// **`source_format == Some(TargetFormat)` の扱い**: passthrough では入力 JSON が
 /// そのまま配置され `script_count == 0` でも `hooks.json` は空ではない（例:
@@ -161,10 +158,10 @@ pub fn format_manual_rewrite_section(stubs: &[(String, String)]) -> Option<Strin
 /// `DeploymentOutput::Copied` 経路の Hook（version 付き Copilot 完全 passthrough）。
 /// どちらも警告対象外。
 pub fn format_empty_hooks_warning(
-    script_count: usize,
+    hook_count: usize,
     source_format: Option<SourceFormat>,
 ) -> Option<String> {
-    if script_count == 0 && source_format == Some(SourceFormat::ClaudeCode) {
+    if hook_count == 0 && source_format == Some(SourceFormat::ClaudeCode) {
         Some(format!(
             "  {} An empty hooks.json was placed; no hooks remained after conversion.",
             "Warning:".yellow()
@@ -204,7 +201,8 @@ pub fn render_hook_success(
     component_kind: ComponentKind,
     hook_source_format: Option<SourceFormat>,
     hook_warnings: &[ConversionWarning],
-    script_count: usize,
+    _script_count: usize,
+    hook_count: usize,
 ) -> HookRenderOutput {
     if component_kind != ComponentKind::Hook {
         return HookRenderOutput {
@@ -228,10 +226,8 @@ pub fn render_hook_success(
     if let Some(section) = format_manual_rewrite_section(&classified.stubs) {
         stderr_blocks.push(section);
     }
-    // 空 `hooks.json` 警告は ClaudeCode 入力時の `script_count == 0` だけで判定する
-    // （除外の主因が `UnsupportedEvent` / `UnsupportedHookType` / `RemovedField` の
-    // どれであっても 1 つの不変条件で取りこぼさない）。
-    if let Some(line) = format_empty_hooks_warning(script_count, hook_source_format) {
+    // 空 `hooks.json` 警告は変換後に残った hook 定義数で判定する。
+    if let Some(line) = format_empty_hooks_warning(hook_count, hook_source_format) {
         stderr_blocks.push(line);
     }
     for w in &classified.others {

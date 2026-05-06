@@ -33,6 +33,7 @@ pub fn render_place_success_to_strings(success: &PlaceSuccess) -> (String, Vec<S
         success.hook_source_format,
         &success.hook_warnings,
         success.script_count,
+        success.hook_count,
     );
 
     let suffix = match rendered.stdout_suffix {
