@@ -135,3 +135,72 @@ fn test_import_help() {
             "Import components from a Claude Code Plugin",
         ));
 }
+
+#[test]
+fn test_install_scope_help_mentions_tui_selection() {
+    Command::cargo_bin("plm")
+        .unwrap()
+        .args(["install", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "Deployment scope (if not specified, TUI selection)",
+        ));
+}
+
+#[test]
+fn test_import_scope_help_mentions_tui_selection() {
+    Command::cargo_bin("plm")
+        .unwrap()
+        .args(["import", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "Deployment scope (if not specified, TUI selection)",
+        ));
+}
+
+#[test]
+fn test_sync_scope_help_mentions_both_default() {
+    Command::cargo_bin("plm")
+        .unwrap()
+        .args(["sync", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "Scope to sync (if not specified, both personal and project)",
+        ));
+}
+
+#[test]
+fn test_list_json_conflicts_with_simple() {
+    Command::cargo_bin("plm")
+        .unwrap()
+        .args(["list", "--json", "--simple"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "the argument '--json' cannot be used with '--simple'",
+        ));
+}
+
+#[test]
+fn test_list_outdated_conflicts_with_simple() {
+    Command::cargo_bin("plm")
+        .unwrap()
+        .args(["list", "--outdated", "--simple"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "the argument '--outdated' cannot be used with '--simple'",
+        ));
+}
+
+#[test]
+fn test_list_outdated_allows_json() {
+    Command::cargo_bin("plm")
+        .unwrap()
+        .args(["list", "--outdated", "--json"])
+        .assert()
+        .success();
+}
