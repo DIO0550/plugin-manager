@@ -70,7 +70,7 @@ pub fn view(
         } => {
             view_plugin_list(
                 f,
-                selection.state.clone(),
+                *selection.list_state(),
                 &ctx,
                 marked_ids,
                 update_statuses,

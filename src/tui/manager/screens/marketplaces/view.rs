@@ -74,7 +74,7 @@ pub fn view(
         } => {
             view_market_list(
                 f,
-                selection.state.clone(),
+                *selection.list_state(),
                 &ctx,
                 operation_status,
                 error_message,
