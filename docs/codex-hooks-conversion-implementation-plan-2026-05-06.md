@@ -51,12 +51,10 @@ Codex 向け変換は以下の原則にする。
 stateDiagram-v2
     [*] --> InputRead
     InputRead --> FormatDetected
-    FormatDetected --> TargetPassthrough: Codex形式
-    FormatDetected --> ClaudeCodeConvert: Claude Code形式
+    FormatDetected --> ClaudeCodeConvert: Claude Code / Codex同形JSON
     ClaudeCodeConvert --> EventMapped
     EventMapped --> HookFiltered
     HookFiltered --> JsonWritten
-    TargetPassthrough --> JsonWritten
     JsonWritten --> Success
     FormatDetected --> Failed: JSON不正 / hooks欠落
     EventMapped --> Failed: 構造不正
@@ -148,10 +146,11 @@ src/
 
 ### `CodexStructureConverter`
 
-Codex形式判定:
+Codex形式の扱い:
 
-- `hooks` が object で、event key が PascalCase の場合は target format と見なしてよい。
-- Claude Code形式もほぼ同形なので、実装上は `SourceFormat::ClaudeCode` として検証・フィルタリングを通す。
+- `CodexStructureConverter::detect_format` は Codex専用の passthrough 判定を持たず、`hooks` を持つJSONを `SourceFormat::ClaudeCode` として扱う。
+- Claude Code形式とCodex形式はほぼ同形なので、同じ検証・フィルタリング経路を通す。
+- PascalCase event key は `CodexEventMap` で対応イベントだけ保持し、非対応イベントは警告付きで除外する。
 - `version` は Codex Hooks JSON では不要。Copilot向けの `version: 1` は追加しない。
 - `disableAllHooks` は Codex仕様にないため `RemovedField` で除去する。
 
