@@ -60,6 +60,23 @@ fn test_codex_key_map_removes_unsupported_fields() {
 }
 
 #[test]
+fn test_codex_key_map_prefers_timeout_over_timeout_sec() {
+    let map = CodexKeyMap;
+    let hook = json!({
+        "type": "command",
+        "command": "echo hi",
+        "timeout": 10,
+        "timeoutSec": 3
+    });
+
+    let (mapped, warnings) = map.map_keys(&hook, "command");
+
+    assert_eq!(mapped["timeout"], 10);
+    assert!(mapped.get("timeoutSec").is_none());
+    assert!(warnings.is_empty());
+}
+
+#[test]
 fn test_codex_structure_converter_detects_claude_code() {
     let conv = CodexStructureConverter;
     let value = json!({"hooks": {"SessionStart": []}});

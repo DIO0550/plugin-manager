@@ -40,9 +40,10 @@ impl KeyMap for CodexKeyMap {
                     field: "bash".to_string(),
                     reason: "Codex hooks use command, not bash wrapper paths".to_string(),
                 }),
-                "timeoutSec" => {
+                "timeoutSec" if !output.contains_key("timeout") => {
                     output.insert("timeout".to_string(), value.clone());
                 }
+                "timeoutSec" => {}
                 "comment" => {
                     output.insert("statusMessage".to_string(), value.clone());
                 }
