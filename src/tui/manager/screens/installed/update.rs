@@ -302,10 +302,6 @@ fn select_prev(model: &mut Model, data: &DataStore, filter_text: &str) -> bool {
     if let Some(state) = model.current_state_mut() {
         let current = state.selected().unwrap_or(0);
         if current == 0 {
-            // PluginList の先頭ならフィルタへフォーカス移動
-            if matches!(model, Model::PluginList { .. }) {
-                return true;
-            }
             return false;
         }
         let prev = current.saturating_sub(1);
