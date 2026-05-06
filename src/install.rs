@@ -7,7 +7,7 @@ use crate::plugin::{
     cleanup_legacy_hierarchy, MarketplaceContent, PackageCache, PackageCacheAccess,
 };
 use crate::source::parse_source;
-use crate::target::{PluginOrigin, Target, TargetKind};
+use crate::target::{CodexTarget, PluginOrigin, Target, TargetKind};
 
 pub mod format;
 pub use crate::hooks::converter::{ConversionWarning, SourceFormat};
@@ -186,10 +186,28 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
 
     for target in request.targets {
         let failures_before = failures.len();
+        let codex_hook_conflict = if target.kind() == TargetKind::Codex {
+            CodexTarget::hook_component_conflict_error(&request.scanned.components)
+        } else {
+            None
+        };
 
         for component in &request.scanned.components {
             if !target.supports(component.kind) {
                 continue;
+            }
+
+            if component.kind == ComponentKind::Hook {
+                if let Some(error) = &codex_hook_conflict {
+                    failures.push(PlaceFailure {
+                        target: target.name().to_string(),
+                        component_name: component.name.clone(),
+                        component_kind: component.kind,
+                        error: error.clone(),
+                        stage: PlaceFailureStage::Resolution,
+                    });
+                    continue;
+                }
             }
 
             let ctx = PlacementContext {

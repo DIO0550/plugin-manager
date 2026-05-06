@@ -12,7 +12,9 @@ use crate::import::{ImportRecord, ImportRegistry};
 use crate::output::CommandSummary;
 use crate::plugin::PackageCache;
 use crate::source::parse_source;
-use crate::target::{all_targets, parse_target, PluginOrigin, Scope, Target, TargetKind};
+use crate::target::{
+    all_targets, parse_target, CodexTarget, PluginOrigin, Scope, Target, TargetKind,
+};
 use crate::tui;
 use chrono::Utc;
 use clap::Parser;
@@ -322,8 +324,27 @@ fn place_components(
 
     for target_name in target_names {
         let target = parse_target(target_name).map_err(|e| e.to_string())?;
+        let codex_hook_conflict = if target.kind() == TargetKind::Codex {
+            CodexTarget::hook_component_conflict_error(components)
+        } else {
+            None
+        };
 
         for component in components {
+            if component.kind == ComponentKind::Hook {
+                if let Some(error) = &codex_hook_conflict {
+                    println!(
+                        "  x {} {}: {} - {}",
+                        target.name(),
+                        component.kind,
+                        component.name,
+                        error
+                    );
+                    total_failure += 1;
+                    continue;
+                }
+            }
+
             let deployment = match build_deployment(target.as_ref(), component, ctx) {
                 Ok(None) => continue,
                 Ok(Some(d)) => d,

@@ -505,3 +505,73 @@ fn test_place_plugin_codex_hook_installs_inline_hooks_json() {
         .get("bash")
         .is_none());
 }
+
+#[test]
+fn test_place_plugin_codex_rejects_multiple_hook_components() {
+    let temp = TempDir::new().unwrap();
+    let project_dir = TempDir::new().unwrap();
+    let hook_json = r#"{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'pre check'"
+          }
+        ]
+      }
+    ]
+  }
+}"#;
+
+    let manifest_content = serde_json::json!({
+        "name": "test-plugin",
+        "version": "1.0.0",
+        "description": "A test plugin"
+    });
+    fs::write(
+        temp.path().join("plugin.json"),
+        manifest_content.to_string(),
+    )
+    .unwrap();
+    let hooks_dir = temp.path().join("hooks");
+    fs::create_dir_all(&hooks_dir).unwrap();
+    fs::write(hooks_dir.join("first.json"), hook_json).unwrap();
+    fs::write(hooks_dir.join("second.json"), hook_json).unwrap();
+
+    let manifest = PluginManifest::load(&temp.path().join("plugin.json")).unwrap();
+    let cached = CachedPackage {
+        name: "test-plugin".to_string(),
+        id: None,
+        marketplace: Some("test-marketplace".to_string()),
+        path: temp.path().to_path_buf(),
+        manifest,
+        git_ref: "main".to_string(),
+        commit_sha: "abc123".to_string(),
+        marketplace_manifest: None,
+    };
+    let package = MarketplaceContent::try_from(cached).unwrap();
+    let scanned = scan_plugin(&package, None).unwrap();
+
+    let targets: Vec<Box<dyn crate::target::Target>> = vec![Box::new(CodexTarget::new())];
+    let result = place_plugin(&PlaceRequest {
+        scanned: &scanned,
+        targets: &targets,
+        scope: crate::component::Scope::Project,
+        project_root: project_dir.path(),
+    });
+
+    assert!(result.successes.is_empty());
+    assert_eq!(result.failures.len(), 2);
+    assert!(result
+        .failures
+        .iter()
+        .all(|failure| failure.component_kind == ComponentKind::Hook));
+    assert!(result
+        .failures
+        .iter()
+        .all(|failure| failure.error.contains("would overwrite each other")));
+    assert!(!project_dir.path().join(".codex/hooks.json").exists());
+}

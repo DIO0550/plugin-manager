@@ -1,6 +1,6 @@
 //! OpenAI Codex ターゲット実装
 
-use crate::component::{ComponentKind, PlacementContext, PlacementLocation, Scope};
+use crate::component::{Component, ComponentKind, PlacementContext, PlacementLocation, Scope};
 use crate::error::Result;
 use crate::target::paths::base_dir;
 use crate::target::placed_common;
@@ -35,6 +35,22 @@ impl CodexTarget {
     /// * `kind` - Component kind to check.
     fn can_place(kind: ComponentKind) -> bool {
         kind != ComponentKind::Command
+    }
+
+    /// Codex は 1 スコープにつき単一の `hooks.json` を読むため、複数 Hook を
+    /// 個別配置すると同じファイルを上書きする。マージ未実装の間は拒否する。
+    pub fn hook_component_conflict_error(components: &[Component]) -> Option<String> {
+        let hook_count = components
+            .iter()
+            .filter(|component| component.kind == ComponentKind::Hook)
+            .count();
+
+        (hook_count > 1).then(|| {
+            format!(
+                "Codex target supports a single hooks.json per scope; {} Hook components would overwrite each other. Select one Hook component or wait for merge support.",
+                hook_count
+            )
+        })
     }
 
     /// コンポーネント種別に応じたフィルタリング

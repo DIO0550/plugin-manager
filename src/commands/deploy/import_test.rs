@@ -271,3 +271,43 @@ mod filter_components_tests {
         assert_eq!(skipped.len(), 1);
     }
 }
+
+mod place_components_tests {
+    use super::*;
+    use crate::component::{Component, ComponentKind};
+    use crate::import::ImportRegistry;
+    use std::path::PathBuf;
+    use tempfile::TempDir;
+
+    fn make_hook(name: &str) -> Component {
+        Component {
+            kind: ComponentKind::Hook,
+            name: name.to_string(),
+            path: PathBuf::from(format!("hooks/{}.json", name)),
+        }
+    }
+
+    #[test]
+    fn codex_rejects_multiple_hook_components() {
+        let project_dir = TempDir::new().unwrap();
+        let plugin_dir = TempDir::new().unwrap();
+        let registry_dir = TempDir::new().unwrap();
+        let origin = PluginOrigin::from_marketplace("test-marketplace", "test-plugin");
+        let ctx = ImportContext {
+            origin: &origin,
+            scope: Scope::Project,
+            project_root: project_dir.path(),
+            plugin_root: plugin_dir.path(),
+            source_repo: "owner/repo",
+            git_ref: "main",
+            commit_sha: "abc123",
+        };
+        let components = vec![make_hook("first"), make_hook("second")];
+        let mut registry = ImportRegistry::with_path(registry_dir.path().join("imports.json"));
+
+        let result = place_components(&["codex".to_string()], &components, &ctx, &mut registry);
+
+        assert_eq!(result.unwrap(), (0, 2));
+        assert!(!project_dir.path().join(".codex/hooks.json").exists());
+    }
+}
