@@ -5,8 +5,8 @@ use ratatui::widgets::ListState;
 /// semantic な選択 ID と ratatui のリストカーソルを束ねた選択状態。
 #[derive(Debug, Clone, Default)]
 pub struct SelectionState<K> {
-    pub selected_id: Option<K>,
-    pub state: ListState,
+    selected_id: Option<K>,
+    state: ListState,
 }
 
 impl<K> SelectionState<K> {
@@ -21,16 +21,16 @@ impl<K> SelectionState<K> {
         self.selected_id.as_ref()
     }
 
-    pub fn selected_id_mut(&mut self) -> &mut Option<K> {
-        &mut self.selected_id
+    pub fn selected_index(&self) -> Option<usize> {
+        self.state.selected()
     }
 
     pub fn list_state(&self) -> &ListState {
         &self.state
     }
 
-    pub fn list_state_mut(&mut self) -> &mut ListState {
-        &mut self.state
+    pub fn select_index(&mut self, selected_index: Option<usize>) {
+        self.state.select(selected_index);
     }
 
     pub fn set(&mut self, selected_id: Option<K>, selected_index: Option<usize>) {

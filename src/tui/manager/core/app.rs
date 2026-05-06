@@ -323,9 +323,9 @@ fn clamp_selection(model: &mut Model) {
     if let Screen::Installed(m) = &mut model.screen {
         let filtered = filter_plugins(&model.data.plugins, &model.filter_text);
         if let installed::Model::PluginList { selection, .. } = m {
-            if let Some(id) = selection.selected_id.as_ref() {
+            if let Some(id) = selection.selected_id() {
                 if let Some(idx) = filtered.iter().position(|p| p.id() == id.as_str()) {
-                    selection.state.select(Some(idx));
+                    selection.select_index(Some(idx));
                 } else if !filtered.is_empty() {
                     selection.set(Some(filtered[0].id().to_string()), Some(0));
                 } else {
@@ -334,7 +334,7 @@ fn clamp_selection(model: &mut Model) {
             } else if !filtered.is_empty() {
                 selection.set(Some(filtered[0].id().to_string()), Some(0));
             } else {
-                selection.state.select(None);
+                selection.select_index(None);
             }
         }
     }

@@ -52,15 +52,15 @@ fn down_moves_selection_in_market_list() {
 
     // 初期状態: index 0 (mp-a), selected_id = Some("mp-a")
     if let Model::MarketList { selection, .. } = &model {
-        assert_eq!(selection.state.selected(), Some(0));
-        assert_eq!(selection.selected_id.as_deref(), Some("mp-a"));
+        assert_eq!(selection.selected_index(), Some(0));
+        assert_eq!(selection.selected_id().map(String::as_str), Some("mp-a"));
     }
 
     update(&mut model, Msg::Down, &mut data);
 
     if let Model::MarketList { selection, .. } = &model {
-        assert_eq!(selection.state.selected(), Some(1));
-        assert_eq!(selection.selected_id.as_deref(), Some("mp-b"));
+        assert_eq!(selection.selected_index(), Some(1));
+        assert_eq!(selection.selected_id().map(String::as_str), Some("mp-b"));
     } else {
         panic!("Expected MarketList");
     }
@@ -75,9 +75,10 @@ fn down_past_last_marketplace_selects_add_new() {
     update(&mut model, Msg::Down, &mut data);
 
     if let Model::MarketList { selection, .. } = &model {
-        assert_eq!(selection.state.selected(), Some(1));
+        assert_eq!(selection.selected_index(), Some(1));
         assert_eq!(
-            selection.selected_id, None,
+            selection.selected_id(),
+            None,
             "At '+ Add new', selected_id should be None"
         );
     } else {
@@ -95,7 +96,7 @@ fn down_does_not_go_past_add_new() {
     update(&mut model, Msg::Down, &mut data); // should stay at 1
 
     if let Model::MarketList { selection, .. } = &model {
-        assert_eq!(selection.state.selected(), Some(1));
+        assert_eq!(selection.selected_index(), Some(1));
     } else {
         panic!("Expected MarketList");
     }
@@ -109,7 +110,7 @@ fn up_does_not_go_past_zero() {
     update(&mut model, Msg::Up, &mut data);
 
     if let Model::MarketList { selection, .. } = &model {
-        assert_eq!(selection.state.selected(), Some(0));
+        assert_eq!(selection.selected_index(), Some(0));
     } else {
         panic!("Expected MarketList");
     }
@@ -128,8 +129,8 @@ fn up_from_add_new_returns_to_last_marketplace() {
     update(&mut model, Msg::Up, &mut data);
 
     if let Model::MarketList { selection, .. } = &model {
-        assert_eq!(selection.state.selected(), Some(1));
-        assert_eq!(selection.selected_id.as_deref(), Some("mp-b"));
+        assert_eq!(selection.selected_index(), Some(1));
+        assert_eq!(selection.selected_id().map(String::as_str), Some("mp-b"));
     } else {
         panic!("Expected MarketList");
     }
@@ -355,7 +356,7 @@ fn detail_back_action_returns_to_market_list() {
     update(&mut model, Msg::Enter, &mut data);
 
     if let Model::MarketList { selection, .. } = &model {
-        assert_eq!(selection.selected_id.as_deref(), Some("mp-a"));
+        assert_eq!(selection.selected_id().map(String::as_str), Some("mp-a"));
     } else {
         panic!("Expected MarketList");
     }
@@ -1269,7 +1270,7 @@ fn back_from_detail_returns_to_market_list() {
     update(&mut model, Msg::Back, &mut data);
 
     if let Model::MarketList { selection, .. } = &model {
-        assert_eq!(selection.selected_id.as_deref(), Some("mp-a"));
+        assert_eq!(selection.selected_id().map(String::as_str), Some("mp-a"));
     } else {
         panic!("Expected MarketList");
     }
@@ -1576,7 +1577,7 @@ fn execute_add_success_transitions_to_market_list() {
         ..
     } = &model
     {
-        assert_eq!(selection.selected_id.as_deref(), Some("my-repo"));
+        assert_eq!(selection.selected_id().map(String::as_str), Some("my-repo"));
         assert!(operation_status.is_none());
     } else {
         panic!("Expected MarketList after successful add");
@@ -1655,7 +1656,7 @@ fn execute_update_success_clears_status() {
     {
         assert!(operation_status.is_none(), "Should clear operation_status");
         assert!(error_message.is_none(), "Should have no error");
-        assert_eq!(selection.selected_id.as_deref(), Some("mp-a"));
+        assert_eq!(selection.selected_id().map(String::as_str), Some("mp-a"));
     } else {
         panic!("Expected MarketList");
     }
@@ -1807,8 +1808,8 @@ fn execute_remove_success_reloads_and_clamps() {
     } = &model
     {
         assert!(operation_status.is_none());
-        assert_eq!(selection.selected_id.as_deref(), Some("mp-b"));
-        assert_eq!(selection.state.selected(), Some(0));
+        assert_eq!(selection.selected_id().map(String::as_str), Some("mp-b"));
+        assert_eq!(selection.selected_index(), Some(0));
     } else {
         panic!("Expected MarketList");
     }

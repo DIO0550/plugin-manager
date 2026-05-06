@@ -226,7 +226,7 @@ impl Model {
     pub fn to_cache(&self) -> CacheState {
         match self {
             Model::MarketList { selection, .. } => CacheState {
-                selected_id: selection.selected_id.clone(),
+                selected_id: selection.selected_id().cloned(),
             },
             Model::MarketDetail {
                 marketplace_name, ..

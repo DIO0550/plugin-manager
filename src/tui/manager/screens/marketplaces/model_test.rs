@@ -29,8 +29,11 @@ fn new_with_marketplaces_selects_first() {
     let (_temp_dir, data) = make_data(&["market-a", "market-b"]);
     let model = Model::new(&data);
     if let Model::MarketList { selection, .. } = &model {
-        assert_eq!(selection.selected_id.as_deref(), Some("market-a"));
-        assert_eq!(selection.state.selected(), Some(0));
+        assert_eq!(
+            selection.selected_id().map(String::as_str),
+            Some("market-a")
+        );
+        assert_eq!(selection.selected_index(), Some(0));
     } else {
         panic!("Expected MarketList");
     }
@@ -41,8 +44,8 @@ fn new_with_empty_marketplaces() {
     let (_temp_dir, data) = make_data(&[]);
     let model = Model::new(&data);
     if let Model::MarketList { selection, .. } = &model {
-        assert_eq!(selection.selected_id, None);
-        assert_eq!(selection.state.selected(), Some(0)); // "+ Add new" is selected
+        assert_eq!(selection.selected_id(), None);
+        assert_eq!(selection.selected_index(), Some(0)); // "+ Add new" is selected
     } else {
         panic!("Expected MarketList");
     }
@@ -418,8 +421,11 @@ fn to_cache_and_from_cache_round_trip() {
 
     let restored = Model::from_cache(&data, &cache);
     if let Model::MarketList { selection, .. } = &restored {
-        assert_eq!(selection.selected_id.as_deref(), Some("market-a"));
-        assert_eq!(selection.state.selected(), Some(0));
+        assert_eq!(
+            selection.selected_id().map(String::as_str),
+            Some("market-a")
+        );
+        assert_eq!(selection.selected_index(), Some(0));
     } else {
         panic!("Expected MarketList");
     }
@@ -433,7 +439,10 @@ fn from_cache_with_stale_id() {
     };
     let model = Model::from_cache(&data, &cache);
     if let Model::MarketList { selection, .. } = &model {
-        assert_eq!(selection.selected_id.as_deref(), Some("market-a"));
+        assert_eq!(
+            selection.selected_id().map(String::as_str),
+            Some("market-a")
+        );
     } else {
         panic!("Expected MarketList");
     }

@@ -104,7 +104,7 @@ fn market_selection(
 fn select_prev(model: &mut Model, data: &DataStore) {
     match model {
         Model::MarketList { selection, .. } => {
-            let current = selection.state.selected().unwrap_or(0);
+            let current = selection.selected_index().unwrap_or(0);
             if current == 0 {
                 return;
             }
@@ -179,7 +179,7 @@ fn select_next(model: &mut Model, data: &DataStore) {
     match model {
         Model::MarketList { selection, .. } => {
             let len = market_list_len(data);
-            let current = selection.state.selected().unwrap_or(0);
+            let current = selection.selected_index().unwrap_or(0);
             let next = (current + 1).min(len - 1);
             selection.set(
                 data.marketplaces.get(next).map(|m| m.name.clone()),
@@ -258,7 +258,7 @@ fn enter(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
                 return UpdateEffect::none();
             }
 
-            if let Some(name) = selection.selected_id.clone() {
+            if let Some(name) = selection.selected_id().cloned() {
                 // 通常項目 -> MarketDetail
                 let mut state = ListState::default();
                 state.select(Some(0));
@@ -1010,7 +1010,7 @@ fn update_market(model: &mut Model) -> UpdateEffect {
         if operation_status.is_some() {
             return UpdateEffect::none();
         }
-        if let Some(name) = selection.selected_id.clone() {
+        if let Some(name) = selection.selected_id().cloned() {
             *error_message = None;
             *operation_status = Some(OperationStatus::Updating(name));
             return UpdateEffect::phase2(Msg::ExecuteUpdate);
@@ -1092,9 +1092,9 @@ fn execute_update_with(
                     *error_message = Some(format!("Failed to update: {}", errors.join(", ")));
                 }
                 // 選択状態を維持
-                if let Some(id) = selection.selected_id.as_ref() {
+                if let Some(id) = selection.selected_id() {
                     let idx = data.marketplace_index(id).unwrap_or(0);
-                    selection.state.select(Some(idx));
+                    selection.select_index(Some(idx));
                 }
             }
             other => {

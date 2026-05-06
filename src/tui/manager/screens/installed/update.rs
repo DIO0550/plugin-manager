@@ -97,7 +97,7 @@ fn toggle_mark(model: &mut Model) {
         ..
     } = model
     {
-        if let Some(id) = selection.selected_id.as_ref() {
+        if let Some(id) = selection.selected_id() {
             if marked_ids.contains(id) {
                 marked_ids.remove(id);
             } else {
@@ -264,7 +264,7 @@ fn execute_batch_with(
 
         // reload 後にフィルタ済みリストに対して選択状態を再同期
         let filtered = filter_plugins(&data.plugins, filter_text);
-        let current_selected = selection.selected_id.as_ref();
+        let current_selected = selection.selected_id();
         let new_idx = current_selected
             .and_then(|id| filtered.iter().position(|p| p.id() == id.as_str()))
             .or(if filtered.is_empty() { None } else { Some(0) });
@@ -288,6 +288,17 @@ fn select_prev(model: &mut Model, data: &DataStore, filter_text: &str) -> bool {
         }
         return false;
     }
+    if let Model::PluginList { selection, .. } = model {
+        let current = selection.selected_index().unwrap_or(0);
+        if current == 0 {
+            return true;
+        }
+        let prev = current.saturating_sub(1);
+        selection.select_index(Some(prev));
+        update_selected_id(model, data, filter_text);
+        return false;
+    }
+
     let state = model.current_state_mut();
     let current = state.selected().unwrap_or(0);
     if current == 0 {
@@ -310,6 +321,14 @@ fn select_next(model: &mut Model, data: &DataStore, filter_text: &str) {
     if len == 0 {
         return;
     }
+    if let Model::PluginList { selection, .. } = model {
+        let current = selection.selected_index().unwrap_or(0);
+        let next = (current + 1).min(len.saturating_sub(1));
+        selection.select_index(Some(next));
+        update_selected_id(model, data, filter_text);
+        return;
+    }
+
     let state = model.current_state_mut();
     let current = state.selected().unwrap_or(0);
     let next = (current + 1).min(len.saturating_sub(1));
@@ -328,7 +347,7 @@ fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) -> UpdateEf
             ..
         } => {
             // PluginList → PluginDetail へ遷移（マーク状態を保存）
-            if let Some(plugin_id) = selection.selected_id.clone() {
+            if let Some(plugin_id) = selection.selected_id().cloned() {
                 if data.find_plugin(&plugin_id).is_some() {
                     let saved_marked = std::mem::take(marked_ids);
                     let saved_statuses = std::mem::take(update_statuses);
@@ -632,9 +651,9 @@ fn list_len(model: &Model, data: &DataStore, filter_text: &str) -> usize {
 /// selected_id を現在のインデックスから更新
 fn update_selected_id(model: &mut Model, data: &DataStore, filter_text: &str) {
     if let Model::PluginList { selection, .. } = model {
-        if let Some(idx) = selection.state.selected() {
+        if let Some(idx) = selection.selected_index() {
             let filtered = filter_plugins(&data.plugins, filter_text);
-            selection.selected_id = filtered.get(idx).map(|p| p.id().to_string());
+            selection.set(filtered.get(idx).map(|p| p.id().to_string()), Some(idx));
         }
     }
 }

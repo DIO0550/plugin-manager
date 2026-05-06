@@ -203,7 +203,7 @@ impl Model {
                 marked_ids,
                 ..
             } => CacheState {
-                selected_plugin_id: selection.selected_id.clone(),
+                selected_plugin_id: selection.selected_id().cloned(),
                 marked_ids: marked_ids.clone(),
             },
             Model::PluginDetail {
@@ -241,7 +241,9 @@ impl Model {
     /// 現在選択中の ListState を取得
     pub fn current_state_mut(&mut self) -> &mut ListState {
         match self {
-            Model::PluginList { selection, .. } => selection.list_state_mut(),
+            Model::PluginList { .. } => {
+                unreachable!("PluginList selection is managed through SelectionState")
+            }
             Model::PluginDetail { state, .. } => state,
             Model::ComponentTypes { state, .. } => state,
             Model::ComponentList { state, .. } => state,
