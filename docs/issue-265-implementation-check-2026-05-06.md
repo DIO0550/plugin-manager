@@ -4,7 +4,7 @@
 
 Issue #265「画面ごとの段階的移行」は、本実装で着手済みになった。
 
-GitHub 上の Issue #265 は open のままで、本文の目的は「1 画面ずつ共通 state を埋め込み、PR を分けて移行する」ことになっている。依存先の Issue #264「共通 state 型の設計」は closed/completed で、ローカルにも `docs/issue-264-common-state-design-2026-05-05.md` が存在するため、設計までは完了していた。
+Issue #265 の本文の目的は「1 画面ずつ共通 state を埋め込み、PR を分けて移行する」ことになっている。依存先の Issue #264「共通 state 型の設計」は、ローカルにも `docs/issue-264-common-state-design-2026-05-05.md` が存在するため、設計内容を参照できる状態だった。
 
 今回、#264 の方針に沿って `SelectionState<K>` を追加し、`Installed::PluginList` と `Marketplaces::MarketList` の一覧選択 state を共通型へ移行した。
 
