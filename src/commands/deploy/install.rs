@@ -201,6 +201,10 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
 /// （例: Codex の `.codex/hooks.json`）もあるため、target 全体が成功した場合だけ
 /// `.plm-meta.json` の `statusByTarget` に記録して enabled 判定を安定させる。
 ///
+/// 実際にステータス更新が発生しなかった場合（全 target が失敗した、`successes`
+/// が空など）は `.plm-meta.json` を書き換えない。失敗 install で不要な
+/// メタデータ更新を避け、ファイル mtime の汚染も防ぐ。
+///
 /// # Arguments
 ///
 /// * `plugin_path` - Filesystem path of the cached plugin.
@@ -213,10 +217,16 @@ fn update_status_after_install(plugin_path: &std::path::Path, result: &PlaceResu
         .map(|failure| failure.target.as_str())
         .collect();
 
+    let mut updated = false;
     for success in &result.successes {
         if !failed_targets.contains(success.target.as_str()) {
             plugin_meta.set_status(&success.target, "enabled");
+            updated = true;
         }
+    }
+
+    if !updated {
+        return;
     }
 
     if let Err(e) = meta::write_meta(plugin_path, &plugin_meta) {

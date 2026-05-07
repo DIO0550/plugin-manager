@@ -273,6 +273,34 @@ fn update_status_after_install_skips_targets_with_failures() {
 
     update_status_after_install(temp.path(), &result);
 
-    let plugin_meta = crate::plugin::meta::load_meta(temp.path()).unwrap();
-    assert_eq!(plugin_meta.get_status("codex"), None);
+    // 同 target 内に failure があるとステータス更新は発生しないため、
+    // .plm-meta.json は新規作成されない（不要な書き込みを避ける）。
+    assert!(
+        crate::plugin::meta::load_meta(temp.path()).is_none(),
+        "failed-target install must not create .plm-meta.json"
+    );
+}
+
+#[test]
+fn update_status_after_install_skips_write_when_all_failed() {
+    // 全 target が失敗（successes が空）の場合、.plm-meta.json を書き換えない。
+    let temp = TempDir::new().unwrap();
+    let result = PlaceResult {
+        plugin_name: "test-plugin".to_string(),
+        successes: vec![],
+        failures: vec![PlaceFailure {
+            target: "codex".to_string(),
+            component_name: "test-plugin_hook".to_string(),
+            component_kind: ComponentKind::Hook,
+            error: "failed".to_string(),
+            stage: PlaceFailureStage::Deployment,
+        }],
+    };
+
+    update_status_after_install(temp.path(), &result);
+
+    assert!(
+        crate::plugin::meta::load_meta(temp.path()).is_none(),
+        "fully-failed install must not create .plm-meta.json"
+    );
 }
