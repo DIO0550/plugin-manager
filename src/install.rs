@@ -73,6 +73,7 @@ pub struct PlaceResult {
 #[derive(Debug)]
 pub struct PlaceSuccess {
     pub target: String,
+    pub target_kind: TargetKind,
     pub component_name: String,
     pub component_kind: ComponentKind,
     pub target_path: PathBuf,
@@ -289,6 +290,7 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
 
                     successes.push(PlaceSuccess {
                         target: target.name().to_string(),
+                        target_kind: target.kind(),
                         component_name: component.name.clone(),
                         component_kind: component.kind,
                         target_path: deployment.path().to_path_buf(),

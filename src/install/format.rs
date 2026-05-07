@@ -6,6 +6,7 @@
 
 use crate::component::ComponentKind;
 use crate::hooks::converter::{ConversionWarning, SourceFormat};
+use crate::target::TargetKind;
 use owo_colors::OwoColorize;
 use std::collections::BTreeSet;
 
@@ -101,7 +102,11 @@ pub fn format_converted_hook_suffix() -> String {
 ///
 /// 文言: 件数に応じて単数形 `1 event skipped` / 複数形 `N events skipped` を
 /// 切り替える（user-facing CLI なので英語の単複は正確に出す）。
-pub fn format_skipped_events_warning(events: &BTreeSet<String>) -> Option<String> {
+/// `target_kind` でターゲットを示す文言（`Copilot CLI` / `Codex CLI`）を切り替える。
+pub fn format_skipped_events_warning(
+    events: &BTreeSet<String>,
+    target_kind: TargetKind,
+) -> Option<String> {
     if events.is_empty() {
         return None;
     }
@@ -109,12 +114,23 @@ pub fn format_skipped_events_warning(events: &BTreeSet<String>) -> Option<String
     let noun = if count == 1 { "event" } else { "events" };
     let list = events.iter().cloned().collect::<Vec<_>>().join(", ");
     Some(format!(
-        "  {} {} {} skipped (not supported in Copilot CLI): {}",
+        "  {} {} {} skipped (not supported in {}): {}",
         "Warning:".yellow(),
         count,
         noun,
+        target_display_name(target_kind),
         list
     ))
+}
+
+/// ターゲット向け表示名（user-facing CLI の警告文言用）。
+fn target_display_name(target_kind: TargetKind) -> &'static str {
+    match target_kind {
+        TargetKind::Copilot => "Copilot CLI",
+        TargetKind::Codex => "Codex CLI",
+        TargetKind::Antigravity => "Antigravity",
+        TargetKind::GeminiCli => "Gemini CLI",
+    }
 }
 
 /// prompt/agent フックの手動書き換え案内（stderr / magenta + bold 見出し）。
@@ -201,6 +217,7 @@ pub struct HookRenderOutput {
 /// - Hook 以外の `component_kind` では空の `HookRenderOutput` を返す
 pub fn render_hook_success(
     component_kind: ComponentKind,
+    target_kind: TargetKind,
     hook_source_format: Option<SourceFormat>,
     hook_warnings: &[ConversionWarning],
     _script_count: usize,
@@ -222,7 +239,7 @@ pub fn render_hook_success(
     let classified = classify_hook_warnings(hook_warnings);
     let mut stderr_blocks: Vec<String> = Vec::new();
 
-    if let Some(line) = format_skipped_events_warning(&classified.skipped) {
+    if let Some(line) = format_skipped_events_warning(&classified.skipped, target_kind) {
         stderr_blocks.push(line);
     }
     if let Some(section) = format_manual_rewrite_section(&classified.stubs) {

@@ -32,6 +32,7 @@ use std::env;
 pub fn render_place_success_to_strings(success: &PlaceSuccess) -> (String, Vec<String>) {
     let rendered = render_hook_success(
         success.component_kind,
+        success.target_kind,
         success.hook_source_format,
         &success.hook_warnings,
         success.script_count,

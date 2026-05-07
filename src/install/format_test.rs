@@ -1,6 +1,7 @@
 use super::*;
 use crate::component::ComponentKind;
 use crate::hooks::converter::{ConversionWarning, SourceFormat};
+use crate::target::TargetKind;
 use owo_colors::OwoColorize;
 use std::collections::BTreeSet;
 
@@ -166,7 +167,7 @@ fn classify_hook_warnings_routes_others_for_removed_field_and_missing_version() 
 #[test]
 fn format_skipped_events_warning_returns_none_for_empty() {
     let events: BTreeSet<String> = BTreeSet::new();
-    assert!(format_skipped_events_warning(&events).is_none());
+    assert!(format_skipped_events_warning(&events, TargetKind::Copilot).is_none());
 }
 
 #[test]
@@ -174,7 +175,7 @@ fn format_skipped_events_warning_uses_singular_for_one_event() {
     // user-facing CLI の英文として「1 events」は誤りなので、件数 1 のとき "event" を使う。
     let mut events = BTreeSet::new();
     events.insert("Notification".to_string());
-    let actual = format_skipped_events_warning(&events).unwrap();
+    let actual = format_skipped_events_warning(&events, TargetKind::Copilot).unwrap();
     let expected = format!(
         "  {} 1 event skipped (not supported in Copilot CLI): Notification",
         "Warning:".yellow()
@@ -188,9 +189,22 @@ fn format_skipped_events_warning_lists_three_events_alphabetically() {
     events.insert("PreCompact".to_string());
     events.insert("Notification".to_string());
     events.insert("SubagentStart".to_string());
-    let actual = format_skipped_events_warning(&events).unwrap();
+    let actual = format_skipped_events_warning(&events, TargetKind::Copilot).unwrap();
     let expected = format!(
         "  {} 3 events skipped (not supported in Copilot CLI): Notification, PreCompact, SubagentStart",
+        "Warning:".yellow()
+    );
+    assert_eq!(actual, expected);
+}
+
+#[test]
+fn format_skipped_events_warning_uses_codex_label_for_codex_target() {
+    // Codex 向け出力では Copilot 固有の文言ではなく Codex CLI を表示する。
+    let mut events = BTreeSet::new();
+    events.insert("Notification".to_string());
+    let actual = format_skipped_events_warning(&events, TargetKind::Codex).unwrap();
+    let expected = format!(
+        "  {} 1 event skipped (not supported in Codex CLI): Notification",
         "Warning:".yellow()
     );
     assert_eq!(actual, expected);
@@ -308,6 +322,7 @@ fn render_hook_success_claude_code_with_unsupported_events_emits_suffix_and_one_
     ];
     let rendered = render_hook_success(
         ComponentKind::Hook,
+        TargetKind::Copilot,
         Some(SourceFormat::ClaudeCode),
         &warnings,
         1,
@@ -324,6 +339,7 @@ fn render_hook_success_copilot_format_with_missing_version_no_suffix_only_indivi
     let warnings = vec![ConversionWarning::MissingVersion];
     let rendered = render_hook_success(
         ComponentKind::Hook,
+        TargetKind::Copilot,
         Some(SourceFormat::TargetFormat),
         &warnings,
         0,
@@ -341,6 +357,7 @@ fn render_hook_success_copilot_format_with_missing_version_no_suffix_only_indivi
 fn render_hook_success_skill_returns_empty_output() {
     let rendered = render_hook_success(
         ComponentKind::Skill,
+        TargetKind::Copilot,
         Some(SourceFormat::ClaudeCode),
         &[ConversionWarning::MissingVersion],
         1,
@@ -362,6 +379,7 @@ fn render_hook_success_all_events_skipped_includes_empty_hooks_warning() {
     ];
     let rendered = render_hook_success(
         ComponentKind::Hook,
+        TargetKind::Copilot,
         Some(SourceFormat::ClaudeCode),
         &warnings,
         0,
@@ -378,6 +396,7 @@ fn render_hook_success_all_events_skipped_includes_empty_hooks_warning() {
 fn render_hook_success_inline_hooks_do_not_emit_empty_hooks_warning() {
     let rendered = render_hook_success(
         ComponentKind::Hook,
+        TargetKind::Copilot,
         Some(SourceFormat::ClaudeCode),
         &[],
         0,
@@ -411,6 +430,7 @@ fn render_hook_success_all_unsupported_hook_types_emits_empty_hooks_warning() {
     ];
     let rendered = render_hook_success(
         ComponentKind::Hook,
+        TargetKind::Copilot,
         Some(SourceFormat::ClaudeCode),
         &warnings,
         0,
@@ -455,6 +475,7 @@ fn render_hook_success_only_removed_field_warnings_still_emits_empty_hooks_warni
     ];
     let rendered = render_hook_success(
         ComponentKind::Hook,
+        TargetKind::Copilot,
         Some(SourceFormat::ClaudeCode),
         &warnings,
         0,
@@ -479,6 +500,7 @@ fn render_hook_success_target_format_with_zero_scripts_does_not_emit_empty_hooks
     let warnings = vec![ConversionWarning::MissingVersion];
     let rendered = render_hook_success(
         ComponentKind::Hook,
+        TargetKind::Copilot,
         Some(SourceFormat::TargetFormat),
         &warnings,
         0,
@@ -498,7 +520,7 @@ fn render_hook_success_target_format_with_zero_scripts_does_not_emit_empty_hooks
 fn render_hook_success_hook_with_none_source_format_and_no_warnings_returns_empty() {
     // version 付き Copilot 形式 Hook は DeploymentOutput::Copied 経路で
     // hook_source_format == None / warnings 0 になる。既存挙動の固定。
-    let rendered = render_hook_success(ComponentKind::Hook, None, &[], 0, 0);
+    let rendered = render_hook_success(ComponentKind::Hook, TargetKind::Copilot, None, &[], 0, 0);
     assert!(rendered.stdout_suffix.is_none());
     assert!(rendered.stderr_blocks.is_empty());
 }
@@ -520,6 +542,7 @@ fn render_hook_success_prompt_agent_stub_emits_manual_rewrite_section() {
     ];
     let rendered = render_hook_success(
         ComponentKind::Hook,
+        TargetKind::Copilot,
         Some(SourceFormat::ClaudeCode),
         &warnings,
         2,

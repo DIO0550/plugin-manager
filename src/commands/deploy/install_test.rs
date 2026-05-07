@@ -2,8 +2,19 @@ use super::*;
 use crate::component::ComponentKind;
 use crate::hooks::converter::{ConversionWarning, SourceFormat};
 use crate::install::{PlaceFailure, PlaceFailureStage, PlaceResult, PlaceSuccess};
+use crate::target::TargetKind;
 use std::path::PathBuf;
 use tempfile::TempDir;
+
+fn target_kind_from_name(name: &str) -> TargetKind {
+    match name {
+        "antigravity" => TargetKind::Antigravity,
+        "codex" => TargetKind::Codex,
+        "copilot" => TargetKind::Copilot,
+        "gemini" => TargetKind::GeminiCli,
+        other => panic!("unknown target name in test fixture: {}", other),
+    }
+}
 
 fn make_success(
     component_kind: ComponentKind,
@@ -19,6 +30,7 @@ fn make_success(
 ) -> PlaceSuccess {
     PlaceSuccess {
         target: target.to_string(),
+        target_kind: target_kind_from_name(target),
         component_name: component_name.to_string(),
         component_kind,
         target_path: PathBuf::from(target_path),
