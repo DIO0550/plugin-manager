@@ -53,6 +53,39 @@ impl CodexTarget {
         })
     }
 
+    /// 配置先 `hooks.json` がすでに存在し、現在のプラグインが過去に同 target を
+    /// enable していない場合にエラー文字列を返す。
+    ///
+    /// 共有パス（`.codex/hooks.json` / `~/.codex/hooks.json`）を上書きしてしまう
+    /// ことで、ユーザーが手書きした hooks や別プラグインが配置した hooks を
+    /// 黙って消してしまうのを防ぐ。再 install（同プラグイン）の場合は
+    /// `.plm-meta.json` の `statusByTarget["codex"] == "enabled"` を見て許可する。
+    ///
+    /// # Arguments
+    ///
+    /// * `target_path` - Resolved destination path (e.g. `.codex/hooks.json`).
+    /// * `plugin_root` - Cached plugin directory; `.plm-meta.json` lives here.
+    pub fn hook_overwrite_error(target_path: &Path, plugin_root: &Path) -> Option<String> {
+        if !target_path.exists() {
+            return None;
+        }
+
+        let already_owned = crate::plugin::meta::load_meta(plugin_root)
+            .and_then(|meta| meta.get_status("codex").map(|s| s.to_string()))
+            .map(|status| status == "enabled")
+            .unwrap_or(false);
+
+        if already_owned {
+            return None;
+        }
+
+        Some(format!(
+            "{} already exists and is not managed by this plugin. \
+             Refusing to overwrite; remove the file or merge it manually before re-installing.",
+            target_path.display()
+        ))
+    }
+
     /// コンポーネント種別に応じたフィルタリング
     ///
     /// # Arguments

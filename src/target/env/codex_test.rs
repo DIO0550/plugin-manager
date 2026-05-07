@@ -197,3 +197,45 @@ fn test_codex_placement_location_hook_personal_scope() {
     assert!(location.is_file());
     assert_eq!(location.as_path(), home_dir().join(".codex/hooks.json"));
 }
+
+#[test]
+fn hook_overwrite_error_returns_none_when_target_does_not_exist() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let target_path = temp.path().join("hooks.json"); // 存在しない
+    let plugin_root = temp.path();
+
+    assert!(CodexTarget::hook_overwrite_error(&target_path, plugin_root).is_none());
+}
+
+#[test]
+fn hook_overwrite_error_returns_error_when_target_exists_and_not_managed() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let target_path = temp.path().join("hooks.json");
+    std::fs::write(&target_path, "{}").unwrap();
+
+    let plugin_root_dir = tempfile::TempDir::new().unwrap();
+    // .plm-meta.json は無いので、過去 install 履歴なし → error
+    let result = CodexTarget::hook_overwrite_error(&target_path, plugin_root_dir.path());
+    assert!(result.is_some());
+    let msg = result.unwrap();
+    assert!(msg.contains("already exists"));
+    assert!(msg.contains("not managed by this plugin"));
+}
+
+#[test]
+fn hook_overwrite_error_returns_none_when_plugin_already_owns_codex() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let target_path = temp.path().join("hooks.json");
+    std::fs::write(&target_path, "{}").unwrap();
+
+    let plugin_root_dir = tempfile::TempDir::new().unwrap();
+    let mut meta = crate::plugin::meta::PluginMeta::default();
+    meta.set_status("codex", "enabled");
+    crate::plugin::meta::write_meta(plugin_root_dir.path(), &meta).unwrap();
+
+    // 同プラグインの再 install は許可される
+    assert!(
+        CodexTarget::hook_overwrite_error(&target_path, plugin_root_dir.path()).is_none(),
+        "re-install of the same plugin must be allowed when codex was previously enabled"
+    );
+}

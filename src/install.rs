@@ -223,6 +223,21 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
                 None => continue,
             };
 
+            if component.kind == ComponentKind::Hook && target.kind() == TargetKind::Codex {
+                if let Some(error) =
+                    CodexTarget::hook_overwrite_error(&target_path, request.scanned.plugin_root())
+                {
+                    failures.push(PlaceFailure {
+                        target: target.name().to_string(),
+                        component_name: component.name.clone(),
+                        component_kind: component.kind,
+                        error,
+                        stage: PlaceFailureStage::Resolution,
+                    });
+                    continue;
+                }
+            }
+
             let conversion = match component.kind {
                 ComponentKind::Command => ConversionConfig::Command {
                     source: request.scanned.command_format(),
