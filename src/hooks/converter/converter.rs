@@ -70,7 +70,7 @@ impl fmt::Display for ConversionWarning {
             ConversionWarning::UnsupportedEvent { event } => {
                 write!(
                     f,
-                    "Event '{}' is not supported in Copilot CLI and was excluded",
+                    "Event '{}' is not supported by the target hook format and was excluded",
                     event
                 )
             }
