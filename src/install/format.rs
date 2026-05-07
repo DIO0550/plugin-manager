@@ -207,6 +207,19 @@ pub struct HookRenderOutput {
     pub stderr_blocks: Vec<String>,
 }
 
+/// `render_hook_success` の入力。
+///
+/// `script_count` は将来の表示拡張のために保持する（現状は未使用だが、
+/// inline hook と generated script の比率を出したくなったときに参照する）。
+pub struct HookRenderInput<'a> {
+    pub component_kind: ComponentKind,
+    pub target_kind: TargetKind,
+    pub hook_source_format: Option<SourceFormat>,
+    pub hook_warnings: &'a [ConversionWarning],
+    pub script_count: usize,
+    pub hook_count: usize,
+}
+
 /// Hook の success データから表示用の `HookRenderOutput` を組み立てる pure function。
 ///
 /// 分岐仕様:
@@ -215,14 +228,16 @@ pub struct HookRenderOutput {
 /// - `stderr_blocks`: `component_kind == Hook` かつ各カテゴリ非空のときのみ追加。
 ///   `source_format` 非依存（Copilot 形式 + `MissingVersion` でも warning は出る）
 /// - Hook 以外の `component_kind` では空の `HookRenderOutput` を返す
-pub fn render_hook_success(
-    component_kind: ComponentKind,
-    target_kind: TargetKind,
-    hook_source_format: Option<SourceFormat>,
-    hook_warnings: &[ConversionWarning],
-    _script_count: usize,
-    hook_count: usize,
-) -> HookRenderOutput {
+pub fn render_hook_success(input: HookRenderInput<'_>) -> HookRenderOutput {
+    let HookRenderInput {
+        component_kind,
+        target_kind,
+        hook_source_format,
+        hook_warnings,
+        script_count: _,
+        hook_count,
+    } = input;
+
     if component_kind != ComponentKind::Hook {
         return HookRenderOutput {
             stdout_suffix: None,

@@ -320,14 +320,14 @@ fn render_hook_success_claude_code_with_unsupported_events_emits_suffix_and_one_
             event: "SubagentStart".to_string(),
         },
     ];
-    let rendered = render_hook_success(
-        ComponentKind::Hook,
-        TargetKind::Copilot,
-        Some(SourceFormat::ClaudeCode),
-        &warnings,
-        1,
-        1,
-    );
+    let rendered = render_hook_success(HookRenderInput {
+        component_kind: ComponentKind::Hook,
+        target_kind: TargetKind::Copilot,
+        hook_source_format: Some(SourceFormat::ClaudeCode),
+        hook_warnings: &warnings,
+        script_count: 1,
+        hook_count: 1,
+    });
     assert!(rendered.stdout_suffix.is_some());
     assert_eq!(rendered.stderr_blocks.len(), 1);
     assert!(rendered.stderr_blocks[0].contains("3 events skipped"));
@@ -337,14 +337,14 @@ fn render_hook_success_claude_code_with_unsupported_events_emits_suffix_and_one_
 fn render_hook_success_copilot_format_with_missing_version_no_suffix_only_individual_warning() {
     // Copilot 形式 + MissingVersion 1 件 → suffix なし、stderr_blocks に individual warning のみ
     let warnings = vec![ConversionWarning::MissingVersion];
-    let rendered = render_hook_success(
-        ComponentKind::Hook,
-        TargetKind::Copilot,
-        Some(SourceFormat::TargetFormat),
-        &warnings,
-        0,
-        0,
-    );
+    let rendered = render_hook_success(HookRenderInput {
+        component_kind: ComponentKind::Hook,
+        target_kind: TargetKind::Copilot,
+        hook_source_format: Some(SourceFormat::TargetFormat),
+        hook_warnings: &warnings,
+        script_count: 0,
+        hook_count: 0,
+    });
     assert!(rendered.stdout_suffix.is_none());
     assert_eq!(rendered.stderr_blocks.len(), 1);
     assert_eq!(
@@ -355,14 +355,14 @@ fn render_hook_success_copilot_format_with_missing_version_no_suffix_only_indivi
 
 #[test]
 fn render_hook_success_skill_returns_empty_output() {
-    let rendered = render_hook_success(
-        ComponentKind::Skill,
-        TargetKind::Copilot,
-        Some(SourceFormat::ClaudeCode),
-        &[ConversionWarning::MissingVersion],
-        1,
-        1,
-    );
+    let rendered = render_hook_success(HookRenderInput {
+        component_kind: ComponentKind::Skill,
+        target_kind: TargetKind::Copilot,
+        hook_source_format: Some(SourceFormat::ClaudeCode),
+        hook_warnings: &[ConversionWarning::MissingVersion],
+        script_count: 1,
+        hook_count: 1,
+    });
     assert!(rendered.stdout_suffix.is_none());
     assert!(rendered.stderr_blocks.is_empty());
 }
@@ -377,14 +377,14 @@ fn render_hook_success_all_events_skipped_includes_empty_hooks_warning() {
             event: "PreCompact".to_string(),
         },
     ];
-    let rendered = render_hook_success(
-        ComponentKind::Hook,
-        TargetKind::Copilot,
-        Some(SourceFormat::ClaudeCode),
-        &warnings,
-        0,
-        0,
-    );
+    let rendered = render_hook_success(HookRenderInput {
+        component_kind: ComponentKind::Hook,
+        target_kind: TargetKind::Copilot,
+        hook_source_format: Some(SourceFormat::ClaudeCode),
+        hook_warnings: &warnings,
+        script_count: 0,
+        hook_count: 0,
+    });
     assert!(rendered.stdout_suffix.is_some());
     // skipped events warning + empty hooks warning の 2 ブロック
     assert_eq!(rendered.stderr_blocks.len(), 2);
@@ -394,14 +394,14 @@ fn render_hook_success_all_events_skipped_includes_empty_hooks_warning() {
 
 #[test]
 fn render_hook_success_inline_hooks_do_not_emit_empty_hooks_warning() {
-    let rendered = render_hook_success(
-        ComponentKind::Hook,
-        TargetKind::Copilot,
-        Some(SourceFormat::ClaudeCode),
-        &[],
-        0,
-        1,
-    );
+    let rendered = render_hook_success(HookRenderInput {
+        component_kind: ComponentKind::Hook,
+        target_kind: TargetKind::Copilot,
+        hook_source_format: Some(SourceFormat::ClaudeCode),
+        hook_warnings: &[],
+        script_count: 0,
+        hook_count: 1,
+    });
     assert!(rendered.stdout_suffix.is_some());
     assert!(
         !rendered
@@ -428,14 +428,14 @@ fn render_hook_success_all_unsupported_hook_types_emits_empty_hooks_warning() {
             event: "PostToolUse".to_string(),
         },
     ];
-    let rendered = render_hook_success(
-        ComponentKind::Hook,
-        TargetKind::Copilot,
-        Some(SourceFormat::ClaudeCode),
-        &warnings,
-        0,
-        0,
-    );
+    let rendered = render_hook_success(HookRenderInput {
+        component_kind: ComponentKind::Hook,
+        target_kind: TargetKind::Copilot,
+        hook_source_format: Some(SourceFormat::ClaudeCode),
+        hook_warnings: &warnings,
+        script_count: 0,
+        hook_count: 0,
+    });
     assert!(rendered.stdout_suffix.is_some());
     // 空配置警告 + 個別 warning 2 件 = 3 ブロック
     assert_eq!(rendered.stderr_blocks.len(), 3);
@@ -473,14 +473,14 @@ fn render_hook_success_only_removed_field_warnings_still_emits_empty_hooks_warni
                 .to_string(),
         },
     ];
-    let rendered = render_hook_success(
-        ComponentKind::Hook,
-        TargetKind::Copilot,
-        Some(SourceFormat::ClaudeCode),
-        &warnings,
-        0,
-        0,
-    );
+    let rendered = render_hook_success(HookRenderInput {
+        component_kind: ComponentKind::Hook,
+        target_kind: TargetKind::Copilot,
+        hook_source_format: Some(SourceFormat::ClaudeCode),
+        hook_warnings: &warnings,
+        script_count: 0,
+        hook_count: 0,
+    });
     assert!(rendered.stdout_suffix.is_some());
     // 空配置警告 + 個別 warning 2 件 = 3 ブロック
     assert_eq!(rendered.stderr_blocks.len(), 3);
@@ -498,14 +498,14 @@ fn render_hook_success_target_format_with_zero_scripts_does_not_emit_empty_hooks
     // TargetFormat passthrough は入力 JSON がそのまま配置されるので `script_count == 0`
     // でも空配置警告は出してはいけない（false positive 防止）。
     let warnings = vec![ConversionWarning::MissingVersion];
-    let rendered = render_hook_success(
-        ComponentKind::Hook,
-        TargetKind::Copilot,
-        Some(SourceFormat::TargetFormat),
-        &warnings,
-        0,
-        0,
-    );
+    let rendered = render_hook_success(HookRenderInput {
+        component_kind: ComponentKind::Hook,
+        target_kind: TargetKind::Copilot,
+        hook_source_format: Some(SourceFormat::TargetFormat),
+        hook_warnings: &warnings,
+        script_count: 0,
+        hook_count: 0,
+    });
     assert!(rendered.stdout_suffix.is_none());
     assert!(
         !rendered
@@ -520,7 +520,14 @@ fn render_hook_success_target_format_with_zero_scripts_does_not_emit_empty_hooks
 fn render_hook_success_hook_with_none_source_format_and_no_warnings_returns_empty() {
     // version 付き Copilot 形式 Hook は DeploymentOutput::Copied 経路で
     // hook_source_format == None / warnings 0 になる。既存挙動の固定。
-    let rendered = render_hook_success(ComponentKind::Hook, TargetKind::Copilot, None, &[], 0, 0);
+    let rendered = render_hook_success(HookRenderInput {
+        component_kind: ComponentKind::Hook,
+        target_kind: TargetKind::Copilot,
+        hook_source_format: None,
+        hook_warnings: &[],
+        script_count: 0,
+        hook_count: 0,
+    });
     assert!(rendered.stdout_suffix.is_none());
     assert!(rendered.stderr_blocks.is_empty());
 }
@@ -540,14 +547,14 @@ fn render_hook_success_prompt_agent_stub_emits_manual_rewrite_section() {
             event: "postToolUse".to_string(),
         },
     ];
-    let rendered = render_hook_success(
-        ComponentKind::Hook,
-        TargetKind::Copilot,
-        Some(SourceFormat::ClaudeCode),
-        &warnings,
-        2,
-        2,
-    );
+    let rendered = render_hook_success(HookRenderInput {
+        component_kind: ComponentKind::Hook,
+        target_kind: TargetKind::Copilot,
+        hook_source_format: Some(SourceFormat::ClaudeCode),
+        hook_warnings: &warnings,
+        script_count: 2,
+        hook_count: 2,
+    });
     assert!(rendered.stdout_suffix.is_some());
     assert_eq!(rendered.stderr_blocks.len(), 1);
     assert!(rendered.stderr_blocks[0].contains("Manual rewrite required (2 hooks):"));

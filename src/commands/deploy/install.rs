@@ -10,7 +10,7 @@
 
 use crate::commands::args::{InteractiveScopeArgs, MultiTargetArgs};
 use crate::component::ComponentKind;
-use crate::install::format::render_hook_success;
+use crate::install::format::{render_hook_success, HookRenderInput};
 use crate::install::{self, PlaceRequest, PlaceResult, PlaceSuccess};
 use crate::output::CommandSummary;
 use crate::plugin::meta;
@@ -30,14 +30,14 @@ use std::env;
 ///
 /// stderr ブロック群は Hook のみ `render_hook_success` の `stderr_blocks` を返す。
 pub fn render_place_success_to_strings(success: &PlaceSuccess) -> (String, Vec<String>) {
-    let rendered = render_hook_success(
-        success.component_kind,
-        success.target_kind,
-        success.hook_source_format,
-        &success.hook_warnings,
-        success.script_count,
-        success.hook_count,
-    );
+    let rendered = render_hook_success(HookRenderInput {
+        component_kind: success.component_kind,
+        target_kind: success.target_kind,
+        hook_source_format: success.hook_source_format,
+        hook_warnings: &success.hook_warnings,
+        script_count: success.script_count,
+        hook_count: success.hook_count,
+    });
 
     let suffix = match rendered.stdout_suffix {
         Some(s) => s,
