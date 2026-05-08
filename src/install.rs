@@ -396,7 +396,11 @@ pub fn update_meta_after_place(plugin_path: &Path, result: &PlaceResult) {
 
         // statusByTarget = "enabled" は「target 全体として成功した」状態を表す
         // ため、同じ target に failure があれば enabled に昇格させない。
-        if !failed_targets.contains(success.target.as_str()) {
+        // 既に "enabled" の場合は内容変化なしの no-op 書き込みを避けるため
+        // set_status を呼ばずに skip する（mtime 汚染を防ぐ）。
+        if !failed_targets.contains(success.target.as_str())
+            && plugin_meta.get_status(&success.target) != Some("enabled")
+        {
             plugin_meta.set_status(&success.target, "enabled");
             updated = true;
         }

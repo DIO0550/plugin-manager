@@ -248,6 +248,46 @@ fn update_status_after_install_marks_successful_targets_enabled() {
 }
 
 #[test]
+fn update_meta_after_place_does_not_rewrite_when_meta_already_up_to_date() {
+    // 既に enabled かつ managedFiles 登録済みの状態で再実行した場合、
+    // .plm-meta.json の mtime を更新してはならない。
+    let temp = TempDir::new().unwrap();
+    let mut prepared = crate::plugin::meta::PluginMeta::default();
+    prepared.set_status("codex", "enabled");
+    prepared.add_managed_file("codex", std::path::Path::new("/dest/codex/hooks.json"));
+    crate::plugin::meta::write_meta(temp.path(), &prepared).unwrap();
+
+    let meta_path = temp.path().join(".plm-meta.json");
+    let mtime_before = std::fs::metadata(&meta_path).unwrap().modified().unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(50));
+
+    let result = PlaceResult {
+        plugin_name: "test-plugin".to_string(),
+        successes: vec![make_success(
+            ComponentKind::Hook,
+            "test-plugin_hooks",
+            "codex",
+            "/dest/codex/hooks.json",
+            None,
+            None,
+            vec![],
+            0,
+            1,
+            Some(SourceFormat::ClaudeCode),
+        )],
+        failures: vec![],
+    };
+
+    crate::install::update_meta_after_place(temp.path(), &result);
+
+    let mtime_after = std::fs::metadata(&meta_path).unwrap().modified().unwrap();
+    assert_eq!(
+        mtime_before, mtime_after,
+        "内容変化なしの場合は .plm-meta.json を書き換えない"
+    );
+}
+
+#[test]
 fn update_meta_after_place_skips_managed_file_for_non_hook_codex_success() {
     // Skill のみ Codex に配置されたケースは statusByTarget は enabled になるが、
     // managedFiles には記録されない（hook_overwrite_error が誤って通過しないため）。
