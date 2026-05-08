@@ -279,6 +279,10 @@ fn deploy_one(
             );
 
             let target_kind = target.kind();
+            if target_kind == TargetKind::Codex && deployment.kind() == ComponentKind::Hook {
+                crate::install::record_codex_hook_ownership(ctx.plugin_root, deployment.path());
+            }
+
             if target_kind == TargetKind::GeminiCli {
                 return DeployOutcome::Skipped;
             }

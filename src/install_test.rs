@@ -575,3 +575,54 @@ fn test_place_plugin_codex_rejects_multiple_hook_components() {
         .all(|failure| failure.error.contains("would overwrite each other")));
     assert!(!project_dir.path().join(".codex/hooks.json").exists());
 }
+
+#[test]
+fn record_codex_hook_ownership_writes_managed_file_and_status() {
+    let plugin_dir = TempDir::new().unwrap();
+    let hook_dest = TempDir::new().unwrap();
+    let hook_path = hook_dest.path().join(".codex/hooks.json");
+
+    record_codex_hook_ownership(plugin_dir.path(), &hook_path);
+
+    let plugin_meta = crate::plugin::meta::load_meta(plugin_dir.path()).unwrap();
+    assert_eq!(plugin_meta.get_status("codex"), Some("enabled"));
+    assert!(plugin_meta.manages_file("codex", &hook_path));
+}
+
+#[test]
+fn record_codex_hook_ownership_is_idempotent() {
+    let plugin_dir = TempDir::new().unwrap();
+    let hook_dest = TempDir::new().unwrap();
+    let hook_path = hook_dest.path().join(".codex/hooks.json");
+
+    record_codex_hook_ownership(plugin_dir.path(), &hook_path);
+    record_codex_hook_ownership(plugin_dir.path(), &hook_path);
+
+    let plugin_meta = crate::plugin::meta::load_meta(plugin_dir.path()).unwrap();
+    let codex_files = plugin_meta.managed_files.get("codex").unwrap();
+    assert_eq!(
+        codex_files.len(),
+        1,
+        "同じパスを 2 回登録しても重複してはならない"
+    );
+}
+
+#[test]
+fn record_codex_hook_ownership_unblocks_re_import() {
+    // import 経路で同じプラグインを再 import するときに、過去の deploy で
+    // 記録した managedFiles エントリにより hook_overwrite_error が
+    // 既存ファイルを許容することを確認する。
+    let plugin_dir = TempDir::new().unwrap();
+    let hook_dest = TempDir::new().unwrap();
+    let hook_path = hook_dest.path().join("hooks.json");
+    fs::write(&hook_path, "{}").unwrap();
+
+    // 過去の deploy 成功時に呼ばれるはずの記録を再現
+    record_codex_hook_ownership(plugin_dir.path(), &hook_path);
+
+    // 同プラグインによる再 import → 上書きガードを通過すべき
+    assert!(
+        CodexTarget::hook_overwrite_error(&hook_path, plugin_dir.path()).is_none(),
+        "managedFiles に記録された path への再 import は許可されるべき"
+    );
+}

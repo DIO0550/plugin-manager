@@ -402,6 +402,35 @@ pub fn update_meta_after_place(plugin_path: &Path, result: &PlaceResult) {
     }
 }
 
+/// 単発の Codex Hook 配置成功時に所有権を `.plm-meta.json` に記録する。
+///
+/// `plm import` は `place_plugin` を経由しないため `update_meta_after_place`
+/// で所有権が記録されない。同じプラグインを再 import すると
+/// `CodexTarget::hook_overwrite_error` が「未管理ファイル」と判定して
+/// 拒否してしまうので、import の deploy 成功時に明示的に呼び出して
+/// `managedFiles["codex"]` に絶対パスを追記する。
+///
+/// # Arguments
+///
+/// * `plugin_path` - Filesystem path of the cached plugin (`.plm-meta.json` のディレクトリ).
+/// * `hook_path` - 実際に書き込んだ `hooks.json` の絶対パス.
+pub fn record_codex_hook_ownership(plugin_path: &Path, hook_path: &Path) {
+    let mut plugin_meta = meta::load_meta(plugin_path).unwrap_or_default();
+    let was_managed = plugin_meta.manages_file("codex", hook_path);
+    let was_enabled = plugin_meta.get_status("codex") == Some("enabled");
+
+    if was_managed && was_enabled {
+        return;
+    }
+
+    plugin_meta.set_status("codex", "enabled");
+    plugin_meta.add_managed_file("codex", hook_path);
+
+    if let Err(e) = meta::write_meta(plugin_path, &plugin_meta) {
+        eprintln!("Warning: Failed to update .plm-meta.json: {}", e);
+    }
+}
+
 #[cfg(test)]
 #[path = "install_test.rs"]
 mod tests;
