@@ -1,10 +1,11 @@
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use crate::component::{AgentFormat, CommandFormat, ComponentKind, Scope};
 use crate::component::{Component, ComponentDeployment, ConversionConfig, DeploymentOutput};
 use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
 use crate::plugin::{
-    cleanup_legacy_hierarchy, MarketplaceContent, PackageCache, PackageCacheAccess,
+    cleanup_legacy_hierarchy, meta, MarketplaceContent, PackageCache, PackageCacheAccess,
 };
 use crate::source::parse_source;
 use crate::target::{CodexTarget, PluginOrigin, Target, TargetKind};
@@ -346,6 +347,46 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
         plugin_name: request.scanned.name().to_string(),
         successes,
         failures,
+    }
+}
+
+/// place_plugin 後のステータス更新（CLI / TUI 共通）
+///
+/// 配置スキャンではプラグイン名を復元できないターゲット固有ファイル
+/// （例: Codex の `.codex/hooks.json`）もあるため、target 全体が成功した場合だけ
+/// `.plm-meta.json` の `statusByTarget` に記録して enabled 判定と
+/// 上書きガード（`CodexTarget::hook_overwrite_error`）を安定させる。
+///
+/// 実際にステータス更新が発生しなかった場合（全 target が失敗した、`successes`
+/// が空など）は `.plm-meta.json` を書き換えない。失敗 install で不要な
+/// メタデータ更新を避け、ファイル mtime の汚染も防ぐ。
+///
+/// # Arguments
+///
+/// * `plugin_path` - Filesystem path of the cached plugin.
+/// * `result` - Outcome returned by `place_plugin`.
+pub fn update_meta_after_place(plugin_path: &Path, result: &PlaceResult) {
+    let mut plugin_meta = meta::load_meta(plugin_path).unwrap_or_default();
+    let failed_targets: HashSet<&str> = result
+        .failures
+        .iter()
+        .map(|failure| failure.target.as_str())
+        .collect();
+
+    let mut updated = false;
+    for success in &result.successes {
+        if !failed_targets.contains(success.target.as_str()) {
+            plugin_meta.set_status(&success.target, "enabled");
+            updated = true;
+        }
+    }
+
+    if !updated {
+        return;
+    }
+
+    if let Err(e) = meta::write_meta(plugin_path, &plugin_meta) {
+        eprintln!("Warning: Failed to update .plm-meta.json: {}", e);
     }
 }
 

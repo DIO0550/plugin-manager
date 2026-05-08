@@ -11,13 +11,11 @@
 use crate::commands::args::{InteractiveScopeArgs, MultiTargetArgs};
 use crate::component::ComponentKind;
 use crate::install::format::{render_hook_success, HookRenderInput};
-use crate::install::{self, PlaceRequest, PlaceResult, PlaceSuccess};
+use crate::install::{self, PlaceRequest, PlaceSuccess};
 use crate::output::CommandSummary;
-use crate::plugin::meta;
 use crate::target::{all_targets, parse_target, Scope};
 use crate::tui;
 use clap::Parser;
-use std::collections::HashSet;
 use std::env;
 
 /// `PlaceSuccess` を表示用の `(stdout 行, stderr ブロック群)` に変換する pure function。
@@ -160,7 +158,7 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
         scope,
         project_root: &project_root,
     });
-    update_status_after_install(package.path(), &result);
+    install::update_meta_after_place(package.path(), &result);
 
     // Results are grouped by target to stay compatible with the legacy layout.
     println!("\nPlacement Results:");
@@ -193,45 +191,6 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
     println!("\n{} {}", summary.prefix, summary.message);
 
     Ok(())
-}
-
-/// install 後のステータス更新
-///
-/// 配置スキャンではプラグイン名を復元できないターゲット固有ファイル
-/// （例: Codex の `.codex/hooks.json`）もあるため、target 全体が成功した場合だけ
-/// `.plm-meta.json` の `statusByTarget` に記録して enabled 判定を安定させる。
-///
-/// 実際にステータス更新が発生しなかった場合（全 target が失敗した、`successes`
-/// が空など）は `.plm-meta.json` を書き換えない。失敗 install で不要な
-/// メタデータ更新を避け、ファイル mtime の汚染も防ぐ。
-///
-/// # Arguments
-///
-/// * `plugin_path` - Filesystem path of the cached plugin.
-/// * `result` - Outcome returned by `place_plugin`.
-fn update_status_after_install(plugin_path: &std::path::Path, result: &PlaceResult) {
-    let mut plugin_meta = meta::load_meta(plugin_path).unwrap_or_default();
-    let failed_targets: HashSet<&str> = result
-        .failures
-        .iter()
-        .map(|failure| failure.target.as_str())
-        .collect();
-
-    let mut updated = false;
-    for success in &result.successes {
-        if !failed_targets.contains(success.target.as_str()) {
-            plugin_meta.set_status(&success.target, "enabled");
-            updated = true;
-        }
-    }
-
-    if !updated {
-        return;
-    }
-
-    if let Err(e) = meta::write_meta(plugin_path, &plugin_meta) {
-        eprintln!("Warning: Failed to update .plm-meta.json: {}", e);
-    }
 }
 
 #[cfg(test)]

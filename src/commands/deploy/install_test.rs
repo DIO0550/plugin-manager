@@ -239,7 +239,7 @@ fn update_status_after_install_marks_successful_targets_enabled() {
         failures: vec![],
     };
 
-    update_status_after_install(temp.path(), &result);
+    crate::install::update_meta_after_place(temp.path(), &result);
 
     let plugin_meta = crate::plugin::meta::load_meta(temp.path()).unwrap();
     assert_eq!(plugin_meta.get_status("codex"), Some("enabled"));
@@ -271,7 +271,7 @@ fn update_status_after_install_skips_targets_with_failures() {
         }],
     };
 
-    update_status_after_install(temp.path(), &result);
+    crate::install::update_meta_after_place(temp.path(), &result);
 
     // 同 target 内に failure があるとステータス更新は発生しないため、
     // .plm-meta.json は新規作成されない（不要な書き込みを避ける）。
@@ -297,7 +297,7 @@ fn update_status_after_install_skips_write_when_all_failed() {
         }],
     };
 
-    update_status_after_install(temp.path(), &result);
+    crate::install::update_meta_after_place(temp.path(), &result);
 
     assert!(
         crate::plugin::meta::load_meta(temp.path()).is_none(),
