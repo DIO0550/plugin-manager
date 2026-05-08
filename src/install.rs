@@ -385,9 +385,12 @@ pub fn update_meta_after_place(plugin_path: &Path, result: &PlaceResult) {
         // 同一 target 内で別コンポーネントが失敗しても書き込み済みファイルは
         // 残るため、所有権記録もそれと同期させなければ次回 install/import で
         // hook_overwrite_error が「未管理」と判定して再配置を拒否してしまう。
-        if success.component_kind == ComponentKind::Hook && success.target_kind == TargetKind::Codex
+        // add_managed_file は重複時 false を返すので、内容変化なしの no-op
+        // 書き込み（mtime 汚染）を避けるため戻り値で updated を立てる。
+        if success.component_kind == ComponentKind::Hook
+            && success.target_kind == TargetKind::Codex
+            && plugin_meta.add_managed_file(&success.target, &success.target_path)
         {
-            plugin_meta.add_managed_file(&success.target, &success.target_path);
             updated = true;
         }
 

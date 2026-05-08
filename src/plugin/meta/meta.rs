@@ -153,19 +153,26 @@ impl PluginMeta {
         self.marketplace.as_deref() == Some("github") || self.marketplace.is_none()
     }
 
-    /// `target` の管理ファイル一覧に `path` を追加する（重複は無視）。
+    /// `target` の管理ファイル一覧に `path` を追加する。
+    ///
+    /// # Returns
+    /// 新たに追加した場合は `true`、既に登録済みで何もしなかった場合は `false`。
+    /// 戻り値で no-op を判定し、不要な `.plm-meta.json` 書き換え（mtime 汚染）を
+    /// 防ぐために使う。
     ///
     /// # Arguments
     ///
     /// * `target` - Target name (e.g. `"codex"`).
     /// * `path` - Absolute destination path the plugin owns (e.g.
     ///   `/home/user/.codex/hooks.json`).
-    pub fn add_managed_file(&mut self, target: &str, path: &Path) {
+    pub fn add_managed_file(&mut self, target: &str, path: &Path) -> bool {
         let path_str = path.to_string_lossy().into_owned();
         let entry = self.managed_files.entry(target.to_string()).or_default();
-        if !entry.iter().any(|p| p == &path_str) {
-            entry.push(path_str);
+        if entry.iter().any(|p| p == &path_str) {
+            return false;
         }
+        entry.push(path_str);
+        true
     }
 
     /// 指定 `(target, path)` をこのプラグインが管理しているか。
