@@ -354,8 +354,14 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
 ///
 /// 配置スキャンではプラグイン名を復元できないターゲット固有ファイル
 /// （例: Codex の `.codex/hooks.json`）もあるため、target 全体が成功した場合だけ
-/// `.plm-meta.json` の `statusByTarget` に記録して enabled 判定と
-/// 上書きガード（`CodexTarget::hook_overwrite_error`）を安定させる。
+/// `.plm-meta.json` の `statusByTarget` に記録して enabled 判定を安定させる。
+///
+/// さらに、Codex Hook のように複数プラグイン間で書き合いが起こりうる
+/// 共有 destination ファイルについては、絶対パスを `managedFiles[target]`
+/// に追記しておく（`CodexTarget::hook_overwrite_error` がこの値で
+/// 所有権を判定する）。`statusByTarget` の `enabled` を所有権チェックに
+/// 流用すると scope/種別を区別できないため、Hook 配置時のみ実パスを
+/// 別フィールドへ記録する設計とする。
 ///
 /// 実際にステータス更新が発生しなかった場合（全 target が失敗した、`successes`
 /// が空など）は `.plm-meta.json` を書き換えない。失敗 install で不要な
@@ -375,9 +381,15 @@ pub fn update_meta_after_place(plugin_path: &Path, result: &PlaceResult) {
 
     let mut updated = false;
     for success in &result.successes {
-        if !failed_targets.contains(success.target.as_str()) {
-            plugin_meta.set_status(&success.target, "enabled");
-            updated = true;
+        if failed_targets.contains(success.target.as_str()) {
+            continue;
+        }
+        plugin_meta.set_status(&success.target, "enabled");
+        updated = true;
+
+        if success.component_kind == ComponentKind::Hook && success.target_kind == TargetKind::Codex
+        {
+            plugin_meta.add_managed_file(&success.target, &success.target_path);
         }
     }
 

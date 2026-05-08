@@ -223,7 +223,28 @@ fn hook_overwrite_error_returns_error_when_target_exists_and_not_managed() {
 }
 
 #[test]
-fn hook_overwrite_error_returns_none_when_plugin_already_owns_codex() {
+fn hook_overwrite_error_returns_none_when_plugin_already_owns_target_path() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let target_path = temp.path().join("hooks.json");
+    std::fs::write(&target_path, "{}").unwrap();
+
+    let plugin_root_dir = tempfile::TempDir::new().unwrap();
+    let mut meta = crate::plugin::meta::PluginMeta::default();
+    meta.add_managed_file("codex", &target_path);
+    crate::plugin::meta::write_meta(plugin_root_dir.path(), &meta).unwrap();
+
+    // 同プラグインによる同 destination への再 install は許可される
+    assert!(
+        CodexTarget::hook_overwrite_error(&target_path, plugin_root_dir.path()).is_none(),
+        "re-install of the same plugin must be allowed for a managed file path"
+    );
+}
+
+#[test]
+fn hook_overwrite_error_rejects_when_status_enabled_but_path_not_managed() {
+    // statusByTarget["codex"] == "enabled" だけでは所有権としては不十分。
+    // 例: personal で先に enable した後、project の同名ファイルを書こうとした場合は
+    // managedFiles に project 側の path が無いので拒否されるべき。
     let temp = tempfile::TempDir::new().unwrap();
     let target_path = temp.path().join("hooks.json");
     std::fs::write(&target_path, "{}").unwrap();
@@ -231,11 +252,14 @@ fn hook_overwrite_error_returns_none_when_plugin_already_owns_codex() {
     let plugin_root_dir = tempfile::TempDir::new().unwrap();
     let mut meta = crate::plugin::meta::PluginMeta::default();
     meta.set_status("codex", "enabled");
+    // 別の path のみ管理対象として登録（Skill 配置等で enable はされたが、
+    // 実際の hooks.json は別プラグインの所有という想定）
+    meta.add_managed_file("codex", std::path::Path::new("/somewhere/else/hooks.json"));
     crate::plugin::meta::write_meta(plugin_root_dir.path(), &meta).unwrap();
 
-    // 同プラグインの再 install は許可される
+    let result = CodexTarget::hook_overwrite_error(&target_path, plugin_root_dir.path());
     assert!(
-        CodexTarget::hook_overwrite_error(&target_path, plugin_root_dir.path()).is_none(),
-        "re-install of the same plugin must be allowed when codex was previously enabled"
+        result.is_some(),
+        "must reject when target_path is not in managedFiles even if target is enabled"
     );
 }

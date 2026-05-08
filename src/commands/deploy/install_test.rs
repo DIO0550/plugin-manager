@@ -243,6 +243,44 @@ fn update_status_after_install_marks_successful_targets_enabled() {
 
     let plugin_meta = crate::plugin::meta::load_meta(temp.path()).unwrap();
     assert_eq!(plugin_meta.get_status("codex"), Some("enabled"));
+    // Hook + Codex は所有権としても記録される
+    assert!(plugin_meta.manages_file("codex", std::path::Path::new("/dest/codex/hooks.json")));
+}
+
+#[test]
+fn update_meta_after_place_skips_managed_file_for_non_hook_codex_success() {
+    // Skill のみ Codex に配置されたケースは statusByTarget は enabled になるが、
+    // managedFiles には記録されない（hook_overwrite_error が誤って通過しないため）。
+    let temp = TempDir::new().unwrap();
+    let result = PlaceResult {
+        plugin_name: "test-plugin".to_string(),
+        successes: vec![make_success(
+            ComponentKind::Skill,
+            "test-plugin_skill",
+            "codex",
+            "/dest/codex/skills/test-plugin_skill",
+            None,
+            None,
+            vec![],
+            0,
+            0,
+            None,
+        )],
+        failures: vec![],
+    };
+
+    crate::install::update_meta_after_place(temp.path(), &result);
+
+    let plugin_meta = crate::plugin::meta::load_meta(temp.path()).unwrap();
+    assert_eq!(plugin_meta.get_status("codex"), Some("enabled"));
+    assert!(
+        !plugin_meta.manages_file("codex", std::path::Path::new("/dest/codex/hooks.json")),
+        "Skill 配置のみで hooks.json の所有権を獲得してはならない"
+    );
+    assert!(plugin_meta
+        .managed_files
+        .get("codex")
+        .is_none_or(|v| v.is_empty()));
 }
 
 #[test]

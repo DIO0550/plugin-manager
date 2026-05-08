@@ -53,13 +53,21 @@ impl CodexTarget {
         })
     }
 
-    /// 配置先 `hooks.json` がすでに存在し、現在のプラグインが過去に同 target を
-    /// enable していない場合にエラー文字列を返す。
+    /// 配置先 `hooks.json` がすでに存在し、`target_path` が現在のプラグインの
+    /// 管理下に無い場合にエラー文字列を返す。
     ///
-    /// 共有パス（`.codex/hooks.json` / `~/.codex/hooks.json`）を上書きしてしまう
-    /// ことで、ユーザーが手書きした hooks や別プラグインが配置した hooks を
-    /// 黙って消してしまうのを防ぐ。再 install（同プラグイン）の場合は
-    /// `.plm-meta.json` の `statusByTarget["codex"] == "enabled"` を見て許可する。
+    /// 共有パス（`.codex/hooks.json` / `~/.codex/hooks.json`）を上書きして
+    /// しまうことで、ユーザーが手書きした hooks や別プラグインが配置した
+    /// hooks を黙って消してしまうのを防ぐ。再 install（同プラグイン）の場合は
+    /// `.plm-meta.json` の `managedFiles["codex"]` に `target_path` が
+    /// 含まれている場合のみ許可する。
+    ///
+    /// 旧実装は `statusByTarget["codex"] == "enabled"` を所有権の根拠に
+    /// していたが、この値は scope 非依存かつコンポーネント種別非依存で、
+    /// (a) personal で enable された状態が project 側 `.codex/hooks.json`
+    /// の上書きを許してしまう、(b) Skill のみ配置したプラグインでも
+    /// 上書きガードを通過してしまう、という不整合があった。
+    /// 絶対パス単位の `managedFiles` でこの両方を解消する。
     ///
     /// # Arguments
     ///
@@ -71,8 +79,7 @@ impl CodexTarget {
         }
 
         let already_owned = crate::plugin::meta::load_meta(plugin_root)
-            .and_then(|meta| meta.get_status("codex").map(|s| s.to_string()))
-            .map(|status| status == "enabled")
+            .map(|meta| meta.manages_file("codex", target_path))
             .unwrap_or(false);
 
         if already_owned {
