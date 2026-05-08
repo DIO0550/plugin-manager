@@ -381,15 +381,21 @@ pub fn update_meta_after_place(plugin_path: &Path, result: &PlaceResult) {
 
     let mut updated = false;
     for success in &result.successes {
-        if failed_targets.contains(success.target.as_str()) {
-            continue;
-        }
-        plugin_meta.set_status(&success.target, "enabled");
-        updated = true;
-
+        // managedFiles は「実際にファイルが書かれた」事実そのものを記録する。
+        // 同一 target 内で別コンポーネントが失敗しても書き込み済みファイルは
+        // 残るため、所有権記録もそれと同期させなければ次回 install/import で
+        // hook_overwrite_error が「未管理」と判定して再配置を拒否してしまう。
         if success.component_kind == ComponentKind::Hook && success.target_kind == TargetKind::Codex
         {
             plugin_meta.add_managed_file(&success.target, &success.target_path);
+            updated = true;
+        }
+
+        // statusByTarget = "enabled" は「target 全体として成功した」状態を表す
+        // ため、同じ target に failure があれば enabled に昇格させない。
+        if !failed_targets.contains(success.target.as_str()) {
+            plugin_meta.set_status(&success.target, "enabled");
+            updated = true;
         }
     }
 

@@ -284,7 +284,10 @@ fn update_meta_after_place_skips_managed_file_for_non_hook_codex_success() {
 }
 
 #[test]
-fn update_status_after_install_skips_targets_with_failures() {
+fn update_status_after_install_skips_status_when_target_has_failures() {
+    // 同 target 内に failure がある場合、Hook+Codex 成功のファイル所有権
+    // (managedFiles) は「実際に書かれた」事実として記録する一方、
+    // statusByTarget = "enabled" は target 全体成功時のみ昇格させる。
     let temp = TempDir::new().unwrap();
     let result = PlaceResult {
         plugin_name: "test-plugin".to_string(),
@@ -311,11 +314,16 @@ fn update_status_after_install_skips_targets_with_failures() {
 
     crate::install::update_meta_after_place(temp.path(), &result);
 
-    // 同 target 内に failure があるとステータス更新は発生しないため、
-    // .plm-meta.json は新規作成されない（不要な書き込みを避ける）。
+    let plugin_meta = crate::plugin::meta::load_meta(temp.path())
+        .expect("Hook+Codex 成功時は managedFiles 記録のため .plm-meta.json が書かれる");
     assert!(
-        crate::plugin::meta::load_meta(temp.path()).is_none(),
-        "failed-target install must not create .plm-meta.json"
+        plugin_meta.manages_file("codex", std::path::Path::new("/dest/codex/hooks.json")),
+        "実配置済みファイルは failure ゲートとは独立に managedFiles に記録される"
+    );
+    assert_ne!(
+        plugin_meta.get_status("codex"),
+        Some("enabled"),
+        "target に failure があれば statusByTarget は enabled 昇格しない"
     );
 }
 
