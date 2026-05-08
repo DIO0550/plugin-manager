@@ -226,6 +226,12 @@ fn build_deployment(
         None => return Ok(None),
     };
 
+    if component.kind == ComponentKind::Hook && target.kind() == TargetKind::Codex {
+        if let Some(error) = CodexTarget::hook_overwrite_error(&target_path, ctx.plugin_root) {
+            return Err(error);
+        }
+    }
+
     let conversion = match component.kind {
         ComponentKind::Agent => ConversionConfig::Agent {
             source: AgentFormat::ClaudeCode,
