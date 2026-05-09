@@ -55,22 +55,26 @@ done < <(find "${TARGET_DIR}" -maxdepth 1 -type f -name '*.rs')
 
 # 共通: 任意 visibility 修飾子 (省略 / pub / pub(crate) / pub(super) 等) のパターン
 # `(pub(\([^)]*\))?\s+)?` を許容することで、`type Model`, `pub(crate) type Model` 等もすべて拾う。
+#
+# 注: パターン2-6 は単語境界 `\b` を使うため、ERE (`-E`) ではなく PCRE (`-P`) を使用する。
+#     ERE の `\b` は POSIX 仕様外で実装依存（GNU grep では word boundary、BSD/busybox 等では
+#     バックスペース扱いの可能性）。PCRE では `\b` の意味が確定するため、検出の信頼性が高い。
 VIS='(pub(\([^)]*\))?[[:space:]]+)?'
 
 # パターン2: 画面 root 直下の <name>.rs での `(vis)? (struct|enum) Model`
 while IFS= read -r file; do
-  if grep -nE "^[[:space:]]*${VIS}(struct|enum)[[:space:]]+Model\b" "${file}" >/dev/null 2>&1; then
+  if grep -nP "^[[:space:]]*${VIS}(struct|enum)[[:space:]]+Model\b" "${file}" >/dev/null 2>&1; then
     echo "VIOLATION: \`struct/enum Model\` in ${file}" >&2
-    grep -nE "^[[:space:]]*${VIS}(struct|enum)[[:space:]]+Model\b" "${file}" >&2
+    grep -nP "^[[:space:]]*${VIS}(struct|enum)[[:space:]]+Model\b" "${file}" >&2
     violations=$((violations + 1))
   fi
 done < <(find "${TARGET_DIR}" -maxdepth 1 -type f -name '*.rs')
 
 # パターン3: 画面サブディレクトリの model.rs での `(vis)? (struct|enum) Model`
 while IFS= read -r file; do
-  if grep -nE "^[[:space:]]*${VIS}(struct|enum)[[:space:]]+Model\b" "${file}" >/dev/null 2>&1; then
+  if grep -nP "^[[:space:]]*${VIS}(struct|enum)[[:space:]]+Model\b" "${file}" >/dev/null 2>&1; then
     echo "VIOLATION: \`struct/enum Model\` in screen module ${file}" >&2
-    grep -nE "^[[:space:]]*${VIS}(struct|enum)[[:space:]]+Model\b" "${file}" >&2
+    grep -nP "^[[:space:]]*${VIS}(struct|enum)[[:space:]]+Model\b" "${file}" >&2
     violations=$((violations + 1))
   fi
 done < <(find "${TARGET_DIR}" -mindepth 2 -type f -name 'model.rs')
@@ -78,18 +82,18 @@ done < <(find "${TARGET_DIR}" -mindepth 2 -type f -name 'model.rs')
 # パターン4: screens 配下の任意 .rs での `(vis)? type Model` 互換 alias (§4 で禁止)
 # visibility 省略 (`type Model = ...`) や `pub(crate) type Model` も含む
 while IFS= read -r file; do
-  if grep -nE "^[[:space:]]*${VIS}type[[:space:]]+Model\b" "${file}" >/dev/null 2>&1; then
+  if grep -nP "^[[:space:]]*${VIS}type[[:space:]]+Model\b" "${file}" >/dev/null 2>&1; then
     echo "VIOLATION: \`type Model\` compat alias in ${file}" >&2
-    grep -nE "^[[:space:]]*${VIS}type[[:space:]]+Model\b" "${file}" >&2
+    grep -nP "^[[:space:]]*${VIS}type[[:space:]]+Model\b" "${file}" >&2
     violations=$((violations + 1))
   fi
 done < <(find "${TARGET_DIR}" -type f -name '*.rs')
 
 # パターン5: screens 配下の任意 .rs での `as Model` import alias (§4 で禁止)
 while IFS= read -r file; do
-  if grep -nE '\bas[[:space:]]+Model\b' "${file}" >/dev/null 2>&1; then
+  if grep -nP '\bas[[:space:]]+Model\b' "${file}" >/dev/null 2>&1; then
     echo "VIOLATION: \`as Model\` import alias in ${file}" >&2
-    grep -nE '\bas[[:space:]]+Model\b' "${file}" >&2
+    grep -nP '\bas[[:space:]]+Model\b' "${file}" >&2
     violations=$((violations + 1))
   fi
 done < <(find "${TARGET_DIR}" -type f -name '*.rs')
@@ -97,9 +101,9 @@ done < <(find "${TARGET_DIR}" -type f -name '*.rs')
 # パターン6: screens 配下の任意 .rs での `model::Model` 直書き型参照
 #  (`super::model::Model`, `crate::tui::manager::screens::installed::model::Model` 等を含む)
 while IFS= read -r file; do
-  if grep -nE '\bmodel::Model\b' "${file}" >/dev/null 2>&1; then
+  if grep -nP '\bmodel::Model\b' "${file}" >/dev/null 2>&1; then
     echo "VIOLATION: \`model::Model\` reference in ${file}" >&2
-    grep -nE '\bmodel::Model\b' "${file}" >&2
+    grep -nP '\bmodel::Model\b' "${file}" >&2
     violations=$((violations + 1))
   fi
 done < <(find "${TARGET_DIR}" -type f -name '*.rs')
