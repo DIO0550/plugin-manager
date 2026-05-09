@@ -80,7 +80,7 @@ impl Tab {
 
 /// アクティブ画面の状態
 pub enum Screen {
-    Installed(installed::InstalledModel),
+    Installed(installed::InstalledScreenModel),
     Discover(discover::Model),
     Marketplaces(marketplaces::MarketplacesModel),
     Errors(errors::Model),
@@ -156,7 +156,7 @@ impl Model {
     /// 新しいモデルを作成
     pub fn new() -> std::io::Result<Self> {
         let data = DataStore::new()?;
-        let screen = Screen::Installed(installed::Model::new(&data));
+        let screen = Screen::Installed(installed::InstalledScreenModel::new(&data));
 
         Ok(Self {
             data,
@@ -322,7 +322,7 @@ pub fn update(model: &mut Model, msg: Msg) -> AppUpdateEffect {
 fn clamp_selection(model: &mut Model) {
     if let Screen::Installed(m) = &mut model.screen {
         let filtered = filter_plugins(&model.data.plugins, &model.filter_text);
-        if let installed::Model::PluginList { selection, .. } = m {
+        if let installed::InstalledScreenModel::PluginList { selection, .. } = m {
             if let Some(id) = selection.selected_id() {
                 if let Some(idx) = filtered.iter().position(|p| p.id() == id.as_str()) {
                     selection.select_index(Some(idx));
@@ -363,7 +363,7 @@ fn switch_tab(model: &mut Model, new_tab: Tab) {
     }
 
     model.screen = match new_tab {
-        Tab::Installed => Screen::Installed(installed::Model::from_cache(
+        Tab::Installed => Screen::Installed(installed::InstalledScreenModel::from_cache(
             &model.data,
             &model.cache.installed,
         )),
