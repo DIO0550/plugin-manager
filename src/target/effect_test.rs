@@ -54,7 +54,7 @@ fn test_affected_targets_zero_components_not_recorded() {
 
 #[test]
 fn test_operation_result_error() {
-    let result = OperationResult::error("Plugin not found");
+    let result = OperationOutcome::error("Plugin not found");
     assert!(!result.success);
     assert_eq!(result.error, Some("Plugin not found".to_string()));
     assert!(result.affected_targets.target_names().is_empty());

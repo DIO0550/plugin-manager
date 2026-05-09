@@ -20,8 +20,8 @@ pub enum ActionResult {
     Error(String),
 }
 
-impl From<application::OperationResult> for ActionResult {
-    fn from(result: application::OperationResult) -> Self {
+impl From<application::OperationOutcome> for ActionResult {
+    fn from(result: application::OperationOutcome) -> Self {
         if result.success {
             ActionResult::Success
         } else {

@@ -26,7 +26,7 @@ mod placed;
 
 pub(crate) use core::paths;
 pub use core::{AddResult, RemoveResult, TargetId, TargetRegistry};
-pub use effect::{AffectedTargets, OperationOutcome, OperationResult};
+pub use effect::{AffectedTargets, OperationOutcome};
 pub use env::{AntigravityTarget, CodexTarget, CopilotTarget, GeminiCliTarget};
 pub use placed::scanner;
 pub(crate) use placed::{list_all_placed, placed_common};
