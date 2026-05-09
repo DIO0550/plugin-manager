@@ -30,7 +30,7 @@ fn test_restore_repo_invalid_name() {
 }
 
 #[test]
-fn test_update_result_factories() {
+fn test_update_outcome_factories() {
     let updated = UpdateOutcome::updated(
         "test",
         Some("abc123".to_string()),
