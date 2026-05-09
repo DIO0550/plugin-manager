@@ -83,7 +83,7 @@ pub enum Screen {
     Installed(installed::InstalledScreenModel),
     Discover(discover::DiscoverScreenModel),
     Marketplaces(marketplaces::MarketplacesScreenModel),
-    Errors(errors::Model),
+    Errors(errors::ErrorsScreenModel),
 }
 
 impl Screen {
@@ -377,7 +377,7 @@ fn switch_tab(model: &mut Model, new_tab: Tab) {
                 &model.cache.marketplaces,
             ))
         }
-        Tab::Errors => Screen::Errors(errors::Model::new(&model.data)),
+        Tab::Errors => Screen::Errors(errors::ErrorsScreenModel::new(&model.data)),
     };
 
     // Installed タブ復元後にフィルタ済みリストと選択状態を整合
