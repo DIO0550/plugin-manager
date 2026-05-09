@@ -97,6 +97,16 @@ jobs:
 
       - run: cargo test
 
+  naming-guard:
+    name: Naming Guard (Screen Model)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Make script executable
+        run: chmod +x scripts/check-public-screen-model.sh
+      - name: Check public screen Model naming
+        run: ./scripts/check-public-screen-model.sh
+
   audit:
     name: Security Audit
     runs-on: ubuntu-latest
