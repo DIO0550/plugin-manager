@@ -1,6 +1,7 @@
 use super::*;
 use crate::component::ComponentKind;
 use crate::hooks::converter::{ConversionWarning, SourceFormat};
+use crate::target::TargetKind;
 use owo_colors::OwoColorize;
 use std::collections::BTreeSet;
 
@@ -166,7 +167,7 @@ fn classify_hook_warnings_routes_others_for_removed_field_and_missing_version() 
 #[test]
 fn format_skipped_events_warning_returns_none_for_empty() {
     let events: BTreeSet<String> = BTreeSet::new();
-    assert!(format_skipped_events_warning(&events).is_none());
+    assert!(format_skipped_events_warning(&events, TargetKind::Copilot).is_none());
 }
 
 #[test]
@@ -174,7 +175,7 @@ fn format_skipped_events_warning_uses_singular_for_one_event() {
     // user-facing CLI の英文として「1 events」は誤りなので、件数 1 のとき "event" を使う。
     let mut events = BTreeSet::new();
     events.insert("Notification".to_string());
-    let actual = format_skipped_events_warning(&events).unwrap();
+    let actual = format_skipped_events_warning(&events, TargetKind::Copilot).unwrap();
     let expected = format!(
         "  {} 1 event skipped (not supported in Copilot CLI): Notification",
         "Warning:".yellow()
@@ -188,9 +189,22 @@ fn format_skipped_events_warning_lists_three_events_alphabetically() {
     events.insert("PreCompact".to_string());
     events.insert("Notification".to_string());
     events.insert("SubagentStart".to_string());
-    let actual = format_skipped_events_warning(&events).unwrap();
+    let actual = format_skipped_events_warning(&events, TargetKind::Copilot).unwrap();
     let expected = format!(
         "  {} 3 events skipped (not supported in Copilot CLI): Notification, PreCompact, SubagentStart",
+        "Warning:".yellow()
+    );
+    assert_eq!(actual, expected);
+}
+
+#[test]
+fn format_skipped_events_warning_uses_codex_label_for_codex_target() {
+    // Codex 向け出力では Copilot 固有の文言ではなく Codex CLI を表示する。
+    let mut events = BTreeSet::new();
+    events.insert("Notification".to_string());
+    let actual = format_skipped_events_warning(&events, TargetKind::Codex).unwrap();
+    let expected = format!(
+        "  {} 1 event skipped (not supported in Codex CLI): Notification",
         "Warning:".yellow()
     );
     assert_eq!(actual, expected);
@@ -306,12 +320,14 @@ fn render_hook_success_claude_code_with_unsupported_events_emits_suffix_and_one_
             event: "SubagentStart".to_string(),
         },
     ];
-    let rendered = render_hook_success(
-        ComponentKind::Hook,
-        Some(SourceFormat::ClaudeCode),
-        &warnings,
-        1,
-    );
+    let rendered = render_hook_success(HookRenderInput {
+        component_kind: ComponentKind::Hook,
+        target_kind: TargetKind::Copilot,
+        hook_source_format: Some(SourceFormat::ClaudeCode),
+        hook_warnings: &warnings,
+        script_count: 1,
+        hook_count: 1,
+    });
     assert!(rendered.stdout_suffix.is_some());
     assert_eq!(rendered.stderr_blocks.len(), 1);
     assert!(rendered.stderr_blocks[0].contains("3 events skipped"));
@@ -321,12 +337,14 @@ fn render_hook_success_claude_code_with_unsupported_events_emits_suffix_and_one_
 fn render_hook_success_copilot_format_with_missing_version_no_suffix_only_individual_warning() {
     // Copilot 形式 + MissingVersion 1 件 → suffix なし、stderr_blocks に individual warning のみ
     let warnings = vec![ConversionWarning::MissingVersion];
-    let rendered = render_hook_success(
-        ComponentKind::Hook,
-        Some(SourceFormat::TargetFormat),
-        &warnings,
-        0,
-    );
+    let rendered = render_hook_success(HookRenderInput {
+        component_kind: ComponentKind::Hook,
+        target_kind: TargetKind::Copilot,
+        hook_source_format: Some(SourceFormat::TargetFormat),
+        hook_warnings: &warnings,
+        script_count: 0,
+        hook_count: 0,
+    });
     assert!(rendered.stdout_suffix.is_none());
     assert_eq!(rendered.stderr_blocks.len(), 1);
     assert_eq!(
@@ -337,12 +355,14 @@ fn render_hook_success_copilot_format_with_missing_version_no_suffix_only_indivi
 
 #[test]
 fn render_hook_success_skill_returns_empty_output() {
-    let rendered = render_hook_success(
-        ComponentKind::Skill,
-        Some(SourceFormat::ClaudeCode),
-        &[ConversionWarning::MissingVersion],
-        1,
-    );
+    let rendered = render_hook_success(HookRenderInput {
+        component_kind: ComponentKind::Skill,
+        target_kind: TargetKind::Copilot,
+        hook_source_format: Some(SourceFormat::ClaudeCode),
+        hook_warnings: &[ConversionWarning::MissingVersion],
+        script_count: 1,
+        hook_count: 1,
+    });
     assert!(rendered.stdout_suffix.is_none());
     assert!(rendered.stderr_blocks.is_empty());
 }
@@ -357,17 +377,39 @@ fn render_hook_success_all_events_skipped_includes_empty_hooks_warning() {
             event: "PreCompact".to_string(),
         },
     ];
-    let rendered = render_hook_success(
-        ComponentKind::Hook,
-        Some(SourceFormat::ClaudeCode),
-        &warnings,
-        0,
-    );
+    let rendered = render_hook_success(HookRenderInput {
+        component_kind: ComponentKind::Hook,
+        target_kind: TargetKind::Copilot,
+        hook_source_format: Some(SourceFormat::ClaudeCode),
+        hook_warnings: &warnings,
+        script_count: 0,
+        hook_count: 0,
+    });
     assert!(rendered.stdout_suffix.is_some());
     // skipped events warning + empty hooks warning の 2 ブロック
     assert_eq!(rendered.stderr_blocks.len(), 2);
     assert!(rendered.stderr_blocks[0].contains("2 events skipped"));
     assert!(rendered.stderr_blocks[1].contains("no hooks remained after conversion"));
+}
+
+#[test]
+fn render_hook_success_inline_hooks_do_not_emit_empty_hooks_warning() {
+    let rendered = render_hook_success(HookRenderInput {
+        component_kind: ComponentKind::Hook,
+        target_kind: TargetKind::Copilot,
+        hook_source_format: Some(SourceFormat::ClaudeCode),
+        hook_warnings: &[],
+        script_count: 0,
+        hook_count: 1,
+    });
+    assert!(rendered.stdout_suffix.is_some());
+    assert!(
+        !rendered
+            .stderr_blocks
+            .iter()
+            .any(|b| b.contains("no hooks remained after conversion")),
+        "inline Codex hooks should not be treated as an empty hooks.json"
+    );
 }
 
 #[test]
@@ -386,12 +428,14 @@ fn render_hook_success_all_unsupported_hook_types_emits_empty_hooks_warning() {
             event: "PostToolUse".to_string(),
         },
     ];
-    let rendered = render_hook_success(
-        ComponentKind::Hook,
-        Some(SourceFormat::ClaudeCode),
-        &warnings,
-        0,
-    );
+    let rendered = render_hook_success(HookRenderInput {
+        component_kind: ComponentKind::Hook,
+        target_kind: TargetKind::Copilot,
+        hook_source_format: Some(SourceFormat::ClaudeCode),
+        hook_warnings: &warnings,
+        script_count: 0,
+        hook_count: 0,
+    });
     assert!(rendered.stdout_suffix.is_some());
     // 空配置警告 + 個別 warning 2 件 = 3 ブロック
     assert_eq!(rendered.stderr_blocks.len(), 3);
@@ -429,12 +473,14 @@ fn render_hook_success_only_removed_field_warnings_still_emits_empty_hooks_warni
                 .to_string(),
         },
     ];
-    let rendered = render_hook_success(
-        ComponentKind::Hook,
-        Some(SourceFormat::ClaudeCode),
-        &warnings,
-        0,
-    );
+    let rendered = render_hook_success(HookRenderInput {
+        component_kind: ComponentKind::Hook,
+        target_kind: TargetKind::Copilot,
+        hook_source_format: Some(SourceFormat::ClaudeCode),
+        hook_warnings: &warnings,
+        script_count: 0,
+        hook_count: 0,
+    });
     assert!(rendered.stdout_suffix.is_some());
     // 空配置警告 + 個別 warning 2 件 = 3 ブロック
     assert_eq!(rendered.stderr_blocks.len(), 3);
@@ -452,12 +498,14 @@ fn render_hook_success_target_format_with_zero_scripts_does_not_emit_empty_hooks
     // TargetFormat passthrough は入力 JSON がそのまま配置されるので `script_count == 0`
     // でも空配置警告は出してはいけない（false positive 防止）。
     let warnings = vec![ConversionWarning::MissingVersion];
-    let rendered = render_hook_success(
-        ComponentKind::Hook,
-        Some(SourceFormat::TargetFormat),
-        &warnings,
-        0,
-    );
+    let rendered = render_hook_success(HookRenderInput {
+        component_kind: ComponentKind::Hook,
+        target_kind: TargetKind::Copilot,
+        hook_source_format: Some(SourceFormat::TargetFormat),
+        hook_warnings: &warnings,
+        script_count: 0,
+        hook_count: 0,
+    });
     assert!(rendered.stdout_suffix.is_none());
     assert!(
         !rendered
@@ -472,7 +520,14 @@ fn render_hook_success_target_format_with_zero_scripts_does_not_emit_empty_hooks
 fn render_hook_success_hook_with_none_source_format_and_no_warnings_returns_empty() {
     // version 付き Copilot 形式 Hook は DeploymentOutput::Copied 経路で
     // hook_source_format == None / warnings 0 になる。既存挙動の固定。
-    let rendered = render_hook_success(ComponentKind::Hook, None, &[], 0);
+    let rendered = render_hook_success(HookRenderInput {
+        component_kind: ComponentKind::Hook,
+        target_kind: TargetKind::Copilot,
+        hook_source_format: None,
+        hook_warnings: &[],
+        script_count: 0,
+        hook_count: 0,
+    });
     assert!(rendered.stdout_suffix.is_none());
     assert!(rendered.stderr_blocks.is_empty());
 }
@@ -492,12 +547,14 @@ fn render_hook_success_prompt_agent_stub_emits_manual_rewrite_section() {
             event: "postToolUse".to_string(),
         },
     ];
-    let rendered = render_hook_success(
-        ComponentKind::Hook,
-        Some(SourceFormat::ClaudeCode),
-        &warnings,
-        2,
-    );
+    let rendered = render_hook_success(HookRenderInput {
+        component_kind: ComponentKind::Hook,
+        target_kind: TargetKind::Copilot,
+        hook_source_format: Some(SourceFormat::ClaudeCode),
+        hook_warnings: &warnings,
+        script_count: 2,
+        hook_count: 2,
+    });
     assert!(rendered.stdout_suffix.is_some());
     assert_eq!(rendered.stderr_blocks.len(), 1);
     assert!(rendered.stderr_blocks[0].contains("Manual rewrite required (2 hooks):"));

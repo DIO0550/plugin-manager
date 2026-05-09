@@ -1,13 +1,14 @@
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use crate::component::{AgentFormat, CommandFormat, ComponentKind, Scope};
 use crate::component::{Component, ComponentDeployment, ConversionConfig, DeploymentOutput};
 use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
 use crate::plugin::{
-    cleanup_legacy_hierarchy, MarketplaceContent, PackageCache, PackageCacheAccess,
+    cleanup_legacy_hierarchy, meta, MarketplaceContent, PackageCache, PackageCacheAccess,
 };
 use crate::source::parse_source;
-use crate::target::{PluginOrigin, Target, TargetKind};
+use crate::target::{CodexTarget, PluginOrigin, Target, TargetKind};
 
 pub mod format;
 pub use crate::hooks::converter::{ConversionWarning, SourceFormat};
@@ -73,6 +74,7 @@ pub struct PlaceResult {
 #[derive(Debug)]
 pub struct PlaceSuccess {
     pub target: String,
+    pub target_kind: TargetKind,
     pub component_name: String,
     pub component_kind: ComponentKind,
     pub target_path: PathBuf,
@@ -81,14 +83,9 @@ pub struct PlaceSuccess {
     /// Hook 変換時の警告（`HookConverted` 以外は空）。
     pub hook_warnings: Vec<ConversionWarning>,
     /// `HookConverted` 時に生成されたスクリプト数（それ以外は 0）。
-    ///
-    /// ClaudeCode 入力では各 hook が必ず 1 つのスクリプト（command / http / stub）を
-    /// 生成するため、`script_count == 0` ⇔ 変換後の `hooks.json` が空、という
-    /// 不変条件が成立する。`format::format_empty_hooks_warning` はこの不変条件と
-    /// `hook_source_format == Some(SourceFormat::ClaudeCode)` の組み合わせで
-    /// 「空 `hooks.json` 配置警告」を出す。除外の主因が `UnsupportedEvent` /
-    /// `UnsupportedHookType` / `RemovedField` のいずれかは問わない。
     pub script_count: usize,
+    /// `HookConverted` 時に変換後 JSON に残った hook 定義数（それ以外は 0）。
+    pub hook_count: usize,
     /// Hook 変換時の入力形式。`Some(SourceFormat::ClaudeCode)` のときのみ
     /// `(converted from Claude Code format)` サフィックスを表示する。
     ///
@@ -191,10 +188,28 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
 
     for target in request.targets {
         let failures_before = failures.len();
+        let codex_hook_conflict = if target.kind() == TargetKind::Codex {
+            CodexTarget::hook_component_conflict_error(&request.scanned.components)
+        } else {
+            None
+        };
 
         for component in &request.scanned.components {
             if !target.supports(component.kind) {
                 continue;
+            }
+
+            if component.kind == ComponentKind::Hook {
+                if let Some(error) = &codex_hook_conflict {
+                    failures.push(PlaceFailure {
+                        target: target.name().to_string(),
+                        component_name: component.name.clone(),
+                        component_kind: component.kind,
+                        error: error.clone(),
+                        stage: PlaceFailureStage::Resolution,
+                    });
+                    continue;
+                }
             }
 
             let ctx = PlacementContext {
@@ -209,6 +224,21 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
                 None => continue,
             };
 
+            if component.kind == ComponentKind::Hook && target.kind() == TargetKind::Codex {
+                if let Some(error) =
+                    CodexTarget::hook_overwrite_error(&target_path, request.scanned.plugin_root())
+                {
+                    failures.push(PlaceFailure {
+                        target: target.name().to_string(),
+                        component_name: component.name.clone(),
+                        component_kind: component.kind,
+                        error,
+                        stage: PlaceFailureStage::Resolution,
+                    });
+                    continue;
+                }
+            }
+
             let conversion = match component.kind {
                 ComponentKind::Command => ConversionConfig::Command {
                     source: request.scanned.command_format(),
@@ -218,7 +248,9 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
                     source: request.scanned.agent_format(),
                     dest: target.agent_format(),
                 },
-                ComponentKind::Hook if target.kind() == TargetKind::Copilot => {
+                ComponentKind::Hook
+                    if matches!(target.kind(), TargetKind::Codex | TargetKind::Copilot) =>
+                {
                     ConversionConfig::Hook {
                         target_kind: target.kind(),
                         plugin_root: Some(request.scanned.plugin_root().to_path_buf()),
@@ -261,15 +293,20 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
                         _ => (None, None),
                     };
 
-                    let (hook_warnings, script_count, hook_source_format) = match &result {
-                        DeploymentOutput::HookConverted(hr) => {
-                            (hr.warnings.clone(), hr.script_count, Some(hr.source_format))
-                        }
-                        _ => (Vec::new(), 0, None),
-                    };
+                    let (hook_warnings, script_count, hook_count, hook_source_format) =
+                        match &result {
+                            DeploymentOutput::HookConverted(hr) => (
+                                hr.warnings.clone(),
+                                hr.script_count,
+                                hr.hook_count,
+                                Some(hr.source_format),
+                            ),
+                            _ => (Vec::new(), 0, 0, None),
+                        };
 
                     successes.push(PlaceSuccess {
                         target: target.name().to_string(),
+                        target_kind: target.kind(),
                         component_name: component.name.clone(),
                         component_kind: component.kind,
                         target_path: deployment.path().to_path_buf(),
@@ -277,6 +314,7 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
                         dest_format,
                         hook_warnings,
                         script_count,
+                        hook_count,
                         hook_source_format,
                     });
                 }
@@ -309,6 +347,100 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
         plugin_name: request.scanned.name().to_string(),
         successes,
         failures,
+    }
+}
+
+/// place_plugin 後のステータス更新（CLI / TUI 共通）
+///
+/// 配置スキャンではプラグイン名を復元できないターゲット固有ファイル
+/// （例: Codex の `.codex/hooks.json`）もあるため、target 全体が成功した場合だけ
+/// `.plm-meta.json` の `statusByTarget` に記録して enabled 判定を安定させる。
+///
+/// さらに、Codex Hook のように複数プラグイン間で書き合いが起こりうる
+/// 共有 destination ファイルについては、絶対パスを `managedFiles[target]`
+/// に追記しておく（`CodexTarget::hook_overwrite_error` がこの値で
+/// 所有権を判定する）。`statusByTarget` の `enabled` を所有権チェックに
+/// 流用すると scope/種別を区別できないため、Hook 配置時のみ実パスを
+/// 別フィールドへ記録する設計とする。
+///
+/// 実際にステータス更新が発生しなかった場合（全 target が失敗した、`successes`
+/// が空など）は `.plm-meta.json` を書き換えない。失敗 install で不要な
+/// メタデータ更新を避け、ファイル mtime の汚染も防ぐ。
+///
+/// # Arguments
+///
+/// * `plugin_path` - Filesystem path of the cached plugin.
+/// * `result` - Outcome returned by `place_plugin`.
+pub fn update_meta_after_place(plugin_path: &Path, result: &PlaceResult) {
+    let mut plugin_meta = meta::load_meta(plugin_path).unwrap_or_default();
+    let failed_targets: HashSet<&str> = result
+        .failures
+        .iter()
+        .map(|failure| failure.target.as_str())
+        .collect();
+
+    let mut updated = false;
+    for success in &result.successes {
+        // managedFiles は「実際にファイルが書かれた」事実そのものを記録する。
+        // 同一 target 内で別コンポーネントが失敗しても書き込み済みファイルは
+        // 残るため、所有権記録もそれと同期させなければ次回 install/import で
+        // hook_overwrite_error が「未管理」と判定して再配置を拒否してしまう。
+        // add_managed_file は重複時 false を返すので、内容変化なしの no-op
+        // 書き込み（mtime 汚染）を避けるため戻り値で updated を立てる。
+        if success.component_kind == ComponentKind::Hook
+            && success.target_kind == TargetKind::Codex
+            && plugin_meta.add_managed_file(&success.target, &success.target_path)
+        {
+            updated = true;
+        }
+
+        // statusByTarget = "enabled" は「target 全体として成功した」状態を表す
+        // ため、同じ target に failure があれば enabled に昇格させない。
+        // 既に "enabled" の場合は内容変化なしの no-op 書き込みを避けるため
+        // set_status を呼ばずに skip する（mtime 汚染を防ぐ）。
+        if !failed_targets.contains(success.target.as_str())
+            && plugin_meta.get_status(&success.target) != Some("enabled")
+        {
+            plugin_meta.set_status(&success.target, "enabled");
+            updated = true;
+        }
+    }
+
+    if !updated {
+        return;
+    }
+
+    if let Err(e) = meta::write_meta(plugin_path, &plugin_meta) {
+        eprintln!("Warning: Failed to update .plm-meta.json: {}", e);
+    }
+}
+
+/// 単発の Codex Hook 配置成功時に所有権を `.plm-meta.json` に記録する。
+///
+/// `plm import` は `place_plugin` を経由しないため `update_meta_after_place`
+/// で所有権が記録されない。同じプラグインを再 import すると
+/// `CodexTarget::hook_overwrite_error` が「未管理ファイル」と判定して
+/// 拒否してしまうので、import の deploy 成功時に明示的に呼び出して
+/// `managedFiles["codex"]` に絶対パスを追記する。
+///
+/// # Arguments
+///
+/// * `plugin_path` - Filesystem path of the cached plugin (`.plm-meta.json` のディレクトリ).
+/// * `hook_path` - 実際に書き込んだ `hooks.json` の絶対パス.
+pub fn record_codex_hook_ownership(plugin_path: &Path, hook_path: &Path) {
+    let mut plugin_meta = meta::load_meta(plugin_path).unwrap_or_default();
+    let was_managed = plugin_meta.manages_file("codex", hook_path);
+    let was_enabled = plugin_meta.get_status("codex") == Some("enabled");
+
+    if was_managed && was_enabled {
+        return;
+    }
+
+    plugin_meta.set_status("codex", "enabled");
+    plugin_meta.add_managed_file("codex", hook_path);
+
+    if let Err(e) = meta::write_meta(plugin_path, &plugin_meta) {
+        eprintln!("Warning: Failed to update .plm-meta.json: {}", e);
     }
 }
 

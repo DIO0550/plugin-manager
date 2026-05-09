@@ -1,5 +1,6 @@
 use super::*;
 use crate::component::{ComponentRef, PlacementScope, ProjectContext};
+use crate::target::paths::home_dir;
 use crate::target::PluginOrigin;
 
 #[test]
@@ -15,8 +16,8 @@ fn test_codex_supported_components() {
     assert!(target.supports(ComponentKind::Skill));
     assert!(target.supports(ComponentKind::Agent));
     assert!(target.supports(ComponentKind::Instruction));
+    assert!(target.supports(ComponentKind::Hook));
     assert!(!target.supports(ComponentKind::Command));
-    assert!(!target.supports(ComponentKind::Hook));
 }
 
 #[test]
@@ -159,4 +160,106 @@ fn test_codex_command_not_supported() {
         project: ProjectContext::new(project_root),
     };
     assert!(target.placement_location(&ctx).is_none());
+}
+
+#[test]
+fn test_codex_placement_location_hook_project_scope() {
+    let target = CodexTarget::new();
+    let project_root = Path::new("/project");
+    let origin = PluginOrigin::from_marketplace("test", "test");
+
+    let ctx = PlacementContext {
+        component: ComponentRef::new(ComponentKind::Hook, "test_pre-tool-use"),
+        origin: &origin,
+        scope: PlacementScope::new(Scope::Project),
+        project: ProjectContext::new(project_root),
+    };
+    let location = target.placement_location(&ctx).unwrap();
+
+    assert!(location.is_file());
+    assert_eq!(location.as_path(), Path::new("/project/.codex/hooks.json"));
+}
+
+#[test]
+fn test_codex_placement_location_hook_personal_scope() {
+    let target = CodexTarget::new();
+    let project_root = Path::new("/project");
+    let origin = PluginOrigin::from_marketplace("test", "test");
+
+    let ctx = PlacementContext {
+        component: ComponentRef::new(ComponentKind::Hook, "test_pre-tool-use"),
+        origin: &origin,
+        scope: PlacementScope::new(Scope::Personal),
+        project: ProjectContext::new(project_root),
+    };
+    let location = target.placement_location(&ctx).unwrap();
+
+    assert!(location.is_file());
+    assert_eq!(location.as_path(), home_dir().join(".codex/hooks.json"));
+}
+
+#[test]
+fn hook_overwrite_error_returns_none_when_target_does_not_exist() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let target_path = temp.path().join("hooks.json"); // 存在しない
+    let plugin_root = temp.path();
+
+    assert!(CodexTarget::hook_overwrite_error(&target_path, plugin_root).is_none());
+}
+
+#[test]
+fn hook_overwrite_error_returns_error_when_target_exists_and_not_managed() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let target_path = temp.path().join("hooks.json");
+    std::fs::write(&target_path, "{}").unwrap();
+
+    let plugin_root_dir = tempfile::TempDir::new().unwrap();
+    // .plm-meta.json は無いので、過去 install 履歴なし → error
+    let result = CodexTarget::hook_overwrite_error(&target_path, plugin_root_dir.path());
+    assert!(result.is_some());
+    let msg = result.unwrap();
+    assert!(msg.contains("already exists"));
+    assert!(msg.contains("not managed by this plugin"));
+}
+
+#[test]
+fn hook_overwrite_error_returns_none_when_plugin_already_owns_target_path() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let target_path = temp.path().join("hooks.json");
+    std::fs::write(&target_path, "{}").unwrap();
+
+    let plugin_root_dir = tempfile::TempDir::new().unwrap();
+    let mut meta = crate::plugin::meta::PluginMeta::default();
+    meta.add_managed_file("codex", &target_path);
+    crate::plugin::meta::write_meta(plugin_root_dir.path(), &meta).unwrap();
+
+    // 同プラグインによる同 destination への再 install は許可される
+    assert!(
+        CodexTarget::hook_overwrite_error(&target_path, plugin_root_dir.path()).is_none(),
+        "re-install of the same plugin must be allowed for a managed file path"
+    );
+}
+
+#[test]
+fn hook_overwrite_error_rejects_when_status_enabled_but_path_not_managed() {
+    // statusByTarget["codex"] == "enabled" だけでは所有権としては不十分。
+    // 例: personal で先に enable した後、project の同名ファイルを書こうとした場合は
+    // managedFiles に project 側の path が無いので拒否されるべき。
+    let temp = tempfile::TempDir::new().unwrap();
+    let target_path = temp.path().join("hooks.json");
+    std::fs::write(&target_path, "{}").unwrap();
+
+    let plugin_root_dir = tempfile::TempDir::new().unwrap();
+    let mut meta = crate::plugin::meta::PluginMeta::default();
+    meta.set_status("codex", "enabled");
+    // 別の path のみ管理対象として登録（Skill 配置等で enable はされたが、
+    // 実際の hooks.json は別プラグインの所有という想定）
+    meta.add_managed_file("codex", std::path::Path::new("/somewhere/else/hooks.json"));
+    crate::plugin::meta::write_meta(plugin_root_dir.path(), &meta).unwrap();
+
+    let result = CodexTarget::hook_overwrite_error(&target_path, plugin_root_dir.path());
+    assert!(
+        result.is_some(),
+        "must reject when target_path is not in managedFiles even if target is enabled"
+    );
 }

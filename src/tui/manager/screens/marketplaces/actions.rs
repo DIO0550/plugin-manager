@@ -332,6 +332,8 @@ fn install_single_plugin(
         project_root: ctx.project_root,
     });
 
+    install::update_meta_after_place(scanned.plugin_root(), &place_result);
+
     if !place_result.failures.is_empty() {
         let errors: Vec<String> = place_result
             .failures

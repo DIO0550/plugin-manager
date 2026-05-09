@@ -12,7 +12,9 @@ use crate::import::{ImportRecord, ImportRegistry};
 use crate::output::CommandSummary;
 use crate::plugin::PackageCache;
 use crate::source::parse_source;
-use crate::target::{all_targets, parse_target, PluginOrigin, Scope, Target, TargetKind};
+use crate::target::{
+    all_targets, parse_target, CodexTarget, PluginOrigin, Scope, Target, TargetKind,
+};
 use crate::tui;
 use chrono::Utc;
 use clap::Parser;
@@ -185,6 +187,7 @@ struct ImportContext<'a> {
     origin: &'a PluginOrigin,
     scope: Scope,
     project_root: &'a Path,
+    plugin_root: &'a Path,
     source_repo: &'a str,
     git_ref: &'a str,
     commit_sha: &'a str,
@@ -223,11 +226,23 @@ fn build_deployment(
         None => return Ok(None),
     };
 
+    if component.kind == ComponentKind::Hook && target.kind() == TargetKind::Codex {
+        if let Some(error) = CodexTarget::hook_overwrite_error(&target_path, ctx.plugin_root) {
+            return Err(error);
+        }
+    }
+
     let conversion = match component.kind {
         ComponentKind::Agent => ConversionConfig::Agent {
             source: AgentFormat::ClaudeCode,
             dest: target.agent_format(),
         },
+        ComponentKind::Hook if matches!(target.kind(), TargetKind::Codex | TargetKind::Copilot) => {
+            ConversionConfig::Hook {
+                target_kind: target.kind(),
+                plugin_root: Some(ctx.plugin_root.to_path_buf()),
+            }
+        }
         _ => ConversionConfig::None,
     };
 
@@ -264,6 +279,10 @@ fn deploy_one(
             );
 
             let target_kind = target.kind();
+            if target_kind == TargetKind::Codex && deployment.kind() == ComponentKind::Hook {
+                crate::install::record_codex_hook_ownership(ctx.plugin_root, deployment.path());
+            }
+
             if target_kind == TargetKind::GeminiCli {
                 return DeployOutcome::Skipped;
             }
@@ -315,8 +334,27 @@ fn place_components(
 
     for target_name in target_names {
         let target = parse_target(target_name).map_err(|e| e.to_string())?;
+        let codex_hook_conflict = if target.kind() == TargetKind::Codex {
+            CodexTarget::hook_component_conflict_error(components)
+        } else {
+            None
+        };
 
         for component in components {
+            if component.kind == ComponentKind::Hook {
+                if let Some(error) = &codex_hook_conflict {
+                    println!(
+                        "  x {} {}: {} - {}",
+                        target.name(),
+                        component.kind,
+                        component.name,
+                        error
+                    );
+                    total_failure += 1;
+                    continue;
+                }
+            }
+
             let deployment = match build_deployment(target.as_ref(), component, ctx) {
                 Ok(None) => continue,
                 Ok(Some(d)) => d,
@@ -429,6 +467,7 @@ pub async fn run(args: Args) -> Result<(), String> {
         origin: &origin,
         scope,
         project_root: &project_root,
+        plugin_root: &cached_plugin.path,
         source_repo: &args.source,
         git_ref: &cached_plugin.git_ref,
         commit_sha: &cached_plugin.commit_sha,

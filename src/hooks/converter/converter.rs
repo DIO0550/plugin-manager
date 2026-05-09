@@ -70,7 +70,7 @@ impl fmt::Display for ConversionWarning {
             ConversionWarning::UnsupportedEvent { event } => {
                 write!(
                     f,
-                    "Event '{}' is not supported in Copilot CLI and was excluded",
+                    "Event '{}' is not supported by the target hook format and was excluded",
                     event
                 )
             }
@@ -240,6 +240,7 @@ pub(crate) struct HookConversionLayers {
     pub key_map: Box<dyn KeyMap>,
     pub structure: Box<dyn StructureConverter>,
     pub script_gen: Box<dyn ScriptGenerator>,
+    pub preserve_matcher_groups: bool,
 }
 
 /// Create conversion layers for the given target.
@@ -255,6 +256,15 @@ pub(crate) fn create_layers(target: TargetKind) -> Result<HookConversionLayers, 
             key_map: Box::new(super::copilot::CopilotKeyMap),
             structure: Box::new(super::copilot::CopilotStructureConverter),
             script_gen: Box::new(super::copilot::CopilotScriptGenerator),
+            preserve_matcher_groups: false,
+        }),
+        TargetKind::Codex => Ok(HookConversionLayers {
+            event_map: Box::new(super::codex::CodexEventMap),
+            tool_map: Some(Box::new(super::super::tool::codex::CodexToolMap)),
+            key_map: Box::new(super::codex::CodexKeyMap),
+            structure: Box::new(super::codex::CodexStructureConverter),
+            script_gen: Box::new(super::codex::CodexScriptGenerator),
+            preserve_matcher_groups: true,
         }),
         other => Err(PlmError::HookConversion(format!(
             "Hook conversion is not yet implemented for target: {}",
@@ -385,7 +395,11 @@ fn convert_event_hooks(
     for (event_name, event_value) in hooks_obj {
         match layers.event_map.map_event(event_name) {
             Some(target_event) => {
-                let converted_hooks = flatten_matchers(event_value, target_event, layers, out)?;
+                let converted_hooks = if layers.preserve_matcher_groups {
+                    preserve_matcher_groups(event_value, target_event, layers, out)?
+                } else {
+                    flatten_matchers(event_value, target_event, layers, out)?
+                };
                 if !converted_hooks.is_empty() {
                     output.insert(target_event.to_string(), Value::Array(converted_hooks));
                 }
@@ -399,6 +413,82 @@ fn convert_event_hooks(
     }
 
     Ok(Value::Object(output))
+}
+
+/// Convert matcher groups while preserving the Claude Code/Codex nested shape.
+///
+/// This is used for Codex, whose native `hooks.json` format keeps event values
+/// as arrays of matcher groups containing `hooks[]`.
+fn preserve_matcher_groups(
+    groups: &Value,
+    event: &str,
+    layers: &HookConversionLayers,
+    out: &mut ConvertOutput<'_>,
+) -> Result<Vec<Value>, PlmError> {
+    let mut result = Vec::new();
+
+    let groups_arr = match groups.as_array() {
+        Some(arr) => arr,
+        None => {
+            out.warnings.push(ConversionWarning::RemovedField {
+                field: event.to_string(),
+                reason: format!(
+                    "Event '{}' value is not an array; expected matcher group structure",
+                    event
+                ),
+            });
+            return Ok(result);
+        }
+    };
+
+    for group in groups_arr {
+        let Some(group_obj) = group.as_object() else {
+            out.warnings.push(ConversionWarning::RemovedField {
+                field: event.to_string(),
+                reason: format!(
+                    "Matcher group in event '{}' is not an object; skipped",
+                    event
+                ),
+            });
+            continue;
+        };
+
+        let matcher = group_obj
+            .get("matcher")
+            .and_then(|m| m.as_str())
+            .filter(|s| !s.is_empty());
+
+        let hooks = match group_obj.get("hooks").and_then(|h| h.as_array()) {
+            Some(arr) => arr,
+            None => {
+                out.warnings.push(ConversionWarning::RemovedField {
+                    field: "hooks".to_string(),
+                    reason: format!(
+                        "Matcher group in event '{}' is missing 'hooks' array; skipped",
+                        event
+                    ),
+                });
+                continue;
+            }
+        };
+
+        let mut converted_hooks = Vec::new();
+        for hook in hooks {
+            if let Some(converted) = convert_hook_definition(hook, matcher, event, layers, out)? {
+                converted_hooks.push(converted);
+            }
+        }
+
+        if converted_hooks.is_empty() {
+            continue;
+        }
+
+        let mut converted_group = group_obj.clone();
+        converted_group.insert("hooks".to_string(), Value::Array(converted_hooks));
+        result.push(Value::Object(converted_group));
+    }
+
+    Ok(result)
 }
 
 /// Flatten matcher groups into a flat array of hook definitions.
@@ -553,6 +643,23 @@ fn convert_hook_definition(
 
     if matches!(action, HookDefinition::Command(_)) && script_info.original_config.is_null() {
         script_info.original_config = hook.clone();
+    }
+
+    if script_info.path.is_empty() {
+        let hook_type = action.hook_type_str().to_string();
+        match action {
+            HookDefinition::Command(_) => {
+                out.warnings.extend(extra_warnings);
+                return Ok(Some(mapped));
+            }
+            HookDefinition::Http(_) | HookDefinition::Stub(_) => {
+                out.warnings.push(ConversionWarning::UnsupportedHookType {
+                    hook_type,
+                    event: event.to_string(),
+                });
+                return Ok(None);
+            }
+        }
     }
 
     let script_path = format!("./{}", script_info.path);

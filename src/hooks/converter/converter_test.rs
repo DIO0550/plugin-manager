@@ -16,7 +16,7 @@ fn test_warning_display_unsupported_event() {
     };
     assert_eq!(
         w.to_string(),
-        "Event 'PreCompact' is not supported in Copilot CLI and was excluded"
+        "Event 'PreCompact' is not supported by the target hook format and was excluded"
     );
 }
 

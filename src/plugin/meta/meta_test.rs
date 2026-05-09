@@ -634,3 +634,29 @@ fn test_is_enabled_indexed_falls_back_to_index() {
         &deployed_plugins
     ));
 }
+
+// =============================================================================
+// managed_files tests
+// =============================================================================
+
+#[test]
+fn add_managed_file_returns_true_when_inserting_new_path() {
+    let mut meta = PluginMeta::default();
+    let added = meta.add_managed_file("codex", std::path::Path::new("/dest/codex/hooks.json"));
+    assert!(added);
+    assert!(meta.manages_file("codex", std::path::Path::new("/dest/codex/hooks.json")));
+}
+
+#[test]
+fn add_managed_file_returns_false_when_path_already_present() {
+    let mut meta = PluginMeta::default();
+    meta.add_managed_file("codex", std::path::Path::new("/dest/codex/hooks.json"));
+
+    let added = meta.add_managed_file("codex", std::path::Path::new("/dest/codex/hooks.json"));
+    assert!(!added, "重複登録は no-op として false を返す必要がある");
+    assert_eq!(
+        meta.managed_files.get("codex").unwrap().len(),
+        1,
+        "重複時は配列が増えない"
+    );
+}

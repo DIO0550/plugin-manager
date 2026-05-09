@@ -13,6 +13,28 @@ use std::fs;
 use std::path::Path;
 
 impl ComponentDeployment {
+    /// 変換後 JSON に残った hook 定義数を数える。
+    ///
+    /// Copilot は `hooks.<event>[]` のフラット構造、Codex は
+    /// `hooks.<event>[].hooks[]` の matcher group 構造を使うため両方を扱う。
+    fn count_hooks_in_json(json: &serde_json::Value) -> usize {
+        let Some(hooks) = json.get("hooks").and_then(|h| h.as_object()) else {
+            return 0;
+        };
+
+        hooks
+            .values()
+            .filter_map(|event_hooks| event_hooks.as_array())
+            .flat_map(|event_hooks| event_hooks.iter())
+            .map(|entry| {
+                entry
+                    .get("hooks")
+                    .and_then(|nested| nested.as_array())
+                    .map_or(1, |nested| nested.len())
+            })
+            .sum()
+    }
+
     /// JSON 内の hooks[].bash パスを名前空間付きに書き換える
     ///
     /// # Arguments
@@ -99,6 +121,7 @@ impl ComponentDeployment {
 
         let json_str = serde_json::to_string_pretty(&convert_result.json)
             .map_err(|e| PlmError::HookConversion(format!("Failed to serialize JSON: {}", e)))?;
+        let hook_count = Self::count_hooks_in_json(&convert_result.json);
 
         if let Some(parent) = self.target_path.parent() {
             fs::create_dir_all(parent)?;
@@ -111,6 +134,7 @@ impl ComponentDeployment {
             return Ok(DeploymentOutput::HookConverted(HookConvertOutput {
                 warnings: convert_result.warnings,
                 script_count: 0,
+                hook_count,
                 source_format: convert_result.source_format,
             }));
         }
@@ -149,6 +173,7 @@ impl ComponentDeployment {
         Ok(DeploymentOutput::HookConverted(HookConvertOutput {
             warnings: convert_result.warnings,
             script_count,
+            hook_count,
             source_format: convert_result.source_format,
         }))
     }

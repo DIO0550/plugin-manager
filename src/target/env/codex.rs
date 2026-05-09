@@ -1,6 +1,6 @@
 //! OpenAI Codex ターゲット実装
 
-use crate::component::{ComponentKind, PlacementContext, PlacementLocation, Scope};
+use crate::component::{Component, ComponentKind, PlacementContext, PlacementLocation, Scope};
 use crate::error::Result;
 use crate::target::paths::base_dir;
 use crate::target::placed_common;
@@ -34,7 +34,63 @@ impl CodexTarget {
     ///
     /// * `kind` - Component kind to check.
     fn can_place(kind: ComponentKind) -> bool {
-        kind != ComponentKind::Command && kind != ComponentKind::Hook
+        kind != ComponentKind::Command
+    }
+
+    /// Codex は 1 スコープにつき単一の `hooks.json` を読むため、複数 Hook を
+    /// 個別配置すると同じファイルを上書きする。マージ未実装の間は拒否する。
+    pub fn hook_component_conflict_error(components: &[Component]) -> Option<String> {
+        let hook_count = components
+            .iter()
+            .filter(|component| component.kind == ComponentKind::Hook)
+            .count();
+
+        (hook_count > 1).then(|| {
+            format!(
+                "Codex target supports a single hooks.json per scope; {} Hook components would overwrite each other. Select one Hook component or wait for merge support.",
+                hook_count
+            )
+        })
+    }
+
+    /// 配置先 `hooks.json` がすでに存在し、`target_path` が現在のプラグインの
+    /// 管理下に無い場合にエラー文字列を返す。
+    ///
+    /// 共有パス（`.codex/hooks.json` / `~/.codex/hooks.json`）を上書きして
+    /// しまうことで、ユーザーが手書きした hooks や別プラグインが配置した
+    /// hooks を黙って消してしまうのを防ぐ。再 install（同プラグイン）の場合は
+    /// `.plm-meta.json` の `managedFiles["codex"]` に `target_path` が
+    /// 含まれている場合のみ許可する。
+    ///
+    /// 旧実装は `statusByTarget["codex"] == "enabled"` を所有権の根拠に
+    /// していたが、この値は scope 非依存かつコンポーネント種別非依存で、
+    /// (a) personal で enable された状態が project 側 `.codex/hooks.json`
+    /// の上書きを許してしまう、(b) Skill のみ配置したプラグインでも
+    /// 上書きガードを通過してしまう、という不整合があった。
+    /// 絶対パス単位の `managedFiles` でこの両方を解消する。
+    ///
+    /// # Arguments
+    ///
+    /// * `target_path` - Resolved destination path (e.g. `.codex/hooks.json`).
+    /// * `plugin_root` - Cached plugin directory; `.plm-meta.json` lives here.
+    pub fn hook_overwrite_error(target_path: &Path, plugin_root: &Path) -> Option<String> {
+        if !target_path.exists() {
+            return None;
+        }
+
+        let already_owned = crate::plugin::meta::load_meta(plugin_root)
+            .map(|meta| meta.manages_file("codex", target_path))
+            .unwrap_or(false);
+
+        if already_owned {
+            return None;
+        }
+
+        Some(format!(
+            "{} already exists and is not managed by this plugin. \
+             Refusing to overwrite; remove the file or merge it manually before re-installing.",
+            target_path.display()
+        ))
     }
 
     /// コンポーネント種別に応じたフィルタリング
@@ -54,6 +110,7 @@ impl CodexTarget {
             ComponentKind::Agent if !c.is_dir && c.name.ends_with(".agent.md") => {
                 Some(c.name.trim_end_matches(".agent.md").to_string())
             }
+            ComponentKind::Hook if !c.is_dir && c.name == "hooks.json" => Some("hooks".to_string()),
             _ => None,
         }
     }
@@ -83,6 +140,7 @@ impl Target for CodexTarget {
             ComponentKind::Skill,
             ComponentKind::Agent,
             ComponentKind::Instruction,
+            ComponentKind::Hook,
         ]
     }
 
@@ -109,7 +167,8 @@ impl Target for CodexTarget {
                 Scope::Project => PlacementLocation::file(project_root.join("AGENTS.md")),
                 Scope::Personal => PlacementLocation::file(base.join("AGENTS.md")),
             },
-            ComponentKind::Command | ComponentKind::Hook => return None,
+            ComponentKind::Hook => PlacementLocation::file(base.join("hooks.json")),
+            ComponentKind::Command => return None,
         })
     }
 
@@ -136,6 +195,7 @@ impl Target for CodexTarget {
         let dir_path = match kind {
             ComponentKind::Skill => base.join("skills"),
             ComponentKind::Agent => base.join("agents"),
+            ComponentKind::Hook => base.clone(),
             _ => return Ok(vec![]),
         };
 

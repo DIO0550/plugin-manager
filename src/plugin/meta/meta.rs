@@ -59,6 +59,22 @@ pub struct PluginMeta {
         skip_serializing_if = "Option::is_none"
     )]
     pub marketplace: Option<String>,
+
+    /// プラグインが管理する「shared destination ファイル」の絶対パス一覧
+    /// （ターゲット別）。
+    ///
+    /// `.codex/hooks.json` のように複数のソースで上書き合戦になりうるファイルの
+    /// 所有権追跡に用いる。`statusByTarget` は scope 非依存かつコンポーネント
+    /// 種別非依存なので、上書きガードの根拠としては不正確になる
+    /// （Skill のみ配置したケースでも `enabled` になる、personal で enable した
+    /// 状態で project の同名ファイルを上書きしうる）。`managed_files` は
+    /// 絶対パス単位で記録するため、scope と配置種別の双方を区別できる。
+    #[serde(
+        default,
+        rename = "managedFiles",
+        skip_serializing_if = "HashMap::is_empty"
+    )]
+    pub managed_files: HashMap<String, Vec<String>>,
 }
 
 impl PluginMeta {
@@ -135,6 +151,41 @@ impl PluginMeta {
     /// GitHub プラグインかどうか
     pub fn is_github(&self) -> bool {
         self.marketplace.as_deref() == Some("github") || self.marketplace.is_none()
+    }
+
+    /// `target` の管理ファイル一覧に `path` を追加する。
+    ///
+    /// # Returns
+    /// 新たに追加した場合は `true`、既に登録済みで何もしなかった場合は `false`。
+    /// 戻り値で no-op を判定し、不要な `.plm-meta.json` 書き換え（mtime 汚染）を
+    /// 防ぐために使う。
+    ///
+    /// # Arguments
+    ///
+    /// * `target` - Target name (e.g. `"codex"`).
+    /// * `path` - Absolute destination path the plugin owns (e.g.
+    ///   `/home/user/.codex/hooks.json`).
+    pub fn add_managed_file(&mut self, target: &str, path: &Path) -> bool {
+        let path_str = path.to_string_lossy().into_owned();
+        let entry = self.managed_files.entry(target.to_string()).or_default();
+        if entry.iter().any(|p| p == &path_str) {
+            return false;
+        }
+        entry.push(path_str);
+        true
+    }
+
+    /// 指定 `(target, path)` をこのプラグインが管理しているか。
+    ///
+    /// # Arguments
+    ///
+    /// * `target` - Target name.
+    /// * `path` - Absolute destination path being checked.
+    pub fn manages_file(&self, target: &str, path: &Path) -> bool {
+        let path_str = path.to_string_lossy();
+        self.managed_files
+            .get(target)
+            .is_some_and(|paths| paths.iter().any(|p| p.as_str() == path_str.as_ref()))
     }
 }
 

@@ -444,3 +444,185 @@ fn test_place_plugin_copilot_hook_with_missing_version_propagates_target_format(
     );
     assert_eq!(success.script_count, 0);
 }
+
+#[test]
+fn test_place_plugin_codex_hook_installs_inline_hooks_json() {
+    let temp = TempDir::new().unwrap();
+    let project_dir = TempDir::new().unwrap();
+
+    let claude_code_hook = r#"{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'pre check'",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}"#;
+    let cached = create_test_hook_package(temp.path(), "my-hook", claude_code_hook);
+    let package = MarketplaceContent::try_from(cached).unwrap();
+    let scanned = scan_plugin(&package, None).unwrap();
+
+    let targets: Vec<Box<dyn crate::target::Target>> = vec![Box::new(CodexTarget::new())];
+
+    let result = place_plugin(&PlaceRequest {
+        scanned: &scanned,
+        targets: &targets,
+        scope: crate::component::Scope::Project,
+        project_root: project_dir.path(),
+    });
+
+    assert_eq!(result.successes.len(), 1, "failures: {:?}", result.failures);
+    let success = &result.successes[0];
+    assert_eq!(success.target, "codex");
+    assert_eq!(success.component_kind, ComponentKind::Hook);
+    assert_eq!(
+        success.target_path,
+        project_dir.path().join(".codex/hooks.json")
+    );
+    assert_eq!(success.hook_source_format, Some(SourceFormat::ClaudeCode));
+    assert_eq!(
+        success.script_count, 0,
+        "Codex command hooks stay inline and do not generate wrapper scripts"
+    );
+    assert_eq!(success.hook_count, 1);
+
+    let rendered = fs::read_to_string(&success.target_path).unwrap();
+    let json: serde_json::Value = serde_json::from_str(&rendered).unwrap();
+    assert_eq!(json["hooks"]["PreToolUse"][0]["matcher"], "Bash");
+    assert_eq!(
+        json["hooks"]["PreToolUse"][0]["hooks"][0]["command"],
+        "echo 'pre check'"
+    );
+    assert!(json["hooks"]["PreToolUse"][0]["hooks"][0]
+        .get("bash")
+        .is_none());
+}
+
+#[test]
+fn test_place_plugin_codex_rejects_multiple_hook_components() {
+    let temp = TempDir::new().unwrap();
+    let project_dir = TempDir::new().unwrap();
+    let hook_json = r#"{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'pre check'"
+          }
+        ]
+      }
+    ]
+  }
+}"#;
+
+    let manifest_content = serde_json::json!({
+        "name": "test-plugin",
+        "version": "1.0.0",
+        "description": "A test plugin"
+    });
+    fs::write(
+        temp.path().join("plugin.json"),
+        manifest_content.to_string(),
+    )
+    .unwrap();
+    let hooks_dir = temp.path().join("hooks");
+    fs::create_dir_all(&hooks_dir).unwrap();
+    fs::write(hooks_dir.join("first.json"), hook_json).unwrap();
+    fs::write(hooks_dir.join("second.json"), hook_json).unwrap();
+
+    let manifest = PluginManifest::load(&temp.path().join("plugin.json")).unwrap();
+    let cached = CachedPackage {
+        name: "test-plugin".to_string(),
+        id: None,
+        marketplace: Some("test-marketplace".to_string()),
+        path: temp.path().to_path_buf(),
+        manifest,
+        git_ref: "main".to_string(),
+        commit_sha: "abc123".to_string(),
+        marketplace_manifest: None,
+    };
+    let package = MarketplaceContent::try_from(cached).unwrap();
+    let scanned = scan_plugin(&package, None).unwrap();
+
+    let targets: Vec<Box<dyn crate::target::Target>> = vec![Box::new(CodexTarget::new())];
+    let result = place_plugin(&PlaceRequest {
+        scanned: &scanned,
+        targets: &targets,
+        scope: crate::component::Scope::Project,
+        project_root: project_dir.path(),
+    });
+
+    assert!(result.successes.is_empty());
+    assert_eq!(result.failures.len(), 2);
+    assert!(result
+        .failures
+        .iter()
+        .all(|failure| failure.component_kind == ComponentKind::Hook));
+    assert!(result
+        .failures
+        .iter()
+        .all(|failure| failure.error.contains("would overwrite each other")));
+    assert!(!project_dir.path().join(".codex/hooks.json").exists());
+}
+
+#[test]
+fn record_codex_hook_ownership_writes_managed_file_and_status() {
+    let plugin_dir = TempDir::new().unwrap();
+    let hook_dest = TempDir::new().unwrap();
+    let hook_path = hook_dest.path().join(".codex/hooks.json");
+
+    record_codex_hook_ownership(plugin_dir.path(), &hook_path);
+
+    let plugin_meta = crate::plugin::meta::load_meta(plugin_dir.path()).unwrap();
+    assert_eq!(plugin_meta.get_status("codex"), Some("enabled"));
+    assert!(plugin_meta.manages_file("codex", &hook_path));
+}
+
+#[test]
+fn record_codex_hook_ownership_is_idempotent() {
+    let plugin_dir = TempDir::new().unwrap();
+    let hook_dest = TempDir::new().unwrap();
+    let hook_path = hook_dest.path().join(".codex/hooks.json");
+
+    record_codex_hook_ownership(plugin_dir.path(), &hook_path);
+    record_codex_hook_ownership(plugin_dir.path(), &hook_path);
+
+    let plugin_meta = crate::plugin::meta::load_meta(plugin_dir.path()).unwrap();
+    let codex_files = plugin_meta.managed_files.get("codex").unwrap();
+    assert_eq!(
+        codex_files.len(),
+        1,
+        "同じパスを 2 回登録しても重複してはならない"
+    );
+}
+
+#[test]
+fn record_codex_hook_ownership_unblocks_re_import() {
+    // import 経路で同じプラグインを再 import するときに、過去の deploy で
+    // 記録した managedFiles エントリにより hook_overwrite_error が
+    // 既存ファイルを許容することを確認する。
+    let plugin_dir = TempDir::new().unwrap();
+    let hook_dest = TempDir::new().unwrap();
+    let hook_path = hook_dest.path().join("hooks.json");
+    fs::write(&hook_path, "{}").unwrap();
+
+    // 過去の deploy 成功時に呼ばれるはずの記録を再現
+    record_codex_hook_ownership(plugin_dir.path(), &hook_path);
+
+    // 同プラグインによる再 import → 上書きガードを通過すべき
+    assert!(
+        CodexTarget::hook_overwrite_error(&hook_path, plugin_dir.path()).is_none(),
+        "managedFiles に記録された path への再 import は許可されるべき"
+    );
+}

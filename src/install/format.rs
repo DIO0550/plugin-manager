@@ -6,6 +6,7 @@
 
 use crate::component::ComponentKind;
 use crate::hooks::converter::{ConversionWarning, SourceFormat};
+use crate::target::TargetKind;
 use owo_colors::OwoColorize;
 use std::collections::BTreeSet;
 
@@ -101,7 +102,11 @@ pub fn format_converted_hook_suffix() -> String {
 ///
 /// 文言: 件数に応じて単数形 `1 event skipped` / 複数形 `N events skipped` を
 /// 切り替える（user-facing CLI なので英語の単複は正確に出す）。
-pub fn format_skipped_events_warning(events: &BTreeSet<String>) -> Option<String> {
+/// `target_kind` でターゲットを示す文言（`Copilot CLI` / `Codex CLI`）を切り替える。
+pub fn format_skipped_events_warning(
+    events: &BTreeSet<String>,
+    target_kind: TargetKind,
+) -> Option<String> {
     if events.is_empty() {
         return None;
     }
@@ -109,12 +114,23 @@ pub fn format_skipped_events_warning(events: &BTreeSet<String>) -> Option<String
     let noun = if count == 1 { "event" } else { "events" };
     let list = events.iter().cloned().collect::<Vec<_>>().join(", ");
     Some(format!(
-        "  {} {} {} skipped (not supported in Copilot CLI): {}",
+        "  {} {} {} skipped (not supported in {}): {}",
         "Warning:".yellow(),
         count,
         noun,
+        target_display_name(target_kind),
         list
     ))
+}
+
+/// ターゲット向け表示名（user-facing CLI の警告文言用）。
+fn target_display_name(target_kind: TargetKind) -> &'static str {
+    match target_kind {
+        TargetKind::Copilot => "Copilot CLI",
+        TargetKind::Codex => "Codex CLI",
+        TargetKind::Antigravity => "Antigravity",
+        TargetKind::GeminiCli => "Gemini CLI",
+    }
 }
 
 /// prompt/agent フックの手動書き換え案内（stderr / magenta + bold 見出し）。
@@ -142,29 +158,28 @@ pub fn format_manual_rewrite_section(stubs: &[(String, String)]) -> Option<Strin
 /// 変換結果として hook が 1 件も残らなかった場合の追加警告（stderr / yellow）。
 ///
 /// 「空 `hooks.json` を放置したまま気づかれない」状況を防ぐためのセーフティネット。
-/// `source_format == Some(SourceFormat::ClaudeCode) && script_count == 0` のとき返す。
+/// `source_format == Some(SourceFormat::ClaudeCode) && hook_count == 0` のとき返す。
 /// それ以外は `None`。
 ///
-/// **判定方針**: ClaudeCode 入力時は各 hook が必ずスクリプトを生成するため、
-/// `script_count == 0` ⇔「変換後の `hooks.json` が空」という不変条件が成立する。
-/// この単一の条件で、除外の主因が `UnsupportedEvent` / `UnsupportedHookType` /
-/// `RemovedField`（イベント値が配列でない、matcher group の `hooks` 配列欠落 など、
-/// 詳細は `src/hooks/converter.rs::flatten_matchers`）のいずれであっても取りこぼさず
-/// 警告を出せる。
+/// **判定方針**: 変換後 JSON に残った hook 定義数で判定する。Copilot 変換では
+/// script_count と一致するが、Codex 変換では command hook を inline のまま残すため
+/// script_count が 0 でも hook_count は 1 以上になり得る。
 ///
-/// **`source_format == Some(TargetFormat)` の扱い**: passthrough では入力 JSON が
-/// そのまま配置され `script_count == 0` でも `hooks.json` は空ではない（例:
-/// `MissingVersion` 警告つきの Copilot 形式入力）。誤検知を避けるためここでは
-/// 警告を出さない。
+/// **`source_format == Some(TargetFormat)` の扱い**: passthrough でも
+/// `deploy_hook_converted()` 側で `hook_count` は常に算出されるが、入力 JSON が
+/// そのまま配置されるため変換による消失は起こり得ない。`hook_count == 0` でも
+/// それは入力時点の状態（例: `MissingVersion` 警告つきの Copilot 形式で
+/// `hooks` が空）であり「変換で消えた」ことを意味しないため、誤検知を避けて
+/// ここでは警告を出さない。
 ///
 /// **`source_format == None` の扱い**: Hook 以外（Skill / Agent / ...）または
 /// `DeploymentOutput::Copied` 経路の Hook（version 付き Copilot 完全 passthrough）。
 /// どちらも警告対象外。
 pub fn format_empty_hooks_warning(
-    script_count: usize,
+    hook_count: usize,
     source_format: Option<SourceFormat>,
 ) -> Option<String> {
-    if script_count == 0 && source_format == Some(SourceFormat::ClaudeCode) {
+    if hook_count == 0 && source_format == Some(SourceFormat::ClaudeCode) {
         Some(format!(
             "  {} An empty hooks.json was placed; no hooks remained after conversion.",
             "Warning:".yellow()
@@ -192,6 +207,19 @@ pub struct HookRenderOutput {
     pub stderr_blocks: Vec<String>,
 }
 
+/// `render_hook_success` の入力。
+///
+/// `script_count` は将来の表示拡張のために保持する（現状は未使用だが、
+/// inline hook と generated script の比率を出したくなったときに参照する）。
+pub struct HookRenderInput<'a> {
+    pub component_kind: ComponentKind,
+    pub target_kind: TargetKind,
+    pub hook_source_format: Option<SourceFormat>,
+    pub hook_warnings: &'a [ConversionWarning],
+    pub script_count: usize,
+    pub hook_count: usize,
+}
+
 /// Hook の success データから表示用の `HookRenderOutput` を組み立てる pure function。
 ///
 /// 分岐仕様:
@@ -200,12 +228,16 @@ pub struct HookRenderOutput {
 /// - `stderr_blocks`: `component_kind == Hook` かつ各カテゴリ非空のときのみ追加。
 ///   `source_format` 非依存（Copilot 形式 + `MissingVersion` でも warning は出る）
 /// - Hook 以外の `component_kind` では空の `HookRenderOutput` を返す
-pub fn render_hook_success(
-    component_kind: ComponentKind,
-    hook_source_format: Option<SourceFormat>,
-    hook_warnings: &[ConversionWarning],
-    script_count: usize,
-) -> HookRenderOutput {
+pub fn render_hook_success(input: HookRenderInput<'_>) -> HookRenderOutput {
+    let HookRenderInput {
+        component_kind,
+        target_kind,
+        hook_source_format,
+        hook_warnings,
+        script_count: _,
+        hook_count,
+    } = input;
+
     if component_kind != ComponentKind::Hook {
         return HookRenderOutput {
             stdout_suffix: None,
@@ -222,16 +254,14 @@ pub fn render_hook_success(
     let classified = classify_hook_warnings(hook_warnings);
     let mut stderr_blocks: Vec<String> = Vec::new();
 
-    if let Some(line) = format_skipped_events_warning(&classified.skipped) {
+    if let Some(line) = format_skipped_events_warning(&classified.skipped, target_kind) {
         stderr_blocks.push(line);
     }
     if let Some(section) = format_manual_rewrite_section(&classified.stubs) {
         stderr_blocks.push(section);
     }
-    // 空 `hooks.json` 警告は ClaudeCode 入力時の `script_count == 0` だけで判定する
-    // （除外の主因が `UnsupportedEvent` / `UnsupportedHookType` / `RemovedField` の
-    // どれであっても 1 つの不変条件で取りこぼさない）。
-    if let Some(line) = format_empty_hooks_warning(script_count, hook_source_format) {
+    // 空 `hooks.json` 警告は変換後に残った hook 定義数で判定する。
+    if let Some(line) = format_empty_hooks_warning(hook_count, hook_source_format) {
         stderr_blocks.push(line);
     }
     for w in &classified.others {
