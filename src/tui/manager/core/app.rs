@@ -81,7 +81,7 @@ impl Tab {
 /// アクティブ画面の状態
 pub enum Screen {
     Installed(installed::InstalledScreenModel),
-    Discover(discover::Model),
+    Discover(discover::DiscoverScreenModel),
     Marketplaces(marketplaces::MarketplacesModel),
     Errors(errors::Model),
 }
@@ -367,7 +367,7 @@ fn switch_tab(model: &mut Model, new_tab: Tab) {
             &model.data,
             &model.cache.installed,
         )),
-        Tab::Discover => Screen::Discover(discover::Model::from_cache(
+        Tab::Discover => Screen::Discover(discover::DiscoverScreenModel::from_cache(
             &model.data,
             &model.cache.discover,
         )),

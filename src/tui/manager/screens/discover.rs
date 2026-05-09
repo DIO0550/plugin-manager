@@ -16,12 +16,12 @@ pub struct CacheState {
 }
 
 /// Discover タブの画面状態
-pub struct Model {
+pub struct DiscoverScreenModel {
     pub selected_id: Option<PluginId>,
     pub list_state: ListState,
 }
 
-impl Model {
+impl DiscoverScreenModel {
     /// 新しいモデルを作成
     ///
     /// # Arguments
@@ -76,7 +76,7 @@ pub fn key_to_msg(_key: KeyCode) -> Option<Msg> {
 /// * `_model` - Mutable screen state.
 /// * `_msg` - Incoming message.
 /// * `_data` - Shared data store.
-pub fn update(_model: &mut Model, _msg: Msg, _data: &DataStore) {
+pub fn update(_model: &mut DiscoverScreenModel, _msg: Msg, _data: &DataStore) {
     // 将来の拡張用
 }
 
@@ -91,7 +91,7 @@ pub fn update(_model: &mut Model, _msg: Msg, _data: &DataStore) {
 /// * `filter_focused` - Whether the filter bar has focus.
 pub fn view(
     f: &mut Frame,
-    _model: &Model,
+    _model: &DiscoverScreenModel,
     _data: &DataStore,
     filter_text: &str,
     filter_focused: bool,
