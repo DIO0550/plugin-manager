@@ -2,7 +2,7 @@
 
 use crate::commands::args::SyncScopeArgs;
 use crate::sync::{
-    sync, PlacedComponent, SyncDestination, SyncOptions, SyncResult, SyncSource, SyncableKind,
+    sync, PlacedComponent, SyncDestination, SyncOptions, SyncOutcome, SyncSource, SyncableKind,
 };
 use crate::target::TargetKind;
 use clap::Parser;
@@ -67,7 +67,7 @@ pub async fn run(args: Args) -> Result<(), String> {
 /// * `result` - Outcome returned by the `sync` engine.
 /// * `from_name` - Display name of the source target.
 /// * `to_name` - Display name of the destination target.
-fn print_result(result: &SyncResult, from_name: &str, to_name: &str) {
+fn print_result(result: &SyncOutcome, from_name: &str, to_name: &str) {
     println!("Sync: {} -> {}\n", from_name.cyan(), to_name.cyan());
 
     let total = result.total_count();

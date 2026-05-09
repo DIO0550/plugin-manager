@@ -24,12 +24,12 @@
 ### 1.2 適用範囲
 
 - **新規追加するドメイン処理結果型**: 必ず `*Outcome` 接尾辞を使う。
-- **既存の `*Result` 型**: Issue #271 (Issue #259-A/B/C 一括対応) で以下 4 型 + tui 1 型を `*Outcome` に統一済み。
-  - `SyncOutcome` (旧 `SyncResult`)
-  - `ConvertOutcome` (旧 `ConvertResult`)
-  - `OperationOutcome` (旧 `OperationResult`、type alias 削除)
-  - `UpdateOutcome` (旧 `UpdateResult`、type alias 削除)
-  - `MarketplaceAddOutcome` (旧 `tui::manager::screens::marketplaces::actions::AddResult`)
+- **既存のドメイン処理結果型**: Issue #271 (Issue #259-A/B/C 一括対応) で以下 5 型を `*Outcome` に統一済み。
+  - `SyncOutcome`
+  - `ConvertOutcome`
+  - `OperationOutcome` (type alias 削除済み)
+  - `UpdateOutcome` (type alias 削除済み)
+  - `MarketplaceAddOutcome` (tui::manager::screens::marketplaces::actions 配下)
 
 ### 1.3 適用継続検討対象
 
@@ -37,7 +37,7 @@
 
 - **`target::AddResult` (enum)**: 名称が `*Result` だが「成功/失敗のバリアント」を持つ enum で、`Result` 接尾辞ながら例外的に存続。別 Issue で再検討する。
 - **横断利用度の低い `*Result` 型** (`PlaceResult` / `ConversionResult` / `MultiSelectResult` 等): 横断度が低いため Issue #271 では対象外とした。横断利用が増えた段階で本規約に従って再評価する。
-- **`type SyncResult = std::result::Result<T, SyncError>` のような alias** (もし新たに必要になる場合): `Result` 接尾辞を維持してよい (この用途こそが `Result` 接尾辞の本来の意味)。
+- **`type SyncFooBar = std::result::Result<T, SyncError>` のような型エイリアス** (もし新たに必要になる場合): `Result` 接尾辞を維持してよい (この用途こそが `Result` 接尾辞の本来の意味)。
 
 ---
 

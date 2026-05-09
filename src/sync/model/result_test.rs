@@ -7,7 +7,7 @@ fn make_component(name: &str) -> PlacedComponent {
 
 #[test]
 fn test_sync_result_counts() {
-    let result = SyncResult {
+    let result = SyncOutcome {
         created: vec![make_component("c1"), make_component("c2")],
         updated: vec![make_component("u1")],
         deleted: vec![make_component("d1")],
@@ -33,14 +33,14 @@ fn test_sync_result_counts() {
 
 #[test]
 fn test_sync_result_empty() {
-    let result = SyncResult::default();
+    let result = SyncOutcome::default();
     assert!(result.is_empty());
     assert!(result.is_success());
 }
 
 #[test]
 fn test_sync_result_dry_run() {
-    let result = SyncResult::dry_run(vec![make_component("c1")], vec![], vec![], vec![], vec![]);
+    let result = SyncOutcome::dry_run(vec![make_component("c1")], vec![], vec![], vec![], vec![]);
 
     assert!(result.dry_run);
     assert_eq!(result.create_count(), 1);
