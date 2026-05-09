@@ -21,14 +21,14 @@ fn make_data(names: &[&str]) -> (tempfile::TempDir, DataStore) {
 }
 
 // ============================================================================
-// Model::new テスト
+// MarketplacesScreenModel::new テスト
 // ============================================================================
 
 #[test]
 fn new_with_marketplaces_selects_first() {
     let (_temp_dir, data) = make_data(&["market-a", "market-b"]);
-    let model = Model::new(&data);
-    if let Model::MarketList { selection, .. } = &model {
+    let model = MarketplacesScreenModel::new(&data);
+    if let MarketplacesScreenModel::MarketList { selection, .. } = &model {
         assert_eq!(
             selection.selected_id().map(String::as_str),
             Some("market-a")
@@ -42,8 +42,8 @@ fn new_with_marketplaces_selects_first() {
 #[test]
 fn new_with_empty_marketplaces() {
     let (_temp_dir, data) = make_data(&[]);
-    let model = Model::new(&data);
-    if let Model::MarketList { selection, .. } = &model {
+    let model = MarketplacesScreenModel::new(&data);
+    if let MarketplacesScreenModel::MarketList { selection, .. } = &model {
         assert_eq!(selection.selected_id(), None);
         assert_eq!(selection.selected_index(), Some(0)); // "+ Add new" is selected
     } else {
@@ -58,13 +58,13 @@ fn new_with_empty_marketplaces() {
 #[test]
 fn is_top_level_market_list() {
     let (_temp_dir, data) = make_data(&[]);
-    let model = Model::new(&data);
+    let model = MarketplacesScreenModel::new(&data);
     assert!(model.is_top_level());
 }
 
 #[test]
 fn is_top_level_market_detail() {
-    let model = Model::MarketDetail {
+    let model = MarketplacesScreenModel::MarketDetail {
         marketplace_name: "test".to_string(),
         state: ListState::default(),
         error_message: None,
@@ -76,7 +76,7 @@ fn is_top_level_market_detail() {
 
 #[test]
 fn is_top_level_add_form() {
-    let model = Model::AddForm(AddFormModel::Source {
+    let model = MarketplacesScreenModel::AddForm(AddFormModel::Source {
         source_input: String::new(),
         error_message: None,
     });
@@ -89,7 +89,7 @@ fn is_top_level_add_form() {
 
 #[test]
 fn is_form_active_add_form() {
-    let model = Model::AddForm(AddFormModel::Source {
+    let model = MarketplacesScreenModel::AddForm(AddFormModel::Source {
         source_input: String::new(),
         error_message: None,
     });
@@ -99,7 +99,7 @@ fn is_form_active_add_form() {
 #[test]
 fn is_form_active_market_list() {
     let (_temp_dir, data) = make_data(&[]);
-    let model = Model::new(&data);
+    let model = MarketplacesScreenModel::new(&data);
     assert!(!model.is_form_active());
 }
 
@@ -110,7 +110,7 @@ fn is_form_active_market_list() {
 #[test]
 fn key_to_msg_market_list_navigation() {
     let (_temp_dir, data) = make_data(&["market-a"]);
-    let model = Model::new(&data);
+    let model = MarketplacesScreenModel::new(&data);
 
     assert!(matches!(key_to_msg(KeyCode::Up, &model), Some(Msg::Up)));
     assert!(matches!(key_to_msg(KeyCode::Down, &model), Some(Msg::Down)));
@@ -139,7 +139,7 @@ fn key_to_msg_market_list_navigation() {
 
 #[test]
 fn key_to_msg_add_form_input() {
-    let model = Model::AddForm(AddFormModel::Source {
+    let model = MarketplacesScreenModel::AddForm(AddFormModel::Source {
         source_input: String::new(),
         error_message: None,
     });
@@ -168,10 +168,10 @@ fn key_to_msg_add_form_input() {
 // key_to_msg: PluginBrowse テスト
 // ============================================================================
 
-fn make_plugin_browse_model() -> Model {
+fn make_plugin_browse_model() -> MarketplacesScreenModel {
     let mut state = ListState::default();
     state.select(Some(0));
-    Model::PluginBrowse {
+    MarketplacesScreenModel::PluginBrowse {
         marketplace_name: "test".to_string(),
         plugins: vec![BrowsePlugin {
             name: "p1".to_string(),
@@ -233,10 +233,10 @@ fn key_to_msg_plugin_browse_navigation() {
 // key_to_msg: TargetSelect テスト
 // ============================================================================
 
-fn make_target_select_model() -> Model {
+fn make_target_select_model() -> MarketplacesScreenModel {
     let mut state = ListState::default();
     state.select(Some(0));
-    Model::TargetSelect {
+    MarketplacesScreenModel::TargetSelect {
         marketplace_name: "test".to_string(),
         plugins: vec![],
         selected_plugins: HashSet::new(),
@@ -277,10 +277,10 @@ fn key_to_msg_target_select_esc_returns_back() {
 // key_to_msg: ScopeSelect テスト
 // ============================================================================
 
-fn make_scope_select_model() -> Model {
+fn make_scope_select_model() -> MarketplacesScreenModel {
     let mut state = ListState::default();
     state.select(Some(0));
-    Model::ScopeSelect {
+    MarketplacesScreenModel::ScopeSelect {
         marketplace_name: "test".to_string(),
         plugins: vec![],
         selected_plugins: HashSet::new(),
@@ -311,7 +311,7 @@ fn key_to_msg_scope_select_esc_returns_back() {
 
 #[test]
 fn key_to_msg_installing_returns_none() {
-    let model = Model::Installing {
+    let model = MarketplacesScreenModel::Installing {
         marketplace_name: "test".to_string(),
         plugins: vec![],
         plugin_names: vec!["p1".to_string()],
@@ -335,7 +335,7 @@ fn key_to_msg_installing_returns_none() {
 
 #[test]
 fn key_to_msg_install_result_enter_returns_back_to_browse() {
-    let model = Model::InstallResult {
+    let model = MarketplacesScreenModel::InstallResult {
         marketplace_name: "test".to_string(),
         plugins: vec![],
         summary: super::InstallSummary {
@@ -354,7 +354,7 @@ fn key_to_msg_install_result_enter_returns_back_to_browse() {
 
 #[test]
 fn key_to_msg_install_result_esc_returns_back_to_browse() {
-    let model = Model::InstallResult {
+    let model = MarketplacesScreenModel::InstallResult {
         marketplace_name: "test".to_string(),
         plugins: vec![],
         summary: super::InstallSummary {
@@ -387,7 +387,7 @@ fn market_detail_holds_browse_state() {
     let mut selected = HashSet::new();
     selected.insert("p1".to_string());
 
-    let model = Model::MarketDetail {
+    let model = MarketplacesScreenModel::MarketDetail {
         marketplace_name: "test".to_string(),
         state: ListState::default(),
         error_message: None,
@@ -395,7 +395,7 @@ fn market_detail_holds_browse_state() {
         browse_selected: Some(selected),
     };
 
-    if let Model::MarketDetail {
+    if let MarketplacesScreenModel::MarketDetail {
         browse_plugins,
         browse_selected,
         ..
@@ -415,12 +415,12 @@ fn market_detail_holds_browse_state() {
 #[test]
 fn to_cache_and_from_cache_round_trip() {
     let (_temp_dir, data) = make_data(&["market-a", "market-b"]);
-    let model = Model::new(&data);
+    let model = MarketplacesScreenModel::new(&data);
     let cache = model.to_cache();
     assert_eq!(cache.selected_id.as_deref(), Some("market-a"));
 
-    let restored = Model::from_cache(&data, &cache);
-    if let Model::MarketList { selection, .. } = &restored {
+    let restored = MarketplacesScreenModel::from_cache(&data, &cache);
+    if let MarketplacesScreenModel::MarketList { selection, .. } = &restored {
         assert_eq!(
             selection.selected_id().map(String::as_str),
             Some("market-a")
@@ -437,8 +437,8 @@ fn from_cache_with_stale_id() {
     let cache = CacheState {
         selected_id: Some("deleted-market".to_string()),
     };
-    let model = Model::from_cache(&data, &cache);
-    if let Model::MarketList { selection, .. } = &model {
+    let model = MarketplacesScreenModel::from_cache(&data, &cache);
+    if let MarketplacesScreenModel::MarketList { selection, .. } = &model {
         assert_eq!(
             selection.selected_id().map(String::as_str),
             Some("market-a")

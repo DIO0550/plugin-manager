@@ -1,8 +1,8 @@
 //! Marketplaces タブの view（描画）
 
 use super::model::{
-    AddFormModel, BrowsePlugin, DetailAction, InstallSummary, Model, OperationStatus,
-    PluginInstallResult,
+    AddFormModel, BrowsePlugin, DetailAction, InstallSummary, MarketplacesScreenModel,
+    OperationStatus, PluginInstallResult,
 };
 use crate::component::Scope;
 use crate::marketplace::PluginSource;
@@ -51,7 +51,7 @@ struct BrowseData<'a> {
 /// * `filter_focused` - Whether the filter bar currently has focus.
 pub fn view(
     f: &mut Frame,
-    model: &Model,
+    model: &MarketplacesScreenModel,
     data: &DataStore,
     filter_text: &str,
     filter_focused: bool,
@@ -66,7 +66,7 @@ pub fn view(
         focused: filter_focused,
     };
     match model {
-        Model::MarketList {
+        MarketplacesScreenModel::MarketList {
             selection,
             operation_status,
             error_message,
@@ -80,7 +80,7 @@ pub fn view(
                 error_message,
             );
         }
-        Model::MarketDetail {
+        MarketplacesScreenModel::MarketDetail {
             marketplace_name,
             state,
             error_message,
@@ -88,7 +88,7 @@ pub fn view(
         } => {
             view_market_detail(f, marketplace_name, *state, &ctx, error_message);
         }
-        Model::PluginList {
+        MarketplacesScreenModel::PluginList {
             marketplace_name,
             state,
             plugins,
@@ -96,10 +96,10 @@ pub fn view(
         } => {
             view_plugin_list(f, marketplace_name, *state, plugins, &filter);
         }
-        Model::AddForm(form) => {
+        MarketplacesScreenModel::AddForm(form) => {
             view_add_form(f, form, filter_text, filter_focused);
         }
-        Model::PluginBrowse {
+        MarketplacesScreenModel::PluginBrowse {
             marketplace_name,
             plugins,
             selected_plugins,
@@ -113,7 +113,7 @@ pub fn view(
             };
             view_plugin_browse(f, marketplace_name, &browse, *state, &filter);
         }
-        Model::TargetSelect {
+        MarketplacesScreenModel::TargetSelect {
             targets,
             highlighted_idx,
             state,
@@ -121,14 +121,14 @@ pub fn view(
         } => {
             view_target_select(f, targets, *highlighted_idx, *state);
         }
-        Model::ScopeSelect {
+        MarketplacesScreenModel::ScopeSelect {
             highlighted_idx,
             state,
             ..
         } => {
             view_scope_select(f, *highlighted_idx, *state);
         }
-        Model::Installing {
+        MarketplacesScreenModel::Installing {
             plugin_names,
             current_idx,
             total,
@@ -136,7 +136,7 @@ pub fn view(
         } => {
             view_installing(f, plugin_names, *current_idx, *total);
         }
-        Model::InstallResult { summary, .. } => {
+        MarketplacesScreenModel::InstallResult { summary, .. } => {
             view_install_result(f, summary);
         }
     }

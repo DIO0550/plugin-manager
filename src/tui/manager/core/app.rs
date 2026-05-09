@@ -82,7 +82,7 @@ impl Tab {
 pub enum Screen {
     Installed(installed::InstalledScreenModel),
     Discover(discover::DiscoverScreenModel),
-    Marketplaces(marketplaces::MarketplacesModel),
+    Marketplaces(marketplaces::MarketplacesScreenModel),
     Errors(errors::Model),
 }
 
@@ -371,10 +371,12 @@ fn switch_tab(model: &mut Model, new_tab: Tab) {
             &model.data,
             &model.cache.discover,
         )),
-        Tab::Marketplaces => Screen::Marketplaces(marketplaces::Model::from_cache(
-            &model.data,
-            &model.cache.marketplaces,
-        )),
+        Tab::Marketplaces => {
+            Screen::Marketplaces(marketplaces::MarketplacesScreenModel::from_cache(
+                &model.data,
+                &model.cache.marketplaces,
+            ))
+        }
         Tab::Errors => Screen::Errors(errors::Model::new(&model.data)),
     };
 

@@ -110,7 +110,7 @@ pub struct InstallSummary {
 }
 
 /// Marketplaces タブの画面状態
-pub enum Model {
+pub enum MarketplacesScreenModel {
     /// マーケットプレイス一覧
     MarketList {
         selection: SelectionState<String>,
@@ -181,7 +181,7 @@ pub enum Model {
     },
 }
 
-impl Model {
+impl MarketplacesScreenModel {
     /// 新しいモデルを作成
     ///
     /// # Arguments
@@ -190,7 +190,7 @@ impl Model {
     pub fn new(data: &DataStore) -> Self {
         let selected_id = data.marketplaces.first().map(|m| m.name.clone());
         // マーケットプレイスがあれば最初を選択、なければ "+ Add new" (index 0) を選択
-        Model::MarketList {
+        MarketplacesScreenModel::MarketList {
             selection: SelectionState::new(selected_id, Some(0)),
             operation_status: None,
             error_message: None,
@@ -215,7 +215,7 @@ impl Model {
             .and_then(|id| data.marketplace_index(id))
             .unwrap_or(0);
 
-        Model::MarketList {
+        MarketplacesScreenModel::MarketList {
             selection: SelectionState::new(selected_id, Some(index)),
             operation_status: None,
             error_message: None,
@@ -225,33 +225,33 @@ impl Model {
     /// キャッシュ状態を取得
     pub fn to_cache(&self) -> CacheState {
         match self {
-            Model::MarketList { selection, .. } => CacheState {
+            MarketplacesScreenModel::MarketList { selection, .. } => CacheState {
                 selected_id: selection.selected_id().cloned(),
             },
-            Model::MarketDetail {
+            MarketplacesScreenModel::MarketDetail {
                 marketplace_name, ..
             } => CacheState {
                 selected_id: Some(marketplace_name.clone()),
             },
-            Model::PluginList {
+            MarketplacesScreenModel::PluginList {
                 marketplace_name, ..
             } => CacheState {
                 selected_id: Some(marketplace_name.clone()),
             },
-            Model::AddForm(_) => CacheState { selected_id: None },
-            Model::PluginBrowse {
+            MarketplacesScreenModel::AddForm(_) => CacheState { selected_id: None },
+            MarketplacesScreenModel::PluginBrowse {
                 marketplace_name, ..
             }
-            | Model::TargetSelect {
+            | MarketplacesScreenModel::TargetSelect {
                 marketplace_name, ..
             }
-            | Model::ScopeSelect {
+            | MarketplacesScreenModel::ScopeSelect {
                 marketplace_name, ..
             }
-            | Model::Installing {
+            | MarketplacesScreenModel::Installing {
                 marketplace_name, ..
             }
-            | Model::InstallResult {
+            | MarketplacesScreenModel::InstallResult {
                 marketplace_name, ..
             } => CacheState {
                 selected_id: Some(marketplace_name.clone()),
@@ -263,7 +263,7 @@ impl Model {
     pub fn is_top_level(&self) -> bool {
         matches!(
             self,
-            Model::MarketList {
+            MarketplacesScreenModel::MarketList {
                 operation_status: None,
                 ..
             }
@@ -272,7 +272,7 @@ impl Model {
 
     /// フォームがアクティブかどうか
     pub fn is_form_active(&self) -> bool {
-        matches!(self, Model::AddForm(_))
+        matches!(self, MarketplacesScreenModel::AddForm(_))
     }
 }
 
@@ -302,7 +302,7 @@ pub enum Msg {
 ///
 /// * `key` - Raw key code received from crossterm.
 /// * `model` - Current marketplaces model used to disambiguate bindings.
-pub fn key_to_msg(key: KeyCode, model: &Model) -> Option<Msg> {
+pub fn key_to_msg(key: KeyCode, model: &MarketplacesScreenModel) -> Option<Msg> {
     if model.is_form_active() {
         // AddForm 状態ではフォーム入力として処理
         match key {
@@ -316,7 +316,7 @@ pub fn key_to_msg(key: KeyCode, model: &Model) -> Option<Msg> {
         }
     } else {
         match model {
-            Model::PluginBrowse { .. } => match key {
+            MarketplacesScreenModel::PluginBrowse { .. } => match key {
                 KeyCode::Char(' ') => Some(Msg::ToggleSelect),
                 KeyCode::Char('i') | KeyCode::Enter => Some(Msg::StartInstall),
                 KeyCode::Up | KeyCode::Char('k') => Some(Msg::Up),
@@ -324,7 +324,7 @@ pub fn key_to_msg(key: KeyCode, model: &Model) -> Option<Msg> {
                 KeyCode::Esc => Some(Msg::Back),
                 _ => None,
             },
-            Model::TargetSelect { .. } => match key {
+            MarketplacesScreenModel::TargetSelect { .. } => match key {
                 KeyCode::Char(' ') => Some(Msg::ToggleSelect),
                 KeyCode::Enter => Some(Msg::ConfirmTargets),
                 KeyCode::Up | KeyCode::Char('k') => Some(Msg::Up),
@@ -332,15 +332,15 @@ pub fn key_to_msg(key: KeyCode, model: &Model) -> Option<Msg> {
                 KeyCode::Esc => Some(Msg::Back),
                 _ => None,
             },
-            Model::ScopeSelect { .. } => match key {
+            MarketplacesScreenModel::ScopeSelect { .. } => match key {
                 KeyCode::Enter => Some(Msg::ConfirmScope),
                 KeyCode::Up | KeyCode::Char('k') => Some(Msg::Up),
                 KeyCode::Down | KeyCode::Char('j') => Some(Msg::Down),
                 KeyCode::Esc => Some(Msg::Back),
                 _ => None,
             },
-            Model::Installing { .. } => None,
-            Model::InstallResult { .. } => match key {
+            MarketplacesScreenModel::Installing { .. } => None,
+            MarketplacesScreenModel::InstallResult { .. } => match key {
                 KeyCode::Enter | KeyCode::Esc => Some(Msg::BackToPluginBrowse),
                 _ => None,
             },

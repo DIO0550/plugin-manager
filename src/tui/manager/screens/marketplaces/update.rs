@@ -1,7 +1,7 @@
 //! Marketplaces タブの update（状態遷移ロジック）
 
 use super::actions;
-use super::model::{AddFormModel, DetailAction, Model, Msg, OperationStatus};
+use super::model::{AddFormModel, DetailAction, MarketplacesScreenModel, Msg, OperationStatus};
 use crate::marketplace::normalize_name;
 use crate::repo;
 use crate::tui::manager::core::{DataStore, MarketplaceItem, SelectionState};
@@ -37,7 +37,7 @@ impl UpdateEffect {
 /// * `model` - Marketplaces tab model to mutate.
 /// * `msg` - Incoming message to apply.
 /// * `data` - Shared data store for marketplaces and plugins.
-pub fn update(model: &mut Model, msg: Msg, data: &mut DataStore) -> UpdateEffect {
+pub fn update(model: &mut MarketplacesScreenModel, msg: Msg, data: &mut DataStore) -> UpdateEffect {
     match msg {
         Msg::Up => {
             clear_error(model);
@@ -80,10 +80,10 @@ pub fn update(model: &mut Model, msg: Msg, data: &mut DataStore) -> UpdateEffect
 }
 
 /// error_message をクリア
-fn clear_error(model: &mut Model) {
+fn clear_error(model: &mut MarketplacesScreenModel) {
     match model {
-        Model::MarketList { error_message, .. } => *error_message = None,
-        Model::MarketDetail { error_message, .. } => *error_message = None,
+        MarketplacesScreenModel::MarketList { error_message, .. } => *error_message = None,
+        MarketplacesScreenModel::MarketDetail { error_message, .. } => *error_message = None,
         _ => {}
     }
 }
@@ -101,9 +101,9 @@ fn market_selection(
 }
 
 /// 選択を上に移動
-fn select_prev(model: &mut Model, data: &DataStore) {
+fn select_prev(model: &mut MarketplacesScreenModel, data: &DataStore) {
     match model {
-        Model::MarketList { selection, .. } => {
+        MarketplacesScreenModel::MarketList { selection, .. } => {
             let current = selection.selected_index().unwrap_or(0);
             if current == 0 {
                 return;
@@ -114,13 +114,13 @@ fn select_prev(model: &mut Model, data: &DataStore) {
                 Some(prev),
             );
         }
-        Model::MarketDetail { state, .. } => {
+        MarketplacesScreenModel::MarketDetail { state, .. } => {
             let current = state.selected().unwrap_or(0);
             if current > 0 {
                 state.select(Some(current - 1));
             }
         }
-        Model::PluginList {
+        MarketplacesScreenModel::PluginList {
             selected_idx,
             state,
             plugins,
@@ -134,7 +134,7 @@ fn select_prev(model: &mut Model, data: &DataStore) {
                 state.select(Some(*selected_idx));
             }
         }
-        Model::PluginBrowse {
+        MarketplacesScreenModel::PluginBrowse {
             highlighted_idx,
             state,
             plugins,
@@ -148,7 +148,7 @@ fn select_prev(model: &mut Model, data: &DataStore) {
                 state.select(Some(*highlighted_idx));
             }
         }
-        Model::TargetSelect {
+        MarketplacesScreenModel::TargetSelect {
             highlighted_idx,
             state,
             targets,
@@ -162,7 +162,7 @@ fn select_prev(model: &mut Model, data: &DataStore) {
                 state.select(Some(*highlighted_idx));
             }
         }
-        Model::ScopeSelect {
+        MarketplacesScreenModel::ScopeSelect {
             highlighted_idx,
             state,
             ..
@@ -175,9 +175,9 @@ fn select_prev(model: &mut Model, data: &DataStore) {
 }
 
 /// 選択を下に移動
-fn select_next(model: &mut Model, data: &DataStore) {
+fn select_next(model: &mut MarketplacesScreenModel, data: &DataStore) {
     match model {
-        Model::MarketList { selection, .. } => {
+        MarketplacesScreenModel::MarketList { selection, .. } => {
             let len = market_list_len(data);
             let current = selection.selected_index().unwrap_or(0);
             let next = (current + 1).min(len - 1);
@@ -186,13 +186,13 @@ fn select_next(model: &mut Model, data: &DataStore) {
                 Some(next),
             );
         }
-        Model::MarketDetail { state, .. } => {
+        MarketplacesScreenModel::MarketDetail { state, .. } => {
             let len = DetailAction::all().len();
             let current = state.selected().unwrap_or(0);
             let next = (current + 1).min(len - 1);
             state.select(Some(next));
         }
-        Model::PluginList {
+        MarketplacesScreenModel::PluginList {
             selected_idx,
             state,
             plugins,
@@ -205,7 +205,7 @@ fn select_next(model: &mut Model, data: &DataStore) {
             *selected_idx = next;
             state.select(Some(next));
         }
-        Model::PluginBrowse {
+        MarketplacesScreenModel::PluginBrowse {
             highlighted_idx,
             state,
             plugins,
@@ -218,7 +218,7 @@ fn select_next(model: &mut Model, data: &DataStore) {
             *highlighted_idx = next;
             state.select(Some(next));
         }
-        Model::TargetSelect {
+        MarketplacesScreenModel::TargetSelect {
             highlighted_idx,
             state,
             targets,
@@ -231,7 +231,7 @@ fn select_next(model: &mut Model, data: &DataStore) {
             *highlighted_idx = next;
             state.select(Some(next));
         }
-        Model::ScopeSelect {
+        MarketplacesScreenModel::ScopeSelect {
             highlighted_idx,
             state,
             ..
@@ -246,9 +246,9 @@ fn select_next(model: &mut Model, data: &DataStore) {
 }
 
 /// Enter 処理
-fn enter(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
+fn enter(model: &mut MarketplacesScreenModel, data: &mut DataStore) -> UpdateEffect {
     match model {
-        Model::MarketList {
+        MarketplacesScreenModel::MarketList {
             selection,
             operation_status,
             ..
@@ -262,7 +262,7 @@ fn enter(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
                 // 通常項目 -> MarketDetail
                 let mut state = ListState::default();
                 state.select(Some(0));
-                *model = Model::MarketDetail {
+                *model = MarketplacesScreenModel::MarketDetail {
                     marketplace_name: name,
                     state,
                     error_message: None,
@@ -271,14 +271,14 @@ fn enter(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
                 };
             } else {
                 // "+ Add new" -> AddForm
-                *model = Model::AddForm(AddFormModel::Source {
+                *model = MarketplacesScreenModel::AddForm(AddFormModel::Source {
                     source_input: String::new(),
                     error_message: None,
                 });
             }
             UpdateEffect::none()
         }
-        Model::MarketDetail {
+        MarketplacesScreenModel::MarketDetail {
             marketplace_name,
             state,
             ..
@@ -290,7 +290,7 @@ fn enter(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
                     let name = marketplace_name.clone();
                     let mut new_state = ListState::default();
                     new_state.select(Some(data.marketplace_index(&name).unwrap_or(0)));
-                    *model = Model::MarketList {
+                    *model = MarketplacesScreenModel::MarketList {
                         selection: market_selection(Some(name.clone()), new_state.selected()),
                         operation_status: Some(OperationStatus::Updating(name)),
                         error_message: None,
@@ -301,7 +301,7 @@ fn enter(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
                     let name = marketplace_name.clone();
                     let mut new_state = ListState::default();
                     new_state.select(Some(data.marketplace_index(&name).unwrap_or(0)));
-                    *model = Model::MarketList {
+                    *model = MarketplacesScreenModel::MarketList {
                         selection: market_selection(Some(name.clone()), new_state.selected()),
                         operation_status: Some(OperationStatus::Removing(name)),
                         error_message: None,
@@ -321,7 +321,7 @@ fn enter(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
 
                     // Extract preserved browse state from MarketDetail
                     let (preserved_plugins, preserved_selected) = match model {
-                        Model::MarketDetail {
+                        MarketplacesScreenModel::MarketDetail {
                             browse_plugins,
                             browse_selected,
                             ..
@@ -341,7 +341,7 @@ fn enter(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
                     if !plugins.is_empty() {
                         new_state.select(Some(0));
                     }
-                    *model = Model::PluginBrowse {
+                    *model = MarketplacesScreenModel::PluginBrowse {
                         marketplace_name: name,
                         plugins,
                         selected_plugins,
@@ -357,7 +357,7 @@ fn enter(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
                     if !plugins.is_empty() {
                         new_state.select(Some(0));
                     }
-                    *model = Model::PluginList {
+                    *model = MarketplacesScreenModel::PluginList {
                         marketplace_name: name,
                         selected_idx: 0,
                         state: new_state,
@@ -373,19 +373,19 @@ fn enter(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
                 None => UpdateEffect::none(),
             }
         }
-        Model::PluginList { .. } => {
+        MarketplacesScreenModel::PluginList { .. } => {
             // プラグインリストでは Enter は何もしない
             UpdateEffect::none()
         }
-        Model::AddForm(_) => enter_form(model, data),
+        MarketplacesScreenModel::AddForm(_) => enter_form(model, data),
         _ => UpdateEffect::none(),
     }
 }
 
 /// AddForm の Enter 処理
-fn enter_form(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
+fn enter_form(model: &mut MarketplacesScreenModel, data: &mut DataStore) -> UpdateEffect {
     match model {
-        Model::AddForm(AddFormModel::Source {
+        MarketplacesScreenModel::AddForm(AddFormModel::Source {
             source_input,
             error_message,
         }) => {
@@ -403,7 +403,7 @@ fn enter_form(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
                             return UpdateEffect::none();
                         }
                     };
-                    *model = Model::AddForm(AddFormModel::Name {
+                    *model = MarketplacesScreenModel::AddForm(AddFormModel::Name {
                         source,
                         name_input: String::new(),
                         default_name,
@@ -419,7 +419,7 @@ fn enter_form(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
             }
             UpdateEffect::none()
         }
-        Model::AddForm(AddFormModel::Name {
+        MarketplacesScreenModel::AddForm(AddFormModel::Name {
             source,
             name_input,
             default_name,
@@ -444,14 +444,14 @@ fn enter_form(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
             }
 
             let source = source.clone();
-            *model = Model::AddForm(AddFormModel::Confirm {
+            *model = MarketplacesScreenModel::AddForm(AddFormModel::Confirm {
                 source,
                 name,
                 error_message: None,
             });
             UpdateEffect::none()
         }
-        Model::AddForm(AddFormModel::Confirm { source, name, .. }) => {
+        MarketplacesScreenModel::AddForm(AddFormModel::Confirm { source, name, .. }) => {
             // Add は直接実行（source 情報を保持するため 2段階方式を使わない）
             let source = source.clone();
             let name = name.clone();
@@ -480,7 +480,7 @@ struct AddEntry<'a> {
 /// ExecuteAdd の実装本体（依存関数注入パターン）
 fn execute_add_with(
     entry: &AddEntry<'_>,
-    model: &mut Model,
+    model: &mut MarketplacesScreenModel,
     data: &mut DataStore,
     run_add: impl FnOnce(&str, &str) -> Result<actions::MarketplaceAddOutcome, String>,
     reload: impl FnOnce(&mut DataStore),
@@ -494,7 +494,7 @@ fn execute_add_with(
             let idx = data.marketplace_index(&name_owned).unwrap_or(0);
             let mut state = ListState::default();
             state.select(Some(idx));
-            *model = Model::MarketList {
+            *model = MarketplacesScreenModel::MarketList {
                 selection: market_selection(Some(name_owned), state.selected()),
                 operation_status: None,
                 error_message: None,
@@ -502,7 +502,7 @@ fn execute_add_with(
         }
         Err(e) => {
             // AddForm Confirm に戻してエラーを表示
-            *model = Model::AddForm(AddFormModel::Confirm {
+            *model = MarketplacesScreenModel::AddForm(AddFormModel::Confirm {
                 source: source_owned,
                 name: name_owned,
                 error_message: Some(e),
@@ -513,27 +513,27 @@ fn execute_add_with(
 }
 
 /// Back 処理
-fn back(model: &mut Model, data: &DataStore) {
+fn back(model: &mut MarketplacesScreenModel, data: &DataStore) {
     match model {
-        Model::MarketList { .. } => {
+        MarketplacesScreenModel::MarketList { .. } => {
             // MarketList での Back は app.rs で処理
         }
-        Model::MarketDetail { .. } => {
+        MarketplacesScreenModel::MarketDetail { .. } => {
             let name = match model {
-                Model::MarketDetail {
+                MarketplacesScreenModel::MarketDetail {
                     marketplace_name, ..
                 } => marketplace_name.clone(),
                 _ => unreachable!(),
             };
             back_to_market_list(model, data, name);
         }
-        Model::PluginList {
+        MarketplacesScreenModel::PluginList {
             marketplace_name, ..
         } => {
             let name = marketplace_name.clone();
             let mut state = ListState::default();
             state.select(Some(0));
-            *model = Model::MarketDetail {
+            *model = MarketplacesScreenModel::MarketDetail {
                 marketplace_name: name,
                 state,
                 error_message: None,
@@ -541,28 +541,28 @@ fn back(model: &mut Model, data: &DataStore) {
                 browse_selected: None,
             };
         }
-        Model::AddForm(_) => {
+        MarketplacesScreenModel::AddForm(_) => {
             // AddForm -> MarketList
             let selected_id = data.marketplaces.first().map(|m| m.name.clone());
             let mut state = ListState::default();
             state.select(Some(0));
-            *model = Model::MarketList {
+            *model = MarketplacesScreenModel::MarketList {
                 selection: market_selection(selected_id, state.selected()),
                 operation_status: None,
                 error_message: None,
             };
         }
-        Model::PluginBrowse { .. } => {
+        MarketplacesScreenModel::PluginBrowse { .. } => {
             // Take ownership via replace
             let old = std::mem::replace(
                 model,
-                Model::MarketList {
+                MarketplacesScreenModel::MarketList {
                     selection: SelectionState::default(),
                     operation_status: None,
                     error_message: None,
                 },
             );
-            if let Model::PluginBrowse {
+            if let MarketplacesScreenModel::PluginBrowse {
                 marketplace_name,
                 plugins,
                 selected_plugins,
@@ -571,7 +571,7 @@ fn back(model: &mut Model, data: &DataStore) {
             {
                 let mut state = ListState::default();
                 state.select(Some(0));
-                *model = Model::MarketDetail {
+                *model = MarketplacesScreenModel::MarketDetail {
                     marketplace_name,
                     state,
                     error_message: None,
@@ -580,17 +580,17 @@ fn back(model: &mut Model, data: &DataStore) {
                 };
             }
         }
-        Model::TargetSelect { .. } => {
+        MarketplacesScreenModel::TargetSelect { .. } => {
             // Take ownership via replace
             let old = std::mem::replace(
                 model,
-                Model::MarketList {
+                MarketplacesScreenModel::MarketList {
                     selection: SelectionState::default(),
                     operation_status: None,
                     error_message: None,
                 },
             );
-            if let Model::TargetSelect {
+            if let MarketplacesScreenModel::TargetSelect {
                 marketplace_name,
                 plugins,
                 selected_plugins,
@@ -601,7 +601,7 @@ fn back(model: &mut Model, data: &DataStore) {
                 if !plugins.is_empty() {
                     state.select(Some(0));
                 }
-                *model = Model::PluginBrowse {
+                *model = MarketplacesScreenModel::PluginBrowse {
                     marketplace_name,
                     plugins,
                     selected_plugins,
@@ -610,17 +610,17 @@ fn back(model: &mut Model, data: &DataStore) {
                 };
             }
         }
-        Model::ScopeSelect { .. } => {
+        MarketplacesScreenModel::ScopeSelect { .. } => {
             // Take ownership via replace
             let old = std::mem::replace(
                 model,
-                Model::MarketList {
+                MarketplacesScreenModel::MarketList {
                     selection: SelectionState::default(),
                     operation_status: None,
                     error_message: None,
                 },
             );
-            if let Model::ScopeSelect {
+            if let MarketplacesScreenModel::ScopeSelect {
                 marketplace_name,
                 plugins,
                 selected_plugins,
@@ -643,7 +643,7 @@ fn back(model: &mut Model, data: &DataStore) {
                     state.select(Some(0));
                 }
 
-                *model = Model::TargetSelect {
+                *model = MarketplacesScreenModel::TargetSelect {
                     marketplace_name,
                     plugins,
                     selected_plugins,
@@ -658,12 +658,16 @@ fn back(model: &mut Model, data: &DataStore) {
 }
 
 /// MarketList に戻る
-fn back_to_market_list(model: &mut Model, data: &DataStore, marketplace_name: String) {
+fn back_to_market_list(
+    model: &mut MarketplacesScreenModel,
+    data: &DataStore,
+    marketplace_name: String,
+) {
     let idx = data.marketplace_index(&marketplace_name).unwrap_or(0);
     let selected_id = data.marketplaces.get(idx).map(|m| m.name.clone());
     let mut state = ListState::default();
     state.select(Some(idx));
-    *model = Model::MarketList {
+    *model = MarketplacesScreenModel::MarketList {
         selection: market_selection(selected_id, state.selected()),
         operation_status: None,
         error_message: None,
@@ -671,8 +675,8 @@ fn back_to_market_list(model: &mut Model, data: &DataStore, marketplace_name: St
 }
 
 /// StartInstall: PluginBrowse -> TargetSelect
-fn start_install(model: &mut Model) -> UpdateEffect {
-    if let Model::PluginBrowse {
+fn start_install(model: &mut MarketplacesScreenModel) -> UpdateEffect {
+    if let MarketplacesScreenModel::PluginBrowse {
         selected_plugins, ..
     } = model
     {
@@ -686,13 +690,13 @@ fn start_install(model: &mut Model) -> UpdateEffect {
     // Take ownership of fields
     let (marketplace_name, plugins, selected_plugins) = match std::mem::replace(
         model,
-        Model::MarketList {
+        MarketplacesScreenModel::MarketList {
             selection: SelectionState::default(),
             operation_status: None,
             error_message: None,
         },
     ) {
-        Model::PluginBrowse {
+        MarketplacesScreenModel::PluginBrowse {
             marketplace_name,
             plugins,
             selected_plugins,
@@ -711,7 +715,7 @@ fn start_install(model: &mut Model) -> UpdateEffect {
         state.select(Some(0));
     }
 
-    *model = Model::TargetSelect {
+    *model = MarketplacesScreenModel::TargetSelect {
         marketplace_name,
         plugins,
         selected_plugins,
@@ -723,21 +727,21 @@ fn start_install(model: &mut Model) -> UpdateEffect {
 }
 
 /// ConfirmScope: ScopeSelect -> Installing + Phase2
-fn confirm_scope(model: &mut Model) -> UpdateEffect {
-    if !matches!(model, Model::ScopeSelect { .. }) {
+fn confirm_scope(model: &mut MarketplacesScreenModel) -> UpdateEffect {
+    if !matches!(model, MarketplacesScreenModel::ScopeSelect { .. }) {
         return UpdateEffect::none();
     }
 
     let old = std::mem::replace(
         model,
-        Model::MarketList {
+        MarketplacesScreenModel::MarketList {
             selection: SelectionState::default(),
             operation_status: None,
             error_message: None,
         },
     );
 
-    if let Model::ScopeSelect {
+    if let MarketplacesScreenModel::ScopeSelect {
         marketplace_name,
         plugins,
         selected_plugins,
@@ -761,7 +765,7 @@ fn confirm_scope(model: &mut Model) -> UpdateEffect {
 
         let total = plugin_names.len();
 
-        *model = Model::Installing {
+        *model = MarketplacesScreenModel::Installing {
             marketplace_name,
             plugins,
             plugin_names,
@@ -778,21 +782,21 @@ fn confirm_scope(model: &mut Model) -> UpdateEffect {
 }
 
 /// BackToPluginBrowse: InstallResult -> PluginBrowse (refresh)
-fn back_to_plugin_browse(model: &mut Model, data: &DataStore) -> UpdateEffect {
-    if !matches!(model, Model::InstallResult { .. }) {
+fn back_to_plugin_browse(model: &mut MarketplacesScreenModel, data: &DataStore) -> UpdateEffect {
+    if !matches!(model, MarketplacesScreenModel::InstallResult { .. }) {
         return UpdateEffect::none();
     }
 
     let old = std::mem::replace(
         model,
-        Model::MarketList {
+        MarketplacesScreenModel::MarketList {
             selection: SelectionState::default(),
             operation_status: None,
             error_message: None,
         },
     );
 
-    if let Model::InstallResult {
+    if let MarketplacesScreenModel::InstallResult {
         marketplace_name, ..
     } = old
     {
@@ -802,7 +806,7 @@ fn back_to_plugin_browse(model: &mut Model, data: &DataStore) -> UpdateEffect {
             state.select(Some(0));
         }
 
-        *model = Model::PluginBrowse {
+        *model = MarketplacesScreenModel::PluginBrowse {
             marketplace_name,
             plugins,
             selected_plugins: HashSet::new(),
@@ -815,7 +819,7 @@ fn back_to_plugin_browse(model: &mut Model, data: &DataStore) -> UpdateEffect {
 }
 
 /// Phase 2: ExecuteInstall (real dependencies)
-fn execute_install(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
+fn execute_install(model: &mut MarketplacesScreenModel, data: &mut DataStore) -> UpdateEffect {
     execute_install_with(model, data, actions::install_plugins, |d| d.reload())
 }
 
@@ -828,7 +832,7 @@ fn execute_install(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
 /// * `run_install` - Injected install routine (real or test double).
 /// * `reload` - Injected data store reload routine.
 pub(super) fn execute_install_with(
-    model: &mut Model,
+    model: &mut MarketplacesScreenModel,
     data: &mut DataStore,
     run_install: impl FnOnce(
         &str,
@@ -838,20 +842,20 @@ pub(super) fn execute_install_with(
     ) -> super::model::InstallSummary,
     reload: impl FnOnce(&mut DataStore) -> std::io::Result<()>,
 ) -> UpdateEffect {
-    if !matches!(model, Model::Installing { .. }) {
+    if !matches!(model, MarketplacesScreenModel::Installing { .. }) {
         return UpdateEffect::none();
     }
 
     let old = std::mem::replace(
         model,
-        Model::MarketList {
+        MarketplacesScreenModel::MarketList {
             selection: SelectionState::default(),
             operation_status: None,
             error_message: None,
         },
     );
 
-    if let Model::Installing {
+    if let MarketplacesScreenModel::Installing {
         marketplace_name,
         plugins,
         plugin_names,
@@ -866,7 +870,7 @@ pub(super) fn execute_install_with(
             data.last_error = Some(format!("Failed to reload: {}", e));
         }
 
-        *model = Model::InstallResult {
+        *model = MarketplacesScreenModel::InstallResult {
             marketplace_name,
             plugins,
             summary,
@@ -877,9 +881,9 @@ pub(super) fn execute_install_with(
 }
 
 /// ConfirmTargets: TargetSelect -> ScopeSelect
-fn confirm_targets(model: &mut Model) -> UpdateEffect {
+fn confirm_targets(model: &mut MarketplacesScreenModel) -> UpdateEffect {
     // Guard: at least one target selected
-    if let Model::TargetSelect { targets, .. } = model {
+    if let MarketplacesScreenModel::TargetSelect { targets, .. } = model {
         if !targets.iter().any(|(_, _, sel)| *sel) {
             return UpdateEffect::none();
         }
@@ -889,14 +893,14 @@ fn confirm_targets(model: &mut Model) -> UpdateEffect {
 
     let old = std::mem::replace(
         model,
-        Model::MarketList {
+        MarketplacesScreenModel::MarketList {
             selection: SelectionState::default(),
             operation_status: None,
             error_message: None,
         },
     );
 
-    if let Model::TargetSelect {
+    if let MarketplacesScreenModel::TargetSelect {
         marketplace_name,
         plugins,
         selected_plugins,
@@ -913,7 +917,7 @@ fn confirm_targets(model: &mut Model) -> UpdateEffect {
         let mut state = ListState::default();
         state.select(Some(0));
 
-        *model = Model::ScopeSelect {
+        *model = MarketplacesScreenModel::ScopeSelect {
             marketplace_name,
             plugins,
             selected_plugins,
@@ -926,9 +930,9 @@ fn confirm_targets(model: &mut Model) -> UpdateEffect {
 }
 
 /// ToggleSelect: プラグインまたはターゲットの選択をトグル
-fn toggle_select(model: &mut Model) -> UpdateEffect {
+fn toggle_select(model: &mut MarketplacesScreenModel) -> UpdateEffect {
     match model {
-        Model::PluginBrowse {
+        MarketplacesScreenModel::PluginBrowse {
             plugins,
             selected_plugins,
             highlighted_idx,
@@ -946,7 +950,7 @@ fn toggle_select(model: &mut Model) -> UpdateEffect {
                 }
             }
         }
-        Model::TargetSelect {
+        MarketplacesScreenModel::TargetSelect {
             targets,
             highlighted_idx,
             ..
@@ -964,16 +968,16 @@ fn toggle_select(model: &mut Model) -> UpdateEffect {
 }
 
 /// FormInput 処理
-fn form_input(model: &mut Model, c: char) {
+fn form_input(model: &mut MarketplacesScreenModel, c: char) {
     match model {
-        Model::AddForm(AddFormModel::Source {
+        MarketplacesScreenModel::AddForm(AddFormModel::Source {
             source_input,
             error_message,
         }) => {
             *error_message = None;
             source_input.push(c);
         }
-        Model::AddForm(AddFormModel::Name {
+        MarketplacesScreenModel::AddForm(AddFormModel::Name {
             name_input,
             error_message,
             ..
@@ -986,12 +990,12 @@ fn form_input(model: &mut Model, c: char) {
 }
 
 /// FormBackspace 処理
-fn form_backspace(model: &mut Model) {
+fn form_backspace(model: &mut MarketplacesScreenModel) {
     match model {
-        Model::AddForm(AddFormModel::Source { source_input, .. }) => {
+        MarketplacesScreenModel::AddForm(AddFormModel::Source { source_input, .. }) => {
             source_input.pop();
         }
-        Model::AddForm(AddFormModel::Name { name_input, .. }) => {
+        MarketplacesScreenModel::AddForm(AddFormModel::Name { name_input, .. }) => {
             name_input.pop();
         }
         _ => {}
@@ -999,8 +1003,8 @@ fn form_backspace(model: &mut Model) {
 }
 
 /// 'u' キー: 選択中のマーケットプレイスを更新
-fn update_market(model: &mut Model) -> UpdateEffect {
-    if let Model::MarketList {
+fn update_market(model: &mut MarketplacesScreenModel) -> UpdateEffect {
+    if let MarketplacesScreenModel::MarketList {
         selection,
         operation_status,
         error_message,
@@ -1020,8 +1024,8 @@ fn update_market(model: &mut Model) -> UpdateEffect {
 }
 
 /// 'U' キー: 全マーケットプレイスを更新
-fn update_all(model: &mut Model, data: &DataStore) -> UpdateEffect {
-    if let Model::MarketList {
+fn update_all(model: &mut MarketplacesScreenModel, data: &DataStore) -> UpdateEffect {
+    if let MarketplacesScreenModel::MarketList {
         operation_status,
         error_message,
         ..
@@ -1041,7 +1045,7 @@ fn update_all(model: &mut Model, data: &DataStore) -> UpdateEffect {
 }
 
 /// Phase 2: ExecuteUpdate
-fn execute_update(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
+fn execute_update(model: &mut MarketplacesScreenModel, data: &mut DataStore) -> UpdateEffect {
     execute_update_with(
         model,
         data,
@@ -1053,13 +1057,13 @@ fn execute_update(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
 
 /// ExecuteUpdate の実装本体
 fn execute_update_with(
-    model: &mut Model,
+    model: &mut MarketplacesScreenModel,
     data: &mut DataStore,
     run_update: impl FnOnce(&str) -> Result<MarketplaceItem, String>,
     run_update_all: impl FnOnce() -> Vec<(String, Result<MarketplaceItem, String>)>,
     reload: impl FnOnce(&mut DataStore),
 ) -> UpdateEffect {
-    if let Model::MarketList {
+    if let MarketplacesScreenModel::MarketList {
         operation_status,
         error_message,
         selection,
@@ -1107,7 +1111,7 @@ fn execute_update_with(
 }
 
 /// Phase 2: ExecuteRemove
-fn execute_remove(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
+fn execute_remove(model: &mut MarketplacesScreenModel, data: &mut DataStore) -> UpdateEffect {
     execute_remove_with(model, data, actions::remove_marketplace, |d| {
         d.reload_marketplaces()
     })
@@ -1115,12 +1119,12 @@ fn execute_remove(model: &mut Model, data: &mut DataStore) -> UpdateEffect {
 
 /// ExecuteRemove の実装本体
 fn execute_remove_with(
-    model: &mut Model,
+    model: &mut MarketplacesScreenModel,
     data: &mut DataStore,
     run_remove: impl FnOnce(&str) -> Result<(), String>,
     reload: impl FnOnce(&mut DataStore),
 ) -> UpdateEffect {
-    if let Model::MarketList {
+    if let MarketplacesScreenModel::MarketList {
         operation_status,
         error_message,
         selection,
