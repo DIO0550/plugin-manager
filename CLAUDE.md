@@ -182,6 +182,15 @@ src/
 
 テストコードは本体コードと同じファイルに書かない。`foo.rs` のテストは `foo_test.rs` に分離する。
 
+### 型名の接尾辞 (Result / Outcome の使い分け)
+
+- `Result` 接尾辞は `std::result::Result<T, E>` および `crate::error::Result<T>` の予約とする
+- ドメイン処理の成果レポート型 (Ok/Err を内包しない値オブジェクト) は `*Outcome` を使う
+- 例: `SyncOutcome`, `OperationOutcome`, `UpdateOutcome`, `ConvertOutcome`
+- 既存型の継続的見直しは Issue #259 系で追跡する
+
+詳細は `docs/architecture/naming-conventions.md` を参照。
+
 ## 開発プロセス
 
 ### TDD（テスト駆動開発）
