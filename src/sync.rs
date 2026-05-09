@@ -27,7 +27,7 @@ mod model;
 pub use crate::fs::{FileSystem, RealFs};
 pub use endpoint::{SyncDestination, SyncSource};
 pub use model::{
-    PlacedComponent, PlacedRef, SyncAction, SyncFailure, SyncOptions, SyncResult, SyncableKind,
+    PlacedComponent, PlacedRef, SyncAction, SyncFailure, SyncOptions, SyncOutcome, SyncableKind,
 };
 
 use crate::component::{convert, ComponentKind};
@@ -38,7 +38,7 @@ use std::collections::HashMap;
 /// 同期を実行
 ///
 /// `dry_run: true` の場合は実際のファイル操作を行わず、
-/// 何が行われるかを `SyncResult` で返す。
+/// 何が行われるかを `SyncOutcome` で返す。
 ///
 /// # Arguments
 ///
@@ -49,7 +49,7 @@ pub fn sync(
     source: &SyncSource,
     dest: &SyncDestination,
     options: &SyncOptions,
-) -> Result<SyncResult> {
+) -> Result<SyncOutcome> {
     sync_with_fs(source, dest, options, &RealFs)
 }
 
@@ -66,7 +66,7 @@ pub(crate) fn sync_with_fs(
     dest: &SyncDestination,
     options: &SyncOptions,
     fs: &dyn FileSystem,
-) -> Result<SyncResult> {
+) -> Result<SyncOutcome> {
     let source_components = collect_components(Endpoint::Source(source), options)?;
     let dest_components = collect_components(Endpoint::Destination(dest), options)?;
 
@@ -109,7 +109,7 @@ pub(crate) fn sync_with_fs(
         .collect();
 
     if options.dry_run {
-        return Ok(SyncResult::dry_run(
+        return Ok(SyncOutcome::dry_run(
             to_create,
             to_update,
             to_delete,
@@ -181,8 +181,8 @@ fn execute_sync(
     dest: &SyncDestination,
     plan: SyncPlan,
     fs: &dyn FileSystem,
-) -> Result<SyncResult> {
-    let mut result = SyncResult::default();
+) -> Result<SyncOutcome> {
+    let mut result = SyncOutcome::default();
 
     for component in plan.to_create {
         match execute_create(source, dest, &component, fs) {

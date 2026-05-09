@@ -14,7 +14,7 @@ use crate::component::{
 };
 use crate::fs::{FileSystem, RealFs};
 use crate::target::TargetId;
-use crate::target::{all_targets, AffectedTargets, OperationResult, PluginOrigin, Target};
+use crate::target::{all_targets, AffectedTargets, OperationOutcome, PluginOrigin, Target};
 use std::path::{Path, PathBuf};
 
 /// 単一コンポーネントの操作生成結果
@@ -189,7 +189,7 @@ impl PluginIntent {
     }
 
     /// Imperative Shell: 実行（副作用）
-    pub fn apply(self) -> OperationResult {
+    pub fn apply(self) -> OperationOutcome {
         let result = self.expand();
         execute_file_operations(result, &self.project_root)
     }
@@ -201,7 +201,7 @@ impl PluginIntent {
 ///
 /// * `expand_result` - pre-computed operations and validation errors from `expand`
 /// * `_project_root` - project root (currently unused but retained for future scoping needs)
-fn execute_file_operations(expand_result: ExpandResult, _project_root: &Path) -> OperationResult {
+fn execute_file_operations(expand_result: ExpandResult, _project_root: &Path) -> OperationOutcome {
     use crate::path_ext::PathExt;
 
     let fs = RealFs;

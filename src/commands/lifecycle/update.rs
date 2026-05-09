@@ -2,9 +2,7 @@
 //!
 //! プラグインを最新バージョンに更新する。
 
-use crate::plugin::{
-    update_all_plugins, update_plugin, PackageCache, UpdateOutcome, UpdateResult, UpdateStatus,
-};
+use crate::plugin::{update_all_plugins, update_plugin, PackageCache, UpdateOutcome, UpdateStatus};
 use clap::{Parser, ValueEnum};
 use std::env;
 
@@ -122,7 +120,7 @@ fn display_single_result(result: &UpdateOutcome) {
 /// # Arguments
 ///
 /// * `results` - Update outcomes from a batch run to summarize.
-fn display_batch_results(results: &[UpdateResult]) {
+fn display_batch_results(results: &[UpdateOutcome]) {
     let updated = results
         .iter()
         .filter(|r| matches!(r.status, UpdateStatus::Updated { .. }))

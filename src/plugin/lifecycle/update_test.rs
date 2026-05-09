@@ -30,8 +30,8 @@ fn test_restore_repo_invalid_name() {
 }
 
 #[test]
-fn test_update_result_factories() {
-    let updated = UpdateResult::updated(
+fn test_update_outcome_factories() {
+    let updated = UpdateOutcome::updated(
         "test",
         Some("abc123".to_string()),
         "def456".to_string(),
@@ -40,12 +40,12 @@ fn test_update_result_factories() {
     );
     assert!(matches!(updated.status, UpdateStatus::Updated { .. }));
 
-    let up_to_date = UpdateResult::up_to_date("test");
+    let up_to_date = UpdateOutcome::up_to_date("test");
     assert!(matches!(up_to_date.status, UpdateStatus::AlreadyUpToDate));
 
-    let failed = UpdateResult::failed("test", "error".to_string());
+    let failed = UpdateOutcome::failed("test", "error".to_string());
     assert!(matches!(failed.status, UpdateStatus::Failed));
 
-    let skipped = UpdateResult::skipped("test", "reason".to_string());
+    let skipped = UpdateOutcome::skipped("test", "reason".to_string());
     assert!(matches!(skipped.status, UpdateStatus::Skipped { .. }));
 }

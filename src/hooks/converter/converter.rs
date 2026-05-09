@@ -47,7 +47,7 @@ pub(crate) fn namespace_script_path(path: &str, namespace: &str) -> String {
 
 /// Conversion result containing the transformed JSON, warnings, and script info.
 #[derive(Debug, Clone)]
-pub struct ConvertResult {
+pub struct ConvertOutcome {
     pub json: Value,
     pub warnings: Vec<ConversionWarning>,
     pub scripts: Vec<ScriptInfo>,
@@ -314,7 +314,7 @@ pub(crate) fn generate_matcher_filter(matcher: Option<&str>) -> String {
 ///
 /// * `input` - Raw JSON string containing the Claude Code or target-format hooks.
 /// * `target` - Target environment to convert for.
-pub fn convert(input: &str, target: TargetKind) -> Result<ConvertResult, PlmError> {
+pub fn convert(input: &str, target: TargetKind) -> Result<ConvertOutcome, PlmError> {
     let layers = create_layers(target)?;
 
     let value: Value = serde_json::from_str(input)
@@ -338,7 +338,7 @@ pub fn convert(input: &str, target: TargetKind) -> Result<ConvertResult, PlmErro
     match layers.structure.detect_format(&value) {
         SourceFormat::TargetFormat => {
             let (json, warnings) = layers.structure.handle_target_format(value)?;
-            Ok(ConvertResult {
+            Ok(ConvertOutcome {
                 json,
                 warnings,
                 scripts: vec![],
@@ -361,7 +361,7 @@ pub fn convert(input: &str, target: TargetKind) -> Result<ConvertResult, PlmErro
                 .unwrap()
                 .insert("hooks".to_string(), new_hooks);
 
-            Ok(ConvertResult {
+            Ok(ConvertOutcome {
                 json: result,
                 warnings,
                 scripts,

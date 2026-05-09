@@ -5,7 +5,7 @@ use super::placed::PlacedComponent;
 
 /// 同期結果
 #[derive(Debug, Clone, Default)]
-pub struct SyncResult {
+pub struct SyncOutcome {
     /// 作成されたコンポーネント
     pub created: Vec<PlacedComponent>,
     /// 更新されたコンポーネント
@@ -22,7 +22,7 @@ pub struct SyncResult {
     pub dry_run: bool,
 }
 
-impl SyncResult {
+impl SyncOutcome {
     /// dry_run 用の結果を作成
     ///
     /// # Arguments

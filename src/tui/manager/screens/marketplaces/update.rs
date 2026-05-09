@@ -482,7 +482,7 @@ fn execute_add_with(
     entry: &AddEntry<'_>,
     model: &mut Model,
     data: &mut DataStore,
-    run_add: impl FnOnce(&str, &str) -> Result<actions::AddResult, String>,
+    run_add: impl FnOnce(&str, &str) -> Result<actions::MarketplaceAddOutcome, String>,
     reload: impl FnOnce(&mut DataStore),
 ) -> UpdateEffect {
     let source_owned = entry.source.to_string();

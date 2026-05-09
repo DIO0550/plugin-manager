@@ -32,7 +32,7 @@ pub enum UpdateStatus {
 
 /// 更新結果
 #[derive(Debug, Clone)]
-pub struct UpdateResult {
+pub struct UpdateOutcome {
     pub plugin_name: String,
     pub marketplace: String,
     pub status: UpdateStatus,
@@ -43,9 +43,7 @@ pub struct UpdateResult {
     pub failed_targets: Vec<String>,
 }
 
-pub type UpdateOutcome = UpdateResult;
-
-impl UpdateResult {
+impl UpdateOutcome {
     /// 更新成功
     ///
     /// # Arguments
@@ -298,11 +296,11 @@ pub async fn update_plugin(
     marketplace_hint: Option<&str>,
     project_root: &Path,
     target_filter: Option<&str>,
-) -> UpdateResult {
+) -> UpdateOutcome {
     let resolved = match resolve_update_target(cache, plugin_input, marketplace_hint) {
         Ok(r) => r,
         Err(PlmError::AmbiguousPluginName { name, candidates }) => {
-            return UpdateResult::failed(
+            return UpdateOutcome::failed(
                 &name,
                 format!(
                     "Ambiguous plugin name (matches: {}). \
@@ -313,9 +311,9 @@ pub async fn update_plugin(
             );
         }
         Err(PlmError::PluginNotFound(_)) => {
-            return UpdateResult::failed(plugin_input, "Plugin not found in cache".to_string());
+            return UpdateOutcome::failed(plugin_input, "Plugin not found in cache".to_string());
         }
-        Err(e) => return UpdateResult::failed(plugin_input, e.to_string()),
+        Err(e) => return UpdateOutcome::failed(plugin_input, e.to_string()),
     };
 
     if let Some(market) = resolved.marketplace.clone() {
@@ -331,13 +329,13 @@ async fn update_github_plugin(
     resolved: &ResolvedPlugin,
     project_root: &Path,
     target_filter: Option<&str>,
-) -> UpdateResult {
+) -> UpdateOutcome {
     let plugin_meta = &resolved.package_meta;
     let cache_id = resolved.cache_id.as_str();
     let display_name = resolved.display_name.as_str();
 
     if !plugin_meta.is_github() {
-        return UpdateResult::skipped(display_name, "Not a GitHub plugin".to_string());
+        return UpdateOutcome::skipped(display_name, "Not a GitHub plugin".to_string());
     }
 
     let git_ref = plugin_meta.git_ref.as_deref().unwrap_or("HEAD");
@@ -345,7 +343,7 @@ async fn update_github_plugin(
 
     let repo = match restore_repo(plugin_meta, cache_id, git_ref) {
         Ok(r) => r,
-        Err(e) => return UpdateResult::failed(display_name, e),
+        Err(e) => return UpdateOutcome::failed(display_name, e),
     };
 
     let factory = HostClientFactory::with_defaults();
@@ -354,12 +352,12 @@ async fn update_github_plugin(
     let latest_sha = match with_retry(|| client.get_commit_sha(&repo, git_ref), 3).await {
         Ok(sha) => sha,
         Err(e) => {
-            return UpdateResult::failed(display_name, format!("Failed to get latest SHA: {}", e));
+            return UpdateOutcome::failed(display_name, format!("Failed to get latest SHA: {}", e));
         }
     };
 
     if current_sha.as_deref() == Some(&latest_sha) {
-        return UpdateResult::up_to_date(display_name);
+        return UpdateOutcome::up_to_date(display_name);
     }
 
     if current_sha.is_none() {
@@ -391,29 +389,29 @@ async fn update_marketplace_plugin(
     resolved: &ResolvedPlugin,
     project_root: &Path,
     target_filter: Option<&str>,
-) -> UpdateResult {
+) -> UpdateOutcome {
     let display_name = resolved.display_name.as_str();
     let cache_id = resolved.cache_id.as_str();
     let plugin_meta = &resolved.package_meta;
 
     let registry = match MarketplaceRegistry::new() {
         Ok(r) => r,
-        Err(e) => return UpdateResult::failed(display_name, e.to_string()),
+        Err(e) => return UpdateOutcome::failed(display_name, e.to_string()),
     };
     let mp_cache = match registry.get(marketplace) {
         Ok(Some(c)) => c,
         Ok(None) => {
-            return UpdateResult::failed(
+            return UpdateOutcome::failed(
                 display_name,
                 format!("Marketplace not found: {}", marketplace),
             );
         }
-        Err(e) => return UpdateResult::failed(display_name, e.to_string()),
+        Err(e) => return UpdateOutcome::failed(display_name, e.to_string()),
     };
     let entry = match mp_cache.plugins.iter().find(|p| p.name == cache_id) {
         Some(e) => e.clone(),
         None => {
-            return UpdateResult::failed(
+            return UpdateOutcome::failed(
                 display_name,
                 format!("Plugin entry not found in marketplace: {}", cache_id),
             );
@@ -428,7 +426,7 @@ async fn update_marketplace_plugin(
 
     let repo = match parse_repo_from_mp_source(&mp_cache.source, &entry.source, Some(git_ref)) {
         Ok(r) => r,
-        Err(e) => return UpdateResult::failed(display_name, e.to_string()),
+        Err(e) => return UpdateOutcome::failed(display_name, e.to_string()),
     };
 
     let factory = HostClientFactory::with_defaults();
@@ -437,13 +435,13 @@ async fn update_marketplace_plugin(
     let latest_sha = match with_retry(|| client.get_commit_sha(&repo, git_ref), 3).await {
         Ok(sha) => sha,
         Err(e) => {
-            return UpdateResult::failed(display_name, format!("Failed to get latest SHA: {}", e));
+            return UpdateOutcome::failed(display_name, format!("Failed to get latest SHA: {}", e));
         }
     };
 
     let current_sha = plugin_meta.commit_sha.clone();
     if current_sha.as_deref() == Some(&latest_sha) {
-        return UpdateResult::up_to_date(display_name);
+        return UpdateOutcome::up_to_date(display_name);
     }
     if current_sha.is_none() {
         eprintln!(
@@ -488,7 +486,7 @@ async fn do_safe_update(
     source_path: Option<&str>,
     project_root: &Path,
     target_filter: Option<&str>,
-) -> UpdateResult {
+) -> UpdateOutcome {
     let current_sha = old_meta.commit_sha.clone();
     let git_ref_owned = old_meta
         .git_ref
@@ -498,7 +496,7 @@ async fn do_safe_update(
 
     println!("  Creating backup...");
     if let Err(e) = cache.backup(marketplace, cache_id) {
-        return UpdateResult::failed(display_name, format!("Backup failed: {}", e));
+        return UpdateOutcome::failed(display_name, format!("Backup failed: {}", e));
     }
 
     println!("  Downloading...");
@@ -507,7 +505,7 @@ async fn do_safe_update(
             Ok(triple) => triple,
             Err(e) => {
                 let _ = cache.restore(marketplace, cache_id);
-                return UpdateResult::failed(display_name, format!("Download failed: {}", e));
+                return UpdateOutcome::failed(display_name, format!("Download failed: {}", e));
             }
         };
 
@@ -517,7 +515,7 @@ async fn do_safe_update(
             Ok(p) => p,
             Err(e) => {
                 let _ = cache.restore(marketplace, cache_id);
-                return UpdateResult::failed(display_name, format!("Extraction failed: {}", e));
+                return UpdateOutcome::failed(display_name, format!("Extraction failed: {}", e));
             }
         };
 
@@ -537,12 +535,12 @@ async fn do_safe_update(
     }
     if let Err(e) = meta::write_meta(&plugin_path, &new_meta) {
         let _ = cache.restore(marketplace, cache_id);
-        return UpdateResult::failed(display_name, format!("Failed to write metadata: {}", e));
+        return UpdateOutcome::failed(display_name, format!("Failed to write metadata: {}", e));
     }
 
     let _ = cache.remove_backup(marketplace, cache_id);
 
-    UpdateResult::updated(display_name, current_sha, archive_sha, deployed, failed)
+    UpdateOutcome::updated(display_name, current_sha, archive_sha, deployed, failed)
 }
 
 /// ターゲットへの再デプロイ
@@ -596,7 +594,7 @@ pub async fn update_all_plugins(
     cache: &dyn PackageCacheAccess,
     project_root: &Path,
     target_filter: Option<&str>,
-) -> Vec<UpdateResult> {
+) -> Vec<UpdateOutcome> {
     let plugins = match cache.list() {
         Ok(p) => p,
         Err(e) => {
@@ -665,7 +663,7 @@ pub async fn update_all_plugins(
                 match result {
                     RemoteCheck::UpToDate => {
                         up_to_date_count += 1;
-                        results.push(UpdateResult::up_to_date(&display_name));
+                        results.push(UpdateOutcome::up_to_date(&display_name));
                     }
                     RemoteCheck::NeedsUpdate(latest) => {
                         let resolved = ResolvedPlugin {
@@ -706,7 +704,7 @@ pub async fn update_all_plugins(
                 None => {
                     // marketplace から消えたものは up_to_date 扱い
                     up_to_date_count += 1;
-                    results.push(UpdateResult::up_to_date(&display_name));
+                    results.push(UpdateOutcome::up_to_date(&display_name));
                     continue;
                 }
             };
@@ -731,7 +729,7 @@ pub async fn update_all_plugins(
 
             if !needs_update(plugin_meta.commit_sha.as_deref(), &latest_sha) {
                 up_to_date_count += 1;
-                results.push(UpdateResult::up_to_date(&display_name));
+                results.push(UpdateOutcome::up_to_date(&display_name));
                 continue;
             }
 
@@ -751,7 +749,7 @@ pub async fn update_all_plugins(
         match result {
             RemoteCheck::UpToDate => {
                 up_to_date_count += 1;
-                results.push(UpdateResult::up_to_date(&display_name));
+                results.push(UpdateOutcome::up_to_date(&display_name));
             }
             RemoteCheck::NeedsUpdate(latest) => {
                 let resolved = ResolvedPlugin {
@@ -764,7 +762,7 @@ pub async fn update_all_plugins(
                 updates_to_do.push((None, cache_id.clone(), latest, resolved));
             }
             RemoteCheck::Skipped(reason) => {
-                results.push(UpdateResult::skipped(&display_name, reason));
+                results.push(UpdateOutcome::skipped(&display_name, reason));
             }
             RemoteCheck::Failed(msg) => {
                 error_count += 1;

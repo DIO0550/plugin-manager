@@ -7,7 +7,7 @@ mod info;
 mod lifecycle;
 
 pub use crate::plugin::InstalledPlugin;
-pub use crate::target::{OperationOutcome, OperationResult};
+pub use crate::target::OperationOutcome;
 pub use catalog::list_installed_plugins;
 pub use info::{get_plugin_info, PluginInfo, Source};
 pub use lifecycle::{

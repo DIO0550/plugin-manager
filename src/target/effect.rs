@@ -68,7 +68,7 @@ impl TargetError {
 
 /// 影響を受けたターゲット（値オブジェクト）
 ///
-/// 操作結果を記録し、最終的に OperationResult を生成する。
+/// 操作結果を記録し、最終的に OperationOutcome を生成する。
 #[derive(Debug, Clone, Default)]
 pub struct AffectedTargets {
     effects: Vec<TargetEffect>,
@@ -134,17 +134,17 @@ impl AffectedTargets {
         }
     }
 
-    /// OperationResult を生成（値オブジェクトがファクトリ）
-    pub fn into_result(self) -> OperationResult {
+    /// OperationOutcome を生成（値オブジェクトがファクトリ）
+    pub fn into_result(self) -> OperationOutcome {
         if self.errors.is_empty() {
-            OperationResult {
+            OperationOutcome {
                 success: true,
                 error: None,
                 affected_targets: self,
             }
         } else {
             let error = self.error_message();
-            OperationResult {
+            OperationOutcome {
                 success: false,
                 error,
                 affected_targets: self,
@@ -155,7 +155,7 @@ impl AffectedTargets {
 
 /// 操作結果
 #[derive(Debug, Clone)]
-pub struct OperationResult {
+pub struct OperationOutcome {
     /// 成功したか
     pub success: bool,
     /// エラーメッセージ（失敗時）
@@ -164,9 +164,7 @@ pub struct OperationResult {
     pub affected_targets: AffectedTargets,
 }
 
-pub type OperationOutcome = OperationResult;
-
-impl OperationResult {
+impl OperationOutcome {
     /// エラー結果を生成（事前検証失敗用）
     ///
     /// # Arguments
