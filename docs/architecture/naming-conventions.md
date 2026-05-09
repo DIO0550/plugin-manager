@@ -64,19 +64,31 @@
 
 ## 4. 画面 Model の命名
 
-TUI 画面 (`src/tui/manager/screens/<screen>/`) で定義される Model 型は、
+TUI 画面 (`src/tui/manager/screens/`) で定義される Model 型は、
 **型定義から内部参照・公開境界まですべて `<Screen>ScreenModel` 形式に統一する**。
 `Model` という汎用名は型として用いない（ローカル変数名 `model` は許容）。
 
+画面の構成には以下の 2 形態がある。本ルールは両形態に適用する:
+
+| 構成 | ファイル形態 | 例 |
+|---|---|---|
+| **サブディレクトリ構成** | `screens/<screen>/{model,update,view,actions}.rs` に分割 | `installed`, `marketplaces` |
+| **単一ファイル構成** | `screens/<screen>.rs` に Model / update / view を一体実装 | `discover`, `errors` |
+
 ### 4.1 ルール
 
-- **型定義 (`screens/<screen>/model.rs`)**: `pub struct Model` / `pub enum Model` は使用禁止。`pub struct <Screen>ScreenModel` / `pub enum <Screen>ScreenModel` 形式で定義する
+- **型定義**: `pub struct Model` / `pub enum Model` は使用禁止。`pub struct <Screen>ScreenModel` / `pub enum <Screen>ScreenModel` 形式で定義する
+  - サブディレクトリ構成では `screens/<screen>/model.rs` に定義
+  - 単一ファイル構成では `screens/<screen>.rs` に直接定義
   - 例: `InstalledScreenModel`, `DiscoverScreenModel`, `MarketplacesScreenModel`, `ErrorsScreenModel`
-- **画面内 import (`super::model::*`)**: `super::model::<Screen>ScreenModel` で参照する。`use ... as Model` 形式の alias 化や `pub type Model = ...` 形式の互換 alias は禁止
-- **画面 root (`screens/<screen>.rs`) の pub re-export**: 素の `Model` を再 export してはならない。`Model as <Alias>` 形式も含めて `Model` 名は外部に出さない
+- **画面内 import**: 同一画面内の他ファイルから参照する場合は `super::model::<Screen>ScreenModel` 形式（サブディレクトリ構成のみ）。`use ... as Model` 形式の alias 化や `pub type Model = ...` 形式の互換 alias は禁止。単一ファイル構成では import 自体不要（同一ファイル内で完結）
+- **画面 root の pub re-export**（サブディレクトリ構成のみ）: `screens/<screen>.rs` で `pub use model::{..., <Screen>ScreenModel, ...};` の形で公開する。素の `Model` を再 export してはならない。`Model as <Alias>` 形式も含めて `Model` 名は外部に出さない
+- **外部からの参照**: いずれの構成でも `<screen>::<Screen>ScreenModel` の形でアクセスする（例: `installed::InstalledScreenModel`, `discover::DiscoverScreenModel`）
 - **ローカル変数名**: `let mut model = ...` のような変数名・関数引数名・`make_model` 等のヘルパー関数名はそのまま許容
 
 ### 4.2 適合例
+
+#### サブディレクトリ構成（installed / marketplaces）
 
 ```rust
 // screens/installed/model.rs
@@ -91,6 +103,19 @@ use super::model::{InstalledScreenModel, Msg};
 pub fn update(msg: Msg, model: &mut InstalledScreenModel) {
     //                  ^^^^^                ^^^^^^^^^^^^^^^^^^^^
     //                  変数名は model のまま 型は ScreenModel
+}
+```
+
+#### 単一ファイル構成（discover / errors）
+
+```rust
+// screens/discover.rs (一体型)
+pub struct DiscoverScreenModel { /* ... */ }
+
+impl DiscoverScreenModel { /* ... */ }
+
+pub fn update(_model: &mut DiscoverScreenModel, _msg: Msg, _data: &DataStore) {
+    /* 同一ファイル内のため `super::model::*` import は不要 */
 }
 ```
 
