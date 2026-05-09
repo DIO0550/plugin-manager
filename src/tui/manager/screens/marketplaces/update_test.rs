@@ -28,7 +28,7 @@ fn make_data(names: &[&str]) -> (tempfile::TempDir, DataStore) {
     )
 }
 
-fn make_add_result(name: &str) -> MarketplaceAddOutcome {
+fn make_add_outcome(name: &str) -> MarketplaceAddOutcome {
     MarketplaceAddOutcome {
         marketplace: make_marketplace(name),
     }
@@ -1565,7 +1565,7 @@ fn execute_add_success_transitions_to_market_list() {
         &entry,
         &mut model,
         &mut data,
-        |_source, name| Ok(make_add_result(name)),
+        |_source, name| Ok(make_add_outcome(name)),
         |d| {
             d.marketplaces.push(make_marketplace("my-repo"));
         },
