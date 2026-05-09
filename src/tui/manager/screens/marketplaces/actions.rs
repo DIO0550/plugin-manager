@@ -19,7 +19,7 @@ use crate::tui::output_suppress::OutputSuppressGuard;
 use std::path::Path;
 
 /// マーケットプレイス追加の結果
-pub struct AddResult {
+pub struct MarketplaceAddOutcome {
     pub marketplace: MarketplaceItem,
 }
 
@@ -34,7 +34,7 @@ pub fn add_marketplace(
     source: &str,
     name: &str,
     source_path: Option<&str>,
-) -> Result<AddResult, String> {
+) -> Result<MarketplaceAddOutcome, String> {
     let handle = tokio::runtime::Handle::try_current()
         .map_err(|_| "No Tokio runtime available".to_string())?;
 
@@ -68,7 +68,7 @@ pub fn add_marketplace(
 
     registry.store(&cache).map_err(|e| e.to_string())?;
 
-    Ok(AddResult {
+    Ok(MarketplaceAddOutcome {
         marketplace: MarketplaceItem {
             name: name.to_string(),
             source: to_display_source(&internal_source),

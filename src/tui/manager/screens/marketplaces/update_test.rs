@@ -1,6 +1,6 @@
 use super::{execute_add_with, execute_remove_with, execute_update_with, update, AddEntry};
 use crate::tui::manager::core::{DataStore, MarketplaceItem, SelectionState};
-use crate::tui::manager::screens::marketplaces::actions::AddResult;
+use crate::tui::manager::screens::marketplaces::actions::MarketplaceAddOutcome;
 use crate::tui::manager::screens::marketplaces::model::{
     AddFormModel, DetailAction, Model, Msg, OperationStatus,
 };
@@ -28,8 +28,8 @@ fn make_data(names: &[&str]) -> (tempfile::TempDir, DataStore) {
     )
 }
 
-fn make_add_result(name: &str) -> AddResult {
-    AddResult {
+fn make_add_result(name: &str) -> MarketplaceAddOutcome {
+    MarketplaceAddOutcome {
         marketplace: make_marketplace(name),
     }
 }
