@@ -53,7 +53,7 @@
 
 ## 3. その他の接尾辞
 
-- `Status`: 単純な状態を表す enum (例: `UpdateStatus { Updated, UpToDate, Failed, Skipped }`)
+- `Status`: 単純な状態を表す enum (例: `UpdateStatus { Updated, AlreadyUpToDate, Failed, Skipped }`)
 - `Kind`: 種別を表す enum (例: `ComponentKind`)
 - `Failure`: 失敗の詳細を表す struct (例: `SyncFailure`)
 - `Error`: エラー型 (例: `PlmError`、`SyncError`)
