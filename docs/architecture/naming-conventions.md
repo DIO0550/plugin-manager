@@ -116,7 +116,21 @@ pub type Model = InstalledScreenModel;
 ### 4.4 ガード
 
 `scripts/check-public-screen-model.sh` を CI ジョブ `naming-guard` で実行し、
-画面 root から素の `Model` が公開されていないことを検証する。
+`src/tui/manager/screens/**` 配下に素の `Model` 型が残存していないかを検証する。
+`src/tui/manager/core/**`（アプリ全体 `Model`）は対象外。
+
+スクリプトは以下の 7 パターンをすべて違反として検出する:
+
+1. 画面 root (`screens/<name>.rs`) の `pub use ...;` 文に裸 `Model` または `Model as <Alias>` が出現（単一行・複数行両対応）
+2. 画面 root (`screens/<name>.rs`) での `(vis)? (struct|enum) Model`
+3. 画面サブディレクトリ (`screens/<name>/model.rs`) での `(vis)? (struct|enum) Model`
+4. screens 配下任意 `.rs` の `(vis)? type Model` 互換 alias
+5. screens 配下任意 `.rs` の `as Model` import alias
+6. screens 配下任意 `.rs` の `model::Model` 直書き型参照
+7. screens 配下任意 `.rs` の `use ... model::{ ..., Model, ... };` braced import（単一行・複数行・visibility 各種対応）
+
+`(vis)?` は visibility 修飾子の任意マッチ（省略 / `pub` / `pub(crate)` / `pub(super)` 等）。
+ローカル変数名 `model`（小文字）や `make_model` 等の関数名は対象外。
 
 ---
 
