@@ -4,7 +4,7 @@
 //! `Result` 系名（`std::result::Result`）との混同を避けるため
 //! `~Output` 命名を採用している（`std::process::Output` などの慣用に倣う）。
 
-use crate::component::convert::{AgentConversionResult, ConversionOutcome};
+use crate::component::convert::{AgentConversionOutcome, ConversionOutcome};
 use crate::hooks::converter::{ConversionWarning, SourceFormat};
 
 /// デプロイ結果
@@ -15,7 +15,7 @@ pub enum DeploymentOutput {
     /// Command フォーマット変換が行われた
     CommandConverted(ConversionOutcome),
     /// Agent フォーマット変換が行われた
-    AgentConverted(AgentConversionResult),
+    AgentConverted(AgentConversionOutcome),
     /// Hook 変換が行われた
     HookConverted(HookConvertOutput),
 }

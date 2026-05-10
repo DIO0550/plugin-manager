@@ -63,7 +63,7 @@ pub struct ConversionOutcome {
 
 /// Agent 変換結果
 #[derive(Debug)]
-pub struct AgentConversionResult {
+pub struct AgentConversionOutcome {
     /// 変換が行われたか（false = コピーのみ）
     pub converted: bool,
     /// ソース形式
@@ -176,10 +176,10 @@ pub fn convert_agent_and_write(
     dest_path: &Path,
     source_format: AgentFormat,
     dest_format: AgentFormat,
-) -> Result<AgentConversionResult> {
+) -> Result<AgentConversionOutcome> {
     if source_format == dest_format {
         copy_file(source_path, dest_path)?;
-        return Ok(AgentConversionResult {
+        return Ok(AgentConversionOutcome {
             converted: false,
             source_format,
             dest_format,
@@ -190,7 +190,7 @@ pub fn convert_agent_and_write(
     let markdown = convert_agent_content(&content, source_format, dest_format)?;
     atomic_write(dest_path, &markdown)?;
 
-    Ok(AgentConversionResult {
+    Ok(AgentConversionOutcome {
         converted: true,
         source_format,
         dest_format,

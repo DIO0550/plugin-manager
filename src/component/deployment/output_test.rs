@@ -1,5 +1,5 @@
 use super::*;
-use crate::component::convert::{AgentConversionResult, AgentFormat, ConversionOutcome};
+use crate::component::convert::{AgentConversionOutcome, AgentFormat, ConversionOutcome};
 use crate::component::CommandFormat;
 use crate::hooks::converter::{ConversionWarning, SourceFormat};
 
@@ -73,7 +73,7 @@ fn test_display_converted_false() {
 
 #[test]
 fn test_display_agent_converted_true() {
-    let result = DeploymentOutput::AgentConverted(AgentConversionResult {
+    let result = DeploymentOutput::AgentConverted(AgentConversionOutcome {
         converted: true,
         source_format: AgentFormat::ClaudeCode,
         dest_format: AgentFormat::Copilot,
@@ -83,7 +83,7 @@ fn test_display_agent_converted_true() {
 
 #[test]
 fn test_display_agent_converted_false() {
-    let result = DeploymentOutput::AgentConverted(AgentConversionResult {
+    let result = DeploymentOutput::AgentConverted(AgentConversionOutcome {
         converted: false,
         source_format: AgentFormat::ClaudeCode,
         dest_format: AgentFormat::ClaudeCode,
