@@ -80,7 +80,7 @@ fn test_remove_target() {
     let (mut registry, _temp_dir) = create_test_registry();
 
     let result = registry.remove(TargetKind::Codex).unwrap();
-    assert_eq!(result, RemoveResult::Removed);
+    assert_eq!(result, RemoveOutcome::Removed);
 
     let targets = registry.list().unwrap();
     assert!(!targets.contains(&TargetKind::Codex));
@@ -96,7 +96,7 @@ fn test_remove_nonexistent() {
 
     // 再度削除を試みる
     let result = registry.remove(TargetKind::Codex).unwrap();
-    assert_eq!(result, RemoveResult::NotFound);
+    assert_eq!(result, RemoveOutcome::NotFound);
 }
 
 #[test]

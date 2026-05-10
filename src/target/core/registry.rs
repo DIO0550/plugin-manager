@@ -72,9 +72,9 @@ pub enum AddOutcome {
     AlreadyExists,
 }
 
-/// 削除操作の結果
+/// 削除操作の結果（成果レポート）
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RemoveResult {
+pub enum RemoveOutcome {
     Removed,
     NotFound,
 }
@@ -208,7 +208,7 @@ impl TargetRegistry {
     /// # Arguments
     ///
     /// * `target` - Target kind to remove from the registry.
-    pub fn remove(&mut self, target: TargetKind) -> Result<RemoveResult> {
+    pub fn remove(&mut self, target: TargetKind) -> Result<RemoveOutcome> {
         if self.state == State::Idle {
             self.load()?;
         }
@@ -219,14 +219,14 @@ impl TargetRegistry {
         config.targets.retain(|t| *t != target);
 
         if config.targets.len() == original_len {
-            return Ok(RemoveResult::NotFound);
+            return Ok(RemoveOutcome::NotFound);
         }
 
         config.normalize();
         self.state = State::Modified;
 
         self.save()?;
-        Ok(RemoveResult::Removed)
+        Ok(RemoveOutcome::Removed)
     }
 
     /// 現在の状態を取得（デバッグ用）
