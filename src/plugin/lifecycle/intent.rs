@@ -201,7 +201,10 @@ impl PluginIntent {
 ///
 /// * `expand_outcome` - pre-computed operations and validation errors from `expand`
 /// * `_project_root` - project root (currently unused but retained for future scoping needs)
-fn execute_file_operations(expand_outcome: ExpandOutcome, _project_root: &Path) -> OperationOutcome {
+fn execute_file_operations(
+    expand_outcome: ExpandOutcome,
+    _project_root: &Path,
+) -> OperationOutcome {
     use crate::path_ext::PathExt;
 
     let fs = RealFs;
