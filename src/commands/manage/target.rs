@@ -1,4 +1,4 @@
-use crate::target::{AddResult, RemoveResult, TargetKind, TargetRegistry};
+use crate::target::{AddOutcome, RemoveResult, TargetKind, TargetRegistry};
 use clap::{Parser, Subcommand};
 
 #[derive(Debug, Parser)]
@@ -56,8 +56,8 @@ pub async fn run(args: Args) -> Result<(), String> {
         }
         Command::Add { target } => {
             match registry.add(target).map_err(|e| e.to_string())? {
-                AddResult::Added => println!("Target added: {}", target.as_str()),
-                AddResult::AlreadyExists => {
+                AddOutcome::Added => println!("Target added: {}", target.as_str()),
+                AddOutcome::AlreadyExists => {
                     println!("Target already exists: {}", target.as_str())
                 }
             }

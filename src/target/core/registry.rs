@@ -65,9 +65,9 @@ impl TargetsConfig {
     }
 }
 
-/// 追加操作の結果
+/// 追加操作の結果（成果レポート）
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AddResult {
+pub enum AddOutcome {
     Added,
     AlreadyExists,
 }
@@ -184,7 +184,7 @@ impl TargetRegistry {
     /// # Arguments
     ///
     /// * `target` - Target kind to add to the registry.
-    pub fn add(&mut self, target: TargetKind) -> Result<AddResult> {
+    pub fn add(&mut self, target: TargetKind) -> Result<AddOutcome> {
         if self.state == State::Idle {
             self.load()?;
         }
@@ -192,7 +192,7 @@ impl TargetRegistry {
         let config = self.config.as_mut().unwrap();
 
         if config.targets.contains(&target) {
-            return Ok(AddResult::AlreadyExists);
+            return Ok(AddOutcome::AlreadyExists);
         }
 
         config.targets.push(target);
@@ -200,7 +200,7 @@ impl TargetRegistry {
         self.state = State::Modified;
 
         self.save()?;
-        Ok(AddResult::Added)
+        Ok(AddOutcome::Added)
     }
 
     /// ターゲットを削除（load → modify → normalize → save）

@@ -59,7 +59,7 @@ fn test_add_target() {
 
     // Codexを追加
     let result = registry.add(TargetKind::Codex).unwrap();
-    assert_eq!(result, AddResult::Added);
+    assert_eq!(result, AddOutcome::Added);
 
     let targets = registry.list().unwrap();
     assert_eq!(targets.len(), 1);
@@ -72,7 +72,7 @@ fn test_add_duplicate() {
 
     // デフォルトでCodexが含まれている
     let result = registry.add(TargetKind::Codex).unwrap();
-    assert_eq!(result, AddResult::AlreadyExists);
+    assert_eq!(result, AddOutcome::AlreadyExists);
 }
 
 #[test]
