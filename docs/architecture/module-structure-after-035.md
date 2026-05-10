@@ -29,7 +29,7 @@
 │  download_plugin() ──→ scan_plugin() ──→ place_plugin()            │
 │       │                     │                  │                    │
 │       ▼                     ▼                  ▼                    │
-│  MarketplacePackage  ScannedPlugin    PlaceResult                  │
+│  MarketplacePackage  ScannedPlugin    PlaceOutcome                  │
 │  (domain type)       (MarketplacePkg  (PlaceSuccess/Failure)       │
 │                       + components)                                │
 └──────┬─────────────────────┬─────────────────────┬─────────────────┘
@@ -90,7 +90,7 @@ parse_source()
                     └───────────────────────┘
                                 │
                                 ▼
-                    PlaceResult (success/failure)
+                    PlaceOutcome (success/failure)
 ```
 
 ## 複雑度ホットスポット（CC = 循環的複雑度）

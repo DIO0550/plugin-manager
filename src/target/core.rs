@@ -9,4 +9,4 @@ pub(crate) mod paths;
 mod registry;
 
 pub use id::TargetId;
-pub use registry::{AddResult, RemoveResult, TargetRegistry};
+pub use registry::{AddOutcome, RemoveOutcome, TargetRegistry};

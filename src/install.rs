@@ -62,9 +62,9 @@ pub struct PlaceRequest<'a> {
     pub project_root: &'a Path,
 }
 
-/// 配置結果
+/// 配置結果（成果レポート）
 #[derive(Debug)]
-pub struct PlaceResult {
+pub struct PlaceOutcome {
     pub plugin_name: String,
     pub successes: Vec<PlaceSuccess>,
     pub failures: Vec<PlaceFailure>,
@@ -179,7 +179,7 @@ pub fn scan_plugin(
 /// # Arguments
 ///
 /// * `request` - Placement request describing the scanned plugin, targets, scope, and project root.
-pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
+pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
     let mut successes = Vec::new();
     let mut failures = Vec::new();
 
@@ -343,7 +343,7 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
         }
     }
 
-    PlaceResult {
+    PlaceOutcome {
         plugin_name: request.scanned.name().to_string(),
         successes,
         failures,
@@ -371,7 +371,7 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceResult {
 ///
 /// * `plugin_path` - Filesystem path of the cached plugin.
 /// * `result` - Outcome returned by `place_plugin`.
-pub fn update_meta_after_place(plugin_path: &Path, result: &PlaceResult) {
+pub fn update_meta_after_place(plugin_path: &Path, result: &PlaceOutcome) {
     let mut plugin_meta = meta::load_meta(plugin_path).unwrap_or_default();
     let failed_targets: HashSet<&str> = result
         .failures

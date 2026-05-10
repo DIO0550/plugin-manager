@@ -226,7 +226,7 @@ fn test_update_check_accessors_failed() {
 #[test]
 fn test_update_check_from_query_found_same_sha() {
     let meta = create_meta(Some("owner/repo"), Some("main"), Some("same123"));
-    let result = VersionQueryResult::Found(RemoteVersion {
+    let result = VersionQueryOutcome::Found(RemoteVersion {
         sha: "same123".to_string(),
         git_ref: "main".to_string(),
     });
@@ -239,7 +239,7 @@ fn test_update_check_from_query_found_same_sha() {
 #[test]
 fn test_update_check_from_query_found_different_sha() {
     let meta = create_meta(Some("owner/repo"), Some("main"), Some("old123"));
-    let result = VersionQueryResult::Found(RemoteVersion {
+    let result = VersionQueryOutcome::Found(RemoteVersion {
         sha: "new456".to_string(),
         git_ref: "main".to_string(),
     });
@@ -254,7 +254,7 @@ fn test_update_check_from_query_found_different_sha() {
 fn test_update_check_from_query_found_current_none_yields_available() {
     // current_sha が未記録の場合は Available バリアント（SHA 不一致扱い）
     let meta = create_meta(Some("owner/repo"), Some("main"), None);
-    let result = VersionQueryResult::Found(RemoteVersion {
+    let result = VersionQueryOutcome::Found(RemoteVersion {
         sha: "new456".to_string(),
         git_ref: "main".to_string(),
     });
@@ -267,7 +267,7 @@ fn test_update_check_from_query_found_current_none_yields_available() {
 #[test]
 fn test_update_check_from_query_failed() {
     let meta = create_meta(Some("owner/repo"), Some("main"), Some("local123"));
-    let result = VersionQueryResult::Failed {
+    let result = VersionQueryOutcome::Failed {
         message: "Rate limited".to_string(),
     };
     let check = UpgradeState::from_query(&meta, &result);

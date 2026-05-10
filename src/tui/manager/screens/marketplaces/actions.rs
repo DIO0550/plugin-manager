@@ -2,7 +2,7 @@
 //!
 //! マーケットプレイスの追加・削除・更新操作を実行する。
 
-use super::model::{BrowsePlugin, InstallSummary, PluginInstallResult};
+use super::model::{BrowsePlugin, InstallSummary, PluginInstallOutcome};
 use crate::application::InstalledPlugin;
 use crate::component::Scope;
 use crate::host::HostClientFactory;
@@ -263,9 +263,9 @@ fn build_browse_plugins(
 /// * `plugin_names` - Plugin names that are all marked as failed.
 /// * `error` - Error message shared across every failure entry.
 fn make_all_failed_summary(plugin_names: &[String], error: &str) -> InstallSummary {
-    let results: Vec<PluginInstallResult> = plugin_names
+    let results: Vec<PluginInstallOutcome> = plugin_names
         .iter()
-        .map(|name| PluginInstallResult {
+        .map(|name| PluginInstallOutcome {
             plugin_name: name.clone(),
             success: false,
             error: Some(error.to_string()),
@@ -294,7 +294,7 @@ fn install_single_plugin(
     ctx: &InstallCtx<'_>,
     marketplace_name: &str,
     plugin_name: &str,
-) -> PluginInstallResult {
+) -> PluginInstallOutcome {
     // Download (async -> sync bridge)
     let package = match tokio::task::block_in_place(|| {
         ctx.handle.block_on(download_marketplace_plugin_with_cache(
@@ -306,7 +306,7 @@ fn install_single_plugin(
     }) {
         Ok(d) => d,
         Err(e) => {
-            return PluginInstallResult {
+            return PluginInstallOutcome {
                 plugin_name: plugin_name.to_string(),
                 success: false,
                 error: Some(e.to_string()),
@@ -317,7 +317,7 @@ fn install_single_plugin(
     let scanned = match install::scan_plugin(&package, None) {
         Ok(s) => s,
         Err(e) => {
-            return PluginInstallResult {
+            return PluginInstallOutcome {
                 plugin_name: plugin_name.to_string(),
                 success: false,
                 error: Some(e),
@@ -340,13 +340,13 @@ fn install_single_plugin(
             .iter()
             .map(|f| format!("{}/{}: {}", f.target, f.component_name, f.error))
             .collect();
-        PluginInstallResult {
+        PluginInstallOutcome {
             plugin_name: plugin_name.to_string(),
             success: false,
             error: Some(errors.join("; ")),
         }
     } else if place_result.successes.is_empty() {
-        PluginInstallResult {
+        PluginInstallOutcome {
             plugin_name: plugin_name.to_string(),
             success: false,
             error: Some(
@@ -356,7 +356,7 @@ fn install_single_plugin(
             ),
         }
     } else {
-        PluginInstallResult {
+        PluginInstallOutcome {
             plugin_name: plugin_name.to_string(),
             success: true,
             error: None,
@@ -425,7 +425,7 @@ pub fn install_plugins(
         project_root: &project_root,
         cache: &cache,
     };
-    let results: Vec<PluginInstallResult> = plugin_names
+    let results: Vec<PluginInstallOutcome> = plugin_names
         .iter()
         .map(|plugin_name| install_single_plugin(&install_ctx, marketplace_name, plugin_name))
         .collect();
@@ -433,12 +433,12 @@ pub fn install_plugins(
     build_install_summary(results)
 }
 
-/// 純粋変換: Vec<PluginInstallResult> -> InstallSummary
+/// 純粋変換: Vec<PluginInstallOutcome> -> InstallSummary
 ///
 /// # Arguments
 ///
 /// * `results` - Individual install results to aggregate.
-fn build_install_summary(results: Vec<PluginInstallResult>) -> InstallSummary {
+fn build_install_summary(results: Vec<PluginInstallOutcome>) -> InstallSummary {
     let total = results.len();
     let succeeded = results.iter().filter(|r| r.success).count();
     let failed = total - succeeded;

@@ -2,7 +2,7 @@
 
 use super::model::{
     AddFormModel, BrowsePlugin, DetailAction, InstallSummary, MarketplacesScreenModel,
-    OperationStatus, PluginInstallResult,
+    OperationStatus, PluginInstallOutcome,
 };
 use crate::component::Scope;
 use crate::marketplace::PluginSource;
@@ -136,7 +136,7 @@ pub fn view(
         } => {
             view_installing(f, plugin_names, *current_idx, *total);
         }
-        MarketplacesScreenModel::InstallResult { summary, .. } => {
+        MarketplacesScreenModel::InstallOutcome { summary, .. } => {
             view_install_result(f, summary);
         }
     }
@@ -767,7 +767,7 @@ fn installing_inner_layout(modal_area: Rect) -> [Rect; 3] {
 ///
 /// 成功・失敗で接頭辞・色が異なるが、組み立て・切り詰め・スタイル付与の経路を
 /// 共通化するため、ここでは色とテキストの導出だけを担う。
-fn format_install_result_line(result: &PluginInstallResult) -> (String, Color) {
+fn format_install_result_line(result: &PluginInstallOutcome) -> (String, Color) {
     if result.success {
         (format!("  ✓ {}", result.plugin_name), Color::Green)
     } else {

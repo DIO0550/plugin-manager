@@ -95,7 +95,7 @@ pub struct BrowsePlugin {
 }
 
 /// プラグインインストール結果（1件分）
-pub struct PluginInstallResult {
+pub struct PluginInstallOutcome {
     pub plugin_name: String,
     pub success: bool,
     pub error: Option<String>,
@@ -103,7 +103,7 @@ pub struct PluginInstallResult {
 
 /// インストールサマリー
 pub struct InstallSummary {
-    pub results: Vec<PluginInstallResult>,
+    pub results: Vec<PluginInstallOutcome>,
     pub total: usize,
     pub succeeded: usize,
     pub failed: usize,
@@ -174,7 +174,7 @@ pub enum MarketplacesScreenModel {
         total: usize,
     },
     /// インストール結果表示
-    InstallResult {
+    InstallOutcome {
         marketplace_name: String,
         plugins: Vec<BrowsePlugin>,
         summary: InstallSummary,
@@ -251,7 +251,7 @@ impl MarketplacesScreenModel {
             | MarketplacesScreenModel::Installing {
                 marketplace_name, ..
             }
-            | MarketplacesScreenModel::InstallResult {
+            | MarketplacesScreenModel::InstallOutcome {
                 marketplace_name, ..
             } => CacheState {
                 selected_id: Some(marketplace_name.clone()),
@@ -340,7 +340,7 @@ pub fn key_to_msg(key: KeyCode, model: &MarketplacesScreenModel) -> Option<Msg> 
                 _ => None,
             },
             MarketplacesScreenModel::Installing { .. } => None,
-            MarketplacesScreenModel::InstallResult { .. } => match key {
+            MarketplacesScreenModel::InstallOutcome { .. } => match key {
                 KeyCode::Enter | KeyCode::Esc => Some(Msg::BackToPluginBrowse),
                 _ => None,
             },

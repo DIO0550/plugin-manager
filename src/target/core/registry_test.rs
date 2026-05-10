@@ -59,7 +59,7 @@ fn test_add_target() {
 
     // Codexを追加
     let result = registry.add(TargetKind::Codex).unwrap();
-    assert_eq!(result, AddResult::Added);
+    assert_eq!(result, AddOutcome::Added);
 
     let targets = registry.list().unwrap();
     assert_eq!(targets.len(), 1);
@@ -72,7 +72,7 @@ fn test_add_duplicate() {
 
     // デフォルトでCodexが含まれている
     let result = registry.add(TargetKind::Codex).unwrap();
-    assert_eq!(result, AddResult::AlreadyExists);
+    assert_eq!(result, AddOutcome::AlreadyExists);
 }
 
 #[test]
@@ -80,7 +80,7 @@ fn test_remove_target() {
     let (mut registry, _temp_dir) = create_test_registry();
 
     let result = registry.remove(TargetKind::Codex).unwrap();
-    assert_eq!(result, RemoveResult::Removed);
+    assert_eq!(result, RemoveOutcome::Removed);
 
     let targets = registry.list().unwrap();
     assert!(!targets.contains(&TargetKind::Codex));
@@ -96,7 +96,7 @@ fn test_remove_nonexistent() {
 
     // 再度削除を試みる
     let result = registry.remove(TargetKind::Codex).unwrap();
-    assert_eq!(result, RemoveResult::NotFound);
+    assert_eq!(result, RemoveOutcome::NotFound);
 }
 
 #[test]

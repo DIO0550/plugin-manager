@@ -1,7 +1,7 @@
 use super::*;
 use crate::component::ComponentKind;
 use crate::hooks::converter::{ConversionWarning, SourceFormat};
-use crate::install::{PlaceFailure, PlaceFailureStage, PlaceResult, PlaceSuccess};
+use crate::install::{PlaceFailure, PlaceFailureStage, PlaceOutcome, PlaceSuccess};
 use crate::target::TargetKind;
 use std::path::PathBuf;
 use tempfile::TempDir;
@@ -222,7 +222,7 @@ fn make_success_keeps_hook_count_independent_from_script_count() {
 #[test]
 fn update_status_after_install_marks_successful_targets_enabled() {
     let temp = TempDir::new().unwrap();
-    let result = PlaceResult {
+    let result = PlaceOutcome {
         plugin_name: "test-plugin".to_string(),
         successes: vec![make_success(
             ComponentKind::Hook,
@@ -261,7 +261,7 @@ fn update_meta_after_place_does_not_rewrite_when_meta_already_up_to_date() {
     let mtime_before = std::fs::metadata(&meta_path).unwrap().modified().unwrap();
     std::thread::sleep(std::time::Duration::from_millis(50));
 
-    let result = PlaceResult {
+    let result = PlaceOutcome {
         plugin_name: "test-plugin".to_string(),
         successes: vec![make_success(
             ComponentKind::Hook,
@@ -292,7 +292,7 @@ fn update_meta_after_place_skips_managed_file_for_non_hook_codex_success() {
     // Skill のみ Codex に配置されたケースは statusByTarget は enabled になるが、
     // managedFiles には記録されない（hook_overwrite_error が誤って通過しないため）。
     let temp = TempDir::new().unwrap();
-    let result = PlaceResult {
+    let result = PlaceOutcome {
         plugin_name: "test-plugin".to_string(),
         successes: vec![make_success(
             ComponentKind::Skill,
@@ -329,7 +329,7 @@ fn update_status_after_install_skips_status_when_target_has_failures() {
     // (managedFiles) は「実際に書かれた」事実として記録する一方、
     // statusByTarget = "enabled" は target 全体成功時のみ昇格させる。
     let temp = TempDir::new().unwrap();
-    let result = PlaceResult {
+    let result = PlaceOutcome {
         plugin_name: "test-plugin".to_string(),
         successes: vec![make_success(
             ComponentKind::Hook,
@@ -371,7 +371,7 @@ fn update_status_after_install_skips_status_when_target_has_failures() {
 fn update_status_after_install_skips_write_when_all_failed() {
     // 全 target が失敗（successes が空）の場合、.plm-meta.json を書き換えない。
     let temp = TempDir::new().unwrap();
-    let result = PlaceResult {
+    let result = PlaceOutcome {
         plugin_name: "test-plugin".to_string(),
         successes: vec![],
         failures: vec![PlaceFailure {

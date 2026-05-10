@@ -809,7 +809,7 @@ fn enter_browse_plugins_noop_when_no_cache() {
 }
 
 // ============================================================================
-// BackToPluginBrowse (InstallResult -> PluginBrowse)
+// BackToPluginBrowse (InstallOutcome -> PluginBrowse)
 // ============================================================================
 
 #[test]
@@ -827,11 +827,11 @@ fn back_to_plugin_browse_from_result_refreshes_plugins() {
         installed: false,
     }];
 
-    let mut model = MarketplacesScreenModel::InstallResult {
+    let mut model = MarketplacesScreenModel::InstallOutcome {
         marketplace_name: "mp-a".to_string(),
         plugins,
         summary: InstallSummary {
-            results: vec![PluginInstallResult {
+            results: vec![PluginInstallOutcome {
                 plugin_name: "p1".to_string(),
                 success: true,
                 error: None,
@@ -860,10 +860,10 @@ fn back_to_plugin_browse_from_result_refreshes_plugins() {
 }
 
 // ============================================================================
-// ExecuteInstall (Installing -> InstallResult)
+// ExecuteInstall (Installing -> InstallOutcome)
 // ============================================================================
 
-use crate::tui::manager::screens::marketplaces::model::{InstallSummary, PluginInstallResult};
+use crate::tui::manager::screens::marketplaces::model::{InstallSummary, PluginInstallOutcome};
 
 fn make_installing(name: &str, plugin_names: &[&str]) -> MarketplacesScreenModel {
     use crate::marketplace::PluginSource;
@@ -905,12 +905,12 @@ fn execute_install_transitions_to_install_result() {
         &mut data,
         |_mp, _plugins, _targets, _scope| InstallSummary {
             results: vec![
-                PluginInstallResult {
+                PluginInstallOutcome {
                     plugin_name: "p1".to_string(),
                     success: true,
                     error: None,
                 },
-                PluginInstallResult {
+                PluginInstallOutcome {
                     plugin_name: "p2".to_string(),
                     success: true,
                     error: None,
@@ -927,9 +927,9 @@ fn execute_install_transitions_to_install_result() {
     );
 
     assert!(reload_called, "reload should be called after install");
-    assert_eq!(model_variant(&model), "InstallResult");
+    assert_eq!(model_variant(&model), "InstallOutcome");
 
-    if let MarketplacesScreenModel::InstallResult { summary, .. } = &model {
+    if let MarketplacesScreenModel::InstallOutcome { summary, .. } = &model {
         assert_eq!(summary.succeeded, 2);
         assert_eq!(summary.failed, 0);
     }
@@ -947,12 +947,12 @@ fn execute_install_with_failure_shows_in_summary() {
         &mut data,
         |_mp, _plugins, _targets, _scope| InstallSummary {
             results: vec![
-                PluginInstallResult {
+                PluginInstallOutcome {
                     plugin_name: "p1".to_string(),
                     success: true,
                     error: None,
                 },
-                PluginInstallResult {
+                PluginInstallOutcome {
                     plugin_name: "p2".to_string(),
                     success: false,
                     error: Some("install failed".to_string()),
@@ -965,9 +965,9 @@ fn execute_install_with_failure_shows_in_summary() {
         |_d| Ok(()),
     );
 
-    assert_eq!(model_variant(&model), "InstallResult");
+    assert_eq!(model_variant(&model), "InstallOutcome");
 
-    if let MarketplacesScreenModel::InstallResult { summary, .. } = &model {
+    if let MarketplacesScreenModel::InstallOutcome { summary, .. } = &model {
         assert_eq!(summary.succeeded, 1);
         assert_eq!(summary.failed, 1);
     }
@@ -2197,6 +2197,6 @@ fn model_variant(model: &MarketplacesScreenModel) -> &'static str {
         MarketplacesScreenModel::TargetSelect { .. } => "TargetSelect",
         MarketplacesScreenModel::ScopeSelect { .. } => "ScopeSelect",
         MarketplacesScreenModel::Installing { .. } => "Installing",
-        MarketplacesScreenModel::InstallResult { .. } => "InstallResult",
+        MarketplacesScreenModel::InstallOutcome { .. } => "InstallOutcome",
     }
 }

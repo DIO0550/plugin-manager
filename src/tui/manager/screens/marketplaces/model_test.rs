@@ -330,12 +330,12 @@ fn key_to_msg_installing_returns_none() {
 }
 
 // ============================================================================
-// key_to_msg: InstallResult テスト
+// key_to_msg: InstallOutcome テスト
 // ============================================================================
 
 #[test]
 fn key_to_msg_install_result_enter_returns_back_to_browse() {
-    let model = MarketplacesScreenModel::InstallResult {
+    let model = MarketplacesScreenModel::InstallOutcome {
         marketplace_name: "test".to_string(),
         plugins: vec![],
         summary: super::InstallSummary {
@@ -354,7 +354,7 @@ fn key_to_msg_install_result_enter_returns_back_to_browse() {
 
 #[test]
 fn key_to_msg_install_result_esc_returns_back_to_browse() {
-    let model = MarketplacesScreenModel::InstallResult {
+    let model = MarketplacesScreenModel::InstallOutcome {
         marketplace_name: "test".to_string(),
         plugins: vec![],
         summary: super::InstallSummary {

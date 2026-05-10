@@ -1,21 +1,21 @@
 use crate::application::InstalledPlugin;
 use crate::marketplace::{MarketplaceCache, MarketplacePlugin, MarketplaceRegistry, PluginSource};
-use crate::tui::manager::screens::marketplaces::model::PluginInstallResult;
+use crate::tui::manager::screens::marketplaces::model::PluginInstallOutcome;
 
 // ============================================================================
 // install_plugins テスト用ヘルパー
 // ============================================================================
 
-fn make_success_result(name: &str) -> PluginInstallResult {
-    PluginInstallResult {
+fn make_success_outcome(name: &str) -> PluginInstallOutcome {
+    PluginInstallOutcome {
         plugin_name: name.to_string(),
         success: true,
         error: None,
     }
 }
 
-fn make_failure_result(name: &str, error: &str) -> PluginInstallResult {
-    PluginInstallResult {
+fn make_failure_outcome(name: &str, error: &str) -> PluginInstallOutcome {
+    PluginInstallOutcome {
         plugin_name: name.to_string(),
         success: false,
         error: Some(error.to_string()),
@@ -266,7 +266,7 @@ fn returns_plugins_via_registry() {
 
 #[test]
 fn build_summary_all_success() {
-    let results = vec![make_success_result("a"), make_success_result("b")];
+    let results = vec![make_success_outcome("a"), make_success_outcome("b")];
     let summary = super::build_install_summary(results);
     assert_eq!(summary.total, 2);
     assert_eq!(summary.succeeded, 2);
@@ -276,8 +276,8 @@ fn build_summary_all_success() {
 #[test]
 fn build_summary_all_failure() {
     let results = vec![
-        make_failure_result("a", "err1"),
-        make_failure_result("b", "err2"),
+        make_failure_outcome("a", "err1"),
+        make_failure_outcome("b", "err2"),
     ];
     let summary = super::build_install_summary(results);
     assert_eq!(summary.total, 2);
@@ -287,7 +287,7 @@ fn build_summary_all_failure() {
 
 #[test]
 fn build_summary_mixed() {
-    let results = vec![make_success_result("a"), make_failure_result("b", "err")];
+    let results = vec![make_success_outcome("a"), make_failure_outcome("b", "err")];
     let summary = super::build_install_summary(results);
     assert_eq!(summary.total, 2);
     assert_eq!(summary.succeeded, 1);
@@ -296,7 +296,7 @@ fn build_summary_mixed() {
 
 #[test]
 fn build_summary_empty() {
-    let results: Vec<PluginInstallResult> = vec![];
+    let results: Vec<PluginInstallOutcome> = vec![];
     let summary = super::build_install_summary(results);
     assert_eq!(summary.total, 0);
     assert_eq!(summary.succeeded, 0);
@@ -305,7 +305,7 @@ fn build_summary_empty() {
 
 #[test]
 fn build_summary_single_success() {
-    let results = vec![make_success_result("a")];
+    let results = vec![make_success_outcome("a")];
     let summary = super::build_install_summary(results);
     assert_eq!(summary.total, 1);
     assert_eq!(summary.succeeded, 1);
@@ -314,7 +314,7 @@ fn build_summary_single_success() {
 
 #[test]
 fn build_summary_single_failure() {
-    let results = vec![make_failure_result("a", "err")];
+    let results = vec![make_failure_outcome("a", "err")];
     let summary = super::build_install_summary(results);
     assert_eq!(summary.total, 1);
     assert_eq!(summary.succeeded, 0);
@@ -324,9 +324,9 @@ fn build_summary_single_failure() {
 #[test]
 fn build_summary_preserves_results() {
     let results = vec![
-        make_success_result("x"),
-        make_failure_result("y", "fail"),
-        make_success_result("z"),
+        make_success_outcome("x"),
+        make_failure_outcome("y", "fail"),
+        make_success_outcome("z"),
     ];
     let summary = super::build_install_summary(results);
     assert_eq!(summary.total, 3);

@@ -1,7 +1,7 @@
 # 命名規約
 
 > 作成日: 2026-05-09
-> 関連 Issue: #259 / #271
+> 関連 Issue: #259 / #271 / #273
 
 このドキュメントは PLM プロジェクトにおける Rust の型名・識別子の命名規約をまとめる。
 特に `Result` / `Outcome` 接尾辞の使い分けに重点を置く。
@@ -24,20 +24,26 @@
 ### 1.2 適用範囲
 
 - **新規追加するドメイン処理結果型**: 必ず `*Outcome` 接尾辞を使う。
-- **既存のドメイン処理結果型**: Issue #271 (Issue #259-A/B/C 一括対応) で以下 5 型を `*Outcome` に統一済み。
-  - `SyncOutcome`
-  - `ConvertOutcome`
-  - `OperationOutcome` (type alias 削除済み)
-  - `UpdateOutcome` (type alias 削除済み)
-  - `MarketplaceAddOutcome` (tui::manager::screens::marketplaces::actions 配下)
+- **既存のドメイン処理結果型**: Issue #271 + Issue #273 でドメイン成果値の `*Result` 型はすべて `*Outcome` に統一済み（互換 alias は残さず clean rename）。代表例:
+  - `SyncOutcome` / `ConvertOutcome` / `OperationOutcome` / `UpdateOutcome` / `MarketplaceAddOutcome` (#271)
+  - `AddOutcome` / `RemoveOutcome` / `PlaceOutcome` / `ConversionOutcome` / `AgentConversionOutcome` /
+    `VersionQueryOutcome` / `ExpandOutcome` / `MultiSelectOutcome<T>` / `SingleSelectOutcome<T>` /
+    `PluginInstallOutcome` / `ActionOutcome` / `LoadMarketplacesOutcome` (#273)
+  - `MarketplacesScreenModel::InstallOutcome` (enum バリアント, #273)
 
 ### 1.3 適用継続検討対象
 
-以下は本規約の適用を継続検討する。
+本規約の継続検討対象は以下のみ。
 
-- **`target::AddResult` (enum)**: 名称が `*Result` だが「成功/失敗のバリアント」を持つ enum で、`Result` 接尾辞ながら例外的に存続。別 Issue で再検討する。
-- **横断利用度の低い `*Result` 型** (`PlaceResult` / `ConversionResult` / `MultiSelectResult` 等): 横断度が低いため Issue #271 では対象外とした。横断利用が増えた段階で本規約に従って再評価する。
-- **`type SyncFooBar = std::result::Result<T, SyncError>` のような型エイリアス** (もし新たに必要になる場合): `Result` 接尾辞を維持してよい (この用途こそが `Result` 接尾辞の本来の意味)。
+- **`type FooResult = std::result::Result<T, FooError>` のような型エイリアス** (新たに必要になる場合):
+  `Result` 接尾辞を維持してよい (この用途こそが `Result` 接尾辞の本来の意味)。
+  例: `src/plugin/lifecycle/intent.rs` の `CreateOperationResult` (= `Result<Option<...>, (TargetId, String)>`)。
+- **テスト内ローカル enum で `Ok/Err` を内包するもの** (例: `MockResult`, `MockFileResult`):
+  Mock 用途として `Result` 接尾辞を許容する。
+- **外部仕様の文字列リテラル** (例: hooks イベント名の `ElicitationResult`):
+  Rust 識別子ではないため対象外。
+
+#259 系で追跡されていた残存 `*Result` 型は #273 で全件解消済み。
 
 ---
 
@@ -166,4 +172,5 @@ pub type Model = InstalledScreenModel;
 - Issue #259-B: 命名方針策定
 - Issue #259-C: リネーム実装
 - Issue #271: 上記 #259-A/B/C を一括対応した Issue
+- Issue #273: #271 で対象外とした残存 `*Result` 型 12 種 + 1 enum バリアントを `*Outcome` に統一
 - Issue #258: 画面 Model 型のリネーム

@@ -98,7 +98,7 @@ flatten 後の参照は `args.output.json`, `args.target.target`, `args.scope.sc
 | --- | --- | --- | --- |
 | `SyncResult` | `src/sync/model/result.rs` | `sync` feature から re-export | sync の戻り値として具体的で維持 |
 | `ConvertResult` | `src/hooks/converter/converter.rs` | hooks converter 内 | converter 処理結果として維持 |
-| `ConversionResult` | `src/component/convert.rs` | component deployment から参照 | command/agent conversion の既存値として維持 |
+| `ConversionResult` → `ConversionOutcome` (#273) | `src/component/convert.rs` | component deployment から参照 | command/agent conversion の既存値として維持。Issue #273 で `ConversionOutcome` にリネーム済み |
 | `OperationResult` | `src/target/effect.rs` | `target` / `application` から re-export | target 操作結果として維持。将来は `OperationOutcome` 候補 |
 | `UpdateResult` | `src/plugin/lifecycle/update.rs` | plugin lifecycle から re-export | lifecycle update の戻り値として維持 |
 | `DeploymentOutput` | `src/component/deployment/output.rs` | component feature から re-export | `Output` 命名例として維持 |
@@ -106,6 +106,11 @@ flatten 後の参照は `args.output.json`, `args.target.target`, `args.scope.sc
 ### 判定
 
 `OperationOutcome = OperationResult` と `UpdateOutcome = UpdateResult` の互換 alias を追加し、呼び出し側の型注釈へ一部導入した。既存 `Result` 系型は互換性のため維持している。
+
+**Update 2026-05-10 (#271 / #273)**:
+- #271 で `OperationOutcome` / `UpdateOutcome` の互換 alias を削除し、concrete struct に統一済み（`OperationResult` / `UpdateResult` は完全消滅）。
+- #273 で残存していたドメイン成果値の `*Result` 型（`AddResult` / `RemoveResult` / `PlaceResult` / `ConversionResult` / `AgentConversionResult` / `VersionQueryResult` / `ExpandResult` / `MultiSelectResult` / `SingleSelectResult` / `PluginInstallResult` / `ActionResult` / `LoadMarketplacesResult` および `MarketplacesScreenModel::InstallResult` バリアント）を `*Outcome` に **clean rename**（互換 alias なし）。
+- 上記表中の旧名（`SyncResult` / `ConvertResult` / `OperationResult` / `UpdateResult` / `ConversionResult`）は #271 / #273 時点で全件 `*Outcome` 系へ置換済み。`Result` 接尾辞は `std::result::Result<T, E>` エイリアス（例: `CreateOperationResult`）など本来の用途のみに残す方針へ移行した。詳細は `docs/architecture/naming-conventions.md` §1.2 / §1.3 を参照。
 
 ## 親Issue同期メモ
 
