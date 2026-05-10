@@ -83,7 +83,7 @@ pub struct MultiSelectOutcome<T> {
 
 /// 単一選択の結果
 #[derive(Debug)]
-pub struct SingleSelectResult<T> {
+pub struct SingleSelectOutcome<T> {
     /// 選択された値
     pub selected: Option<T>,
     /// キャンセルされたかどうか
@@ -202,7 +202,7 @@ pub fn multi_select<T: Clone>(
 pub fn single_select<T: Clone>(
     title: &str,
     items: &[SelectItem<T>],
-) -> io::Result<SingleSelectResult<T>> {
+) -> io::Result<SingleSelectOutcome<T>> {
     terminal::enable_raw_mode()?;
     stdout().execute(EnterAlternateScreen)?;
 
@@ -257,7 +257,7 @@ pub fn single_select<T: Clone>(
             if key.kind == KeyEventKind::Press {
                 match key.code {
                     KeyCode::Char('q') | KeyCode::Esc => {
-                        break SingleSelectResult {
+                        break SingleSelectOutcome {
                             selected: None,
                             cancelled: true,
                         };
@@ -265,7 +265,7 @@ pub fn single_select<T: Clone>(
                     KeyCode::Enter => {
                         if let Some(i) = state.selected() {
                             if items[i].enabled {
-                                break SingleSelectResult {
+                                break SingleSelectOutcome {
                                     selected: Some(items[i].value.clone()),
                                     cancelled: false,
                                 };
