@@ -140,7 +140,7 @@ pub type Model = InstalledScreenModel;
 
 ### 4.4 ガード
 
-`scripts/check-public-screen-model.sh` を CI ジョブ `naming-guard` で実行し、
+`scripts/check-public-screen-model.sh` をローカルで実行し、
 `src/tui/manager/screens/**` 配下に素の `Model` 型が残存していないかを検証する。
 `src/tui/manager/core/**`（アプリ全体 `Model`）は対象外。
 
