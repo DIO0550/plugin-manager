@@ -1,10 +1,10 @@
 //! デプロイ実行結果の型定義
 //!
 //! `ComponentDeployment::execute()` の戻り値として使用される。
-//! `Result` 系名（`std::result::Result` / `ConversionResult`）との混同を避けるため
+//! `Result` 系名（`std::result::Result`）との混同を避けるため
 //! `~Output` 命名を採用している（`std::process::Output` などの慣用に倣う）。
 
-use crate::component::convert::{AgentConversionResult, ConversionResult};
+use crate::component::convert::{AgentConversionResult, ConversionOutcome};
 use crate::hooks::converter::{ConversionWarning, SourceFormat};
 
 /// デプロイ結果
@@ -13,7 +13,7 @@ pub enum DeploymentOutput {
     /// ファイルコピーのみ
     Copied,
     /// Command フォーマット変換が行われた
-    CommandConverted(ConversionResult),
+    CommandConverted(ConversionOutcome),
     /// Agent フォーマット変換が行われた
     AgentConverted(AgentConversionResult),
     /// Hook 変換が行われた

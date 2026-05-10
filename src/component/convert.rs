@@ -50,9 +50,9 @@ impl std::fmt::Display for AgentFormat {
     }
 }
 
-/// Command 変換結果
+/// Command 変換結果（成果レポート）
 #[derive(Debug)]
-pub struct ConversionResult {
+pub struct ConversionOutcome {
     /// 変換が行われたか（false = コピーのみ）
     pub converted: bool,
     /// ソース形式
@@ -100,10 +100,10 @@ pub fn convert_and_write(
     dest_path: &Path,
     source_format: CommandFormat,
     dest_format: CommandFormat,
-) -> Result<ConversionResult> {
+) -> Result<ConversionOutcome> {
     if source_format == dest_format {
         copy_file(source_path, dest_path)?;
-        return Ok(ConversionResult {
+        return Ok(ConversionOutcome {
             converted: false,
             source_format,
             dest_format,
@@ -114,7 +114,7 @@ pub fn convert_and_write(
     let markdown = convert_content(&content, source_format, dest_format)?;
     atomic_write(dest_path, &markdown)?;
 
-    Ok(ConversionResult {
+    Ok(ConversionOutcome {
         converted: true,
         source_format,
         dest_format,

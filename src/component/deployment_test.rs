@@ -1,5 +1,5 @@
 use super::*;
-use crate::component::convert::{AgentFormat, ConversionResult};
+use crate::component::convert::{AgentFormat, ConversionOutcome};
 use crate::component::{CommandFormat, Component, ComponentKind, ConversionConfig, Scope};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -238,7 +238,7 @@ fn test_execute_command_with_conversion() {
 
     // 変換が行われたことを確認
     match result {
-        DeploymentOutput::CommandConverted(ConversionResult {
+        DeploymentOutput::CommandConverted(ConversionOutcome {
             converted,
             source_format,
             dest_format,
