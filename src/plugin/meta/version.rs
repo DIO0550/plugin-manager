@@ -21,7 +21,7 @@ pub struct RemoteVersion {
 /// リモートバージョン取得の結果
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "status", rename_all = "snake_case")]
-pub enum VersionQueryResult {
+pub enum VersionQueryOutcome {
     /// 取得成功
     Found(RemoteVersion),
     /// 取得失敗
@@ -31,7 +31,7 @@ pub enum VersionQueryResult {
     },
 }
 
-impl VersionQueryResult {
+impl VersionQueryOutcome {
     /// 取得成功かどうか
     pub fn is_found(&self) -> bool {
         matches!(self, Self::Found(_))
@@ -84,16 +84,16 @@ pub enum UpgradeState {
 }
 
 impl UpgradeState {
-    /// `PluginMeta` と `VersionQueryResult` から更新可否を判定する。
+    /// `PluginMeta` と `VersionQueryOutcome` から更新可否を判定する。
     ///
     /// # Arguments
     ///
     /// * `meta` - Local plugin metadata used to read the current SHA.
     /// * `result` - Remote version query result to compare against.
-    pub fn from_query(meta: &PluginMeta, result: &VersionQueryResult) -> Self {
+    pub fn from_query(meta: &PluginMeta, result: &VersionQueryOutcome) -> Self {
         let current_sha = meta.commit_sha.clone();
         match result {
-            VersionQueryResult::Found(remote) => {
+            VersionQueryOutcome::Found(remote) => {
                 if current_sha.as_deref() == Some(remote.sha.as_str()) {
                     UpgradeState::Latest {
                         current_sha,
@@ -106,7 +106,7 @@ impl UpgradeState {
                     }
                 }
             }
-            VersionQueryResult::Failed { message } => UpgradeState::Unknown {
+            VersionQueryOutcome::Failed { message } => UpgradeState::Unknown {
                 current_sha,
                 error: message.clone(),
             },
@@ -205,11 +205,11 @@ fn error_message(error: &PlmError) -> String {
 pub async fn fetch_remote_version(
     meta: &PluginMeta,
     client: &dyn HostClient,
-) -> VersionQueryResult {
+) -> VersionQueryOutcome {
     let (owner, name) = match meta.get_source_repo() {
         Some(repo) => repo,
         None => {
-            return VersionQueryResult::Failed {
+            return VersionQueryOutcome::Failed {
                 message: "No repository info".to_string(),
             }
         }
@@ -222,7 +222,7 @@ pub async fn fetch_remote_version(
         None => match client.get_default_branch(&repo_for_default).await {
             Ok(branch) => branch,
             Err(e) => {
-                return VersionQueryResult::Failed {
+                return VersionQueryOutcome::Failed {
                     message: error_message(&e),
                 }
             }
@@ -232,8 +232,8 @@ pub async fn fetch_remote_version(
     let repo = Repo::new(HostKind::GitHub, owner, name, Some(git_ref.clone()));
 
     match client.get_commit_sha(&repo, &git_ref).await {
-        Ok(sha) => VersionQueryResult::Found(RemoteVersion { sha, git_ref }),
-        Err(e) => VersionQueryResult::Failed {
+        Ok(sha) => VersionQueryOutcome::Found(RemoteVersion { sha, git_ref }),
+        Err(e) => VersionQueryOutcome::Failed {
             message: error_message(&e),
         },
     }
@@ -251,7 +251,7 @@ pub async fn fetch_remote_version(
 pub async fn fetch_remote_versions(
     plugins: &[(String, PluginMeta)],
     client: &dyn HostClient,
-) -> Vec<(String, VersionQueryResult)> {
+) -> Vec<(String, VersionQueryOutcome)> {
     let mut results = Vec::with_capacity(plugins.len());
 
     for (name, meta) in plugins {
