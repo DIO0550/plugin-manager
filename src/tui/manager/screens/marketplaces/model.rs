@@ -95,7 +95,7 @@ pub struct BrowsePlugin {
 }
 
 /// プラグインインストール結果（1件分）
-pub struct PluginInstallResult {
+pub struct PluginInstallOutcome {
     pub plugin_name: String,
     pub success: bool,
     pub error: Option<String>,
@@ -103,7 +103,7 @@ pub struct PluginInstallResult {
 
 /// インストールサマリー
 pub struct InstallSummary {
-    pub results: Vec<PluginInstallResult>,
+    pub results: Vec<PluginInstallOutcome>,
     pub total: usize,
     pub succeeded: usize,
     pub failed: usize,

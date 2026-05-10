@@ -509,7 +509,7 @@ fn modal_clears_outer_frame_cells_at_normal_size_for_target_select() {
 
 #[test]
 fn modal_clears_outer_frame_cells_at_normal_size_for_install_result() {
-    use super::{InstallSummary, PluginInstallResult};
+    use super::{InstallSummary, PluginInstallOutcome};
     use ratatui::backend::TestBackend;
     use ratatui::Terminal;
 
@@ -523,7 +523,7 @@ fn modal_clears_outer_frame_cells_at_normal_size_for_install_result() {
         .expect("seed sentinel draw");
 
     let summary = InstallSummary {
-        results: vec![PluginInstallResult {
+        results: vec![PluginInstallOutcome {
             plugin_name: "alpha".to_string(),
             success: true,
             error: None,
