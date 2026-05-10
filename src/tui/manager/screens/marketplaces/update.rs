@@ -781,9 +781,9 @@ fn confirm_scope(model: &mut MarketplacesScreenModel) -> UpdateEffect {
     UpdateEffect::none()
 }
 
-/// BackToPluginBrowse: InstallResult -> PluginBrowse (refresh)
+/// BackToPluginBrowse: InstallOutcome -> PluginBrowse (refresh)
 fn back_to_plugin_browse(model: &mut MarketplacesScreenModel, data: &DataStore) -> UpdateEffect {
-    if !matches!(model, MarketplacesScreenModel::InstallResult { .. }) {
+    if !matches!(model, MarketplacesScreenModel::InstallOutcome { .. }) {
         return UpdateEffect::none();
     }
 
@@ -796,7 +796,7 @@ fn back_to_plugin_browse(model: &mut MarketplacesScreenModel, data: &DataStore) 
         },
     );
 
-    if let MarketplacesScreenModel::InstallResult {
+    if let MarketplacesScreenModel::InstallOutcome {
         marketplace_name, ..
     } = old
     {
@@ -870,7 +870,7 @@ pub(super) fn execute_install_with(
             data.last_error = Some(format!("Failed to reload: {}", e));
         }
 
-        *model = MarketplacesScreenModel::InstallResult {
+        *model = MarketplacesScreenModel::InstallOutcome {
             marketplace_name,
             plugins,
             summary,

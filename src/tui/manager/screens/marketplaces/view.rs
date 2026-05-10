@@ -136,7 +136,7 @@ pub fn view(
         } => {
             view_installing(f, plugin_names, *current_idx, *total);
         }
-        MarketplacesScreenModel::InstallResult { summary, .. } => {
+        MarketplacesScreenModel::InstallOutcome { summary, .. } => {
             view_install_result(f, summary);
         }
     }
