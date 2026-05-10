@@ -8,7 +8,6 @@ mod output;
 mod scope;
 mod target;
 
-#[allow(unused_imports)]
 pub use marketplace::MarketplaceArgs;
 pub use output::ListOutputArgs;
 pub use scope::{InteractiveScopeArgs, SyncScopeArgs};

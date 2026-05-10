@@ -4,6 +4,7 @@
 //! `.plm-meta.json` の `statusByTarget` を更新する。
 
 use crate::application::{enable_plugin, OperationOutcome};
+use crate::commands::args::MarketplaceArgs;
 use crate::plugin::{meta, PackageCache, PackageCacheAccess};
 use clap::{Parser, ValueEnum};
 use std::env;
@@ -32,9 +33,8 @@ pub struct Args {
     #[arg(long, value_enum)]
     pub target: Option<TargetKind>,
 
-    /// Marketplace name (default: github)
-    #[arg(long, short = 'm', default_value = "github")]
-    pub marketplace: String,
+    #[command(flatten)]
+    pub marketplace: MarketplaceArgs,
 }
 
 /// # Arguments
@@ -42,11 +42,12 @@ pub struct Args {
 /// * `args` - Parsed CLI arguments for `plm enable`.
 pub async fn run(args: Args) -> Result<(), String> {
     let cache = PackageCache::new().map_err(|e| format!("Failed to access cache: {}", e))?;
+    let marketplace = args.marketplace.marketplace_or_default();
 
-    if !cache.is_cached(Some(&args.marketplace), &args.name) {
+    if !cache.is_cached(Some(marketplace), &args.name) {
         return Err(format!(
             "Error: Plugin '{}' not found in cache (marketplace: {})",
-            args.name, args.marketplace
+            args.name, marketplace
         ));
     }
 
@@ -56,12 +57,12 @@ pub async fn run(args: Args) -> Result<(), String> {
     let result = enable_plugin(
         &cache,
         &args.name,
-        Some(&args.marketplace),
+        Some(marketplace),
         &project_root,
         target_filter,
     );
 
-    let plugin_path = cache.plugin_path(Some(&args.marketplace), &args.name);
+    let plugin_path = cache.plugin_path(Some(marketplace), &args.name);
     update_status_after_enable(&plugin_path, &result);
 
     if result.success {
