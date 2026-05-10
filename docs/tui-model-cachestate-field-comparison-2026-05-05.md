@@ -66,7 +66,7 @@
 | Marketplaces | browse/install flow | `selected_plugins` | `HashSet<String>` | インストール対象として選択したプラグイン名集合 | no | `marketplaces/model.rs:141-165` |
 | Marketplaces | browse/install flow | `highlighted_idx` | `usize` | ブラウズ/ターゲット/スコープ選択のハイライト位置 | no | `marketplaces/model.rs:141-165` |
 | Marketplaces | `Installing` | `current_idx` / `total` | `usize` | インストール進捗表示用の位置と総数 | no | `marketplaces/model.rs:167-175` |
-| Marketplaces | `InstallResult` | `summary` | `InstallSummary` | インストール結果表示用の集計 | no | `marketplaces/model.rs:97-110`, `marketplaces/model.rs:177-181` |
+| Marketplaces | `InstallOutcome` | `summary` | `InstallSummary` | インストール結果表示用の集計 | no | `marketplaces/model.rs:97-110`, `marketplaces/model.rs:177-181` |
 
 ## 3画面以上の重複候補
 

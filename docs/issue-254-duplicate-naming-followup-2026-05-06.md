@@ -98,7 +98,7 @@ flatten 後の参照は `args.output.json`, `args.target.target`, `args.scope.sc
 | --- | --- | --- | --- |
 | `SyncResult` | `src/sync/model/result.rs` | `sync` feature から re-export | sync の戻り値として具体的で維持 |
 | `ConvertResult` | `src/hooks/converter/converter.rs` | hooks converter 内 | converter 処理結果として維持 |
-| `ConversionResult` | `src/component/convert.rs` | component deployment から参照 | command/agent conversion の既存値として維持 |
+| `ConversionResult` → `ConversionOutcome` (#273) | `src/component/convert.rs` | component deployment から参照 | command/agent conversion の既存値として維持。Issue #273 で `ConversionOutcome` にリネーム済み |
 | `OperationResult` | `src/target/effect.rs` | `target` / `application` から re-export | target 操作結果として維持。将来は `OperationOutcome` 候補 |
 | `UpdateResult` | `src/plugin/lifecycle/update.rs` | plugin lifecycle から re-export | lifecycle update の戻り値として維持 |
 | `DeploymentOutput` | `src/component/deployment/output.rs` | component feature から re-export | `Output` 命名例として維持 |
