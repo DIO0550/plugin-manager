@@ -75,7 +75,7 @@ impl DataStore {
         let cache = PackageCache::new().map_err(|e| io::Error::other(e.to_string()))?;
         let plugins =
             list_installed_plugins(&cache).map_err(|e| io::Error::other(e.to_string()))?;
-        let LoadMarketplacesResult { items, error } = load_marketplaces();
+        let LoadMarketplacesOutcome { items, error } = load_marketplaces();
 
         Ok(Self {
             cache,
@@ -209,17 +209,17 @@ impl DataStore {
 }
 
 /// マーケットプレイスデータ読み込み結果
-struct LoadMarketplacesResult {
+struct LoadMarketplacesOutcome {
     items: Vec<MarketplaceItem>,
     error: Option<String>,
 }
 
 /// マーケットプレイスデータを読み込み
-fn load_marketplaces() -> LoadMarketplacesResult {
+fn load_marketplaces() -> LoadMarketplacesOutcome {
     let config = match MarketplaceConfig::load() {
         Ok(c) => c,
         Err(e) => {
-            return LoadMarketplacesResult {
+            return LoadMarketplacesOutcome {
                 items: Vec::new(),
                 error: Some(format!("Failed to load marketplace config: {}", e)),
             }
@@ -241,7 +241,7 @@ fn load_marketplaces() -> LoadMarketplacesResult {
                     last_updated: None,
                 })
                 .collect();
-            return LoadMarketplacesResult {
+            return LoadMarketplacesOutcome {
                 items,
                 error: Some(format!("Failed to load marketplace registry: {}", e)),
             };
@@ -269,7 +269,7 @@ fn load_marketplaces() -> LoadMarketplacesResult {
         })
         .collect();
 
-    LoadMarketplacesResult { items, error: None }
+    LoadMarketplacesOutcome { items, error: None }
 }
 
 /// 2つのエラーをマージする（既存エラーを保持しつつ新しいエラーを追記）
