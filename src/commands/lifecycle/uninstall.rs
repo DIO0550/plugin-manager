@@ -1,4 +1,5 @@
 use crate::application::{self, UninstallInfo};
+use crate::commands::args::MarketplaceArgs;
 use crate::plugin::PackageCache;
 use clap::Parser;
 use owo_colors::OwoColorize;
@@ -10,9 +11,8 @@ pub struct Args {
     /// プラグイン名（キャッシュディレクトリ名、例: "DIO0550--cc-plugin"）
     pub name: String,
 
-    /// マーケットプレイス（未指定なら "github"）
-    #[arg(long, short = 'm')]
-    pub marketplace: Option<String>,
+    #[command(flatten)]
+    pub marketplace: MarketplaceArgs,
 
     /// 確認プロンプトをスキップ
     #[arg(long, short = 'f')]
@@ -26,8 +26,9 @@ pub async fn run(args: Args) -> Result<(), String> {
     let cache = PackageCache::new().map_err(|e| format!("Failed to access cache: {}", e))?;
     let project_root =
         env::current_dir().map_err(|e| format!("Failed to get current dir: {}", e))?;
+    let marketplace = args.marketplace.marketplace.as_deref();
 
-    let info = application::get_uninstall_info(&cache, &args.name, args.marketplace.as_deref())?;
+    let info = application::get_uninstall_info(&cache, &args.name, marketplace)?;
 
     display_uninstall_info(&info);
 
@@ -36,12 +37,7 @@ pub async fn run(args: Args) -> Result<(), String> {
         return Ok(());
     }
 
-    let result = application::uninstall_plugin(
-        &cache,
-        &args.name,
-        args.marketplace.as_deref(),
-        &project_root,
-    );
+    let result = application::uninstall_plugin(&cache, &args.name, marketplace, &project_root);
 
     if result.success {
         println!(

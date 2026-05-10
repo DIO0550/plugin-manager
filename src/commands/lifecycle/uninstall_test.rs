@@ -5,7 +5,7 @@ use clap::Parser;
 fn test_args_parsing_defaults() {
     let args = Args::parse_from(["uninstall", "my-plugin"]);
     assert_eq!(args.name, "my-plugin");
-    assert_eq!(args.marketplace, None);
+    assert_eq!(args.marketplace.marketplace, None);
     assert!(!args.force);
 }
 
@@ -13,7 +13,7 @@ fn test_args_parsing_defaults() {
 fn test_args_parsing_with_marketplace() {
     let args = Args::parse_from(["uninstall", "my-plugin", "--marketplace", "custom"]);
     assert_eq!(args.name, "my-plugin");
-    assert_eq!(args.marketplace, Some("custom".to_string()));
+    assert_eq!(args.marketplace.marketplace, Some("custom".to_string()));
     assert!(!args.force);
 }
 
@@ -28,7 +28,7 @@ fn test_args_parsing_with_force() {
 fn test_args_parsing_with_short_options() {
     let args = Args::parse_from(["uninstall", "my-plugin", "-m", "custom", "-f"]);
     assert_eq!(args.name, "my-plugin");
-    assert_eq!(args.marketplace, Some("custom".to_string()));
+    assert_eq!(args.marketplace.marketplace, Some("custom".to_string()));
     assert!(args.force);
 }
 
@@ -42,6 +42,6 @@ fn test_args_parsing_with_all_options() {
         "--force",
     ]);
     assert_eq!(args.name, "my-plugin");
-    assert_eq!(args.marketplace, Some("custom".to_string()));
+    assert_eq!(args.marketplace.marketplace, Some("custom".to_string()));
     assert!(args.force);
 }
