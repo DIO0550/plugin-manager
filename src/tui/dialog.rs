@@ -74,7 +74,7 @@ impl<T: Clone> SelectItem<T> {
 
 /// 複数選択の結果
 #[derive(Debug)]
-pub struct MultiSelectResult<T> {
+pub struct MultiSelectOutcome<T> {
     /// 選択された値のリスト
     pub selected: Vec<T>,
     /// キャンセルされたかどうか
@@ -99,7 +99,7 @@ pub struct SingleSelectResult<T> {
 pub fn multi_select<T: Clone>(
     title: &str,
     items: &mut [SelectItem<T>],
-) -> io::Result<MultiSelectResult<T>> {
+) -> io::Result<MultiSelectOutcome<T>> {
     terminal::enable_raw_mode()?;
     stdout().execute(EnterAlternateScreen)?;
 
@@ -151,13 +151,13 @@ pub fn multi_select<T: Clone>(
             if key.kind == KeyEventKind::Press {
                 match key.code {
                     KeyCode::Char('q') | KeyCode::Esc => {
-                        break MultiSelectResult {
+                        break MultiSelectOutcome {
                             selected: vec![],
                             cancelled: true,
                         };
                     }
                     KeyCode::Enter => {
-                        break MultiSelectResult {
+                        break MultiSelectOutcome {
                             selected: items
                                 .iter()
                                 .filter(|i| i.selected && i.enabled)
