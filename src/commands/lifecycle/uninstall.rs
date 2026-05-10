@@ -26,12 +26,9 @@ pub async fn run(args: Args) -> Result<(), String> {
     let cache = PackageCache::new().map_err(|e| format!("Failed to access cache: {}", e))?;
     let project_root =
         env::current_dir().map_err(|e| format!("Failed to get current dir: {}", e))?;
+    let marketplace = args.marketplace.marketplace.as_deref();
 
-    let info = application::get_uninstall_info(
-        &cache,
-        &args.name,
-        args.marketplace.marketplace.as_deref(),
-    )?;
+    let info = application::get_uninstall_info(&cache, &args.name, marketplace)?;
 
     display_uninstall_info(&info);
 
@@ -40,12 +37,7 @@ pub async fn run(args: Args) -> Result<(), String> {
         return Ok(());
     }
 
-    let result = application::uninstall_plugin(
-        &cache,
-        &args.name,
-        args.marketplace.marketplace.as_deref(),
-        &project_root,
-    );
+    let result = application::uninstall_plugin(&cache, &args.name, marketplace, &project_root);
 
     if result.success {
         println!(
