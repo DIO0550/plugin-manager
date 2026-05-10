@@ -7,6 +7,6 @@ mod model;
 mod update;
 mod view;
 
-pub use model::{key_to_msg, CacheState, Model, Model as InstalledModel, Msg};
+pub use model::{key_to_msg, CacheState, InstalledScreenModel, Msg};
 pub use update::update;
 pub use view::view;

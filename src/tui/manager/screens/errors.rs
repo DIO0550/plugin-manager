@@ -10,11 +10,11 @@ use ratatui::prelude::*;
 use ratatui::widgets::{Clear, Paragraph, Tabs};
 
 /// Errors タブの画面状態
-pub struct Model {
+pub struct ErrorsScreenModel {
     // エラー一覧は DataStore.last_error から取得
 }
 
-impl Model {
+impl ErrorsScreenModel {
     /// 新しいモデルを作成
     ///
     /// # Arguments
@@ -46,7 +46,7 @@ pub fn key_to_msg(_key: KeyCode) -> Option<Msg> {
 /// * `_model` - Mutable screen state.
 /// * `_msg` - Incoming message.
 /// * `_data` - Shared data store.
-pub fn update(_model: &mut Model, _msg: Msg, _data: &DataStore) {
+pub fn update(_model: &mut ErrorsScreenModel, _msg: Msg, _data: &DataStore) {
     // 将来の拡張用
 }
 
@@ -61,7 +61,7 @@ pub fn update(_model: &mut Model, _msg: Msg, _data: &DataStore) {
 /// * `filter_focused` - Whether the filter bar has focus.
 pub fn view(
     f: &mut Frame,
-    _model: &Model,
+    _model: &ErrorsScreenModel,
     data: &DataStore,
     filter_text: &str,
     filter_focused: bool,

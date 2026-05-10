@@ -103,7 +103,7 @@ impl DetailAction {
 }
 
 /// Installed タブの画面状態
-pub enum Model {
+pub enum InstalledScreenModel {
     /// プラグイン一覧画面
     PluginList {
         selection: SelectionState<PluginId>,
@@ -142,7 +142,7 @@ pub enum Model {
     },
 }
 
-impl Model {
+impl InstalledScreenModel {
     /// 新しいモデルを作成
     ///
     /// # Arguments
@@ -151,7 +151,7 @@ impl Model {
     pub fn new(data: &DataStore) -> Self {
         let selected_id = data.plugins.first().map(|p| p.id().to_string());
         let selected_index = selected_id.as_ref().map(|_| 0);
-        Model::PluginList {
+        InstalledScreenModel::PluginList {
             selection: SelectionState::new(selected_id, selected_index),
             marked_ids: HashSet::new(),
             update_statuses: HashMap::new(),
@@ -188,7 +188,7 @@ impl Model {
             .cloned()
             .collect();
 
-        Model::PluginList {
+        InstalledScreenModel::PluginList {
             selection: SelectionState::new(selected_id, index),
             marked_ids,
             update_statuses: HashMap::new(),
@@ -198,7 +198,7 @@ impl Model {
     /// キャッシュ状態を取得
     pub fn to_cache(&self) -> CacheState {
         match self {
-            Model::PluginList {
+            InstalledScreenModel::PluginList {
                 selection,
                 marked_ids,
                 ..
@@ -206,7 +206,7 @@ impl Model {
                 selected_plugin_id: selection.selected_id().cloned(),
                 marked_ids: marked_ids.clone(),
             },
-            Model::PluginDetail {
+            InstalledScreenModel::PluginDetail {
                 plugin_id,
                 saved_marked_ids,
                 ..
@@ -214,7 +214,7 @@ impl Model {
                 selected_plugin_id: Some(plugin_id.clone()),
                 marked_ids: saved_marked_ids.clone(),
             },
-            Model::ComponentTypes {
+            InstalledScreenModel::ComponentTypes {
                 plugin_id,
                 saved_marked_ids,
                 ..
@@ -222,7 +222,7 @@ impl Model {
                 selected_plugin_id: Some(plugin_id.clone()),
                 marked_ids: saved_marked_ids.clone(),
             },
-            Model::ComponentList {
+            InstalledScreenModel::ComponentList {
                 plugin_id,
                 saved_marked_ids,
                 ..
@@ -235,16 +235,16 @@ impl Model {
 
     /// トップレベル（タブ切替可能）かどうか
     pub fn is_top_level(&self) -> bool {
-        matches!(self, Model::PluginList { .. })
+        matches!(self, InstalledScreenModel::PluginList { .. })
     }
 
     /// 現在選択中の ListState を取得
     pub fn current_state_mut(&mut self) -> Option<&mut ListState> {
         match self {
-            Model::PluginList { .. } => None,
-            Model::PluginDetail { state, .. } => Some(state),
-            Model::ComponentTypes { state, .. } => Some(state),
-            Model::ComponentList { state, .. } => Some(state),
+            InstalledScreenModel::PluginList { .. } => None,
+            InstalledScreenModel::PluginDetail { state, .. } => Some(state),
+            InstalledScreenModel::ComponentTypes { state, .. } => Some(state),
+            InstalledScreenModel::ComponentList { state, .. } => Some(state),
         }
     }
 }

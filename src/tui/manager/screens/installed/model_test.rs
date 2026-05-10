@@ -1,6 +1,6 @@
 use crossterm::event::KeyCode;
 
-use super::{key_to_msg, CacheState, Model, Msg};
+use super::{key_to_msg, CacheState, InstalledScreenModel, Msg};
 use crate::application::InstalledPlugin;
 use crate::tui::manager::core::DataStore;
 use std::collections::HashSet;
@@ -63,10 +63,10 @@ fn existing_keys_still_work() {
 #[test]
 fn to_cache_preserves_marked_ids() {
     let (_temp_dir, data) = make_data(&["plugin-a", "plugin-b"]);
-    let mut model = Model::new(&data);
+    let mut model = InstalledScreenModel::new(&data);
 
     // マーク状態を設定
-    if let Model::PluginList { marked_ids, .. } = &mut model {
+    if let InstalledScreenModel::PluginList { marked_ids, .. } = &mut model {
         marked_ids.insert("plugin-a".to_string());
     }
 
@@ -86,8 +86,8 @@ fn from_cache_restores_marked_ids() {
         marked_ids: marked,
     };
 
-    let model = Model::from_cache(&data, &cache);
-    if let Model::PluginList { marked_ids, .. } = &model {
+    let model = InstalledScreenModel::from_cache(&data, &cache);
+    if let InstalledScreenModel::PluginList { marked_ids, .. } = &model {
         assert!(marked_ids.contains("plugin-a"));
         assert!(!marked_ids.contains("plugin-b"));
     } else {
@@ -111,8 +111,8 @@ fn from_cache_excludes_missing_plugins_from_marked_ids() {
         marked_ids: marked,
     };
 
-    let model = Model::from_cache(&data, &cache);
-    if let Model::PluginList { marked_ids, .. } = &model {
+    let model = InstalledScreenModel::from_cache(&data, &cache);
+    if let InstalledScreenModel::PluginList { marked_ids, .. } = &model {
         assert!(marked_ids.contains("plugin-a"));
         assert!(
             !marked_ids.contains("deleted-plugin"),

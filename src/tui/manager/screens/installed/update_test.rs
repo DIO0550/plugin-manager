@@ -1,7 +1,9 @@
 use super::{execute_batch_with, update};
 use crate::application::InstalledPlugin;
 use crate::tui::manager::core::{DataStore, PluginKey};
-use crate::tui::manager::screens::installed::model::{Model, Msg, UpdateStatusDisplay};
+use crate::tui::manager::screens::installed::model::{
+    InstalledScreenModel, Msg, UpdateStatusDisplay,
+};
 
 /// スタブ: 全プラグインを Updated として返す
 fn stub_run_updates(keys: &[PluginKey]) -> Vec<(PluginKey, UpdateStatusDisplay)> {
@@ -37,13 +39,13 @@ fn make_data(names: &[&str]) -> (tempfile::TempDir, DataStore) {
 #[test]
 fn toggle_mark_adds_selected_plugin() {
     let (_temp_dir, mut data) = make_data(&["plugin-a", "plugin-b"]);
-    let mut model = Model::new(&data);
+    let mut model = InstalledScreenModel::new(&data);
     let effect = update(&mut model, Msg::ToggleMark, &mut data, "");
 
     assert!(!effect.should_focus_filter);
     assert!(!effect.needs_execute_batch);
 
-    if let Model::PluginList { marked_ids, .. } = &model {
+    if let InstalledScreenModel::PluginList { marked_ids, .. } = &model {
         assert!(marked_ids.contains("plugin-a"));
     } else {
         panic!("Expected PluginList");
@@ -53,14 +55,14 @@ fn toggle_mark_adds_selected_plugin() {
 #[test]
 fn toggle_mark_removes_already_marked_plugin() {
     let (_temp_dir, mut data) = make_data(&["plugin-a", "plugin-b"]);
-    let mut model = Model::new(&data);
+    let mut model = InstalledScreenModel::new(&data);
 
     // 1回目: マーク
     update(&mut model, Msg::ToggleMark, &mut data, "");
     // 2回目: マーク解除
     update(&mut model, Msg::ToggleMark, &mut data, "");
 
-    if let Model::PluginList { marked_ids, .. } = &model {
+    if let InstalledScreenModel::PluginList { marked_ids, .. } = &model {
         assert!(!marked_ids.contains("plugin-a"));
     } else {
         panic!("Expected PluginList");
@@ -74,11 +76,11 @@ fn toggle_mark_removes_already_marked_plugin() {
 #[test]
 fn toggle_all_marks_selects_all_filtered_plugins() {
     let (_temp_dir, mut data) = make_data(&["plugin-a", "plugin-b", "plugin-c"]);
-    let mut model = Model::new(&data);
+    let mut model = InstalledScreenModel::new(&data);
 
     update(&mut model, Msg::ToggleAllMarks, &mut data, "");
 
-    if let Model::PluginList { marked_ids, .. } = &model {
+    if let InstalledScreenModel::PluginList { marked_ids, .. } = &model {
         assert!(marked_ids.contains("plugin-a"));
         assert!(marked_ids.contains("plugin-b"));
         assert!(marked_ids.contains("plugin-c"));
@@ -90,14 +92,14 @@ fn toggle_all_marks_selects_all_filtered_plugins() {
 #[test]
 fn toggle_all_marks_deselects_when_all_marked() {
     let (_temp_dir, mut data) = make_data(&["plugin-a", "plugin-b"]);
-    let mut model = Model::new(&data);
+    let mut model = InstalledScreenModel::new(&data);
 
     // 全選択
     update(&mut model, Msg::ToggleAllMarks, &mut data, "");
     // 全解除
     update(&mut model, Msg::ToggleAllMarks, &mut data, "");
 
-    if let Model::PluginList { marked_ids, .. } = &model {
+    if let InstalledScreenModel::PluginList { marked_ids, .. } = &model {
         assert!(marked_ids.is_empty());
     } else {
         panic!("Expected PluginList");
@@ -107,7 +109,7 @@ fn toggle_all_marks_deselects_when_all_marked() {
 #[test]
 fn toggle_all_marks_preserves_marks_outside_filter() {
     let (_temp_dir, mut data) = make_data(&["alpha", "beta", "gamma"]);
-    let mut model = Model::new(&data);
+    let mut model = InstalledScreenModel::new(&data);
 
     // "alpha" を個別にマーク
     update(&mut model, Msg::ToggleMark, &mut data, "");
@@ -115,7 +117,7 @@ fn toggle_all_marks_preserves_marks_outside_filter() {
     // "beta" でフィルタして全選択（alpha はフィルタ外）
     update(&mut model, Msg::ToggleAllMarks, &mut data, "beta");
 
-    if let Model::PluginList { marked_ids, .. } = &model {
+    if let InstalledScreenModel::PluginList { marked_ids, .. } = &model {
         assert!(
             marked_ids.contains("alpha"),
             "alpha should remain marked (outside filter)"
@@ -136,7 +138,7 @@ fn toggle_all_marks_preserves_marks_outside_filter() {
 #[test]
 fn toggle_all_marks_with_filter_only_deselects_filtered() {
     let (_temp_dir, mut data) = make_data(&["alpha", "beta", "gamma"]);
-    let mut model = Model::new(&data);
+    let mut model = InstalledScreenModel::new(&data);
 
     // 全てマーク（フィルタなし）
     update(&mut model, Msg::ToggleAllMarks, &mut data, "");
@@ -144,7 +146,7 @@ fn toggle_all_marks_with_filter_only_deselects_filtered() {
     // "beta" でフィルタして全解除
     update(&mut model, Msg::ToggleAllMarks, &mut data, "beta");
 
-    if let Model::PluginList { marked_ids, .. } = &model {
+    if let InstalledScreenModel::PluginList { marked_ids, .. } = &model {
         assert!(
             marked_ids.contains("alpha"),
             "alpha should remain marked (outside filter)"
@@ -169,7 +171,7 @@ fn toggle_all_marks_with_filter_only_deselects_filtered() {
 #[test]
 fn batch_update_with_no_marks_is_noop() {
     let (_temp_dir, mut data) = make_data(&["plugin-a"]);
-    let mut model = Model::new(&data);
+    let mut model = InstalledScreenModel::new(&data);
 
     let effect = update(&mut model, Msg::BatchUpdate, &mut data, "");
 
@@ -179,7 +181,7 @@ fn batch_update_with_no_marks_is_noop() {
     );
     assert!(!effect.should_focus_filter);
 
-    if let Model::PluginList {
+    if let InstalledScreenModel::PluginList {
         update_statuses, ..
     } = &model
     {
@@ -192,7 +194,7 @@ fn batch_update_with_no_marks_is_noop() {
 #[test]
 fn batch_update_phase1_sets_updating_and_returns_execute_batch() {
     let (_temp_dir, mut data) = make_data(&["plugin-a", "plugin-b", "plugin-c"]);
-    let mut model = Model::new(&data);
+    let mut model = InstalledScreenModel::new(&data);
 
     // plugin-a と plugin-c をマーク
     update(&mut model, Msg::ToggleMark, &mut data, ""); // mark plugin-a
@@ -209,7 +211,7 @@ fn batch_update_phase1_sets_updating_and_returns_execute_batch() {
     );
     assert!(!effect.should_focus_filter);
 
-    if let Model::PluginList {
+    if let InstalledScreenModel::PluginList {
         update_statuses, ..
     } = &model
     {
@@ -239,14 +241,14 @@ fn batch_update_phase1_sets_updating_and_returns_execute_batch() {
 #[test]
 fn batch_update_phase1_clears_stale_statuses() {
     let (_temp_dir, mut data) = make_data(&["plugin-a", "plugin-b"]);
-    let mut model = Model::new(&data);
+    let mut model = InstalledScreenModel::new(&data);
 
     // plugin-a をマークして Phase 1 実行（stale ステータスを作る）
     update(&mut model, Msg::ToggleMark, &mut data, "");
     update(&mut model, Msg::BatchUpdate, &mut data, "");
 
     // 手動で stale ステータスを残す（Phase 2 後の状態をシミュレート）
-    if let Model::PluginList {
+    if let InstalledScreenModel::PluginList {
         update_statuses,
         marked_ids,
         ..
@@ -263,7 +265,7 @@ fn batch_update_phase1_clears_stale_statuses() {
 
     assert!(effect.needs_execute_batch);
 
-    if let Model::PluginList {
+    if let InstalledScreenModel::PluginList {
         update_statuses, ..
     } = &model
     {
@@ -290,11 +292,11 @@ fn batch_update_phase1_clears_stale_statuses() {
 #[test]
 fn update_now_transitions_to_plugin_list_with_updating_status() {
     let (_temp_dir, mut data) = make_data(&["plugin-a", "plugin-b"]);
-    let mut model = Model::new(&data);
+    let mut model = InstalledScreenModel::new(&data);
 
     // PluginList → PluginDetail に遷移
     update(&mut model, Msg::Enter, &mut data, "");
-    assert!(matches!(model, Model::PluginDetail { .. }));
+    assert!(matches!(model, InstalledScreenModel::PluginDetail { .. }));
 
     // PluginDetail で UpdateNow のインデックスに移動
     // for_enabled(): [Disable, MarkForUpdate, UpdateNow, Uninstall, ViewComponents, Back]
@@ -307,7 +309,7 @@ fn update_now_transitions_to_plugin_list_with_updating_status() {
 
     // PluginList に遷移していること
     assert!(
-        matches!(model, Model::PluginList { .. }),
+        matches!(model, InstalledScreenModel::PluginList { .. }),
         "Should transition to PluginList"
     );
 
@@ -318,7 +320,7 @@ fn update_now_transitions_to_plugin_list_with_updating_status() {
     );
 
     // 対象プラグインに Updating がセットされていること
-    if let Model::PluginList {
+    if let InstalledScreenModel::PluginList {
         update_statuses, ..
     } = &model
     {
@@ -342,7 +344,7 @@ fn update_now_transitions_to_plugin_list_with_updating_status() {
 #[test]
 fn update_now_restores_saved_marks() {
     let (_temp_dir, mut data) = make_data(&["plugin-a", "plugin-b", "plugin-c"]);
-    let mut model = Model::new(&data);
+    let mut model = InstalledScreenModel::new(&data);
 
     // plugin-a をマーク
     update(&mut model, Msg::ToggleMark, &mut data, "");
@@ -358,7 +360,7 @@ fn update_now_restores_saved_marks() {
     update(&mut model, Msg::Enter, &mut data, "");
 
     // マーク状態が復元されていること
-    if let Model::PluginList { marked_ids, .. } = &model {
+    if let InstalledScreenModel::PluginList { marked_ids, .. } = &model {
         assert!(
             marked_ids.contains("plugin-a"),
             "plugin-a mark should be restored"
@@ -371,7 +373,7 @@ fn update_now_restores_saved_marks() {
 #[test]
 fn update_now_returns_execute_batch_effect() {
     let (_temp_dir, mut data) = make_data(&["plugin-a"]);
-    let mut model = Model::new(&data);
+    let mut model = InstalledScreenModel::new(&data);
 
     // PluginList → PluginDetail に遷移
     update(&mut model, Msg::Enter, &mut data, "");
@@ -392,13 +394,13 @@ fn update_now_returns_execute_batch_effect() {
 #[test]
 fn update_now_clears_stale_statuses() {
     let (_temp_dir, mut data) = make_data(&["plugin-a", "plugin-b"]);
-    let mut model = Model::new(&data);
+    let mut model = InstalledScreenModel::new(&data);
 
     // PluginList → PluginDetail に遷移
     update(&mut model, Msg::Enter, &mut data, "");
 
     // saved_update_statuses に stale ステータスを注入
-    if let Model::PluginDetail {
+    if let InstalledScreenModel::PluginDetail {
         saved_update_statuses,
         ..
     } = &mut model
@@ -412,7 +414,7 @@ fn update_now_clears_stale_statuses() {
 
     update(&mut model, Msg::Enter, &mut data, "");
 
-    if let Model::PluginList {
+    if let InstalledScreenModel::PluginList {
         update_statuses, ..
     } = &model
     {
@@ -439,7 +441,7 @@ fn update_now_clears_stale_statuses() {
 #[test]
 fn update_all_sets_all_plugins_to_updating() {
     let (_temp_dir, mut data) = make_data(&["plugin-a", "plugin-b", "plugin-c"]);
-    let mut model = Model::new(&data);
+    let mut model = InstalledScreenModel::new(&data);
 
     let effect = update(&mut model, Msg::UpdateAll, &mut data, "");
 
@@ -448,7 +450,7 @@ fn update_all_sets_all_plugins_to_updating() {
         "UpdateAll should request execute_batch"
     );
 
-    if let Model::PluginList {
+    if let InstalledScreenModel::PluginList {
         update_statuses, ..
     } = &model
     {
@@ -473,14 +475,14 @@ fn update_all_sets_all_plugins_to_updating() {
 #[test]
 fn update_all_ignores_filter() {
     let (_temp_dir, mut data) = make_data(&["alpha", "beta", "gamma"]);
-    let mut model = Model::new(&data);
+    let mut model = InstalledScreenModel::new(&data);
 
     // フィルタありでも全プラグインが Updating になること
     let effect = update(&mut model, Msg::UpdateAll, &mut data, "alpha");
 
     assert!(effect.needs_execute_batch);
 
-    if let Model::PluginList {
+    if let InstalledScreenModel::PluginList {
         update_statuses, ..
     } = &model
     {
@@ -500,7 +502,7 @@ fn update_all_ignores_filter() {
 #[test]
 fn update_all_on_empty_list_does_nothing() {
     let (_temp_dir, mut data) = make_data(&[]);
-    let mut model = Model::new(&data);
+    let mut model = InstalledScreenModel::new(&data);
 
     let effect = update(&mut model, Msg::UpdateAll, &mut data, "");
 
@@ -513,10 +515,10 @@ fn update_all_on_empty_list_does_nothing() {
 #[test]
 fn update_all_clears_stale_statuses() {
     let (_temp_dir, mut data) = make_data(&["plugin-a", "plugin-b"]);
-    let mut model = Model::new(&data);
+    let mut model = InstalledScreenModel::new(&data);
 
     // stale ステータスを手動でセット
-    if let Model::PluginList {
+    if let InstalledScreenModel::PluginList {
         update_statuses, ..
     } = &mut model
     {
@@ -527,7 +529,7 @@ fn update_all_clears_stale_statuses() {
 
     assert!(effect.needs_execute_batch);
 
-    if let Model::PluginList {
+    if let InstalledScreenModel::PluginList {
         update_statuses, ..
     } = &model
     {
@@ -558,11 +560,11 @@ fn update_all_clears_stale_statuses() {
 #[test]
 fn execute_batch_removes_stale_marks_for_nonexistent_plugins() {
     let (_temp_dir, mut data) = make_data(&["plugin-a", "plugin-b"]);
-    let mut model = Model::new(&data);
+    let mut model = InstalledScreenModel::new(&data);
 
     // plugin-a と "plugin-removed"（存在しない）をマーク
     // plugin-a のみ Updating
-    if let Model::PluginList {
+    if let InstalledScreenModel::PluginList {
         marked_ids,
         update_statuses,
         ..
@@ -575,7 +577,7 @@ fn execute_batch_removes_stale_marks_for_nonexistent_plugins() {
 
     execute_batch_with(&mut model, &mut data, "", stub_run_updates, stub_reload);
 
-    if let Model::PluginList { marked_ids, .. } = &model {
+    if let InstalledScreenModel::PluginList { marked_ids, .. } = &model {
         assert!(
             !marked_ids.contains("plugin-removed"),
             "Stale mark for nonexistent plugin should be removed after reload"
@@ -592,10 +594,10 @@ fn execute_batch_removes_stale_marks_for_nonexistent_plugins() {
 #[test]
 fn execute_batch_collects_from_update_statuses() {
     let (_temp_dir, mut data) = make_data(&["plugin-a", "plugin-b", "plugin-c"]);
-    let mut model = Model::new(&data);
+    let mut model = InstalledScreenModel::new(&data);
 
     // update_statuses に直接 Updating をセット（execute_batch はここから収集する）
-    if let Model::PluginList {
+    if let InstalledScreenModel::PluginList {
         update_statuses, ..
     } = &mut model
     {
@@ -606,7 +608,7 @@ fn execute_batch_collects_from_update_statuses() {
     execute_batch_with(&mut model, &mut data, "", stub_run_updates, stub_reload);
 
     // plugin-a と plugin-c に結果が反映されていること（Updated になっている）
-    if let Model::PluginList {
+    if let InstalledScreenModel::PluginList {
         update_statuses, ..
     } = &model
     {
@@ -636,10 +638,10 @@ fn execute_batch_collects_from_update_statuses() {
 #[test]
 fn execute_batch_preserves_marks_when_not_all_marked_are_updated() {
     let (_temp_dir, mut data) = make_data(&["plugin-a", "plugin-b", "plugin-c"]);
-    let mut model = Model::new(&data);
+    let mut model = InstalledScreenModel::new(&data);
 
     // plugin-a と plugin-b をマーク
-    if let Model::PluginList {
+    if let InstalledScreenModel::PluginList {
         marked_ids,
         update_statuses,
         ..
@@ -653,7 +655,7 @@ fn execute_batch_preserves_marks_when_not_all_marked_are_updated() {
 
     execute_batch_with(&mut model, &mut data, "", stub_run_updates, stub_reload);
 
-    if let Model::PluginList { marked_ids, .. } = &model {
+    if let InstalledScreenModel::PluginList { marked_ids, .. } = &model {
         assert!(
             !marked_ids.is_empty(),
             "Marks should be preserved when not all marked plugins are updated"
@@ -670,10 +672,10 @@ fn execute_batch_preserves_marks_when_not_all_marked_are_updated() {
 #[test]
 fn execute_batch_clears_marks_when_all_marked_are_updated() {
     let (_temp_dir, mut data) = make_data(&["plugin-a", "plugin-b"]);
-    let mut model = Model::new(&data);
+    let mut model = InstalledScreenModel::new(&data);
 
     // plugin-a と plugin-b をマーク、両方 Updating
-    if let Model::PluginList {
+    if let InstalledScreenModel::PluginList {
         marked_ids,
         update_statuses,
         ..
@@ -687,7 +689,7 @@ fn execute_batch_clears_marks_when_all_marked_are_updated() {
 
     execute_batch_with(&mut model, &mut data, "", stub_run_updates, stub_reload);
 
-    if let Model::PluginList { marked_ids, .. } = &model {
+    if let InstalledScreenModel::PluginList { marked_ids, .. } = &model {
         assert!(
             marked_ids.is_empty(),
             "Marks should be cleared when all marked plugins are updated"
@@ -700,9 +702,9 @@ fn execute_batch_clears_marks_when_all_marked_are_updated() {
 #[test]
 fn execute_batch_sets_error_on_failed_updates() {
     let (_temp_dir, mut data) = make_data(&["plugin-a"]);
-    let mut model = Model::new(&data);
+    let mut model = InstalledScreenModel::new(&data);
 
-    if let Model::PluginList {
+    if let InstalledScreenModel::PluginList {
         update_statuses, ..
     } = &mut model
     {
@@ -732,7 +734,7 @@ fn execute_batch_sets_error_on_failed_updates() {
         "Error message should contain the failure reason"
     );
 
-    if let Model::PluginList {
+    if let InstalledScreenModel::PluginList {
         update_statuses, ..
     } = &model
     {
@@ -751,9 +753,9 @@ fn execute_batch_sets_error_on_failed_updates() {
 #[test]
 fn execute_batch_handles_reload_error() {
     let (_temp_dir, mut data) = make_data(&["plugin-a"]);
-    let mut model = Model::new(&data);
+    let mut model = InstalledScreenModel::new(&data);
 
-    if let Model::PluginList {
+    if let InstalledScreenModel::PluginList {
         update_statuses, ..
     } = &mut model
     {

@@ -2,7 +2,7 @@
 //!
 //! 各画面状態に応じた描画ロジック。
 
-use super::model::{DetailAction, Model, UpdateStatusDisplay};
+use super::model::{DetailAction, InstalledScreenModel, UpdateStatusDisplay};
 use crate::application::InstalledPlugin;
 use crate::component::ComponentKind;
 use crate::tui::manager::core::layout::{detail_layout, framed_layout, outer_rect};
@@ -51,7 +51,7 @@ fn component_kind_title(kind: ComponentKind) -> &'static str {
 /// * `filter_focused` - Whether the filter bar currently has focus.
 pub fn view(
     f: &mut Frame,
-    model: &Model,
+    model: &InstalledScreenModel,
     data: &DataStore,
     filter_text: &str,
     filter_focused: bool,
@@ -62,7 +62,7 @@ pub fn view(
         filter_focused,
     };
     match model {
-        Model::PluginList {
+        InstalledScreenModel::PluginList {
             selection,
             marked_ids,
             update_statuses,
@@ -76,17 +76,17 @@ pub fn view(
                 update_statuses,
             );
         }
-        Model::PluginDetail {
+        InstalledScreenModel::PluginDetail {
             plugin_id, state, ..
         } => {
             view_plugin_detail(f, plugin_id, *state, &ctx);
         }
-        Model::ComponentTypes {
+        InstalledScreenModel::ComponentTypes {
             plugin_id, state, ..
         } => {
             view_component_types(f, plugin_id, *state, &ctx);
         }
-        Model::ComponentList {
+        InstalledScreenModel::ComponentList {
             plugin_id,
             kind,
             state,

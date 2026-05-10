@@ -12,10 +12,10 @@ fn make_model(filter_focused: bool, top_level: bool) -> (tempfile::TempDir, Mode
     let (temp_dir, data) = DataStore::for_test(vec![], vec![], None);
 
     let screen = if top_level {
-        Screen::Installed(installed::Model::new(&data))
+        Screen::Installed(installed::InstalledScreenModel::new(&data))
     } else {
         // サブ画面: PluginDetail は is_top_level == false
-        Screen::Installed(installed::Model::PluginDetail {
+        Screen::Installed(installed::InstalledScreenModel::PluginDetail {
             plugin_id: "dummy".to_string(),
             state: ratatui::widgets::ListState::default(),
             saved_marked_ids: Default::default(),

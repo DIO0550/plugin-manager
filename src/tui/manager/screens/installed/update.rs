@@ -3,7 +3,7 @@
 //! メッセージに応じた画面状態の更新ロジック。
 
 use super::actions;
-use super::model::{DetailAction, Model, Msg, UpdateStatusDisplay};
+use super::model::{DetailAction, InstalledScreenModel, Msg, UpdateStatusDisplay};
 use crate::tui::manager::core::{filter_plugins, DataStore, PluginKey, SelectionState};
 use ratatui::widgets::ListState;
 use std::collections::{HashMap, HashSet};
@@ -50,7 +50,7 @@ impl UpdateEffect {
 /// * `data` - Shared data store for plugins.
 /// * `filter_text` - Current filter input text.
 pub fn update(
-    model: &mut Model,
+    model: &mut InstalledScreenModel,
     msg: Msg,
     data: &mut DataStore,
     filter_text: &str,
@@ -90,8 +90,8 @@ pub fn update(
 }
 
 /// 個別プラグインのマークをトグル
-fn toggle_mark(model: &mut Model) {
-    if let Model::PluginList {
+fn toggle_mark(model: &mut InstalledScreenModel) {
+    if let InstalledScreenModel::PluginList {
         selection,
         marked_ids,
         ..
@@ -108,8 +108,8 @@ fn toggle_mark(model: &mut Model) {
 }
 
 /// フィルタ済みプラグインの一括マークトグル
-fn toggle_all_marks(model: &mut Model, data: &DataStore, filter_text: &str) {
-    if let Model::PluginList { marked_ids, .. } = model {
+fn toggle_all_marks(model: &mut InstalledScreenModel, data: &DataStore, filter_text: &str) {
+    if let InstalledScreenModel::PluginList { marked_ids, .. } = model {
         let filtered = filter_plugins(&data.plugins, filter_text);
 
         // フィルタ済み全プラグインが既にマーク済みかチェック
@@ -131,8 +131,8 @@ fn toggle_all_marks(model: &mut Model, data: &DataStore, filter_text: &str) {
 }
 
 /// Phase 1: マーク済みプラグインのステータスを Updating にセット
-fn batch_update(model: &mut Model) -> UpdateEffect {
-    if let Model::PluginList {
+fn batch_update(model: &mut InstalledScreenModel) -> UpdateEffect {
+    if let InstalledScreenModel::PluginList {
         marked_ids,
         update_statuses,
         ..
@@ -155,8 +155,8 @@ fn batch_update(model: &mut Model) -> UpdateEffect {
 }
 
 /// Phase 1: 全プラグインのステータスを Updating にセット
-fn update_all(model: &mut Model, data: &DataStore) -> UpdateEffect {
-    if let Model::PluginList {
+fn update_all(model: &mut InstalledScreenModel, data: &DataStore) -> UpdateEffect {
+    if let InstalledScreenModel::PluginList {
         update_statuses, ..
     } = model
     {
@@ -177,7 +177,7 @@ fn update_all(model: &mut Model, data: &DataStore) -> UpdateEffect {
 }
 
 /// Phase 2: 実際のバッチ更新処理を実行
-fn execute_batch(model: &mut Model, data: &mut DataStore, filter_text: &str) {
+fn execute_batch(model: &mut InstalledScreenModel, data: &mut DataStore, filter_text: &str) {
     execute_batch_with(
         model,
         data,
@@ -192,13 +192,13 @@ fn execute_batch(model: &mut Model, data: &mut DataStore, filter_text: &str) {
 /// テストでは `run_updates` と `reload` にスタブを注入して
 /// ファイルシステムアクセスなしで密閉的にテストできる。
 fn execute_batch_with(
-    model: &mut Model,
+    model: &mut InstalledScreenModel,
     data: &mut DataStore,
     filter_text: &str,
     run_updates: impl FnOnce(&[PluginKey]) -> Vec<(PluginKey, UpdateStatusDisplay)>,
     reload: impl FnOnce(&mut DataStore) -> std::io::Result<()>,
 ) {
-    if let Model::PluginList {
+    if let InstalledScreenModel::PluginList {
         marked_ids,
         update_statuses,
         selection,
@@ -279,16 +279,16 @@ fn execute_batch_with(
 /// 選択を上に移動
 ///
 /// 戻り値: `true` ならリスト先頭で↑が押され、フィルタへフォーカス移動すべき
-fn select_prev(model: &mut Model, data: &DataStore, filter_text: &str) -> bool {
+fn select_prev(model: &mut InstalledScreenModel, data: &DataStore, filter_text: &str) -> bool {
     let len = list_len(model, data, filter_text);
     if len == 0 {
         // リストが空の場合もフィルタへフォーカス移動
-        if matches!(model, Model::PluginList { .. }) {
+        if matches!(model, InstalledScreenModel::PluginList { .. }) {
             return true;
         }
         return false;
     }
-    if let Model::PluginList { selection, .. } = model {
+    if let InstalledScreenModel::PluginList { selection, .. } = model {
         let current = selection.selected_index().unwrap_or(0);
         if current == 0 {
             return true;
@@ -313,12 +313,12 @@ fn select_prev(model: &mut Model, data: &DataStore, filter_text: &str) -> bool {
 }
 
 /// 選択を下に移動
-fn select_next(model: &mut Model, data: &DataStore, filter_text: &str) {
+fn select_next(model: &mut InstalledScreenModel, data: &DataStore, filter_text: &str) {
     let len = list_len(model, data, filter_text);
     if len == 0 {
         return;
     }
-    if let Model::PluginList { selection, .. } = model {
+    if let InstalledScreenModel::PluginList { selection, .. } = model {
         let current = selection.selected_index().unwrap_or(0);
         let next = (current + 1).min(len.saturating_sub(1));
         selection.select_index(Some(next));
@@ -336,9 +336,13 @@ fn select_next(model: &mut Model, data: &DataStore, filter_text: &str) {
 }
 
 /// 次の階層へ遷移
-fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) -> UpdateEffect {
+fn enter(
+    model: &mut InstalledScreenModel,
+    data: &mut DataStore,
+    filter_text: &str,
+) -> UpdateEffect {
     match model {
-        Model::PluginList {
+        InstalledScreenModel::PluginList {
             selection,
             marked_ids,
             update_statuses,
@@ -351,7 +355,7 @@ fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) -> UpdateEf
                     let saved_statuses = std::mem::take(update_statuses);
                     let mut new_state = ListState::default();
                     new_state.select(Some(0));
-                    *model = Model::PluginDetail {
+                    *model = InstalledScreenModel::PluginDetail {
                         plugin_id,
                         state: new_state,
                         saved_marked_ids: saved_marked,
@@ -361,7 +365,7 @@ fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) -> UpdateEf
             }
             UpdateEffect::none()
         }
-        Model::PluginDetail {
+        InstalledScreenModel::PluginDetail {
             plugin_id,
             state,
             saved_marked_ids,
@@ -423,7 +427,7 @@ fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) -> UpdateEf
                             } else {
                                 None
                             };
-                            *model = Model::PluginList {
+                            *model = InstalledScreenModel::PluginList {
                                 selection: SelectionState::new(selected_id, new_state.selected()),
                                 marked_ids: restored_marks,
                                 update_statuses: restored_statuses,
@@ -440,7 +444,7 @@ fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) -> UpdateEf
                     let restored_statuses = std::mem::take(saved_update_statuses);
                     let mut new_state = ListState::default();
                     new_state.select(Some(0));
-                    *model = Model::ComponentTypes {
+                    *model = InstalledScreenModel::ComponentTypes {
                         plugin_id: plugin_id.clone(),
                         selected_kind_idx: 0,
                         state: new_state,
@@ -465,7 +469,7 @@ fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) -> UpdateEf
                     } else {
                         None
                     };
-                    *model = Model::PluginList {
+                    *model = InstalledScreenModel::PluginList {
                         selection: SelectionState::new(selected_id, new_state.selected()),
                         marked_ids: restored_marks,
                         update_statuses: restored_statuses,
@@ -492,7 +496,7 @@ fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) -> UpdateEf
                     } else {
                         None
                     };
-                    *model = Model::PluginList {
+                    *model = InstalledScreenModel::PluginList {
                         selection: SelectionState::new(selected_id, new_state.selected()),
                         marked_ids: restored_marks,
                         update_statuses: restored_statuses,
@@ -505,7 +509,7 @@ fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) -> UpdateEf
             }
             UpdateEffect::none()
         }
-        Model::ComponentTypes {
+        InstalledScreenModel::ComponentTypes {
             plugin_id,
             state,
             saved_marked_ids,
@@ -523,7 +527,7 @@ fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) -> UpdateEf
                         let restored_statuses = std::mem::take(saved_update_statuses);
                         let mut new_state = ListState::default();
                         new_state.select(Some(0));
-                        *model = Model::ComponentList {
+                        *model = InstalledScreenModel::ComponentList {
                             plugin_id: plugin_id.clone(),
                             kind,
                             selected_idx: 0,
@@ -536,7 +540,7 @@ fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) -> UpdateEf
             }
             UpdateEffect::none()
         }
-        Model::ComponentList { .. } => {
+        InstalledScreenModel::ComponentList { .. } => {
             // 最下層なので何もしない
             UpdateEffect::none()
         }
@@ -544,12 +548,12 @@ fn enter(model: &mut Model, data: &mut DataStore, filter_text: &str) -> UpdateEf
 }
 
 /// 前の階層へ戻る
-fn back(model: &mut Model, filter_text: &str, data: &DataStore) {
+fn back(model: &mut InstalledScreenModel, filter_text: &str, data: &DataStore) {
     match model {
-        Model::PluginList { .. } => {
+        InstalledScreenModel::PluginList { .. } => {
             // PluginList での Back は app.rs で Quit 処理される
         }
-        Model::PluginDetail {
+        InstalledScreenModel::PluginDetail {
             plugin_id,
             saved_marked_ids,
             saved_update_statuses,
@@ -571,13 +575,13 @@ fn back(model: &mut Model, filter_text: &str, data: &DataStore) {
             } else {
                 None
             };
-            *model = Model::PluginList {
+            *model = InstalledScreenModel::PluginList {
                 selection: SelectionState::new(selected_id, new_state.selected()),
                 marked_ids: restored_marks,
                 update_statuses: restored_statuses,
             };
         }
-        Model::ComponentTypes {
+        InstalledScreenModel::ComponentTypes {
             plugin_id,
             saved_marked_ids,
             saved_update_statuses,
@@ -589,14 +593,14 @@ fn back(model: &mut Model, filter_text: &str, data: &DataStore) {
             let restored_statuses = std::mem::take(saved_update_statuses);
             let mut new_state = ListState::default();
             new_state.select(Some(0));
-            *model = Model::PluginDetail {
+            *model = InstalledScreenModel::PluginDetail {
                 plugin_id,
                 state: new_state,
                 saved_marked_ids: restored_marks,
                 saved_update_statuses: restored_statuses,
             };
         }
-        Model::ComponentList {
+        InstalledScreenModel::ComponentList {
             plugin_id,
             saved_marked_ids,
             saved_update_statuses,
@@ -608,7 +612,7 @@ fn back(model: &mut Model, filter_text: &str, data: &DataStore) {
             let restored_statuses = std::mem::take(saved_update_statuses);
             let mut new_state = ListState::default();
             new_state.select(Some(0));
-            *model = Model::ComponentTypes {
+            *model = InstalledScreenModel::ComponentTypes {
                 plugin_id,
                 selected_kind_idx: 0,
                 state: new_state,
@@ -620,21 +624,21 @@ fn back(model: &mut Model, filter_text: &str, data: &DataStore) {
 }
 
 /// 現在の画面のリスト長を取得
-fn list_len(model: &Model, data: &DataStore, filter_text: &str) -> usize {
+fn list_len(model: &InstalledScreenModel, data: &DataStore, filter_text: &str) -> usize {
     match model {
-        Model::PluginList { .. } => filter_plugins(&data.plugins, filter_text).len(),
-        Model::PluginDetail { plugin_id, .. } => {
+        InstalledScreenModel::PluginList { .. } => filter_plugins(&data.plugins, filter_text).len(),
+        InstalledScreenModel::PluginDetail { plugin_id, .. } => {
             let enabled = data.find_plugin(plugin_id).is_some_and(|p| p.enabled());
             DetailAction::for_plugin(enabled).len()
         }
-        Model::ComponentTypes { plugin_id, .. } => {
+        InstalledScreenModel::ComponentTypes { plugin_id, .. } => {
             if let Some(plugin) = data.find_plugin(plugin_id) {
                 data.available_component_kinds(plugin).len().max(1)
             } else {
                 0
             }
         }
-        Model::ComponentList {
+        InstalledScreenModel::ComponentList {
             plugin_id, kind, ..
         } => {
             if let Some(plugin) = data.find_plugin(plugin_id) {
@@ -647,8 +651,8 @@ fn list_len(model: &Model, data: &DataStore, filter_text: &str) -> usize {
 }
 
 /// selected_id を現在のインデックスから更新
-fn update_selected_id(model: &mut Model, data: &DataStore, filter_text: &str) {
-    if let Model::PluginList { selection, .. } = model {
+fn update_selected_id(model: &mut InstalledScreenModel, data: &DataStore, filter_text: &str) {
+    if let InstalledScreenModel::PluginList { selection, .. } = model {
         if let Some(idx) = selection.selected_index() {
             let filtered = filter_plugins(&data.plugins, filter_text);
             selection.set(filtered.get(idx).map(|p| p.id().to_string()), Some(idx));
