@@ -13,19 +13,19 @@ use std::path::Path;
 
 /// アクション実行結果
 #[derive(Debug)]
-pub enum ActionResult {
+pub enum ActionOutcome {
     /// 成功
     Success,
     /// エラー
     Error(String),
 }
 
-impl From<application::OperationOutcome> for ActionResult {
+impl From<application::OperationOutcome> for ActionOutcome {
     fn from(result: application::OperationOutcome) -> Self {
         if result.success {
-            ActionResult::Success
+            ActionOutcome::Success
         } else {
-            ActionResult::Error(result.error.unwrap_or_else(|| "Unknown error".to_string()))
+            ActionOutcome::Error(result.error.unwrap_or_else(|| "Unknown error".to_string()))
         }
     }
 }
@@ -41,10 +41,10 @@ fn new_cache() -> Result<PackageCache, String> {
 ///
 /// * `plugin_name` - Target plugin id.
 /// * `marketplace` - Optional marketplace name the plugin belongs to.
-pub fn disable_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionResult {
+pub fn disable_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionOutcome {
     let cache = match new_cache() {
         Ok(c) => c,
-        Err(e) => return ActionResult::Error(e),
+        Err(e) => return ActionOutcome::Error(e),
     };
     let project_root = env::current_dir().unwrap_or_else(|_| ".".into());
     application::disable_plugin(&cache, plugin_name, marketplace, &project_root, None).into()
@@ -56,10 +56,10 @@ pub fn disable_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionRes
 ///
 /// * `plugin_name` - Target plugin id.
 /// * `marketplace` - Optional marketplace name the plugin belongs to.
-pub fn uninstall_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionResult {
+pub fn uninstall_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionOutcome {
     let cache = match new_cache() {
         Ok(c) => c,
-        Err(e) => return ActionResult::Error(e),
+        Err(e) => return ActionOutcome::Error(e),
     };
     let project_root = env::current_dir().unwrap_or_else(|_| ".".into());
     application::uninstall_plugin(&cache, plugin_name, marketplace, &project_root).into()
@@ -71,10 +71,10 @@ pub fn uninstall_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionR
 ///
 /// * `plugin_name` - Target plugin id.
 /// * `marketplace` - Optional marketplace name the plugin belongs to.
-pub fn enable_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionResult {
+pub fn enable_plugin(plugin_name: &str, marketplace: Option<&str>) -> ActionOutcome {
     let cache = match new_cache() {
         Ok(c) => c,
-        Err(e) => return ActionResult::Error(e),
+        Err(e) => return ActionOutcome::Error(e),
     };
     let project_root = env::current_dir().unwrap_or_else(|_| ".".into());
     application::enable_plugin(&cache, plugin_name, marketplace, &project_root, None).into()

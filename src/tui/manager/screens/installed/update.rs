@@ -387,10 +387,10 @@ fn enter(
                     // Disable: デプロイ先から削除、キャッシュは残す
                     let result = actions::disable_plugin(plugin_id, marketplace.as_deref());
                     match result {
-                        actions::ActionResult::Success => {
+                        actions::ActionOutcome::Success => {
                             data.set_plugin_enabled(plugin_id, false);
                         }
-                        actions::ActionResult::Error(e) => {
+                        actions::ActionOutcome::Error(e) => {
                             data.last_error = Some(e);
                         }
                     }
@@ -399,10 +399,10 @@ fn enter(
                     // Enable: キャッシュからデプロイ先に配置
                     let result = actions::enable_plugin(plugin_id, marketplace.as_deref());
                     match result {
-                        actions::ActionResult::Success => {
+                        actions::ActionOutcome::Success => {
                             data.set_plugin_enabled(plugin_id, true);
                         }
-                        actions::ActionResult::Error(e) => {
+                        actions::ActionOutcome::Error(e) => {
                             data.last_error = Some(e);
                         }
                     }
@@ -411,7 +411,7 @@ fn enter(
                     // Uninstall: デプロイ先 + キャッシュ削除
                     let result = actions::uninstall_plugin(plugin_id, marketplace.as_deref());
                     match result {
-                        actions::ActionResult::Success => {
+                        actions::ActionOutcome::Success => {
                             let uninstalled_id = plugin_id.clone();
                             let mut restored_marks = std::mem::take(saved_marked_ids);
                             let mut restored_statuses = std::mem::take(saved_update_statuses);
@@ -433,7 +433,7 @@ fn enter(
                                 update_statuses: restored_statuses,
                             };
                         }
-                        actions::ActionResult::Error(e) => {
+                        actions::ActionOutcome::Error(e) => {
                             data.last_error = Some(e);
                         }
                     }
