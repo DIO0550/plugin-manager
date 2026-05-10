@@ -23,7 +23,7 @@ type CreateOperationResult =
 
 /// `expand()` の結果
 #[derive(Debug)]
-pub struct ExpandResult {
+pub struct ExpandOutcome {
     /// 正常に生成されたファイル操作
     pub operations: Vec<(TargetId, FileOperation)>,
     /// パス検証エラー（ターゲットID, エラーメッセージ）
@@ -94,8 +94,8 @@ impl PluginIntent {
     /// パスの検証や正規化などに伴い、ファイルシステムを参照することがある。
     /// target_filter が設定されている場合は、そのターゲットのみを対象とする。
     ///
-    /// パス検証エラーが発生した場合は `ExpandResult::validation_errors` に記録される。
-    pub fn expand(&self) -> ExpandResult {
+    /// パス検証エラーが発生した場合は `ExpandOutcome::validation_errors` に記録される。
+    pub fn expand(&self) -> ExpandOutcome {
         let targets = all_targets();
         let origin =
             PluginOrigin::from_cached_plugin(self.action.marketplace(), self.action.plugin_name());
@@ -116,14 +116,14 @@ impl PluginIntent {
             }
         }
 
-        ExpandResult {
+        ExpandOutcome {
             operations,
             validation_errors,
         }
     }
 
     /// ドライラン: 実行予定の操作を確認
-    pub fn dry_run(&self) -> ExpandResult {
+    pub fn dry_run(&self) -> ExpandOutcome {
         self.expand()
     }
 
@@ -199,22 +199,22 @@ impl PluginIntent {
 ///
 /// # Arguments
 ///
-/// * `expand_result` - pre-computed operations and validation errors from `expand`
+/// * `expand_outcome` - pre-computed operations and validation errors from `expand`
 /// * `_project_root` - project root (currently unused but retained for future scoping needs)
-fn execute_file_operations(expand_result: ExpandResult, _project_root: &Path) -> OperationOutcome {
+fn execute_file_operations(expand_outcome: ExpandOutcome, _project_root: &Path) -> OperationOutcome {
     use crate::path_ext::PathExt;
 
     let fs = RealFs;
     let mut affected = AffectedTargets::new();
 
-    for (target_id, msg) in expand_result.validation_errors {
+    for (target_id, msg) in expand_outcome.validation_errors {
         affected.record_error(target_id.as_str(), msg);
     }
 
     let mut by_target: std::collections::HashMap<TargetId, Vec<FileOperation>> =
         std::collections::HashMap::new();
 
-    for (target_id, op) in expand_result.operations {
+    for (target_id, op) in expand_outcome.operations {
         by_target.entry(target_id).or_default().push(op);
     }
 
