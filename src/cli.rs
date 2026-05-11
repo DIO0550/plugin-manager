@@ -22,13 +22,15 @@ Supported environments:
 
 Install plugins from GitHub or marketplaces, manage their lifecycle, and keep them synchronized across environments."#
 )]
+#[command(subcommand_required = false, arg_required_else_help = false)]
 pub struct Cli {
     /// Show detailed error information including cause and remediation
     #[arg(long, global = true)]
     pub verbose: bool,
 
+    /// 省略時はデフォルトで managed TUI を起動する（非TTYなら --help を出して終了）。
     #[command(subcommand)]
-    pub command: Command,
+    pub command: Option<Command>,
 }
 
 #[derive(Debug, Subcommand)]
