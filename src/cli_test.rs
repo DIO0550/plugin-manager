@@ -1,12 +1,14 @@
 //! CLI help output integration tests
 
+use super::{Cli, Command as CliCommand};
 use assert_cmd::prelude::*;
+use clap::Parser;
 use predicates::prelude::*;
-use std::process::Command;
+use std::process::Command as ProcessCommand;
 
 #[test]
 fn test_root_help() {
-    Command::cargo_bin("plm")
+    ProcessCommand::cargo_bin("plm")
         .unwrap()
         .arg("--help")
         .assert()
@@ -16,7 +18,7 @@ fn test_root_help() {
 
 #[test]
 fn test_target_help() {
-    Command::cargo_bin("plm")
+    ProcessCommand::cargo_bin("plm")
         .unwrap()
         .args(["target", "--help"])
         .assert()
@@ -26,7 +28,7 @@ fn test_target_help() {
 
 #[test]
 fn test_marketplace_help() {
-    Command::cargo_bin("plm")
+    ProcessCommand::cargo_bin("plm")
         .unwrap()
         .args(["marketplace", "--help"])
         .assert()
@@ -36,7 +38,7 @@ fn test_marketplace_help() {
 
 #[test]
 fn test_install_help() {
-    Command::cargo_bin("plm")
+    ProcessCommand::cargo_bin("plm")
         .unwrap()
         .args(["install", "--help"])
         .assert()
@@ -46,7 +48,7 @@ fn test_install_help() {
 
 #[test]
 fn test_list_help() {
-    Command::cargo_bin("plm")
+    ProcessCommand::cargo_bin("plm")
         .unwrap()
         .args(["list", "--help"])
         .assert()
@@ -56,7 +58,7 @@ fn test_list_help() {
 
 #[test]
 fn test_info_help() {
-    Command::cargo_bin("plm")
+    ProcessCommand::cargo_bin("plm")
         .unwrap()
         .args(["info", "--help"])
         .assert()
@@ -66,7 +68,7 @@ fn test_info_help() {
 
 #[test]
 fn test_enable_help() {
-    Command::cargo_bin("plm")
+    ProcessCommand::cargo_bin("plm")
         .unwrap()
         .args(["enable", "--help"])
         .assert()
@@ -76,7 +78,7 @@ fn test_enable_help() {
 
 #[test]
 fn test_disable_help() {
-    Command::cargo_bin("plm")
+    ProcessCommand::cargo_bin("plm")
         .unwrap()
         .args(["disable", "--help"])
         .assert()
@@ -86,7 +88,7 @@ fn test_disable_help() {
 
 #[test]
 fn test_uninstall_help() {
-    Command::cargo_bin("plm")
+    ProcessCommand::cargo_bin("plm")
         .unwrap()
         .args(["uninstall", "--help"])
         .assert()
@@ -96,7 +98,7 @@ fn test_uninstall_help() {
 
 #[test]
 fn test_update_help() {
-    Command::cargo_bin("plm")
+    ProcessCommand::cargo_bin("plm")
         .unwrap()
         .args(["update", "--help"])
         .assert()
@@ -106,7 +108,7 @@ fn test_update_help() {
 
 #[test]
 fn test_init_help() {
-    Command::cargo_bin("plm")
+    ProcessCommand::cargo_bin("plm")
         .unwrap()
         .args(["init", "--help"])
         .assert()
@@ -116,7 +118,7 @@ fn test_init_help() {
 
 #[test]
 fn test_sync_help() {
-    Command::cargo_bin("plm")
+    ProcessCommand::cargo_bin("plm")
         .unwrap()
         .args(["sync", "--help"])
         .assert()
@@ -126,7 +128,7 @@ fn test_sync_help() {
 
 #[test]
 fn test_import_help() {
-    Command::cargo_bin("plm")
+    ProcessCommand::cargo_bin("plm")
         .unwrap()
         .args(["import", "--help"])
         .assert()
@@ -138,7 +140,7 @@ fn test_import_help() {
 
 #[test]
 fn test_install_scope_help_mentions_tui_selection() {
-    Command::cargo_bin("plm")
+    ProcessCommand::cargo_bin("plm")
         .unwrap()
         .args(["install", "--help"])
         .assert()
@@ -150,7 +152,7 @@ fn test_install_scope_help_mentions_tui_selection() {
 
 #[test]
 fn test_import_scope_help_mentions_tui_selection() {
-    Command::cargo_bin("plm")
+    ProcessCommand::cargo_bin("plm")
         .unwrap()
         .args(["import", "--help"])
         .assert()
@@ -162,7 +164,7 @@ fn test_import_scope_help_mentions_tui_selection() {
 
 #[test]
 fn test_sync_scope_help_mentions_both_default() {
-    Command::cargo_bin("plm")
+    ProcessCommand::cargo_bin("plm")
         .unwrap()
         .args(["sync", "--help"])
         .assert()
@@ -174,7 +176,7 @@ fn test_sync_scope_help_mentions_both_default() {
 
 #[test]
 fn test_list_json_conflicts_with_simple() {
-    Command::cargo_bin("plm")
+    ProcessCommand::cargo_bin("plm")
         .unwrap()
         .args(["list", "--json", "--simple"])
         .assert()
@@ -186,7 +188,7 @@ fn test_list_json_conflicts_with_simple() {
 
 #[test]
 fn test_list_outdated_conflicts_with_simple() {
-    Command::cargo_bin("plm")
+    ProcessCommand::cargo_bin("plm")
         .unwrap()
         .args(["list", "--outdated", "--simple"])
         .assert()
@@ -198,9 +200,61 @@ fn test_list_outdated_conflicts_with_simple() {
 
 #[test]
 fn test_list_outdated_allows_json() {
-    Command::cargo_bin("plm")
+    ProcessCommand::cargo_bin("plm")
         .unwrap()
         .args(["list", "--outdated", "--json"])
         .assert()
         .success();
+}
+
+#[test]
+fn cli_no_args_yields_command_none() {
+    let cli = Cli::try_parse_from(["plm"]).expect("plm 単体起動はパース成功する");
+    assert!(cli.command.is_none());
+    assert!(!cli.verbose);
+}
+
+#[test]
+fn cli_verbose_only_yields_command_none() {
+    let cli =
+        Cli::try_parse_from(["plm", "--verbose"]).expect("plm --verbose 単体起動はパース成功する");
+    assert!(cli.command.is_none());
+    assert!(cli.verbose);
+}
+
+#[test]
+fn cli_managed_explicit_yields_command_managed() {
+    let cli = Cli::try_parse_from(["plm", "managed"]).expect("plm managed はパース成功する");
+    assert!(matches!(cli.command, Some(CliCommand::Managed)));
+}
+
+#[test]
+fn cli_install_subcommand_still_parses() {
+    let cli = Cli::try_parse_from(["plm", "install", "owner/repo"])
+        .expect("plm install owner/repo はパース成功する");
+    assert!(matches!(cli.command, Some(CliCommand::Install(_))));
+}
+
+#[test]
+fn cli_unknown_flag_still_errors() {
+    let result = Cli::try_parse_from(["plm", "--no-such-flag"]);
+    assert!(result.is_err(), "未知フラグは従来通り clap エラー");
+}
+
+#[test]
+fn cli_help_flag_exits_via_clap() {
+    let err = Cli::try_parse_from(["plm", "--help"]).unwrap_err();
+    assert_eq!(err.kind(), clap::error::ErrorKind::DisplayHelp);
+}
+
+#[test]
+fn cli_version_flag_still_errors() {
+    let result = Cli::try_parse_from(["plm", "--version"]);
+    assert!(result.is_err(), "--version は従来通り未知引数エラー");
+}
+
+#[test]
+fn cli_managed_help_displays_help() {
+    let err = Cli::try_parse_from(["plm", "managed", "--help"]).unwrap_err();
+    assert_eq!(err.kind(), clap::error::ErrorKind::DisplayHelp);
 }
