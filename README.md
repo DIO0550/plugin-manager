@@ -19,10 +19,53 @@ A unified CLI tool for managing plugins across AI coding assistants (OpenAI Code
 
 ## Installation
 
+### Install Script (Linux / macOS)
+
+The fastest way is the install script, which downloads the matching prebuilt binary from [GitHub Releases](https://github.com/DIO0550/plugin-manager/releases) and places it under `~/.local/bin`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/DIO0550/plugin-manager/main/scripts/install.sh | sh
+```
+
+Options via environment variables:
+
+```bash
+# Install a specific version
+PLM_VERSION=v0.5.0 curl -fsSL https://raw.githubusercontent.com/DIO0550/plugin-manager/main/scripts/install.sh | sh
+
+# Install to a custom directory
+PLM_INSTALL_DIR=/usr/local/bin curl -fsSL https://raw.githubusercontent.com/DIO0550/plugin-manager/main/scripts/install.sh | sudo -E sh
+```
+
+If the install directory is not on your `PATH`, the script prints the line to add to your shell profile.
+
+### Manual Download
+
+Download the archive for your platform from the [Releases page](https://github.com/DIO0550/plugin-manager/releases) and extract the `plm` binary:
+
+```bash
+# Example: Linux x86_64
+VERSION=v0.5.0
+curl -fsSL -o plm.tar.gz \
+  "https://github.com/DIO0550/plugin-manager/releases/download/${VERSION}/plm-${VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+tar xzf plm.tar.gz
+install -m 0755 plm ~/.local/bin/plm
+```
+
+Available targets:
+
+| OS | Architecture | Asset suffix |
+|----|--------------|--------------|
+| Linux  | x86_64  | `x86_64-unknown-linux-gnu.tar.gz` |
+| Linux  | aarch64 | `aarch64-unknown-linux-gnu.tar.gz` |
+| macOS  | x86_64  | `x86_64-apple-darwin.tar.gz` |
+| macOS  | aarch64 | `aarch64-apple-darwin.tar.gz` |
+| Windows | x86_64 | `x86_64-pc-windows-gnu.zip` |
+
 ### From Source
 
 ```bash
-git clone https://github.com/your-org/plugin-manager.git
+git clone https://github.com/DIO0550/plugin-manager.git
 cd plugin-manager
 cargo build --release
 ```
@@ -31,7 +74,7 @@ The binary will be available at `target/release/plm`.
 
 ### Requirements
 
-- Rust 2021 edition or later
+- Rust 2021 edition or later (only for building from source)
 - Git (for plugin downloads)
 
 ## Quick Start
