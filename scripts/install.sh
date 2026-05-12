@@ -7,12 +7,17 @@
 # Environment variables:
 #   PLM_VERSION      Release tag to install (e.g. "v0.5.0"). Defaults to the latest release.
 #   PLM_INSTALL_DIR  Directory to place the `plm` binary. Defaults to "$HOME/.local/bin".
-#   PLM_REPO         GitHub "owner/repo". Defaults to "DIO0550/plugin-manager".
 #   PLM_NO_MODIFY_PATH  If set to "1", skip appending PATH to your shell profile.
+#
+# The upstream repository is pinned: this script always downloads from
+# DIO0550/plugin-manager so that a fork cannot redirect installs to its own
+# Releases (e.g. by mirroring this file and setting PLM_REPO).
 
 set -eu
 
-REPO="${PLM_REPO:-DIO0550/plugin-manager}"
+# Pinned upstream repository. Do not override via environment.
+REPO="DIO0550/plugin-manager"
+
 INSTALL_DIR="${PLM_INSTALL_DIR:-$HOME/.local/bin}"
 VERSION="${PLM_VERSION:-}"
 
