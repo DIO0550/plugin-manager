@@ -19,10 +19,53 @@ AIコーディングアシスタント（OpenAI Codex、VSCode Copilot、Google 
 
 ## インストール
 
+### インストールスクリプト（Linux / macOS）
+
+最も簡単な方法は、[GitHub Releases](https://github.com/DIO0550/plugin-manager/releases) からプラットフォームに合ったビルド済みバイナリをダウンロードして `~/.local/bin` に配置するインストールスクリプトです：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/DIO0550/plugin-manager/main/scripts/install.sh | sh
+```
+
+環境変数でカスタマイズ可能：
+
+```bash
+# 特定のバージョンをインストール
+PLM_VERSION=v0.5.0 curl -fsSL https://raw.githubusercontent.com/DIO0550/plugin-manager/main/scripts/install.sh | sh
+
+# 配置先ディレクトリを変更
+PLM_INSTALL_DIR=/usr/local/bin curl -fsSL https://raw.githubusercontent.com/DIO0550/plugin-manager/main/scripts/install.sh | sudo -E sh
+```
+
+配置先ディレクトリが `PATH` に含まれていない場合、スクリプトが `$SHELL` を見て `.bashrc` / `.zshrc` / `~/.config/fish/config.fish` のいずれかに `export PATH=...` 行を自動追記します（冪等）。`PLM_NO_MODIFY_PATH=1` を設定すると追記をスキップし、追記行を表示するだけになります。
+
+### 手動ダウンロード
+
+[Releases ページ](https://github.com/DIO0550/plugin-manager/releases) からアーカイブをダウンロードして `plm` バイナリを展開してください：
+
+```bash
+# 例: Linux x86_64
+VERSION=v0.5.0
+curl -fsSL -o plm.tar.gz \
+  "https://github.com/DIO0550/plugin-manager/releases/download/${VERSION}/plm-${VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+tar xzf plm.tar.gz
+install -m 0755 plm ~/.local/bin/plm
+```
+
+対応ターゲット：
+
+| OS | アーキテクチャ | アセット拡張子 |
+|----|----------------|----------------|
+| Linux  | x86_64  | `x86_64-unknown-linux-gnu.tar.gz` |
+| Linux  | aarch64 | `aarch64-unknown-linux-gnu.tar.gz` |
+| macOS  | x86_64  | `x86_64-apple-darwin.tar.gz` |
+| macOS  | aarch64 | `aarch64-apple-darwin.tar.gz` |
+| Windows | x86_64 | `x86_64-pc-windows-gnu.zip` |
+
 ### ソースからビルド
 
 ```bash
-git clone https://github.com/your-org/plugin-manager.git
+git clone https://github.com/DIO0550/plugin-manager.git
 cd plugin-manager
 cargo build --release
 ```
@@ -31,7 +74,7 @@ cargo build --release
 
 ### 必要要件
 
-- Rust 2021 エディション以降
+- Rust 2021 エディション以降（ソースからビルドする場合のみ）
 - Git（プラグインダウンロード用）
 
 ## クイックスタート
