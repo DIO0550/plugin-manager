@@ -8,6 +8,7 @@
 #   PLM_VERSION      Release tag to install (e.g. "v0.5.0"). Defaults to the latest release.
 #   PLM_INSTALL_DIR  Directory to place the `plm` binary. Defaults to "$HOME/.local/bin".
 #   PLM_REPO         GitHub "owner/repo". Defaults to "DIO0550/plugin-manager".
+#   PLM_NO_MODIFY_PATH  If set to "1", skip appending PATH to your shell profile.
 
 set -eu
 
@@ -92,27 +93,78 @@ main() {
   case ":${PATH:-}:" in
     *":${INSTALL_DIR}:"*)
       info "PATH already contains ${INSTALL_DIR}. Run \`${BINARY_NAME} --version\` to verify."
-      ;;
-    *)
-      warn "${INSTALL_DIR} is not in your PATH."
-      shell_name=$(basename "${SHELL:-}")
-      case "$shell_name" in
-        bash) rc="$HOME/.bashrc" ;;
-        zsh)  rc="$HOME/.zshrc" ;;
-        fish) rc="$HOME/.config/fish/config.fish" ;;
-        *)    rc="" ;;
-      esac
-      printf '\n    Add the following line to your shell profile:\n\n'
-      if [ "$shell_name" = "fish" ]; then
-        printf '        fish_add_path %s\n\n' "$INSTALL_DIR"
-      else
-        printf '        export PATH="%s:$PATH"\n\n' "$INSTALL_DIR"
-      fi
-      if [ -n "$rc" ]; then
-        printf '    Example:\n        echo '\''export PATH="%s:$PATH"'\'' >> %s\n\n' "$INSTALL_DIR" "$rc"
-      fi
+      return 0
       ;;
   esac
+
+  if [ "${PLM_NO_MODIFY_PATH:-0}" = "1" ]; then
+    warn "${INSTALL_DIR} is not in your PATH (PLM_NO_MODIFY_PATH=1, skipping profile update)."
+    return 0
+  fi
+
+  add_to_path "$INSTALL_DIR"
+}
+
+# Append an "export PATH" / "fish_add_path" line to the user's shell profile(s).
+# Idempotent: skips files that already reference the directory.
+add_to_path() {
+  dir=$1
+  shell_name=$(basename "${SHELL:-}")
+  appended=0
+  already=0
+
+  case "$shell_name" in
+    fish)
+      line="fish_add_path $dir"
+      try_append "$HOME/.config/fish/config.fish" "$line" "$dir"
+      ;;
+    zsh)
+      line="export PATH=\"$dir:\$PATH\""
+      try_append "$HOME/.zshrc" "$line" "$dir"
+      ;;
+    bash)
+      line="export PATH=\"$dir:\$PATH\""
+      try_append "$HOME/.bashrc" "$line" "$dir"
+      ;;
+    *)
+      line="export PATH=\"$dir:\$PATH\""
+      try_append "$HOME/.profile" "$line" "$dir"
+      ;;
+  esac
+
+  if [ "$appended" -eq 1 ]; then
+    info "PATH entry written. Open a new shell or run \`exec \$SHELL\` to pick it up."
+  elif [ "$already" -eq 1 ]; then
+    info "PATH entry already present in your shell profile."
+  else
+    warn "${dir} not added to PATH (no writable profile found)."
+    printf '    Add this manually:\n        %s\n' "$line"
+  fi
+}
+
+# Append $2 to file $1 unless the file already contains $3.
+# Updates the outer `appended` / `already` counters instead of relying on return codes.
+try_append() {
+  rc=$1
+  line=$2
+  marker=$3
+
+  rc_dir=$(dirname "$rc")
+  [ -d "$rc_dir" ] || mkdir -p "$rc_dir" 2>/dev/null || return
+
+  if [ -f "$rc" ] && grep -Fq "$marker" "$rc" 2>/dev/null; then
+    info "Already referenced in $rc — leaving it untouched."
+    already=1
+    return
+  fi
+
+  if {
+    printf '\n# Added by plm install.sh\n'
+    printf '%s\n' "$line"
+  } >> "$rc" 2>/dev/null; then
+    info "Appended PATH entry to $rc"
+    appended=1
+  fi
 }
 
 main "$@"

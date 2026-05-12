@@ -37,7 +37,7 @@ PLM_VERSION=v0.5.0 curl -fsSL https://raw.githubusercontent.com/DIO0550/plugin-m
 PLM_INSTALL_DIR=/usr/local/bin curl -fsSL https://raw.githubusercontent.com/DIO0550/plugin-manager/main/scripts/install.sh | sudo -E sh
 ```
 
-If the install directory is not on your `PATH`, the script prints the line to add to your shell profile.
+If the install directory is not on your `PATH`, the script appends an `export PATH=...` line to your shell profile (`.bashrc`, `.zshrc`, or `~/.config/fish/config.fish` depending on `$SHELL`). The append is idempotent. Set `PLM_NO_MODIFY_PATH=1` to skip this and just print the line.
 
 ### Manual Download
 

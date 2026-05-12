@@ -37,7 +37,7 @@ PLM_VERSION=v0.5.0 curl -fsSL https://raw.githubusercontent.com/DIO0550/plugin-m
 PLM_INSTALL_DIR=/usr/local/bin curl -fsSL https://raw.githubusercontent.com/DIO0550/plugin-manager/main/scripts/install.sh | sudo -E sh
 ```
 
-配置先ディレクトリが `PATH` に含まれていない場合、スクリプトがシェル設定への追記方法を表示します。
+配置先ディレクトリが `PATH` に含まれていない場合、スクリプトが `$SHELL` を見て `.bashrc` / `.zshrc` / `~/.config/fish/config.fish` のいずれかに `export PATH=...` 行を自動追記します（冪等）。`PLM_NO_MODIFY_PATH=1` を設定すると追記をスキップし、追記行を表示するだけになります。
 
 ### 手動ダウンロード
 
