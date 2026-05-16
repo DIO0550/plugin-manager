@@ -552,6 +552,44 @@ fn modal_clears_outer_frame_cells_at_normal_size_for_install_result() {
 }
 
 #[test]
+fn renders_adding_status_line() {
+    use crate::tui::manager::core::{DataStore, SelectionState};
+    use ratatui::backend::TestBackend;
+    use ratatui::Terminal;
+
+    let (_temp_dir, data) = DataStore::for_test(vec![], vec![], None);
+
+    let model = MarketplacesScreenModel::MarketList {
+        selection: SelectionState::new(Some("my-repo".to_string()), Some(0)),
+        operation_status: Some(OperationStatus::Adding("my-repo".to_string())),
+        error_message: None,
+        pending_add_source: Some("owner/repo".to_string()),
+    };
+
+    let backend = TestBackend::new(80, 24);
+    let mut terminal = Terminal::new(backend).expect("terminal");
+    terminal
+        .draw(|frame| {
+            super::view(frame, &model, &data, "", false);
+        })
+        .expect("render adding status");
+
+    let buffer = terminal.backend().buffer();
+    let mut rendered = String::new();
+    for y in 0..buffer.area.height {
+        for x in 0..buffer.area.width {
+            rendered.push_str(buffer[(x, y)].symbol());
+        }
+        rendered.push('\n');
+    }
+    assert!(
+        rendered.contains("Adding marketplace 'my-repo'..."),
+        "expected Adding status line in rendered buffer, got:\n{}",
+        rendered
+    );
+}
+
+#[test]
 fn modal_renders_without_panic_at_tiny_size() {
     use ratatui::backend::TestBackend;
     use ratatui::widgets::ListState;

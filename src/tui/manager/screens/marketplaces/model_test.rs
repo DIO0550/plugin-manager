@@ -409,6 +409,19 @@ fn market_detail_holds_browse_state() {
 }
 
 // ============================================================================
+// OperationStatus テスト
+// ============================================================================
+
+#[test]
+fn operation_status_adding_holds_name() {
+    let status = OperationStatus::Adding("my-mkt".to_string());
+    match status {
+        OperationStatus::Adding(name) => assert_eq!(name, "my-mkt"),
+        _ => panic!("expected Adding variant"),
+    }
+}
+
+// ============================================================================
 // from_cache / to_cache テスト
 // ============================================================================
 
