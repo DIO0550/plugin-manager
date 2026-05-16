@@ -591,18 +591,119 @@ fn confirm_targets_transitions_to_scope_select() {
 }
 
 #[test]
-fn confirm_targets_ignored_when_no_target_selected() {
+fn confirm_targets_promotes_cursor_when_no_target_selected() {
     let (_temp_dir, mut data) = make_data(&["mp-a"]);
     let mut model = make_target_select("mp-a");
-    // All targets unselected
+    // All targets unselected; highlighted_idx defaults to 0
+
+    update(&mut model, Msg::ConfirmTargets, &mut data);
+
+    assert_eq!(
+        model_variant(&model),
+        "ScopeSelect",
+        "Should transition to ScopeSelect using cursor as fallback"
+    );
+
+    if let MarketplacesScreenModel::ScopeSelect { target_names, .. } = &model {
+        assert_eq!(
+            target_names,
+            &vec!["codex".to_string()],
+            "Cursor target at idx 0 should be promoted"
+        );
+    } else {
+        panic!("Expected ScopeSelect");
+    }
+}
+
+#[test]
+fn confirm_targets_promotes_cursor_at_highlighted_idx() {
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+    let mut model = make_target_select("mp-a");
+    if let MarketplacesScreenModel::TargetSelect {
+        highlighted_idx, ..
+    } = &mut model
+    {
+        *highlighted_idx = 2;
+    }
+
+    update(&mut model, Msg::ConfirmTargets, &mut data);
+
+    if let MarketplacesScreenModel::ScopeSelect { target_names, .. } = &model {
+        assert_eq!(target_names, &vec!["antigravity".to_string()]);
+    } else {
+        panic!("Expected ScopeSelect");
+    }
+}
+
+#[test]
+fn confirm_targets_keeps_existing_truthy_targets() {
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+    let mut model = make_target_select("mp-a");
+    if let MarketplacesScreenModel::TargetSelect {
+        targets,
+        highlighted_idx,
+        ..
+    } = &mut model
+    {
+        targets[0].2 = true; // codex selected
+        *highlighted_idx = 2; // cursor on antigravity
+    }
+
+    update(&mut model, Msg::ConfirmTargets, &mut data);
+
+    if let MarketplacesScreenModel::ScopeSelect { target_names, .. } = &model {
+        assert_eq!(
+            target_names,
+            &vec!["codex".to_string()],
+            "Only existing true target should be carried over"
+        );
+    } else {
+        panic!("Expected ScopeSelect");
+    }
+}
+
+#[test]
+fn confirm_targets_noop_when_targets_empty() {
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+    let mut model = make_target_select("mp-a");
+    if let MarketplacesScreenModel::TargetSelect { targets, .. } = &mut model {
+        targets.clear();
+    }
 
     update(&mut model, Msg::ConfirmTargets, &mut data);
 
     assert_eq!(
         model_variant(&model),
         "TargetSelect",
-        "Should stay TargetSelect when no target selected"
+        "Should stay TargetSelect when targets list is empty"
     );
+}
+
+#[test]
+fn confirm_targets_clamps_cursor_when_idx_out_of_range() {
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+    let mut model = make_target_select("mp-a");
+    if let MarketplacesScreenModel::TargetSelect {
+        targets,
+        highlighted_idx,
+        ..
+    } = &mut model
+    {
+        targets.truncate(2); // codex, copilot
+        *highlighted_idx = 10;
+    }
+
+    update(&mut model, Msg::ConfirmTargets, &mut data);
+
+    if let MarketplacesScreenModel::ScopeSelect { target_names, .. } = &model {
+        assert_eq!(
+            target_names,
+            &vec!["copilot".to_string()],
+            "Out-of-range highlighted_idx should clamp to last target"
+        );
+    } else {
+        panic!("Expected ScopeSelect");
+    }
 }
 
 // ============================================================================
@@ -684,18 +785,138 @@ fn start_install_transitions_to_target_select() {
 }
 
 #[test]
-fn start_install_ignored_when_no_selection() {
+fn start_install_promotes_cursor_when_no_selection() {
     let (_temp_dir, mut data) = make_data(&["mp-a"]);
     let mut model = make_plugin_browse("mp-a", 3);
-    // selected_plugins is empty
+    // selected_plugins is empty; highlighted_idx defaults to 0
+
+    update(&mut model, Msg::StartInstall, &mut data);
+
+    assert_eq!(
+        model_variant(&model),
+        "TargetSelect",
+        "Should transition to TargetSelect using cursor as fallback"
+    );
+
+    if let MarketplacesScreenModel::TargetSelect {
+        selected_plugins, ..
+    } = &model
+    {
+        assert!(
+            selected_plugins.contains("plugin-0"),
+            "Cursor-promoted plugin should be in selected_plugins"
+        );
+        assert_eq!(
+            selected_plugins.len(),
+            1,
+            "Only the cursor plugin should be promoted"
+        );
+    } else {
+        panic!("Expected TargetSelect");
+    }
+}
+
+#[test]
+fn start_install_promotes_cursor_at_highlighted_idx() {
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+    let mut model = make_plugin_browse("mp-a", 3);
+    if let MarketplacesScreenModel::PluginBrowse {
+        highlighted_idx, ..
+    } = &mut model
+    {
+        *highlighted_idx = 1;
+    }
+
+    update(&mut model, Msg::StartInstall, &mut data);
+
+    if let MarketplacesScreenModel::TargetSelect {
+        selected_plugins, ..
+    } = &model
+    {
+        assert!(
+            selected_plugins.contains("plugin-1"),
+            "Plugin at highlighted_idx=1 should be promoted"
+        );
+    } else {
+        panic!("Expected TargetSelect");
+    }
+}
+
+#[test]
+fn start_install_keeps_existing_selection() {
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+    let mut model = make_plugin_browse("mp-a", 3);
+    if let MarketplacesScreenModel::PluginBrowse {
+        selected_plugins,
+        highlighted_idx,
+        ..
+    } = &mut model
+    {
+        selected_plugins.insert("plugin-2".to_string());
+        *highlighted_idx = 0;
+    }
+
+    update(&mut model, Msg::StartInstall, &mut data);
+
+    if let MarketplacesScreenModel::TargetSelect {
+        selected_plugins, ..
+    } = &model
+    {
+        assert!(selected_plugins.contains("plugin-2"));
+        assert!(
+            !selected_plugins.contains("plugin-0"),
+            "Cursor should not be promoted when selection already exists"
+        );
+        assert_eq!(selected_plugins.len(), 1);
+    } else {
+        panic!("Expected TargetSelect");
+    }
+}
+
+#[test]
+fn start_install_noop_when_plugin_list_empty() {
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+    let mut model = make_plugin_browse("mp-a", 0);
 
     update(&mut model, Msg::StartInstall, &mut data);
 
     assert_eq!(
         model_variant(&model),
         "PluginBrowse",
-        "Should stay PluginBrowse when no selection"
+        "Should stay PluginBrowse when plugin list is empty"
     );
+    if let MarketplacesScreenModel::PluginBrowse {
+        selected_plugins, ..
+    } = &model
+    {
+        assert!(selected_plugins.is_empty());
+    }
+}
+
+#[test]
+fn start_install_clamps_cursor_when_idx_out_of_range() {
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+    let mut model = make_plugin_browse("mp-a", 2);
+    if let MarketplacesScreenModel::PluginBrowse {
+        highlighted_idx, ..
+    } = &mut model
+    {
+        *highlighted_idx = 99;
+    }
+
+    update(&mut model, Msg::StartInstall, &mut data);
+
+    if let MarketplacesScreenModel::TargetSelect {
+        selected_plugins, ..
+    } = &model
+    {
+        assert!(
+            selected_plugins.contains("plugin-1"),
+            "Out-of-range highlighted_idx should clamp to last plugin"
+        );
+    } else {
+        panic!("Expected TargetSelect");
+    }
 }
 
 // ============================================================================
