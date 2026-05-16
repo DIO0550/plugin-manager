@@ -753,11 +753,23 @@ fn back_to_market_list(
 /// StartInstall: PluginBrowse -> TargetSelect
 fn start_install(model: &mut MarketplacesScreenModel) -> UpdateEffect {
     if let MarketplacesScreenModel::PluginBrowse {
-        selected_plugins, ..
+        plugins,
+        selected_plugins,
+        highlighted_idx,
+        ..
     } = model
     {
-        if selected_plugins.is_empty() {
+        if plugins.is_empty() {
             return UpdateEffect::none();
+        }
+        if selected_plugins.is_empty() {
+            let idx = (*highlighted_idx).min(plugins.len() - 1);
+            match plugins.get(idx) {
+                Some(plugin) => {
+                    selected_plugins.insert(plugin.name.clone());
+                }
+                None => return UpdateEffect::none(),
+            }
         }
     } else {
         return UpdateEffect::none();
@@ -962,10 +974,21 @@ pub(super) fn execute_install_with(
 
 /// ConfirmTargets: TargetSelect -> ScopeSelect
 fn confirm_targets(model: &mut MarketplacesScreenModel) -> UpdateEffect {
-    // Guard: at least one target selected
-    if let MarketplacesScreenModel::TargetSelect { targets, .. } = model {
-        if !targets.iter().any(|(_, _, sel)| *sel) {
+    if let MarketplacesScreenModel::TargetSelect {
+        targets,
+        highlighted_idx,
+        ..
+    } = model
+    {
+        if targets.is_empty() {
             return UpdateEffect::none();
+        }
+        if !targets.iter().any(|(_, _, sel)| *sel) {
+            let idx = (*highlighted_idx).min(targets.len() - 1);
+            match targets.get_mut(idx) {
+                Some(target) => target.2 = true,
+                None => return UpdateEffect::none(),
+            }
         }
     } else {
         return UpdateEffect::none();

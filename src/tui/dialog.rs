@@ -81,6 +81,48 @@ pub struct MultiSelectOutcome<T> {
     pub cancelled: bool,
 }
 
+/// Enter 確定時の結果を計算する純関数。
+///
+/// `selected` フラグが 1 件以上あれば従来通りそれらを返す。
+/// 全て未選択でも `items` が非空のとき、`cursor_idx`（範囲外は末尾に丸め）
+/// が指す `enabled` なアイテム 1 件をフォールバックとして採用する。
+pub(crate) fn compute_multi_select_outcome<T: Clone>(
+    items: &[SelectItem<T>],
+    cursor_idx: usize,
+) -> MultiSelectOutcome<T> {
+    let selected: Vec<T> = items
+        .iter()
+        .filter(|i| i.selected && i.enabled)
+        .map(|i| i.value.clone())
+        .collect();
+
+    if !selected.is_empty() {
+        return MultiSelectOutcome {
+            selected,
+            cancelled: false,
+        };
+    }
+
+    if items.is_empty() {
+        return MultiSelectOutcome {
+            selected,
+            cancelled: false,
+        };
+    }
+
+    let idx = cursor_idx.min(items.len() - 1);
+    let fallback: Vec<T> = items
+        .get(idx)
+        .filter(|i| i.enabled)
+        .map(|i| vec![i.value.clone()])
+        .unwrap_or_default();
+
+    MultiSelectOutcome {
+        selected: fallback,
+        cancelled: false,
+    }
+}
+
 /// 単一選択の結果
 #[derive(Debug)]
 pub struct SingleSelectOutcome<T> {
@@ -157,14 +199,8 @@ pub fn multi_select<T: Clone>(
                         };
                     }
                     KeyCode::Enter => {
-                        break MultiSelectOutcome {
-                            selected: items
-                                .iter()
-                                .filter(|i| i.selected && i.enabled)
-                                .map(|i| i.value.clone())
-                                .collect(),
-                            cancelled: false,
-                        };
+                        let cursor = state.selected().unwrap_or(0);
+                        break compute_multi_select_outcome(items, cursor);
                     }
                     KeyCode::Char(' ') => {
                         if let Some(i) = state.selected() {
@@ -291,3 +327,7 @@ pub fn single_select<T: Clone>(
 
     Ok(result)
 }
+
+#[cfg(test)]
+#[path = "dialog_test.rs"]
+mod tests;
