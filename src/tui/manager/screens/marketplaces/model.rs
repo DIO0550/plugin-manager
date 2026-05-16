@@ -14,6 +14,7 @@ pub enum OperationStatus {
     Updating(String),
     UpdatingAll,
     Removing(String),
+    Adding(String),
 }
 
 /// キャッシュ状態（タブ切替時に保持）
@@ -116,6 +117,9 @@ pub enum MarketplacesScreenModel {
         selection: SelectionState<String>,
         operation_status: Option<OperationStatus>,
         error_message: Option<String>,
+        /// AddForm Confirm → MarketList(Adding) 遷移時に保持する source。
+        /// phase2 (ExecuteAdd) で参照され、完了時にクリアされる。
+        pending_add_source: Option<String>,
     },
     /// マーケットプレイス詳細（アクションメニュー）
     MarketDetail {
@@ -194,6 +198,7 @@ impl MarketplacesScreenModel {
             selection: SelectionState::new(selected_id, Some(0)),
             operation_status: None,
             error_message: None,
+            pending_add_source: None,
         }
     }
 
@@ -219,6 +224,7 @@ impl MarketplacesScreenModel {
             selection: SelectionState::new(selected_id, Some(index)),
             operation_status: None,
             error_message: None,
+            pending_add_source: None,
         }
     }
 
@@ -288,6 +294,7 @@ pub enum Msg {
     UpdateAll,
     ExecuteUpdate,
     ExecuteRemove,
+    ExecuteAdd,
     ToggleSelect,
     StartInstall,
     ExecuteInstall,

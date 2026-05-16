@@ -1,12 +1,17 @@
 //! Marketplaces タブの update（状態遷移ロジック）
 
 use super::actions;
-use super::model::{AddFormModel, DetailAction, MarketplacesScreenModel, Msg, OperationStatus};
+use super::model::{
+    AddFormModel, BrowsePlugin, DetailAction, MarketplacesScreenModel, Msg, OperationStatus,
+};
 use crate::marketplace::normalize_name;
 use crate::repo;
 use crate::tui::manager::core::{DataStore, MarketplaceItem, SelectionState};
 use ratatui::widgets::ListState;
 use std::collections::HashSet;
+
+/// BrowsePlugins guard でキャッシュ無しの際に表示するメッセージ。
+const NO_CACHE_MESSAGE: &str = "No cached data — try update";
 
 /// update() の戻り値
 pub struct UpdateEffect {
@@ -70,6 +75,7 @@ pub fn update(model: &mut MarketplacesScreenModel, msg: Msg, data: &mut DataStor
         Msg::UpdateAll => update_all(model, data),
         Msg::ExecuteUpdate => execute_update(model, data),
         Msg::ExecuteRemove => execute_remove(model, data),
+        Msg::ExecuteAdd => execute_add(model, data),
         Msg::ToggleSelect => toggle_select(model),
         Msg::StartInstall => start_install(model),
         Msg::ConfirmTargets => confirm_targets(model),
@@ -294,6 +300,7 @@ fn enter(model: &mut MarketplacesScreenModel, data: &mut DataStore) -> UpdateEff
                         selection: market_selection(Some(name.clone()), new_state.selected()),
                         operation_status: Some(OperationStatus::Updating(name)),
                         error_message: None,
+                        pending_add_source: None,
                     };
                     UpdateEffect::phase2(Msg::ExecuteUpdate)
                 }
@@ -305,6 +312,7 @@ fn enter(model: &mut MarketplacesScreenModel, data: &mut DataStore) -> UpdateEff
                         selection: market_selection(Some(name.clone()), new_state.selected()),
                         operation_status: Some(OperationStatus::Removing(name)),
                         error_message: None,
+                        pending_add_source: None,
                     };
                     UpdateEffect::phase2(Msg::ExecuteRemove)
                 }
@@ -316,6 +324,9 @@ fn enter(model: &mut MarketplacesScreenModel, data: &mut DataStore) -> UpdateEff
                         .map(|m| m.plugin_count.is_some())
                         .unwrap_or(false);
                     if !has_cache {
+                        if let MarketplacesScreenModel::MarketDetail { error_message, .. } = model {
+                            *error_message = Some(NO_CACHE_MESSAGE.to_string());
+                        }
                         return UpdateEffect::none();
                     }
 
@@ -452,64 +463,124 @@ fn enter_form(model: &mut MarketplacesScreenModel, data: &mut DataStore) -> Upda
             UpdateEffect::none()
         }
         MarketplacesScreenModel::AddForm(AddFormModel::Confirm { source, name, .. }) => {
-            // Add は直接実行（source 情報を保持するため 2段階方式を使わない）
             let source = source.clone();
             let name = name.clone();
-            let entry = AddEntry {
-                source: &source,
-                name: &name,
-            };
-            execute_add_with(
-                &entry,
-                model,
-                data,
-                |s, n| actions::add_marketplace(s, n, None),
-                |d| d.reload_marketplaces(),
-            )
+            execute_add_phase1(model, data, source, name)
         }
         _ => UpdateEffect::none(),
     }
 }
 
-/// マーケットプレイス追加エントリ
-struct AddEntry<'a> {
-    source: &'a str,
-    name: &'a str,
+/// Phase 1: AddForm::Confirm → MarketList(Adding) への即時遷移。
+///
+/// 副作用は伴わない。実 fetch は phase2 (`execute_add`) で行う。
+fn execute_add_phase1(
+    model: &mut MarketplacesScreenModel,
+    data: &DataStore,
+    source: String,
+    name: String,
+) -> UpdateEffect {
+    let idx = data
+        .marketplace_index(&name)
+        .unwrap_or(data.marketplaces.len());
+    *model = MarketplacesScreenModel::MarketList {
+        selection: market_selection(Some(name.clone()), Some(idx)),
+        operation_status: Some(OperationStatus::Adding(name)),
+        error_message: None,
+        pending_add_source: Some(source),
+    };
+    UpdateEffect::phase2(Msg::ExecuteAdd)
 }
 
-/// ExecuteAdd の実装本体（依存関数注入パターン）
-fn execute_add_with(
-    entry: &AddEntry<'_>,
+/// Phase 2: ExecuteAdd dispatcher（本番の依存を注入）
+fn execute_add(model: &mut MarketplacesScreenModel, data: &mut DataStore) -> UpdateEffect {
+    execute_add_with(
+        model,
+        data,
+        |source, name| actions::add_marketplace(source, name, None),
+        |d| d.reload_marketplaces(),
+        |d, name| actions::get_browse_plugins(name, &d.plugins),
+    )
+}
+
+/// Phase 2 本体（依存関数注入パターン）。
+///
+/// MarketList の operation_status が `Adding(name)` で `pending_add_source` が
+/// `Some` であることを前提とする。それ以外の状態では no-op。
+///
+/// 成功時はそのままプラグインインストールフローに進めるよう
+/// `PluginBrowse` に遷移する。失敗時は MarketList に留まり error_message を
+/// セットする。
+pub(super) fn execute_add_with(
     model: &mut MarketplacesScreenModel,
     data: &mut DataStore,
     run_add: impl FnOnce(&str, &str) -> Result<actions::MarketplaceAddOutcome, String>,
     reload: impl FnOnce(&mut DataStore),
+    fetch_browse_plugins: impl FnOnce(&DataStore, &str) -> Vec<BrowsePlugin>,
 ) -> UpdateEffect {
-    let source_owned = entry.source.to_string();
-    let name_owned = entry.name.to_string();
+    let (name, source) = match take_add_request(model) {
+        Some(pair) => pair,
+        None => return UpdateEffect::none(),
+    };
 
-    match run_add(&source_owned, &name_owned) {
-        Ok(_result) => {
+    match run_add(&source, &name) {
+        Ok(_) => {
             reload(data);
-            let idx = data.marketplace_index(&name_owned).unwrap_or(0);
+            let plugins = fetch_browse_plugins(data, &name);
             let mut state = ListState::default();
-            state.select(Some(idx));
-            *model = MarketplacesScreenModel::MarketList {
-                selection: market_selection(Some(name_owned), state.selected()),
-                operation_status: None,
-                error_message: None,
+            if !plugins.is_empty() {
+                state.select(Some(0));
+            }
+            *model = MarketplacesScreenModel::PluginBrowse {
+                marketplace_name: name,
+                plugins,
+                selected_plugins: HashSet::new(),
+                highlighted_idx: 0,
+                state,
             };
         }
         Err(e) => {
-            // AddForm Confirm に戻してエラーを表示
-            *model = MarketplacesScreenModel::AddForm(AddFormModel::Confirm {
-                source: source_owned,
-                name: name_owned,
-                error_message: Some(e),
-            });
+            if let MarketplacesScreenModel::MarketList {
+                selection,
+                error_message,
+                ..
+            } = model
+            {
+                let idx = data.marketplace_index(&name);
+                selection.set(idx.map(|_| name.clone()), idx);
+                *error_message = Some(e);
+            }
         }
     }
     UpdateEffect::none()
+}
+
+/// MarketList(Adding) から (name, source) を取り出す。Adding 以外なら状態を戻し
+/// `None` を返す。pending_add_source が欠落していた場合は error_message を
+/// セットして `None` を返す。
+fn take_add_request(model: &mut MarketplacesScreenModel) -> Option<(String, String)> {
+    let MarketplacesScreenModel::MarketList {
+        operation_status,
+        error_message,
+        pending_add_source,
+        ..
+    } = model
+    else {
+        return None;
+    };
+
+    let name = match operation_status.take() {
+        Some(OperationStatus::Adding(name)) => name,
+        other => {
+            *operation_status = other;
+            return None;
+        }
+    };
+    let Some(source) = pending_add_source.take() else {
+        *error_message = Some("Internal error: missing pending source".to_string());
+        return None;
+    };
+    Some((name, source))
 }
 
 /// Back 処理
@@ -550,6 +621,7 @@ fn back(model: &mut MarketplacesScreenModel, data: &DataStore) {
                 selection: market_selection(selected_id, state.selected()),
                 operation_status: None,
                 error_message: None,
+                pending_add_source: None,
             };
         }
         MarketplacesScreenModel::PluginBrowse { .. } => {
@@ -560,6 +632,7 @@ fn back(model: &mut MarketplacesScreenModel, data: &DataStore) {
                     selection: SelectionState::default(),
                     operation_status: None,
                     error_message: None,
+                    pending_add_source: None,
                 },
             );
             if let MarketplacesScreenModel::PluginBrowse {
@@ -588,6 +661,7 @@ fn back(model: &mut MarketplacesScreenModel, data: &DataStore) {
                     selection: SelectionState::default(),
                     operation_status: None,
                     error_message: None,
+                    pending_add_source: None,
                 },
             );
             if let MarketplacesScreenModel::TargetSelect {
@@ -618,6 +692,7 @@ fn back(model: &mut MarketplacesScreenModel, data: &DataStore) {
                     selection: SelectionState::default(),
                     operation_status: None,
                     error_message: None,
+                    pending_add_source: None,
                 },
             );
             if let MarketplacesScreenModel::ScopeSelect {
@@ -671,6 +746,7 @@ fn back_to_market_list(
         selection: market_selection(selected_id, state.selected()),
         operation_status: None,
         error_message: None,
+        pending_add_source: None,
     };
 }
 
@@ -694,6 +770,7 @@ fn start_install(model: &mut MarketplacesScreenModel) -> UpdateEffect {
             selection: SelectionState::default(),
             operation_status: None,
             error_message: None,
+            pending_add_source: None,
         },
     ) {
         MarketplacesScreenModel::PluginBrowse {
@@ -738,6 +815,7 @@ fn confirm_scope(model: &mut MarketplacesScreenModel) -> UpdateEffect {
             selection: SelectionState::default(),
             operation_status: None,
             error_message: None,
+            pending_add_source: None,
         },
     );
 
@@ -793,6 +871,7 @@ fn back_to_plugin_browse(model: &mut MarketplacesScreenModel, data: &DataStore) 
             selection: SelectionState::default(),
             operation_status: None,
             error_message: None,
+            pending_add_source: None,
         },
     );
 
@@ -852,6 +931,7 @@ pub(super) fn execute_install_with(
             selection: SelectionState::default(),
             operation_status: None,
             error_message: None,
+            pending_add_source: None,
         },
     );
 
@@ -897,6 +977,7 @@ fn confirm_targets(model: &mut MarketplacesScreenModel) -> UpdateEffect {
             selection: SelectionState::default(),
             operation_status: None,
             error_message: None,
+            pending_add_source: None,
         },
     );
 
@@ -1067,6 +1148,7 @@ fn execute_update_with(
         operation_status,
         error_message,
         selection,
+        ..
     } = model
     {
         match operation_status.take() {
@@ -1128,6 +1210,7 @@ fn execute_remove_with(
         operation_status,
         error_message,
         selection,
+        ..
     } = model
     {
         match operation_status.take() {

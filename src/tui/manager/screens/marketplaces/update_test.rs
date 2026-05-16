@@ -1,8 +1,11 @@
-use super::{execute_add_with, execute_remove_with, execute_update_with, update, AddEntry};
+use super::{
+    execute_add_phase1, execute_add_with, execute_remove_with, execute_update_with, update,
+};
+use crate::marketplace::PluginSource;
 use crate::tui::manager::core::{DataStore, MarketplaceItem, SelectionState};
 use crate::tui::manager::screens::marketplaces::actions::MarketplaceAddOutcome;
 use crate::tui::manager::screens::marketplaces::model::{
-    AddFormModel, DetailAction, MarketplacesScreenModel, Msg, OperationStatus,
+    AddFormModel, BrowsePlugin, DetailAction, MarketplacesScreenModel, Msg, OperationStatus,
 };
 use ratatui::widgets::ListState;
 
@@ -785,7 +788,7 @@ fn enter_browse_plugins_transitions_to_plugin_browse() {
 }
 
 #[test]
-fn enter_browse_plugins_noop_when_no_cache() {
+fn browse_plugins_guard_failure_sets_error_message_on_market_detail() {
     let (_temp_dir, mut data) = make_data(&["mp-a"]);
     // Set plugin_count to None (no cache)
     data.marketplaces[0].plugin_count = None;
@@ -801,11 +804,30 @@ fn enter_browse_plugins_noop_when_no_cache() {
     update(&mut model, Msg::Down, &mut data);
     update(&mut model, Msg::Enter, &mut data);
 
-    assert_eq!(
-        model_variant(&model),
-        "MarketDetail",
-        "Should stay at MarketDetail when no cache"
-    );
+    if let MarketplacesScreenModel::MarketDetail { error_message, .. } = &model {
+        assert_eq!(
+            error_message.as_deref(),
+            Some("No cached data — try update"),
+            "guard failure should set MarketDetail.error_message"
+        );
+    } else {
+        panic!("expected MarketDetail (guard failure stays put)");
+    }
+}
+
+#[test]
+fn browse_plugins_guard_success_still_transitions_to_plugin_browse() {
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+    // Default fixture has plugin_count = Some(3)
+    let mut model = MarketplacesScreenModel::new(&data);
+
+    update(&mut model, Msg::Enter, &mut data);
+    update(&mut model, Msg::Down, &mut data);
+    update(&mut model, Msg::Down, &mut data);
+    update(&mut model, Msg::Down, &mut data);
+    update(&mut model, Msg::Enter, &mut data);
+
+    assert_eq!(model_variant(&model), "PluginBrowse");
 }
 
 // ============================================================================
@@ -1555,11 +1577,11 @@ fn enter_name_step_duplicate_shows_error() {
 }
 
 // ============================================================================
-// execute_add_with (依存関数注入パターン)
+// execute_add_phase1 / execute_add_with (phase2, 依存関数注入パターン)
 // ============================================================================
 
 #[test]
-fn execute_add_success_transitions_to_market_list() {
+fn enter_on_confirm_transitions_to_market_list_with_adding_status() {
     let (_temp_dir, mut data) = make_data(&[]);
     let mut model = MarketplacesScreenModel::AddForm(AddFormModel::Confirm {
         source: "owner/repo".to_string(),
@@ -1567,70 +1589,225 @@ fn execute_add_success_transitions_to_market_list() {
         error_message: None,
     });
 
-    let entry = AddEntry {
-        source: "owner/repo",
-        name: "my-repo",
+    let effect = update(&mut model, Msg::Enter, &mut data);
+
+    assert!(
+        matches!(effect.phase2_msg, Some(Msg::ExecuteAdd)),
+        "expected phase2 to be Msg::ExecuteAdd"
+    );
+
+    if let MarketplacesScreenModel::MarketList {
+        selection,
+        operation_status,
+        error_message,
+        pending_add_source,
+    } = &model
+    {
+        assert!(
+            matches!(operation_status, Some(OperationStatus::Adding(name)) if name == "my-repo"),
+            "expected Adding status with name my-repo"
+        );
+        assert_eq!(pending_add_source.as_deref(), Some("owner/repo"));
+        assert!(error_message.is_none());
+        assert_eq!(selection.selected_id().map(String::as_str), Some("my-repo"));
+    } else {
+        panic!("expected MarketList after AddForm Confirm Enter");
+    }
+}
+
+#[test]
+fn execute_add_phase1_uses_existing_index_when_name_already_present() {
+    let (_temp_dir, data) = make_data(&["mp-a", "mp-b"]);
+    let mut model = MarketplacesScreenModel::AddForm(AddFormModel::Confirm {
+        source: "owner/mp-a".to_string(),
+        name: "mp-a".to_string(),
+        error_message: None,
+    });
+
+    execute_add_phase1(
+        &mut model,
+        &data,
+        "owner/mp-a".to_string(),
+        "mp-a".to_string(),
+    );
+
+    if let MarketplacesScreenModel::MarketList { selection, .. } = &model {
+        assert_eq!(selection.selected_index(), Some(0));
+    } else {
+        panic!("expected MarketList");
+    }
+}
+
+fn make_browse_plugin(name: &str) -> BrowsePlugin {
+    BrowsePlugin {
+        name: name.to_string(),
+        description: None,
+        version: None,
+        source: PluginSource::Local("./test".to_string()),
+        installed: false,
+    }
+}
+
+#[test]
+fn execute_add_phase2_success_transitions_to_plugin_browse() {
+    let (_temp_dir, mut data) = make_data(&[]);
+    let mut model = MarketplacesScreenModel::MarketList {
+        selection: market_selection(Some("my-repo"), Some(0)),
+        operation_status: Some(OperationStatus::Adding("my-repo".to_string())),
+        error_message: None,
+        pending_add_source: Some("owner/repo".to_string()),
     };
+
     execute_add_with(
-        &entry,
         &mut model,
         &mut data,
         |_source, name| Ok(make_add_outcome(name)),
         |d| {
             d.marketplaces.push(make_marketplace("my-repo"));
         },
+        |_d, _name| vec![make_browse_plugin("alpha"), make_browse_plugin("beta")],
     );
 
-    if let MarketplacesScreenModel::MarketList {
-        selection,
-        operation_status,
-        ..
+    if let MarketplacesScreenModel::PluginBrowse {
+        marketplace_name,
+        plugins,
+        selected_plugins,
+        highlighted_idx,
+        state,
     } = &model
     {
-        assert_eq!(selection.selected_id().map(String::as_str), Some("my-repo"));
-        assert!(operation_status.is_none());
+        assert_eq!(marketplace_name, "my-repo");
+        assert_eq!(plugins.len(), 2);
+        assert_eq!(plugins[0].name, "alpha");
+        assert!(selected_plugins.is_empty());
+        assert_eq!(*highlighted_idx, 0);
+        assert_eq!(state.selected(), Some(0));
     } else {
-        panic!("Expected MarketList after successful add");
+        panic!(
+            "expected PluginBrowse after successful phase2, got {}",
+            model_variant(&model)
+        );
+    }
+    assert!(
+        data.marketplaces.iter().any(|m| m.name == "my-repo"),
+        "reload should make my-repo visible in data"
+    );
+}
+
+#[test]
+fn execute_add_phase2_success_with_empty_plugins_still_transitions_to_plugin_browse() {
+    let (_temp_dir, mut data) = make_data(&[]);
+    let mut model = MarketplacesScreenModel::MarketList {
+        selection: market_selection(Some("my-repo"), Some(0)),
+        operation_status: Some(OperationStatus::Adding("my-repo".to_string())),
+        error_message: None,
+        pending_add_source: Some("owner/repo".to_string()),
+    };
+
+    execute_add_with(
+        &mut model,
+        &mut data,
+        |_source, name| Ok(make_add_outcome(name)),
+        |d| {
+            d.marketplaces.push(make_marketplace("my-repo"));
+        },
+        |_d, _name| vec![],
+    );
+
+    if let MarketplacesScreenModel::PluginBrowse { plugins, state, .. } = &model {
+        assert!(plugins.is_empty());
+        assert_eq!(state.selected(), None);
+    } else {
+        panic!("expected PluginBrowse even when plugins are empty");
     }
 }
 
 #[test]
-fn execute_add_failure_returns_to_confirm_with_error() {
+fn execute_add_phase2_failure_clears_status_and_sets_error_message() {
     let (_temp_dir, mut data) = make_data(&[]);
-    let mut model = MarketplacesScreenModel::AddForm(AddFormModel::Confirm {
-        source: "owner/repo".to_string(),
-        name: "my-repo".to_string(),
+    let mut model = MarketplacesScreenModel::MarketList {
+        selection: market_selection(Some("my-repo"), Some(0)),
+        operation_status: Some(OperationStatus::Adding("my-repo".to_string())),
         error_message: None,
-    });
-
-    let entry = AddEntry {
-        source: "owner/repo",
-        name: "my-repo",
+        pending_add_source: Some("owner/repo".to_string()),
     };
+
     execute_add_with(
-        &entry,
         &mut model,
         &mut data,
         |_source, _name| Err("network error".to_string()),
         |_d| {},
+        |_d, _name| vec![make_browse_plugin("should-not-be-used")],
     );
 
-    if let MarketplacesScreenModel::AddForm(AddFormModel::Confirm {
+    if let MarketplacesScreenModel::MarketList {
+        operation_status,
         error_message,
-        source,
-        name,
+        pending_add_source,
         ..
-    }) = &model
+    } = &model
     {
-        assert_eq!(source, "owner/repo");
-        assert_eq!(name, "my-repo");
-        assert!(error_message.is_some(), "Should set error on failure");
+        assert!(operation_status.is_none(), "operation_status should clear");
         assert!(
-            error_message.as_ref().unwrap().contains("network error"),
-            "Error should contain failure reason"
+            pending_add_source.is_none(),
+            "pending_add_source should clear"
         );
+        assert_eq!(error_message.as_deref(), Some("network error"));
     } else {
-        panic!("Expected AddForm Confirm with error");
+        panic!(
+            "expected MarketList after failed phase2, got {}",
+            model_variant(&model)
+        );
+    }
+}
+
+#[test]
+fn execute_add_phase2_noop_when_not_in_adding_state() {
+    let (_temp_dir, mut data) = make_data(&["mp-a"]);
+    let mut model = MarketplacesScreenModel::MarketList {
+        selection: market_selection(Some("mp-a"), Some(0)),
+        operation_status: None,
+        error_message: None,
+        pending_add_source: None,
+    };
+
+    let call_count = std::cell::Cell::new(0);
+    let reload_count = std::cell::Cell::new(0);
+    let fetch_count = std::cell::Cell::new(0);
+
+    execute_add_with(
+        &mut model,
+        &mut data,
+        |_, _| {
+            call_count.set(call_count.get() + 1);
+            Ok(make_add_outcome("unused"))
+        },
+        |_| {
+            reload_count.set(reload_count.get() + 1);
+        },
+        |_, _| {
+            fetch_count.set(fetch_count.get() + 1);
+            vec![]
+        },
+    );
+
+    assert_eq!(call_count.get(), 0, "run_add should not be invoked");
+    assert_eq!(reload_count.get(), 0, "reload should not be invoked");
+    assert_eq!(
+        fetch_count.get(),
+        0,
+        "fetch_browse_plugins should not be invoked"
+    );
+    if let MarketplacesScreenModel::MarketList {
+        operation_status,
+        pending_add_source,
+        ..
+    } = &model
+    {
+        assert!(operation_status.is_none());
+        assert!(pending_add_source.is_none());
+    } else {
+        panic!("expected MarketList");
     }
 }
 
@@ -1647,6 +1824,7 @@ fn execute_update_success_clears_status() {
         selection: market_selection(Some("mp-a"), state.selected()),
         operation_status: Some(OperationStatus::Updating("mp-a".to_string())),
         error_message: None,
+        pending_add_source: None,
     };
 
     execute_update_with(
@@ -1681,6 +1859,7 @@ fn execute_update_failure_sets_error_message() {
         selection: market_selection(Some("mp-a"), state.selected()),
         operation_status: Some(OperationStatus::Updating("mp-a".to_string())),
         error_message: None,
+        pending_add_source: None,
     };
 
     execute_update_with(
@@ -1717,6 +1896,7 @@ fn execute_update_all_success() {
         selection: market_selection(Some("mp-a"), state.selected()),
         operation_status: Some(OperationStatus::UpdatingAll),
         error_message: None,
+        pending_add_source: None,
     };
 
     execute_update_with(
@@ -1754,6 +1934,7 @@ fn execute_update_all_partial_failure_sets_error() {
         selection: market_selection(Some("mp-a"), state.selected()),
         operation_status: Some(OperationStatus::UpdatingAll),
         error_message: None,
+        pending_add_source: None,
     };
 
     execute_update_with(
@@ -1800,6 +1981,7 @@ fn execute_remove_success_reloads_and_clamps() {
         selection: market_selection(Some("mp-a"), state.selected()),
         operation_status: Some(OperationStatus::Removing("mp-a".to_string())),
         error_message: None,
+        pending_add_source: None,
     };
 
     execute_remove_with(
@@ -1834,6 +2016,7 @@ fn execute_remove_failure_sets_error() {
         selection: market_selection(Some("mp-a"), state.selected()),
         operation_status: Some(OperationStatus::Removing("mp-a".to_string())),
         error_message: None,
+        pending_add_source: None,
     };
 
     execute_remove_with(
@@ -1979,6 +2162,7 @@ fn error_message_cleared_on_up() {
         selection: market_selection(Some("mp-b"), state.selected()),
         operation_status: None,
         error_message: Some("some error".to_string()),
+        pending_add_source: None,
     };
 
     update(&mut model, Msg::Up, &mut data);
@@ -1995,6 +2179,7 @@ fn error_message_cleared_on_down() {
         selection: market_selection(Some("mp-a"), Some(0)),
         operation_status: None,
         error_message: Some("some error".to_string()),
+        pending_add_source: None,
     };
 
     update(&mut model, Msg::Down, &mut data);
@@ -2011,6 +2196,7 @@ fn error_message_cleared_on_enter() {
         selection: market_selection(Some("mp-a"), Some(0)),
         operation_status: None,
         error_message: Some("some error".to_string()),
+        pending_add_source: None,
     };
 
     update(&mut model, Msg::Enter, &mut data);
@@ -2057,6 +2243,7 @@ fn stale_error_cleared_on_update_market_start() {
         selection: market_selection(Some("mp-a"), Some(0)),
         operation_status: None,
         error_message: Some("previous error".to_string()),
+        pending_add_source: None,
     };
 
     let effect = update(&mut model, Msg::UpdateMarket, &mut data);
@@ -2077,6 +2264,7 @@ fn stale_error_cleared_on_update_all_start() {
         selection: market_selection(Some("mp-a"), Some(0)),
         operation_status: None,
         error_message: Some("previous error".to_string()),
+        pending_add_source: None,
     };
 
     let effect = update(&mut model, Msg::UpdateAll, &mut data);
@@ -2099,6 +2287,7 @@ fn stale_error_cleared_on_successful_update_retry() {
         selection: market_selection(Some("mp-a"), state.selected()),
         operation_status: Some(OperationStatus::Updating("mp-a".to_string())),
         error_message: Some("previous failure".to_string()),
+        pending_add_source: None,
     };
 
     execute_update_with(
@@ -2128,6 +2317,7 @@ fn stale_error_cleared_on_successful_remove_retry() {
         selection: market_selection(Some("mp-a"), state.selected()),
         operation_status: Some(OperationStatus::Removing("mp-a".to_string())),
         error_message: Some("previous failure".to_string()),
+        pending_add_source: None,
     };
 
     execute_remove_with(
@@ -2158,6 +2348,7 @@ fn stale_error_cleared_on_successful_update_all_retry() {
         selection: market_selection(Some("mp-a"), state.selected()),
         operation_status: Some(OperationStatus::UpdatingAll),
         error_message: Some("previous failure".to_string()),
+        pending_add_source: None,
     };
 
     execute_update_with(

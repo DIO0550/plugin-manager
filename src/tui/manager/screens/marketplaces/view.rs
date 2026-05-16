@@ -230,6 +230,7 @@ fn view_market_list(
                 OperationStatus::Updating(name) => format!(" Updating marketplace '{}'...", name),
                 OperationStatus::UpdatingAll => " Updating all marketplaces...".to_string(),
                 OperationStatus::Removing(name) => format!(" Removing marketplace '{}'...", name),
+                OperationStatus::Adding(name) => format!(" Adding marketplace '{}'...", name),
             };
             lines.push(Line::from(Span::styled(
                 status_text,
