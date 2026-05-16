@@ -1,7 +1,9 @@
 //! Marketplaces タブの update（状態遷移ロジック）
 
 use super::actions;
-use super::model::{AddFormModel, DetailAction, MarketplacesScreenModel, Msg, OperationStatus};
+use super::model::{
+    AddFormModel, BrowsePlugin, DetailAction, MarketplacesScreenModel, Msg, OperationStatus,
+};
 use crate::marketplace::normalize_name;
 use crate::repo;
 use crate::tui::manager::core::{DataStore, MarketplaceItem, SelectionState};
@@ -497,6 +499,7 @@ fn execute_add(model: &mut MarketplacesScreenModel, data: &mut DataStore) -> Upd
         data,
         |source, name| actions::add_marketplace(source, name, None),
         |d| d.reload_marketplaces(),
+        |d, name| actions::get_browse_plugins(name, &d.plugins),
     )
 }
 
@@ -504,42 +507,45 @@ fn execute_add(model: &mut MarketplacesScreenModel, data: &mut DataStore) -> Upd
 ///
 /// MarketList の operation_status が `Adding(name)` で `pending_add_source` が
 /// `Some` であることを前提とする。それ以外の状態では no-op。
-fn execute_add_with(
+///
+/// 成功時はそのままプラグインインストールフローに進めるよう
+/// `PluginBrowse` に遷移する。失敗時は MarketList に留まり error_message を
+/// セットする。
+pub(super) fn execute_add_with(
     model: &mut MarketplacesScreenModel,
     data: &mut DataStore,
     run_add: impl FnOnce(&str, &str) -> Result<actions::MarketplaceAddOutcome, String>,
     reload: impl FnOnce(&mut DataStore),
+    fetch_browse_plugins: impl FnOnce(&DataStore, &str) -> Vec<BrowsePlugin>,
 ) -> UpdateEffect {
-    if let MarketplacesScreenModel::MarketList {
-        selection,
-        operation_status,
-        error_message,
-        pending_add_source,
-    } = model
-    {
-        let name = match operation_status.take() {
-            Some(OperationStatus::Adding(name)) => name,
-            other => {
-                *operation_status = other;
-                return UpdateEffect::none();
-            }
-        };
-        let source = match pending_add_source.take() {
-            Some(source) => source,
-            None => {
-                *error_message = Some("Internal error: missing pending source".to_string());
-                return UpdateEffect::none();
-            }
-        };
+    let (name, source) = match take_add_request(model) {
+        Some(pair) => pair,
+        None => return UpdateEffect::none(),
+    };
 
-        match run_add(&source, &name) {
-            Ok(_) => {
-                reload(data);
-                let idx = data.marketplace_index(&name).unwrap_or(0);
-                selection.set(Some(name), Some(idx));
-                *error_message = None;
+    match run_add(&source, &name) {
+        Ok(_) => {
+            reload(data);
+            let plugins = fetch_browse_plugins(data, &name);
+            let mut state = ListState::default();
+            if !plugins.is_empty() {
+                state.select(Some(0));
             }
-            Err(e) => {
+            *model = MarketplacesScreenModel::PluginBrowse {
+                marketplace_name: name,
+                plugins,
+                selected_plugins: HashSet::new(),
+                highlighted_idx: 0,
+                state,
+            };
+        }
+        Err(e) => {
+            if let MarketplacesScreenModel::MarketList {
+                selection,
+                error_message,
+                ..
+            } = model
+            {
                 let idx = data.marketplace_index(&name);
                 selection.set(idx.map(|_| name.clone()), idx);
                 *error_message = Some(e);
@@ -547,6 +553,34 @@ fn execute_add_with(
         }
     }
     UpdateEffect::none()
+}
+
+/// MarketList(Adding) から (name, source) を取り出す。Adding 以外なら状態を戻し
+/// `None` を返す。pending_add_source が欠落していた場合は error_message を
+/// セットして `None` を返す。
+fn take_add_request(model: &mut MarketplacesScreenModel) -> Option<(String, String)> {
+    let MarketplacesScreenModel::MarketList {
+        operation_status,
+        error_message,
+        pending_add_source,
+        ..
+    } = model
+    else {
+        return None;
+    };
+
+    let name = match operation_status.take() {
+        Some(OperationStatus::Adding(name)) => name,
+        other => {
+            *operation_status = other;
+            return None;
+        }
+    };
+    let Some(source) = pending_add_source.take() else {
+        *error_message = Some("Internal error: missing pending source".to_string());
+        return None;
+    };
+    Some((name, source))
 }
 
 /// Back 処理
