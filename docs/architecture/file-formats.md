@@ -388,6 +388,26 @@ target: vscode
 Codexは`.agent.md`形式を公式サポートしていないため、変換不可。
 `AGENTS.md`への追記として対応する場合は、本文のみを使用。
 
+### Skill → Codex Skill
+
+`SKILL.md` の frontmatter は `name` / `description` / `metadata` のみ保持し、それ以外の
+top-level フィールドはデプロイ時に削除する（ディレクトリ内の他ファイルはそのままコピー）。
+
+| Claude Code | Codex | 変換方法 |
+|-------------|-------|----------|
+| `name` | `name` | そのまま |
+| `description` | `description` | そのまま |
+| `metadata` | `metadata` | そのまま（ネストを保持） |
+| `allowed-tools` | - | 削除（Codex非対応） |
+| `argument-hint` | - | 削除（Codex非対応） |
+| `model` | - | 削除（Codex非対応） |
+| `disable-model-invocation` | - | 削除（Codex非対応） |
+| `context` | - | 削除（Codex非対応） |
+
+> Note: 削除は frontmatter を YAML 再パースせず**行単位**で行う。これは、非対応フィールドが
+> 不正な YAML 値（例: `argument-hint: [threshold] [min-lines]` はフローシーケンスとして壊れる）
+> を含む場合でも、該当行を安全に取り除き Codex 側の読み込みエラーを防ぐためである。
+
 ### Skill → Gemini CLI Skill
 
 | Claude Code | Gemini CLI | 変換方法 |
