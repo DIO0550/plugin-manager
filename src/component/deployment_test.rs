@@ -481,3 +481,78 @@ fn test_execute_agent_without_format_copies() {
     assert!(target.exists());
     assert_eq!(fs::read_to_string(&target).unwrap(), "simple agent content");
 }
+
+// ========================================
+// Skill frontmatter conversion tests
+// ========================================
+
+#[test]
+fn test_execute_skill_strips_unsupported_frontmatter_for_codex() {
+    use crate::target::TargetKind;
+
+    let temp = TempDir::new().unwrap();
+    let source = temp.path().join("my-skill");
+    let target = temp.path().join("dest/my-skill");
+
+    fs::create_dir(&source).unwrap();
+    fs::write(
+        source.join("SKILL.md"),
+        "---\nname: my-skill\ndescription: demo\ndisable-model-invocation: true\nallowed-tools: Bash(ls *)\nargument-hint: [a] [b]\n---\n\n# Body\n",
+    )
+    .unwrap();
+    fs::write(source.join("helper.py"), "print('hi')").unwrap();
+
+    let deployment = make_deployment(
+        Component {
+            kind: ComponentKind::Skill,
+            name: "my-skill".to_string(),
+            path: source,
+        },
+        target.clone(),
+        ConversionConfig::Skill {
+            target_kind: TargetKind::Codex,
+        },
+    );
+
+    deployment.execute().unwrap();
+
+    let manifest = fs::read_to_string(target.join("SKILL.md")).unwrap();
+    assert!(manifest.contains("name: my-skill"));
+    assert!(manifest.contains("description: demo"));
+    assert!(!manifest.contains("disable-model-invocation"));
+    assert!(!manifest.contains("allowed-tools"));
+    assert!(!manifest.contains("argument-hint"));
+    assert!(manifest.contains("# Body"));
+    // 付随ファイルはそのままコピーされる
+    assert!(target.join("helper.py").exists());
+}
+
+#[test]
+fn test_execute_skill_keeps_frontmatter_for_non_codex_target() {
+    use crate::target::TargetKind;
+
+    let temp = TempDir::new().unwrap();
+    let source = temp.path().join("my-skill");
+    let target = temp.path().join("dest/my-skill");
+
+    let original = "---\nname: my-skill\ndescription: demo\nallowed-tools: Bash(ls *)\n---\nbody\n";
+    fs::create_dir(&source).unwrap();
+    fs::write(source.join("SKILL.md"), original).unwrap();
+
+    let deployment = make_deployment(
+        Component {
+            kind: ComponentKind::Skill,
+            name: "my-skill".to_string(),
+            path: source,
+        },
+        target.clone(),
+        ConversionConfig::Skill {
+            target_kind: TargetKind::Copilot,
+        },
+    );
+
+    deployment.execute().unwrap();
+
+    let manifest = fs::read_to_string(target.join("SKILL.md")).unwrap();
+    assert_eq!(manifest, original);
+}

@@ -2,6 +2,7 @@
 
 use super::*;
 use crate::error::PlmError;
+use crate::target::TargetKind;
 use std::fs;
 use tempfile::TempDir;
 
@@ -512,4 +513,103 @@ fn test_agent_creates_parent_directories() {
 
     assert!(!result.converted);
     assert!(dest.exists());
+}
+
+// ========================================
+// Skill frontmatter stripping tests
+// ========================================
+
+#[test]
+fn test_skill_allowed_fields_codex_keeps_name_description_metadata() {
+    let allowed = skill_allowed_fields(TargetKind::Codex).unwrap();
+    assert!(allowed.contains(&"name"));
+    assert!(allowed.contains(&"description"));
+    assert!(allowed.contains(&"metadata"));
+    assert!(!allowed.contains(&"allowed-tools"));
+}
+
+#[test]
+fn test_skill_allowed_fields_non_codex_is_unrestricted() {
+    assert!(skill_allowed_fields(TargetKind::Copilot).is_none());
+    assert!(skill_allowed_fields(TargetKind::GeminiCli).is_none());
+    assert!(skill_allowed_fields(TargetKind::Antigravity).is_none());
+}
+
+#[test]
+fn test_strip_skill_frontmatter_removes_unsupported_fields() {
+    let content = "---\nname: demo\ndescription: hello\ndisable-model-invocation: true\nallowed-tools: Bash(ls *), Read\n---\n\n# Body\n";
+    let allowed = ["name", "description", "metadata"];
+
+    let result = strip_skill_frontmatter_fields(content, &allowed);
+
+    assert!(result.contains("name: demo"));
+    assert!(result.contains("description: hello"));
+    assert!(!result.contains("disable-model-invocation"));
+    assert!(!result.contains("allowed-tools"));
+    // 本文は保持される
+    assert!(result.ends_with("\n# Body\n"));
+}
+
+#[test]
+fn test_strip_skill_frontmatter_keeps_metadata_with_nested_keys() {
+    let content =
+        "---\nname: demo\ndescription: hi\nmetadata:\n  short-description: PDF utils\n  category: docs\nargument-hint: [a] [b]\n---\nbody\n";
+    let allowed = ["name", "description", "metadata"];
+
+    let result = strip_skill_frontmatter_fields(content, &allowed);
+
+    assert!(result.contains("metadata:"));
+    assert!(result.contains("  short-description: PDF utils"));
+    assert!(result.contains("  category: docs"));
+    assert!(!result.contains("argument-hint"));
+}
+
+#[test]
+fn test_strip_skill_frontmatter_drops_invalid_yaml_bracket_value() {
+    // `argument-hint: [threshold] [min-lines]` は YAML フローシーケンスとして壊れるが、
+    // 行ベース除去なので影響を受けずに取り除ける。除去後は YAML として valid になる。
+    let content = "---\nname: similarity\ndescription: dup detection\ndisable-model-invocation: true\nallowed-tools: Bash(similarity-ts *)\nargument-hint: [threshold] [min-lines]\n---\nbody\n";
+    let allowed = ["name", "description", "metadata"];
+
+    let result = strip_skill_frontmatter_fields(content, &allowed);
+
+    assert!(!result.contains("argument-hint"));
+    assert!(!result.contains("allowed-tools"));
+    // 除去後の frontmatter は serde_yaml でパースできる
+    let fm = result
+        .strip_prefix("---\n")
+        .and_then(|s| s.split("\n---").next())
+        .unwrap();
+    let parsed: serde_yaml::Value = serde_yaml::from_str(fm).unwrap();
+    assert_eq!(parsed["name"], serde_yaml::Value::from("similarity"));
+}
+
+#[test]
+fn test_strip_skill_frontmatter_without_frontmatter_is_unchanged() {
+    let content = "# Just a body\n\nno frontmatter here\n";
+    let result = strip_skill_frontmatter_fields(content, &["name"]);
+    assert_eq!(result, content);
+}
+
+#[test]
+fn test_strip_skill_frontmatter_without_closing_fence_is_unchanged() {
+    let content = "---\nname: demo\ndescription: hi\n\n# body but no closing fence\n";
+    let result = strip_skill_frontmatter_fields(content, &["name", "description"]);
+    assert_eq!(result, content);
+}
+
+#[test]
+fn test_strip_skill_frontmatter_all_supported_is_unchanged() {
+    let content = "---\nname: demo\ndescription: hi\n---\nbody\n";
+    let result = strip_skill_frontmatter_fields(content, &["name", "description", "metadata"]);
+    assert_eq!(result, content);
+}
+
+#[test]
+fn test_strip_skill_frontmatter_preserves_body_with_fence_lines() {
+    // 本文中に `---` が含まれていても、最初の閉じ fence 以降はそのまま保持される
+    let content = "---\nname: demo\ndescription: hi\nallowed-tools: Read\n---\n\nbody line\n\n---\n\nmore body\n";
+    let result = strip_skill_frontmatter_fields(content, &["name", "description"]);
+    assert!(!result.contains("allowed-tools"));
+    assert!(result.ends_with("\n\nbody line\n\n---\n\nmore body\n"));
 }
