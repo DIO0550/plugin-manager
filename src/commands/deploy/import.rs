@@ -243,6 +243,9 @@ fn build_deployment(
                 plugin_root: Some(ctx.plugin_root.to_path_buf()),
             }
         }
+        ComponentKind::Skill => ConversionConfig::Skill {
+            target_kind: target.kind(),
+        },
         _ => ConversionConfig::None,
     };
 

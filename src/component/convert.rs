@@ -5,6 +5,7 @@
 
 use crate::error::{PlmError, Result};
 use crate::parser::{ClaudeCodeAgent, ClaudeCodeCommand, TargetType};
+use crate::target::TargetKind;
 use std::fs;
 use std::path::Path;
 
@@ -272,6 +273,129 @@ fn atomic_write(dest_path: &Path, content: &str) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// 指定ターゲットの Skill `SKILL.md` frontmatter で保持すべき top-level フィールド。
+///
+/// `Some(fields)` を返すターゲットでは、`fields` 以外の top-level フィールドを
+/// デプロイ時に除去する。`None` は「制限なし（frontmatter をそのまま保持）」を表す。
+///
+/// Codex の Skill frontmatter は公式に `name` / `description` / `metadata` のみ対応する。
+/// `allowed-tools` / `disable-model-invocation` / `argument-hint` 等の Claude Code 固有
+/// フィールドはサポート外であり、不正な YAML 値（例: `argument-hint: [a] [b]`）を含むと
+/// Codex 側で SKILL.md 全体が読み込みエラーになるため、デプロイ時に取り除く。
+///
+/// # Arguments
+///
+/// * `target` - 配置先ターゲット種別。
+pub fn skill_allowed_fields(target: TargetKind) -> Option<&'static [&'static str]> {
+    match target {
+        TargetKind::Codex => Some(&["name", "description", "metadata"]),
+        TargetKind::Antigravity | TargetKind::Copilot | TargetKind::GeminiCli => None,
+    }
+}
+
+/// `SKILL.md` の内容から、`allowed` に含まれない top-level frontmatter フィールドを除去する。
+///
+/// frontmatter 全体を YAML として再パースせず、**行ベース**で top-level キーを判定して
+/// 除去する。これは、サポート外フィールドが不正な YAML 値を持つ場合（例:
+/// `argument-hint: [threshold] [min-lines]` はフローシーケンスとして解釈され壊れる）でも、
+/// 該当行を安全に取り除けるようにするためである。
+///
+/// # 判定ルール
+///
+/// - 先頭が `---` の行で開始し、以降の `---` 行までを frontmatter とみなす
+/// - frontmatter がない、または閉じ `---` がない場合は内容をそのまま返す
+/// - インデントなしで `key:` の形を持つ行を top-level キーとみなす
+/// - top-level キー行に続くインデント行・空行・コメント行・リスト行は、直前の
+///   top-level キーのブロックの一部として扱う（`metadata:` 配下のネストを保持できる）
+/// - 本文（閉じ `---` 以降）はバイト単位でそのまま保持する
+///
+/// # Arguments
+///
+/// * `content` - `SKILL.md` の全内容。
+/// * `allowed` - 保持する top-level フィールド名の一覧。
+pub fn strip_skill_frontmatter_fields(content: &str, allowed: &[&str]) -> String {
+    let stripped = content.strip_prefix('\u{feff}').unwrap_or(content);
+    let bom = &content[..content.len() - stripped.len()];
+
+    let lines: Vec<&str> = stripped.lines().collect();
+
+    let first_is_fence = lines.first().map(|s| s.trim()).unwrap_or("") == "---";
+    if !first_is_fence {
+        return content.to_string();
+    }
+
+    let closing_index = lines
+        .iter()
+        .enumerate()
+        .skip(1)
+        .find(|(_, line)| line.trim() == "---")
+        .map(|(i, _)| i);
+
+    let Some(closing_index) = closing_index else {
+        return content.to_string();
+    };
+
+    // frontmatter 行（開始/終了 `---` の間）をフィルタリング
+    let mut kept_frontmatter: Vec<&str> = Vec::new();
+    // 最初の top-level キーより前の行（コメント等）は保持する
+    let mut keep_current_block = true;
+    for &line in &lines[1..closing_index] {
+        if let Some(key) = top_level_frontmatter_key(line) {
+            keep_current_block = allowed.contains(&key);
+        }
+        if keep_current_block {
+            kept_frontmatter.push(line);
+        }
+    }
+
+    // 本文はバイト単位でそのまま保持する（CRLF や末尾改行の有無を壊さない）
+    let body_offset: usize = lines[..=closing_index]
+        .iter()
+        .map(|line| line.len() + 1)
+        .sum::<usize>()
+        + bom.len();
+    let body = if body_offset <= content.len() {
+        &content[body_offset..]
+    } else {
+        ""
+    };
+
+    let mut result = String::with_capacity(content.len());
+    result.push_str(bom);
+    result.push_str(lines[0]);
+    result.push('\n');
+    for line in kept_frontmatter {
+        result.push_str(line);
+        result.push('\n');
+    }
+    result.push_str(lines[closing_index]);
+    result.push('\n');
+    result.push_str(body);
+    result
+}
+
+/// frontmatter の 1 行から top-level マッピングキーを取り出す。
+///
+/// インデントなしで `key:` の形を持つ行のみをキーとみなす。インデント行・空行・
+/// コメント行（`#`）・リスト行（`-`）は継続行として `None` を返す。
+fn top_level_frontmatter_key(line: &str) -> Option<&str> {
+    let first = line.as_bytes().first().copied()?;
+    if matches!(first, b' ' | b'\t' | b'#' | b'-') {
+        return None;
+    }
+    let colon = line.find(':')?;
+    let key = &line[..colon];
+    if !key.is_empty()
+        && key
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+    {
+        Some(key)
+    } else {
+        None
+    }
 }
 
 #[cfg(test)]
