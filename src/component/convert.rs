@@ -281,9 +281,13 @@ fn atomic_write(dest_path: &Path, content: &str) -> Result<()> {
 /// デプロイ時に除去する。`None` は「制限なし（frontmatter をそのまま保持）」を表す。
 ///
 /// Codex の Skill frontmatter は公式に `name` / `description` / `metadata` のみ対応する。
-/// `allowed-tools` / `disable-model-invocation` / `argument-hint` 等の Claude Code 固有
-/// フィールドはサポート外であり、不正な YAML 値（例: `argument-hint: [a] [b]`）を含むと
-/// Codex 側で SKILL.md 全体が読み込みエラーになるため、デプロイ時に取り除く。
+/// Gemini CLI はさらに限定的で `name` / `description` のみ対応する。いずれもサポート外
+/// フィールド（`allowed-tools` / `disable-model-invocation` / `argument-hint` / `model` /
+/// `context` 等）が残ると読み込みエラーになりうるため、デプロイ時に取り除く。
+/// 特に不正な YAML 値（例: `argument-hint: [a] [b]`）を含むと SKILL.md 全体が
+/// パース不能になる。
+///
+/// Copilot は Codex / Claude Code と共通形式のため制限しない（`None`）。
 ///
 /// # Arguments
 ///
@@ -291,7 +295,8 @@ fn atomic_write(dest_path: &Path, content: &str) -> Result<()> {
 pub fn skill_allowed_fields(target: TargetKind) -> Option<&'static [&'static str]> {
     match target {
         TargetKind::Codex => Some(&["name", "description", "metadata"]),
-        TargetKind::Antigravity | TargetKind::Copilot | TargetKind::GeminiCli => None,
+        TargetKind::GeminiCli => Some(&["name", "description"]),
+        TargetKind::Antigravity | TargetKind::Copilot => None,
     }
 }
 

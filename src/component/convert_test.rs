@@ -529,9 +529,18 @@ fn test_skill_allowed_fields_codex_keeps_name_description_metadata() {
 }
 
 #[test]
-fn test_skill_allowed_fields_non_codex_is_unrestricted() {
+fn test_skill_allowed_fields_gemini_keeps_only_name_description() {
+    let allowed = skill_allowed_fields(TargetKind::GeminiCli).unwrap();
+    assert!(allowed.contains(&"name"));
+    assert!(allowed.contains(&"description"));
+    // Gemini CLI は metadata 非対応
+    assert!(!allowed.contains(&"metadata"));
+    assert!(!allowed.contains(&"allowed-tools"));
+}
+
+#[test]
+fn test_skill_allowed_fields_unrestricted_targets() {
     assert!(skill_allowed_fields(TargetKind::Copilot).is_none());
-    assert!(skill_allowed_fields(TargetKind::GeminiCli).is_none());
     assert!(skill_allowed_fields(TargetKind::Antigravity).is_none());
 }
 
