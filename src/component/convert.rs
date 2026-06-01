@@ -309,7 +309,9 @@ pub fn skill_allowed_fields(target: TargetKind) -> Option<&'static [&'static str
 /// - インデントなしで `key:` の形を持つ行を top-level キーとみなす
 /// - top-level キー行に続くインデント行・空行・コメント行・リスト行は、直前の
 ///   top-level キーのブロックの一部として扱う（`metadata:` 配下のネストを保持できる）
-/// - 本文（閉じ `---` 以降）はバイト単位でそのまま保持する
+/// - 本文（閉じ `---` 以降）はバイト単位でそのまま保持する。ただし本文オフセットの
+///   計算は **LF 改行を前提**とする（`parser::frontmatter` と同様）。SKILL.md は LF 前提で
+///   あり、CRLF 入力ではオフセットがずれうる
 ///
 /// # Arguments
 ///
