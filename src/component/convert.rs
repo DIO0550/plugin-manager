@@ -352,7 +352,8 @@ pub fn strip_skill_frontmatter_fields(content: &str, allowed: &[&str]) -> String
         }
     }
 
-    // 本文はバイト単位でそのまま保持する（CRLF や末尾改行の有無を壊さない）
+    // 本文はバイト単位でそのまま保持する。オフセット計算は LF 改行を前提とする
+    // （`lines()` は `\r` を落とすため、CRLF 入力ではずれうる）。SKILL.md は LF 前提。
     let body_offset: usize = lines[..=closing_index]
         .iter()
         .map(|line| line.len() + 1)
