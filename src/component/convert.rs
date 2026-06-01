@@ -252,7 +252,7 @@ fn copy_file(source: &Path, dest: &Path) -> Result<()> {
 ///
 /// * `dest_path` - Final destination path where the content should end up.
 /// * `content` - Content to write atomically.
-fn atomic_write(dest_path: &Path, content: &str) -> Result<()> {
+pub(crate) fn atomic_write(dest_path: &Path, content: &str) -> Result<()> {
     if let Some(parent) = dest_path.parent() {
         fs::create_dir_all(parent)?;
     }
