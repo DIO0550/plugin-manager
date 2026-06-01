@@ -545,6 +545,27 @@ fn test_skill_allowed_fields_unrestricted_targets() {
 }
 
 #[test]
+fn test_strip_skill_frontmatter_crlf_preserves_body() {
+    // CRLF 入力でも本文（閉じ fence 以降）をバイト単位でそのまま保持する。
+    // frontmatter 行の改行は LF に正規化されるが、本文はオフセットずれなく無傷で残る。
+    let content =
+        "---\r\nname: demo\r\ndescription: hi\r\nallowed-tools: Read\r\n---\r\n\r\nline1\r\nline2\r\n";
+    let allowed = ["name", "description"];
+
+    let result = strip_skill_frontmatter_fields(content, &allowed);
+
+    // 非対応フィールドは除去される
+    assert!(!result.contains("allowed-tools"));
+    // 本文（閉じ fence の改行以降）は CRLF のままバイト単位で保持される
+    // = 先頭欠落や改行混入がない
+    assert!(result.ends_with("\r\nline1\r\nline2\r\n"));
+    assert_eq!(
+        result,
+        "---\nname: demo\ndescription: hi\n---\n\r\nline1\r\nline2\r\n"
+    );
+}
+
+#[test]
 fn test_strip_skill_frontmatter_removes_unsupported_fields() {
     let content = "---\nname: demo\ndescription: hello\ndisable-model-invocation: true\nallowed-tools: Bash(ls *), Read\n---\n\n# Body\n";
     let allowed = ["name", "description", "metadata"];

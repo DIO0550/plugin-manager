@@ -314,9 +314,9 @@ pub fn skill_allowed_fields(target: TargetKind) -> Option<&'static [&'static str
 /// - インデントなしで `key:` の形を持つ行を top-level キーとみなす
 /// - top-level キー行に続くインデント行・空行・コメント行・リスト行は、直前の
 ///   top-level キーのブロックの一部として扱う（`metadata:` 配下のネストを保持できる）
-/// - 本文（閉じ `---` 以降）はバイト単位でそのまま保持する。ただし本文オフセットの
-///   計算は **LF 改行を前提**とする（`parser::frontmatter` と同様）。SKILL.md は LF 前提で
-///   あり、CRLF 入力ではオフセットがずれうる
+/// - 本文（閉じ `---` 以降）はバイト単位でそのまま保持する。オフセットは行終端を
+///   含めたまま分割（`split_inclusive('\n')`）して算出するため、LF / CRLF いずれの
+///   改行コードでも本文を壊さない（保持する frontmatter 行の改行は LF に正規化される）
 ///
 /// # Arguments
 ///
@@ -326,18 +326,20 @@ pub fn strip_skill_frontmatter_fields(content: &str, allowed: &[&str]) -> String
     let stripped = content.strip_prefix('\u{feff}').unwrap_or(content);
     let bom = &content[..content.len() - stripped.len()];
 
-    let lines: Vec<&str> = stripped.lines().collect();
+    // 行終端 (`\n`) を含めたまま分割する。各セグメントのバイト長を合計すれば、
+    // LF / CRLF を問わず正確な本文オフセットを算出できる。
+    let segments: Vec<&str> = stripped.split_inclusive('\n').collect();
 
-    let first_is_fence = lines.first().map(|s| s.trim()).unwrap_or("") == "---";
+    let first_is_fence = segments.first().map(|s| line_text(s).trim()).unwrap_or("") == "---";
     if !first_is_fence {
         return content.to_string();
     }
 
-    let closing_index = lines
+    let closing_index = segments
         .iter()
         .enumerate()
         .skip(1)
-        .find(|(_, line)| line.trim() == "---")
+        .find(|(_, seg)| line_text(seg).trim() == "---")
         .map(|(i, _)| i);
 
     let Some(closing_index) = closing_index else {
@@ -348,7 +350,8 @@ pub fn strip_skill_frontmatter_fields(content: &str, allowed: &[&str]) -> String
     let mut kept_frontmatter: Vec<&str> = Vec::new();
     // 最初の top-level キーより前の行（コメント等）は保持する
     let mut keep_current_block = true;
-    for &line in &lines[1..closing_index] {
+    for seg in &segments[1..closing_index] {
+        let line = line_text(seg);
         if let Some(key) = top_level_frontmatter_key(line) {
             keep_current_block = allowed.contains(&key);
         }
@@ -357,13 +360,12 @@ pub fn strip_skill_frontmatter_fields(content: &str, allowed: &[&str]) -> String
         }
     }
 
-    // 本文はバイト単位でそのまま保持する。オフセット計算は LF 改行を前提とする
-    // （`lines()` は `\r` を落とすため、CRLF 入力ではずれうる）。SKILL.md は LF 前提。
-    let body_offset: usize = lines[..=closing_index]
-        .iter()
-        .map(|line| line.len() + 1)
-        .sum::<usize>()
-        + bom.len();
+    // 本文（閉じ `---` セグメントの直後）はバイト単位でそのまま保持する。
+    let body_offset: usize = bom.len()
+        + segments[..=closing_index]
+            .iter()
+            .map(|s| s.len())
+            .sum::<usize>();
     let body = if body_offset <= content.len() {
         &content[body_offset..]
     } else {
@@ -372,16 +374,23 @@ pub fn strip_skill_frontmatter_fields(content: &str, allowed: &[&str]) -> String
 
     let mut result = String::with_capacity(content.len());
     result.push_str(bom);
-    result.push_str(lines[0]);
+    result.push_str(line_text(segments[0]));
     result.push('\n');
     for line in kept_frontmatter {
         result.push_str(line);
         result.push('\n');
     }
-    result.push_str(lines[closing_index]);
+    result.push_str(line_text(segments[closing_index]));
     result.push('\n');
     result.push_str(body);
     result
+}
+
+/// `split_inclusive('\n')` のセグメントから、末尾の改行 (`\r\n` / `\n`) を除いた
+/// 行内容を取り出す。
+fn line_text(segment: &str) -> &str {
+    let without_lf = segment.strip_suffix('\n').unwrap_or(segment);
+    without_lf.strip_suffix('\r').unwrap_or(without_lf)
 }
 
 /// frontmatter の 1 行から top-level マッピングキーを取り出す。
