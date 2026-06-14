@@ -256,6 +256,9 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
                         plugin_root: Some(request.scanned.plugin_root().to_path_buf()),
                     }
                 }
+                ComponentKind::Skill => ConversionConfig::Skill {
+                    target_kind: target.kind(),
+                },
                 _ => ConversionConfig::None,
             };
 

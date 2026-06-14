@@ -73,6 +73,23 @@ impl ComponentDeployment {
     fn deploy_skill(&self) -> Result<DeploymentOutput> {
         // Skills are directories
         self.source_path().copy_dir_to(&self.target_path)?;
+
+        // ターゲットがサポートしない frontmatter フィールドを SKILL.md から除去する。
+        if let ConversionConfig::Skill { target_kind } = &self.conversion {
+            if let Some(allowed) = convert::skill_allowed_fields(*target_kind) {
+                let manifest = self.target_path.join("SKILL.md");
+                if manifest.is_file() {
+                    let original = std::fs::read_to_string(&manifest)?;
+                    let stripped = convert::strip_skill_frontmatter_fields(&original, allowed);
+                    if stripped != original {
+                        // 部分書き込みでデプロイ済み Skill を壊さないよう、
+                        // 他の変換と同様にアトミック（tmp → rename）に書き戻す。
+                        convert::atomic_write(&manifest, &stripped)?;
+                    }
+                }
+            }
+        }
+
         Ok(DeploymentOutput::Copied)
     }
 
