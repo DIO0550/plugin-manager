@@ -140,5 +140,9 @@ fn run_update_plugin(key: &PluginKey, project_root: &Path) -> UpdateStatusDispla
         UpdateStatus::Failed => {
             UpdateStatusDisplay::Failed(result.error.unwrap_or_else(|| "Unknown error".to_string()))
         }
+        // 単一経路では発生しないが、match 網羅のため対応
+        UpdateStatus::RolledBack => {
+            UpdateStatusDisplay::Failed(result.error.unwrap_or_else(|| "Rolled back".to_string()))
+        }
     }
 }
