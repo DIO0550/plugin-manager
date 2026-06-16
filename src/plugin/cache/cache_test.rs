@@ -600,6 +600,223 @@ fn test_atomic_update_cleans_up_temp_on_failure() {
 }
 
 // =============================================================================
+// staging API tests: stage_from_archive / commit_staged / discard_staged
+// =============================================================================
+
+#[test]
+fn test_stage_from_archive_does_not_touch_production() {
+    // 正常系: stage は本番を触らない
+    let temp_dir = TempDir::new().unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+    // 既存本番プラグイン (v1)
+    let archive_v1 = create_test_archive(&[
+        (
+            "repo-main/plugin.json",
+            r#"{"name":"test","version":"1.0.0"}"#,
+        ),
+        ("repo-main/data.txt", "version 1"),
+    ]);
+    cache
+        .store_from_archive(Some("github"), "test-plugin", &archive_v1, None)
+        .unwrap();
+
+    // 有効 archive (v2) を stage
+    let archive_v2 = create_test_archive(&[
+        (
+            "repo-main/plugin.json",
+            r#"{"name":"test","version":"2.0.0"}"#,
+        ),
+        ("repo-main/data.txt", "version 2"),
+    ]);
+    let staged = cache
+        .stage_from_archive(Some("github"), "test-plugin", &archive_v2, None)
+        .unwrap();
+
+    // temp に展開され plugin.json 存在
+    assert!(staged.join("plugin.json").exists());
+    assert_eq!(
+        fs::read_to_string(staged.join("data.txt")).unwrap(),
+        "version 2"
+    );
+
+    // 本番は旧内容のまま不変
+    let plugin_path = cache.plugin_path(Some("github"), "test-plugin");
+    assert_eq!(
+        fs::read_to_string(plugin_path.join("data.txt")).unwrap(),
+        "version 1"
+    );
+}
+
+#[test]
+fn test_commit_staged_swaps_into_production() {
+    // 正常系: commit_staged で swap
+    let temp_dir = TempDir::new().unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+    let archive_v1 = create_test_archive(&[
+        (
+            "repo-main/plugin.json",
+            r#"{"name":"test","version":"1.0.0"}"#,
+        ),
+        ("repo-main/data.txt", "version 1"),
+    ]);
+    cache
+        .store_from_archive(Some("github"), "test-plugin", &archive_v1, None)
+        .unwrap();
+
+    let archive_v2 = create_test_archive(&[
+        (
+            "repo-main/plugin.json",
+            r#"{"name":"test","version":"2.0.0"}"#,
+        ),
+        ("repo-main/data.txt", "version 2"),
+    ]);
+    cache
+        .stage_from_archive(Some("github"), "test-plugin", &archive_v2, None)
+        .unwrap();
+
+    let committed = cache.commit_staged(Some("github"), "test-plugin").unwrap();
+
+    // 本番が新内容に置換
+    assert_eq!(
+        fs::read_to_string(committed.join("data.txt")).unwrap(),
+        "version 2"
+    );
+    // temp 消滅
+    let temp_path = temp_dir
+        .path()
+        .join(".temp")
+        .join("github")
+        .join("test-plugin");
+    assert!(!temp_path.exists());
+}
+
+#[test]
+fn test_stage_then_commit_round_trip_consistency() {
+    // 正常系: stage→commit の往復一貫性
+    let temp_dir = TempDir::new().unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+    let archive_v1 = create_test_archive(&[(
+        "repo-main/plugin.json",
+        r#"{"name":"test","version":"1.0.0"}"#,
+    )]);
+    cache
+        .store_from_archive(Some("github"), "test-plugin", &archive_v1, None)
+        .unwrap();
+
+    let archive_v2 = create_test_archive(&[
+        (
+            "repo-main/plugin.json",
+            r#"{"name":"test","version":"2.0.0"}"#,
+        ),
+        ("repo-main/new-file.txt", "fresh content"),
+    ]);
+    cache
+        .stage_from_archive(Some("github"), "test-plugin", &archive_v2, None)
+        .unwrap();
+    let committed = cache.commit_staged(Some("github"), "test-plugin").unwrap();
+
+    assert!(committed.join("new-file.txt").exists());
+    assert_eq!(
+        fs::read_to_string(committed.join("new-file.txt")).unwrap(),
+        "fresh content"
+    );
+    let manifest = fs::read_to_string(committed.join("plugin.json")).unwrap();
+    assert!(manifest.contains("2.0.0"));
+}
+
+#[test]
+fn test_stage_from_archive_invalid_manifest_keeps_production() {
+    // 異常系: plugin.json を含まない archive → Err、temp 破棄、本番不変
+    let temp_dir = TempDir::new().unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+    let archive_v1 = create_test_archive(&[(
+        "repo-main/plugin.json",
+        r#"{"name":"test","version":"1.0.0"}"#,
+    )]);
+    cache
+        .store_from_archive(Some("github"), "test-plugin", &archive_v1, None)
+        .unwrap();
+
+    let bad_archive = create_test_archive(&[("repo-main/readme.md", "# no plugin.json")]);
+    let result = cache.stage_from_archive(Some("github"), "test-plugin", &bad_archive, None);
+
+    assert!(matches!(result, Err(PlmError::InvalidManifest(_))));
+
+    // temp 破棄
+    let temp_path = temp_dir
+        .path()
+        .join(".temp")
+        .join("github")
+        .join("test-plugin");
+    assert!(!temp_path.exists());
+
+    // 本番不変
+    let plugin_path = cache.plugin_path(Some("github"), "test-plugin");
+    assert!(plugin_path.join("plugin.json").exists());
+}
+
+#[test]
+fn test_commit_staged_without_stage_returns_error() {
+    // 異常系: stage せず commit_staged → Err、本番不変
+    let temp_dir = TempDir::new().unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+    let archive_v1 = create_test_archive(&[(
+        "repo-main/plugin.json",
+        r#"{"name":"test","version":"1.0.0"}"#,
+    )]);
+    cache
+        .store_from_archive(Some("github"), "test-plugin", &archive_v1, None)
+        .unwrap();
+
+    let result = cache.commit_staged(Some("github"), "test-plugin");
+    assert!(result.is_err());
+
+    // 本番不変
+    let plugin_path = cache.plugin_path(Some("github"), "test-plugin");
+    assert!(plugin_path.join("plugin.json").exists());
+}
+
+#[test]
+fn test_discard_staged_is_idempotent() {
+    // エッジケース: temp 無し状態で discard_staged → Ok（no-op）
+    let temp_dir = TempDir::new().unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+    let result = cache.discard_staged(Some("github"), "nonexistent-plugin");
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_discard_staged_removes_temp() {
+    // discard_staged が staging temp を破棄する
+    let temp_dir = TempDir::new().unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+    let archive = create_test_archive(&[(
+        "repo-main/plugin.json",
+        r#"{"name":"test","version":"1.0.0"}"#,
+    )]);
+    cache
+        .stage_from_archive(Some("github"), "test-plugin", &archive, None)
+        .unwrap();
+
+    let temp_path = temp_dir
+        .path()
+        .join(".temp")
+        .join("github")
+        .join("test-plugin");
+    assert!(temp_path.exists());
+
+    cache.discard_staged(Some("github"), "test-plugin").unwrap();
+    assert!(!temp_path.exists());
+}
+
+// =============================================================================
 // load_package() tests
 // =============================================================================
 
