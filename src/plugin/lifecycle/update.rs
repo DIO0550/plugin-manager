@@ -910,6 +910,24 @@ async fn check_all(
     }
 }
 
+/// best-effort で backup を削除する。失敗してもバッチは継続するが、
+/// `.backup` 残骸を放置して無言にしないよう警告を出す（運用者が部分クリーンアップを検知できる）。
+fn cleanup_backup(cache: &dyn PackageCacheAccess, marketplace: Option<&str>, name: &str) {
+    if let Err(e) = cache.remove_backup(marketplace, name) {
+        eprintln!("Warning: Failed to remove backup for '{}': {}", name, e);
+    }
+}
+
+/// best-effort で staging temp を破棄する。失敗時は `.temp` 残骸を無言にしないよう警告を出す。
+fn cleanup_staged(cache: &dyn PackageCacheAccess, marketplace: Option<&str>, name: &str) {
+    if let Err(e) = cache.discard_staged(marketplace, name) {
+        eprintln!(
+            "Warning: Failed to discard staged update for '{}': {}",
+            name, e
+        );
+    }
+}
+
 /// PREPARE: 全件 backup + download + stage + 検証（本番非破壊）
 ///
 /// 1 件でも失敗したら、それまでの staging/backup を全破棄して Aborted を返す。
@@ -933,7 +951,7 @@ async fn prepare_all(
             match with_retry(|| client.download_archive_with_sha(&target.repo), 3).await {
                 Ok(t) => t,
                 Err(e) => {
-                    let _ = cache.remove_backup(mp, &target.cache_id);
+                    cleanup_backup(cache, mp, &target.cache_id);
                     let failure = failed_for(&target, format!("Download failed: {}", e));
                     return abort(cache, staged, failure, iter);
                 }
@@ -945,7 +963,7 @@ async fn prepare_all(
             &archive,
             target.source_path.as_deref(),
         ) {
-            let _ = cache.remove_backup(mp, &target.cache_id);
+            cleanup_backup(cache, mp, &target.cache_id);
             let failure = failed_for(&target, format!("Staging failed: {}", e));
             return abort(cache, staged, failure, iter);
         }
@@ -976,8 +994,8 @@ fn abort(
     // すでに staging 済み（本来成功予定）→ RolledBack
     for s in &staged {
         let mp = s.target.marketplace.as_deref();
-        let _ = cache.discard_staged(mp, &s.target.cache_id);
-        let _ = cache.remove_backup(mp, &s.target.cache_id);
+        cleanup_staged(cache, mp, &s.target.cache_id);
+        cleanup_backup(cache, mp, &s.target.cache_id);
         results.push(UpdateOutcome::rolled_back(&s.target.display_name, None));
     }
     // 失敗した当該プラグイン → Failed
@@ -1040,7 +1058,7 @@ fn commit_all(
     // 全件 swap 成功 → backup 確定削除
     for s in &staged {
         let mp = s.target.marketplace.as_deref();
-        let _ = cache.remove_backup(mp, &s.target.cache_id);
+        cleanup_backup(cache, mp, &s.target.cache_id);
     }
     results
 }
@@ -1063,7 +1081,7 @@ fn rollback_all(
         let mp = s.target.marketplace.as_deref();
         let restored = cache.restore(mp, &s.target.cache_id);
         // 未 swap 分に残る staging temp も掃除（既 swap 分は commit_staged で temp 消費済み）
-        let _ = cache.discard_staged(mp, &s.target.cache_id);
+        cleanup_staged(cache, mp, &s.target.cache_id);
 
         if idx == failed_idx {
             // 当該（swap 失敗）は Failed のみ。restore 結果は警告として error に併記。
