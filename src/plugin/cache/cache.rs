@@ -571,6 +571,11 @@ impl PackageCacheAccess for PackageCache {
         source_path: Option<&str>,
     ) -> Result<PathBuf> {
         let fs = RealFs;
+
+        // source_path の防御的検証（store_from_archive と同等。doc の「正規化済み」契約を
+        // 強制し、`..`/絶対パス等の非正規化 source_path が展開処理に到達するのを防ぐ）
+        validate_source_path(source_path)?;
+
         let temp_dir = self.temp_path(marketplace, name);
 
         // temp ディレクトリをクリーンアップ

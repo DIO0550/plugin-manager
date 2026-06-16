@@ -760,6 +760,30 @@ fn test_stage_from_archive_invalid_manifest_keeps_production() {
 }
 
 #[test]
+fn test_stage_from_archive_rejects_non_normalized_source_path() {
+    // セキュリティ: 非正規化 source_path（".." 含む）は展開前に拒否する
+    let temp_dir = TempDir::new().unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+    let archive = create_test_archive(&[(
+        "repo-main/plugin.json",
+        r#"{"name":"test","version":"1.0.0"}"#,
+    )]);
+    let result =
+        cache.stage_from_archive(Some("github"), "test-plugin", &archive, Some("../escape"));
+
+    assert!(matches!(result, Err(PlmError::InvalidSource(_))));
+
+    // temp は作られない
+    let temp_path = temp_dir
+        .path()
+        .join(".temp")
+        .join("github")
+        .join("test-plugin");
+    assert!(!temp_path.exists());
+}
+
+#[test]
 fn test_commit_staged_without_stage_returns_error() {
     // 異常系: stage せず commit_staged → Err、本番不変
     let temp_dir = TempDir::new().unwrap();
