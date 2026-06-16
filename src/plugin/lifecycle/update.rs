@@ -1044,7 +1044,16 @@ fn commit_all(
         for t in &failed {
             new_meta.set_status(t, "disabled");
         }
-        let _ = meta::write_meta(&plugin_path, &new_meta);
+        // best-effort: 失敗してもロールバックしない（アトミック境界は swap まで）が、
+        // commit SHA がメタに反映されない不整合を無言にしないよう警告する。
+        // 次回 update の check_all で archive_sha 比較により収束する。
+        if let Err(e) = meta::write_meta(&plugin_path, &new_meta) {
+            eprintln!(
+                "Warning: Failed to write metadata for '{}': {} \
+                 (cache already updated; will reconcile on next update)",
+                s.target.display_name, e
+            );
+        }
 
         results.push(UpdateOutcome::updated(
             &s.target.display_name,
