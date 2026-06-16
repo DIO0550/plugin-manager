@@ -1007,29 +1007,39 @@ fn abort(
     PrepareOutcome::Aborted(results)
 }
 
-/// COMMIT: 全件 swap → redeploy → meta。swap 中失敗で ROLLBACK。
+/// COMMIT: 全件 swap（Phase 1）→ 全件 redeploy + meta（Phase 2）。
+///
+/// swap（`commit_staged`）が唯一のロールバック可能フェーズであり、ここで失敗したら
+/// 即 ROLLBACK する。**redeploy / meta 書き込みは全件の swap が成功してから**まとめて行う。
+/// こうすることで、後続プラグインの swap 失敗による ROLLBACK が「いずれかのプラグインの
+/// redeploy 副作用がデプロイ先に残ったまま」発生することを防ぐ（rollback はキャッシュ復元のみで
+/// 整合する）。redeploy / write_meta 失敗は従来どおり非アトミック（disabled / 警告）扱い。
 fn commit_all(
     cache: &dyn PackageCacheAccess,
     staged: Vec<StagedUpdate>,
     project_root: &Path,
     target_filter: Option<&str>,
 ) -> Vec<UpdateOutcome> {
-    let mut results: Vec<UpdateOutcome> = Vec::new();
-
+    // Phase 1: 全件 swap（本番差し替え）。1 件でも失敗したら、まだ redeploy は一切
+    // 行っていないので ROLLBACK はキャッシュ復元だけで完結する。
     for (idx, s) in staged.iter().enumerate() {
         let mp = s.target.marketplace.as_deref();
-        // 4. swap（本番差し替え）
-        let plugin_path = match cache.commit_staged(mp, &s.target.cache_id) {
-            Ok(p) => p,
-            Err(e) => {
-                // swap 失敗 → ROLLBACK（既 swap 分 + 当該 + 未 swap 残り全件）
-                // 当該は staged 内インデックスで識別する（cache_id 文字列は
-                // 別 marketplace 間で衝突し得るため使わない）。
-                return rollback_all(cache, &staged, idx, e);
-            }
-        };
+        if let Err(e) = cache.commit_staged(mp, &s.target.cache_id) {
+            // swap 失敗 → ROLLBACK（既 swap 分 + 当該 + 未 swap 残り全件）。
+            // 当該は staged 内インデックスで識別する（cache_id 文字列は
+            // 別 marketplace 間で衝突し得るため使わない）。
+            return rollback_all(cache, &staged, idx, e);
+        }
+    }
 
-        // 5. redeploy（非アトミック: 失敗 target は disabled）
+    // Phase 2: 全件 swap 成功。redeploy + meta を行う（非アトミック: ここから先は
+    // 失敗しても ROLLBACK しない）。
+    let mut results: Vec<UpdateOutcome> = Vec::new();
+    for s in &staged {
+        let mp = s.target.marketplace.as_deref();
+        let plugin_path = cache.plugin_path(mp, &s.target.cache_id);
+
+        // redeploy（非アトミック: 失敗 target は disabled）
         let enabled = s.target.old_meta.enabled_targets();
         let targets: Vec<&str> = match target_filter {
             Some(f) => enabled.into_iter().filter(|t| *t == f).collect(),
@@ -1038,7 +1048,7 @@ fn commit_all(
         let (deployed, failed) =
             redeploy_to_targets(cache, &s.target.cache_id, mp, &targets, project_root);
 
-        // 6. meta 更新（best-effort。アトミック境界は swap までのため失敗しても巻き戻さない）
+        // meta 更新（best-effort。アトミック境界は swap までのため失敗しても巻き戻さない）
         let mut new_meta = s.target.old_meta.clone();
         new_meta.set_git_info(&s.target.git_ref, &s.archive_sha);
         for t in &failed {
@@ -1064,7 +1074,7 @@ fn commit_all(
         ));
     }
 
-    // 全件 swap 成功 → backup 確定削除
+    // 全件成功 → backup 確定削除
     for s in &staged {
         let mp = s.target.marketplace.as_deref();
         cleanup_backup(cache, mp, &s.target.cache_id);
