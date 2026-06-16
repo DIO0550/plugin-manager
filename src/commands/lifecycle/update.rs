@@ -52,13 +52,16 @@ pub async fn run(args: Args) -> Result<(), String> {
         let results = update_all_plugins(&cache, &project_root, target_filter).await;
         display_batch_results(&results);
 
-        // Exit with an error only when every plugin failed.
-        if !results.is_empty()
-            && results
-                .iter()
-                .all(|r| matches!(r.status, UpdateStatus::Failed))
-        {
-            return Err("All updates failed".to_string());
+        // Atomic batch: nothing was committed when any plugin Failed and no
+        // plugin was Updated (the whole batch was rolled back). Treat as error exit.
+        let any_updated = results
+            .iter()
+            .any(|r| matches!(r.status, UpdateStatus::Updated { .. }));
+        let any_failed = results
+            .iter()
+            .any(|r| matches!(r.status, UpdateStatus::Failed));
+        if any_failed && !any_updated {
+            return Err("Batch update rolled back: no plugins were updated".to_string());
         }
     } else if let Some(name) = &args.name {
         let (plugin_input, marketplace_hint) = match name.split_once('@') {
@@ -114,6 +117,15 @@ fn display_single_result(result: &UpdateOutcome) {
             }
             eprintln!("  Previous version retained.");
         }
+        UpdateStatus::RolledBack => {
+            eprintln!(
+                "Rolled back: '{}' (batch update aborted, previous version retained)",
+                result.plugin_name
+            );
+            if let Some(note) = &result.error {
+                eprintln!("  {}", note);
+            }
+        }
     }
 }
 
@@ -137,6 +149,10 @@ fn display_batch_results(results: &[UpdateOutcome]) {
         .iter()
         .filter(|r| matches!(r.status, UpdateStatus::Failed))
         .count();
+    let rolled_back = results
+        .iter()
+        .filter(|r| matches!(r.status, UpdateStatus::RolledBack))
+        .count();
 
     println!("\nSummary:");
     println!("  Updated: {}", updated);
@@ -146,5 +162,8 @@ fn display_batch_results(results: &[UpdateOutcome]) {
     }
     if failed > 0 {
         println!("  Failed: {}", failed);
+    }
+    if rolled_back > 0 {
+        println!("  Rolled back: {}", rolled_back);
     }
 }

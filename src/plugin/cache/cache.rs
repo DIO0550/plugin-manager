@@ -210,6 +210,42 @@ pub trait PackageCacheAccess: Send + Sync {
         source_path: Option<&str>,
     ) -> Result<PathBuf>;
 
+    /// staging: temp へ展開 + plugin.json 検証まで行い、本番 swap はしない
+    ///
+    /// `atomic_update_with_source_path` の「展開 + 検証」部分のみを実施する prepare 用 API。
+    /// 既存本番ディレクトリ（plugin_path）は一切触らない。失敗時は temp を破棄する。
+    /// commit は別途 `commit_staged` で行う。
+    ///
+    /// # Arguments
+    /// * `marketplace` - マーケットプレイス名（None の場合は "github"）
+    /// * `name` - プラグイン名
+    /// * `archive` - zip アーカイブのバイト列
+    /// * `source_path` - 抽出するソースパス（正規化済み）
+    fn stage_from_archive(
+        &self,
+        marketplace: Option<&str>,
+        name: &str,
+        archive: &[u8],
+        source_path: Option<&str>,
+    ) -> Result<PathBuf>;
+
+    /// commit: `stage_from_archive` で作成した temp を本番 plugin_path へ swap する
+    ///
+    /// temp が存在しない場合はエラー。既存本番ディレクトリは削除してから rename する。
+    /// 呼び出し側は事前に backup 済みであることを前提とする（rollback 可能化のため）。
+    ///
+    /// # Arguments
+    /// * `marketplace` - マーケットプレイス名（None の場合は "github"）
+    /// * `name` - プラグイン名
+    fn commit_staged(&self, marketplace: Option<&str>, name: &str) -> Result<PathBuf>;
+
+    /// staging temp を破棄する（abort 用、存在しなければ no-op）
+    ///
+    /// # Arguments
+    /// * `marketplace` - マーケットプレイス名（None の場合は "github"）
+    /// * `name` - プラグイン名
+    fn discard_staged(&self, marketplace: Option<&str>, name: &str) -> Result<()>;
+
     /// marketplace 配下に指定 entry が存在するか確認
     ///
     /// # Arguments
@@ -525,6 +561,69 @@ impl PackageCacheAccess for PackageCache {
         fs.rename(&temp_dir, &target)?;
 
         Ok(target)
+    }
+
+    fn stage_from_archive(
+        &self,
+        marketplace: Option<&str>,
+        name: &str,
+        archive: &[u8],
+        source_path: Option<&str>,
+    ) -> Result<PathBuf> {
+        let fs = RealFs;
+
+        // source_path の防御的検証（store_from_archive と同等。doc の「正規化済み」契約を
+        // 強制し、`..`/絶対パス等の非正規化 source_path が展開処理に到達するのを防ぐ）
+        validate_source_path(source_path)?;
+
+        let temp_dir = self.temp_path(marketplace, name);
+
+        // temp ディレクトリをクリーンアップ
+        if fs.exists(&temp_dir) {
+            fs.remove_dir_all(&temp_dir)?;
+        }
+        if let Some(parent) = temp_dir.parent() {
+            fs.create_dir_all(parent)?;
+        }
+
+        // temp に展開（失敗時は temp 破棄）
+        if let Err(e) = extract_archive_with_source_path(&temp_dir, archive, source_path) {
+            let _ = fs.remove_dir_all(&temp_dir);
+            return Err(e);
+        }
+        // plugin.json 検証
+        if !has_manifest(&temp_dir) {
+            let _ = fs.remove_dir_all(&temp_dir);
+            return Err(PlmError::InvalidManifest("plugin.json not found".into()));
+        }
+        Ok(temp_dir)
+    }
+
+    fn commit_staged(&self, marketplace: Option<&str>, name: &str) -> Result<PathBuf> {
+        let fs = RealFs;
+        let temp_dir = self.temp_path(marketplace, name);
+        let target = self.plugin_path(marketplace, name);
+
+        if !fs.exists(&temp_dir) {
+            return Err(PlmError::Cache(format!(
+                "Staged update not found: {}",
+                temp_dir.display()
+            )));
+        }
+        if fs.exists(&target) {
+            fs.remove_dir_all(&target)?;
+        }
+        fs.rename(&temp_dir, &target)?;
+        Ok(target)
+    }
+
+    fn discard_staged(&self, marketplace: Option<&str>, name: &str) -> Result<()> {
+        let fs = RealFs;
+        let temp_dir = self.temp_path(marketplace, name);
+        if fs.exists(&temp_dir) {
+            fs.remove_dir_all(&temp_dir)?;
+        }
+        Ok(())
     }
 
     fn has_marketplace_entry(&self, marketplace: &str, entry: &str) -> Result<bool> {

@@ -28,6 +28,9 @@ pub enum UpdateStatus {
     Failed,
     /// スキップ
     Skipped { reason: String },
+    /// 一括更新で他プラグインの失敗により更新前へロールバックされた
+    /// (本来は更新成功していたが、batch all-or-nothing により巻き戻された)
+    RolledBack,
 }
 
 /// 更新結果
@@ -118,6 +121,23 @@ impl UpdateOutcome {
             marketplace: "github".to_string(),
             status: UpdateStatus::Skipped { reason },
             error: None,
+            deployed_targets: vec![],
+            failed_targets: vec![],
+        }
+    }
+
+    /// ロールバック済み（バッチ失敗により更新前へ巻き戻された）
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - Plugin name.
+    /// * `note` - 任意の補足（restore 失敗時の警告など）。None なら error なし。
+    pub fn rolled_back(name: &str, note: Option<String>) -> Self {
+        Self {
+            plugin_name: name.to_string(),
+            marketplace: "github".to_string(),
+            status: UpdateStatus::RolledBack,
+            error: note,
             deployed_targets: vec![],
             failed_targets: vec![],
         }
@@ -580,10 +600,73 @@ fn redeploy_to_targets(
     (deployed, failed)
 }
 
-/// 全プラグインの一括更新
+/// marketplace 解決の抽象（テストで差し替え可能にする）
+pub(crate) trait MarketplaceResolver {
+    /// 指定 marketplace の MarketplaceCache を返す（無ければ None）
+    fn resolve(&self, marketplace: &str) -> Result<Option<MarketplaceCache>>;
+}
+
+/// 本番実装: registry を 1 度だけロードして保持し、以降の resolve はキャッシュ参照のみ。
+///
+/// `MarketplaceRegistry::new()` 失敗時は registry を None とし、resolve は常に None を返す
+/// （= 現行 `update_all_plugins` の「registry ロード失敗は警告して続行」挙動と同一）。
+pub(crate) struct RegistryResolver {
+    registry: Option<MarketplaceRegistry>,
+}
+
+impl RegistryResolver {
+    pub(crate) fn new() -> Self {
+        match MarketplaceRegistry::new() {
+            Ok(r) => Self { registry: Some(r) },
+            Err(e) => {
+                eprintln!("Warning: Failed to load marketplace registry: {}", e);
+                Self { registry: None }
+            }
+        }
+    }
+}
+
+impl MarketplaceResolver for RegistryResolver {
+    fn resolve(&self, marketplace: &str) -> Result<Option<MarketplaceCache>> {
+        match &self.registry {
+            Some(r) => r.get(marketplace),
+            None => Ok(None),
+        }
+    }
+}
+
+/// CHECK フェーズで確定した「更新すべき対象」1 件分
+struct UpdateTarget {
+    marketplace: Option<String>,
+    cache_id: String,
+    display_name: String,
+    repo: Repo,
+    source_path: Option<String>,
+    old_meta: PluginMeta,
+    git_ref: String,
+}
+
+/// PREPARE 成功後の staging 済み 1 件分
+struct StagedUpdate {
+    target: UpdateTarget,
+    archive_sha: String,
+}
+
+/// prepare の集約結果
+enum PrepareOutcome {
+    /// 全件 staging + backup 成功
+    AllStaged(Vec<StagedUpdate>),
+    /// 1 件失敗。本番は非改変、staging/backup は破棄済み。
+    /// 失敗・スキップした全 plugin の UpdateOutcome を含む。
+    Aborted(Vec<UpdateOutcome>),
+}
+
+/// 全プラグインの一括更新（all-or-nothing バッチアトミック）
 ///
 /// キャッシュ内の全プラグイン（直接 GitHub / marketplace 経由）を走査し、
-/// 各プラグインの commit SHA を比較して差分があるものを更新する。
+/// 各プラグインの commit SHA を比較して差分があるものを 2 フェーズ（prepare → commit）で更新する。
+/// prepare 中に 1 件でも失敗したら本番を一切改変せず、commit(swap) 中に失敗したら
+/// swap 済みを含め全件を更新前へロールバックする。
 ///
 /// # Arguments
 ///
@@ -592,6 +675,27 @@ fn redeploy_to_targets(
 /// * `target_filter` - When `Some`, only redeploy to this single target.
 pub async fn update_all_plugins(
     cache: &dyn PackageCacheAccess,
+    project_root: &Path,
+    target_filter: Option<&str>,
+) -> Vec<UpdateOutcome> {
+    let factory = HostClientFactory::with_defaults();
+    let client = factory.create(HostKind::GitHub);
+    let resolver = RegistryResolver::new();
+    update_all_plugins_with_deps(
+        cache,
+        client.as_ref(),
+        &resolver,
+        project_root,
+        target_filter,
+    )
+    .await
+}
+
+/// 依存注入版本体（テストから直接呼ぶ）
+pub(crate) async fn update_all_plugins_with_deps(
+    cache: &dyn PackageCacheAccess,
+    client: &dyn HostClient,
+    resolver: &dyn MarketplaceResolver,
     project_root: &Path,
     target_filter: Option<&str>,
 ) -> Vec<UpdateOutcome> {
@@ -609,169 +713,30 @@ pub async fn update_all_plugins(
     }
 
     println!("Checking for updates...");
-    let factory = HostClientFactory::with_defaults();
-    let client = factory.create(HostKind::GitHub);
 
-    // marketplace 別に MarketplaceCache を 1 度だけロード
-    let registry = match MarketplaceRegistry::new() {
-        Ok(r) => Some(r),
-        Err(e) => {
-            eprintln!("Warning: Failed to load marketplace registry: {}", e);
-            None
-        }
-    };
-
+    // marketplace 別に MarketplaceCache を 1 度だけ解決
     let mut mp_caches: std::collections::HashMap<String, MarketplaceCache> =
         std::collections::HashMap::new();
-    if let Some(reg) = &registry {
-        let unique_markets: std::collections::HashSet<String> = plugins
-            .iter()
-            .filter_map(|(m, _)| m.clone())
-            .filter(|m| m != "github")
-            .collect();
-        for m in unique_markets {
-            if let Ok(Some(c)) = reg.get(&m) {
-                mp_caches.insert(m, c);
-            }
+    let unique_markets: std::collections::HashSet<String> = plugins
+        .iter()
+        .filter_map(|(m, _)| m.clone())
+        .filter(|m| m != "github")
+        .collect();
+    for m in unique_markets {
+        if let Ok(Some(c)) = resolver.resolve(&m) {
+            mp_caches.insert(m, c);
         }
     }
 
-    let mut results = Vec::new();
-    let mut up_to_date_count = 0usize;
-    let mut error_count = 0usize;
-    let mut updates_to_do: Vec<(Option<String>, String, String, ResolvedPlugin)> = Vec::new();
+    // CHECK フェーズ: 更新が必要な対象（targets）と、確定済み結果（up_to_date/skipped）を構築
+    let CheckOutcome {
+        targets,
+        mut results,
+        up_to_date_count,
+        error_count,
+    } = check_all(cache, client, &plugins, &mp_caches).await;
 
-    for (marketplace, cache_id) in &plugins {
-        let plugin_path = cache.plugin_path(marketplace.as_deref(), cache_id);
-        let pkg = match cache.load_package(marketplace.as_deref(), cache_id) {
-            Ok(p) => p,
-            Err(e) => {
-                error_count += 1;
-                eprintln!("  {}: Failed to load ({})", cache_id, e);
-                continue;
-            }
-        };
-        let display_name = pkg.name.clone();
-        let plugin_meta = meta::load_meta(&plugin_path).unwrap_or_default();
-
-        // marketplace 経由 plugin
-        if let Some(market) = marketplace.as_deref() {
-            if market == "github" {
-                // 直接 GitHub install
-                let result =
-                    check_github_remote(&*client, &plugin_meta, cache_id, &display_name).await;
-                match result {
-                    RemoteCheck::UpToDate => {
-                        up_to_date_count += 1;
-                        results.push(UpdateOutcome::up_to_date(&display_name));
-                    }
-                    RemoteCheck::NeedsUpdate(latest) => {
-                        let resolved = ResolvedPlugin {
-                            marketplace: marketplace.clone(),
-                            cache_id: cache_id.clone(),
-                            display_name: display_name.clone(),
-                            package: pkg,
-                            package_meta: plugin_meta,
-                        };
-                        updates_to_do.push((
-                            marketplace.clone(),
-                            cache_id.clone(),
-                            latest,
-                            resolved,
-                        ));
-                    }
-                    RemoteCheck::Failed(msg) => {
-                        error_count += 1;
-                        eprintln!("  {}: Failed to check ({})", display_name, msg);
-                    }
-                    RemoteCheck::Skipped(_reason) => {
-                        // GitHub 以外はあり得ないが念のため
-                    }
-                }
-                continue;
-            }
-
-            let mp_cache = match mp_caches.get(market) {
-                Some(c) => c,
-                None => {
-                    error_count += 1;
-                    eprintln!("  {}: Marketplace not found: {}", display_name, market);
-                    continue;
-                }
-            };
-            let entry = match mp_cache.plugins.iter().find(|p| p.name == *cache_id) {
-                Some(e) => e,
-                None => {
-                    // marketplace から消えたものは up_to_date 扱い
-                    up_to_date_count += 1;
-                    results.push(UpdateOutcome::up_to_date(&display_name));
-                    continue;
-                }
-            };
-            let git_ref = plugin_meta.git_ref.as_deref().unwrap_or("HEAD");
-            let repo =
-                match parse_repo_from_mp_source(&mp_cache.source, &entry.source, Some(git_ref)) {
-                    Ok(r) => r,
-                    Err(e) => {
-                        error_count += 1;
-                        eprintln!("  {}: {}", display_name, e);
-                        continue;
-                    }
-                };
-            let latest_sha = match with_retry(|| client.get_commit_sha(&repo, git_ref), 3).await {
-                Ok(s) => s,
-                Err(e) => {
-                    error_count += 1;
-                    eprintln!("  {}: Failed to check ({})", display_name, e);
-                    continue;
-                }
-            };
-
-            if !needs_update(plugin_meta.commit_sha.as_deref(), &latest_sha) {
-                up_to_date_count += 1;
-                results.push(UpdateOutcome::up_to_date(&display_name));
-                continue;
-            }
-
-            let resolved = ResolvedPlugin {
-                marketplace: marketplace.clone(),
-                cache_id: cache_id.clone(),
-                display_name: display_name.clone(),
-                package: pkg,
-                package_meta: plugin_meta,
-            };
-            updates_to_do.push((marketplace.clone(), cache_id.clone(), latest_sha, resolved));
-            continue;
-        }
-
-        // marketplace == None 経路
-        let result = check_github_remote(&*client, &plugin_meta, cache_id, &display_name).await;
-        match result {
-            RemoteCheck::UpToDate => {
-                up_to_date_count += 1;
-                results.push(UpdateOutcome::up_to_date(&display_name));
-            }
-            RemoteCheck::NeedsUpdate(latest) => {
-                let resolved = ResolvedPlugin {
-                    marketplace: None,
-                    cache_id: cache_id.clone(),
-                    display_name: display_name.clone(),
-                    package: pkg,
-                    package_meta: plugin_meta,
-                };
-                updates_to_do.push((None, cache_id.clone(), latest, resolved));
-            }
-            RemoteCheck::Skipped(reason) => {
-                results.push(UpdateOutcome::skipped(&display_name, reason));
-            }
-            RemoteCheck::Failed(msg) => {
-                error_count += 1;
-                eprintln!("  {}: Failed to check ({})", display_name, msg);
-            }
-        }
-    }
-
-    let update_count = updates_to_do.len();
+    let update_count = targets.len();
 
     if update_count == 0 {
         println!(
@@ -797,69 +762,388 @@ pub async fn update_all_plugins(
         }
     );
 
-    for (idx, (marketplace, _cache_id, _latest, resolved)) in updates_to_do.into_iter().enumerate()
-    {
-        println!(
-            "\n[{}/{}] Updating {}...",
-            idx + 1,
-            update_count,
-            resolved.display_name
-        );
-
-        let result = if let Some(market) = marketplace.as_deref() {
-            update_marketplace_plugin(cache, market, &resolved, project_root, target_filter).await
-        } else {
-            update_github_plugin(cache, &resolved, project_root, target_filter).await
-        };
-
-        match &result.status {
-            UpdateStatus::Updated { from_sha, to_sha } => {
-                let from = from_sha.as_deref().unwrap_or("unknown");
-                println!("  Updated: {} -> {}", from, to_sha);
-            }
-            UpdateStatus::Failed => {
-                if let Some(e) = &result.error {
-                    eprintln!("  Error: {}", e);
-                }
-            }
-            _ => {}
+    // PREPARE フェーズ（本番非破壊）
+    match prepare_all(cache, client, targets).await {
+        PrepareOutcome::AllStaged(staged) => {
+            // COMMIT フェーズ（swap → redeploy → meta、swap 失敗で ROLLBACK）
+            results.extend(commit_all(cache, staged, project_root, target_filter));
         }
-        results.push(result);
+        PrepareOutcome::Aborted(failures) => {
+            // prepare 失敗: 本番非改変。staged/未到達は RolledBack、当該は Failed。
+            results.extend(failures);
+        }
     }
 
     results
 }
 
-enum RemoteCheck {
-    UpToDate,
-    NeedsUpdate(String),
-    Skipped(String),
-    Failed(String),
+/// CHECK フェーズの集約結果
+struct CheckOutcome {
+    /// 更新が必要な対象
+    targets: Vec<UpdateTarget>,
+    /// 確定済み結果（up_to_date / skipped）。CHECK で弾かれた対象を含む。
+    results: Vec<UpdateOutcome>,
+    /// 最新だった件数（メッセージ表示用）
+    up_to_date_count: usize,
+    /// CHECK 中に load/解決/SHA 取得が失敗しスキップした件数（結果には含めない＝従来挙動）
+    error_count: usize,
 }
 
-async fn check_github_remote(
+/// CHECK: 全 plugin を走査し、SHA 比較で更新が必要な対象を `UpdateTarget` に確定する。
+///
+/// marketplace 経由（`market != "github"`）と直接 GitHub（`None` または `"github"`）の 2 経路で
+/// `repo` / `source_path` の解決方法のみが異なり、SHA 比較・`UpdateTarget` 構築の末尾処理は共通化する。
+/// CHECK で `get_commit_sha` 等が失敗した plugin は従来どおり `error_count` でスキップし、
+/// 他対象のアトミック処理の引き金にはしない。
+async fn check_all(
+    cache: &dyn PackageCacheAccess,
     client: &dyn HostClient,
-    plugin_meta: &PluginMeta,
-    cache_id: &str,
-    display_name: &str,
-) -> RemoteCheck {
-    if !plugin_meta.is_github() {
-        return RemoteCheck::Skipped("Not a GitHub plugin".to_string());
+    plugins: &[(Option<String>, String)],
+    mp_caches: &std::collections::HashMap<String, MarketplaceCache>,
+) -> CheckOutcome {
+    let mut results = Vec::new();
+    let mut up_to_date_count = 0usize;
+    let mut error_count = 0usize;
+    let mut targets: Vec<UpdateTarget> = Vec::new();
+
+    for (marketplace, cache_id) in plugins {
+        let plugin_path = cache.plugin_path(marketplace.as_deref(), cache_id);
+        let pkg = match cache.load_package(marketplace.as_deref(), cache_id) {
+            Ok(p) => p,
+            Err(e) => {
+                error_count += 1;
+                eprintln!("  {}: Failed to load ({})", cache_id, e);
+                continue;
+            }
+        };
+        let display_name = pkg.name.clone();
+        let plugin_meta = meta::load_meta(&plugin_path).unwrap_or_default();
+        let git_ref = plugin_meta.git_ref.as_deref().unwrap_or("HEAD");
+
+        // 経路ごとに repo / source_path を解決（早期 continue で skip / up_to_date / error を確定）
+        let (repo, source_path) = if let Some(market) =
+            marketplace.as_deref().filter(|m| *m != "github")
+        {
+            // marketplace 経由
+            let mp_cache = match mp_caches.get(market) {
+                Some(c) => c,
+                None => {
+                    error_count += 1;
+                    eprintln!("  {}: Marketplace not found: {}", display_name, market);
+                    continue;
+                }
+            };
+            let entry = match mp_cache.plugins.iter().find(|p| p.name == *cache_id) {
+                Some(e) => e,
+                None => {
+                    // marketplace から消えたものは up_to_date 扱い
+                    up_to_date_count += 1;
+                    results.push(UpdateOutcome::up_to_date(&display_name));
+                    continue;
+                }
+            };
+            let repo =
+                match parse_repo_from_mp_source(&mp_cache.source, &entry.source, Some(git_ref)) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        error_count += 1;
+                        eprintln!("  {}: {}", display_name, e);
+                        continue;
+                    }
+                };
+            let source_path = match &entry.source {
+                MpPluginSource::Local(p) => Some(p.clone()),
+                MpPluginSource::External { .. } => None,
+            };
+            (repo, source_path)
+        } else {
+            // 直接 GitHub 経路（marketplace == None もしくは "github"）
+            if !plugin_meta.is_github() {
+                results.push(UpdateOutcome::skipped(
+                    &display_name,
+                    "Not a GitHub plugin".to_string(),
+                ));
+                continue;
+            }
+            let repo = match restore_repo(&plugin_meta, cache_id, git_ref) {
+                Ok(r) => r,
+                Err(e) => {
+                    error_count += 1;
+                    eprintln!("  {}: Failed to check ({})", display_name, e);
+                    continue;
+                }
+            };
+            (repo, None)
+        };
+
+        // 共通末尾: SHA 取得 → needs_update 判定 → UpdateTarget 構築
+        let latest_sha = match with_retry(|| client.get_commit_sha(&repo, git_ref), 3).await {
+            Ok(s) => s,
+            Err(e) => {
+                error_count += 1;
+                eprintln!("  {}: Failed to check ({})", display_name, e);
+                continue;
+            }
+        };
+        if !needs_update(plugin_meta.commit_sha.as_deref(), &latest_sha) {
+            up_to_date_count += 1;
+            results.push(UpdateOutcome::up_to_date(&display_name));
+            continue;
+        }
+        let git_ref_owned = git_ref.to_string();
+        targets.push(UpdateTarget {
+            marketplace: marketplace.clone(),
+            cache_id: cache_id.clone(),
+            display_name,
+            repo,
+            source_path,
+            old_meta: plugin_meta,
+            git_ref: git_ref_owned,
+        });
     }
-    let git_ref = plugin_meta.git_ref.as_deref().unwrap_or("HEAD");
-    let repo = match restore_repo(plugin_meta, cache_id, git_ref) {
-        Ok(r) => r,
-        Err(e) => return RemoteCheck::Failed(e),
-    };
-    let latest_sha = match with_retry(|| client.get_commit_sha(&repo, git_ref), 3).await {
-        Ok(s) => s,
-        Err(e) => return RemoteCheck::Failed(e.to_string()),
-    };
-    if !needs_update(plugin_meta.commit_sha.as_deref(), &latest_sha) {
-        let _ = display_name;
-        return RemoteCheck::UpToDate;
+
+    CheckOutcome {
+        targets,
+        results,
+        up_to_date_count,
+        error_count,
     }
-    RemoteCheck::NeedsUpdate(latest_sha)
+}
+
+/// best-effort で backup を削除する。失敗してもバッチは継続するが、
+/// `.backup` 残骸を放置して無言にしないよう警告を出す（運用者が部分クリーンアップを検知できる）。
+fn cleanup_backup(cache: &dyn PackageCacheAccess, marketplace: Option<&str>, name: &str) {
+    if let Err(e) = cache.remove_backup(marketplace, name) {
+        eprintln!("Warning: Failed to remove backup for '{}': {}", name, e);
+    }
+}
+
+/// best-effort で staging temp を破棄する。失敗時は `.temp` 残骸を無言にしないよう警告を出す。
+fn cleanup_staged(cache: &dyn PackageCacheAccess, marketplace: Option<&str>, name: &str) {
+    if let Err(e) = cache.discard_staged(marketplace, name) {
+        eprintln!(
+            "Warning: Failed to discard staged update for '{}': {}",
+            name, e
+        );
+    }
+}
+
+/// PREPARE: 全件 backup + download + stage + 検証（本番非破壊）
+///
+/// 1 件でも失敗したら、それまでの staging/backup を全破棄して Aborted を返す。
+async fn prepare_all(
+    cache: &dyn PackageCacheAccess,
+    client: &dyn HostClient,
+    targets: Vec<UpdateTarget>,
+) -> PrepareOutcome {
+    let mut staged: Vec<StagedUpdate> = Vec::new();
+    // 失敗時に「未到達の残り対象」を拾えるよう iterator を保持する。
+    let mut iter = targets.into_iter();
+    while let Some(target) = iter.next() {
+        let mp = target.marketplace.as_deref();
+        // 1. backup
+        if let Err(e) = cache.backup(mp, &target.cache_id) {
+            let failure = failed_for(&target, format!("Backup failed: {}", e));
+            return abort(cache, staged, failure, iter);
+        }
+        // 2. download（本番非破壊）
+        let (archive, _ref, archive_sha) =
+            match with_retry(|| client.download_archive_with_sha(&target.repo), 3).await {
+                Ok(t) => t,
+                Err(e) => {
+                    cleanup_backup(cache, mp, &target.cache_id);
+                    let failure = failed_for(&target, format!("Download failed: {}", e));
+                    return abort(cache, staged, failure, iter);
+                }
+            };
+        // 3. stage（temp 展開 + plugin.json 検証, swap しない）
+        if let Err(e) = cache.stage_from_archive(
+            mp,
+            &target.cache_id,
+            &archive,
+            target.source_path.as_deref(),
+        ) {
+            cleanup_backup(cache, mp, &target.cache_id);
+            let failure = failed_for(&target, format!("Staging failed: {}", e));
+            return abort(cache, staged, failure, iter);
+        }
+        staged.push(StagedUpdate {
+            target,
+            archive_sha,
+        });
+    }
+    PrepareOutcome::AllStaged(staged)
+}
+
+/// 単一 UpdateTarget から失敗の UpdateOutcome を作る
+fn failed_for(target: &UpdateTarget, msg: String) -> UpdateOutcome {
+    UpdateOutcome::failed(&target.display_name, msg)
+}
+
+/// abort: それまでの staged 全件の staging/backup を破棄し、本番は触らずに失敗結果を返す。
+///
+/// `remaining`（失敗点より後ろの未到達対象）も「本番未改変のまま据え置き」＝ RolledBack として
+/// 結果に必ず含める。これにより「1 プラグイン = 1 UpdateOutcome」「全件が結果に出る」不変条件を保つ。
+fn abort(
+    cache: &dyn PackageCacheAccess,
+    staged: Vec<StagedUpdate>,
+    failure: UpdateOutcome,
+    remaining: impl Iterator<Item = UpdateTarget>,
+) -> PrepareOutcome {
+    let mut results = Vec::new();
+    // すでに staging 済み（本来成功予定）→ RolledBack
+    for s in &staged {
+        let mp = s.target.marketplace.as_deref();
+        cleanup_staged(cache, mp, &s.target.cache_id);
+        cleanup_backup(cache, mp, &s.target.cache_id);
+        results.push(UpdateOutcome::rolled_back(&s.target.display_name, None));
+    }
+    // 失敗した当該プラグイン → Failed
+    results.push(failure);
+    // 未到達の残り対象（本番未改変・更新前のまま）→ RolledBack
+    for t in remaining {
+        results.push(UpdateOutcome::rolled_back(&t.display_name, None));
+    }
+    PrepareOutcome::Aborted(results)
+}
+
+/// COMMIT: 全件 swap（Phase 1）→ 全件 redeploy + meta（Phase 2）。
+///
+/// swap（`commit_staged`）が唯一のロールバック可能フェーズであり、ここで失敗したら
+/// 即 ROLLBACK する。**redeploy / meta 書き込みは全件の swap が成功してから**まとめて行う。
+/// こうすることで、後続プラグインの swap 失敗による ROLLBACK が「いずれかのプラグインの
+/// redeploy 副作用がデプロイ先に残ったまま」発生することを防ぐ（rollback はキャッシュ復元のみで
+/// 整合する）。redeploy / write_meta 失敗は従来どおり非アトミック（disabled / 警告）扱い。
+fn commit_all(
+    cache: &dyn PackageCacheAccess,
+    staged: Vec<StagedUpdate>,
+    project_root: &Path,
+    target_filter: Option<&str>,
+) -> Vec<UpdateOutcome> {
+    // Phase 1: 全件 swap（本番差し替え）。1 件でも失敗したら、まだ redeploy は一切
+    // 行っていないので ROLLBACK はキャッシュ復元だけで完結する。
+    for (idx, s) in staged.iter().enumerate() {
+        let mp = s.target.marketplace.as_deref();
+        if let Err(e) = cache.commit_staged(mp, &s.target.cache_id) {
+            // swap 失敗 → ROLLBACK（既 swap 分 + 当該 + 未 swap 残り全件）。
+            // 当該は staged 内インデックスで識別する（cache_id 文字列は
+            // 別 marketplace 間で衝突し得るため使わない）。
+            return rollback_all(cache, &staged, idx, e);
+        }
+    }
+
+    // Phase 2: 全件 swap 成功。redeploy + meta を行う（非アトミック: ここから先は
+    // 失敗しても ROLLBACK しない）。
+    let mut results: Vec<UpdateOutcome> = Vec::new();
+    for s in &staged {
+        let mp = s.target.marketplace.as_deref();
+        let plugin_path = cache.plugin_path(mp, &s.target.cache_id);
+
+        // redeploy（非アトミック: 失敗 target は disabled）
+        let enabled = s.target.old_meta.enabled_targets();
+        let targets: Vec<&str> = match target_filter {
+            Some(f) => enabled.into_iter().filter(|t| *t == f).collect(),
+            None => enabled,
+        };
+        let (deployed, failed) =
+            redeploy_to_targets(cache, &s.target.cache_id, mp, &targets, project_root);
+
+        // meta 更新（best-effort。アトミック境界は swap までのため失敗しても巻き戻さない）
+        let mut new_meta = s.target.old_meta.clone();
+        new_meta.set_git_info(&s.target.git_ref, &s.archive_sha);
+        for t in &failed {
+            new_meta.set_status(t, "disabled");
+        }
+        // best-effort: 失敗してもロールバックしない（アトミック境界は swap まで）が、
+        // commit SHA がメタに反映されない不整合を無言にしないよう警告する。
+        // check_all は meta の commit_sha とリモート SHA を比較して更新要否を判定するため、
+        // ここで write_meta が失敗すると commit_sha が旧値のまま残り、次回 update で
+        // 当該プラグインは再び更新対象として処理される（=自動収束ではなく再ダウンロード・再 swap）。
+        if let Err(e) = meta::write_meta(&plugin_path, &new_meta) {
+            eprintln!(
+                "Warning: Failed to write metadata for '{}': {} \
+                 (cache already updated, but commit_sha was not persisted; \
+                 the plugin will be re-updated on the next run)",
+                s.target.display_name, e
+            );
+        }
+
+        results.push(UpdateOutcome::updated(
+            &s.target.display_name,
+            s.target.old_meta.commit_sha.clone(),
+            s.archive_sha.clone(),
+            deployed,
+            failed,
+        ));
+    }
+
+    // 全件成功 → backup 確定削除
+    for s in &staged {
+        let mp = s.target.marketplace.as_deref();
+        cleanup_backup(cache, mp, &s.target.cache_id);
+    }
+    results
+}
+
+/// ROLLBACK: `commit_all` の Phase 1（swap）で失敗したときに、本番キャッシュを更新前へ戻す。
+///
+/// `commit_all` は最初の `commit_staged` 失敗で即 return するため、`staged` を `failed_idx` 基準に
+/// 3 区分で扱う:
+/// - `idx < failed_idx`: swap 済み → backup から restore（巻き戻し）。RolledBack。
+/// - `idx == failed_idx`: swap に失敗した当該。swap が途中まで進んで本番を壊している可能性が
+///   あるため restore する。結果は `Failed` のみ 1 件（二重計上しない）。
+/// - `idx > failed_idx`: swap 未実施で本番は無改変。`restore()` は本番を一度削除してから backup を
+///   複製するため、無改変のプラグインに対して呼ぶと複製失敗時にかえって壊しうる。よって restore せず
+///   staging temp と backup の後始末のみ行う。RolledBack。
+///
+/// restore 失敗は警告として該当 outcome の error に載せる（部分復元失敗）。
+/// インデックス一致で当該を識別することで、別 marketplace 間の同名 cache_id 衝突による
+/// 二重計上を防ぐ。
+fn rollback_all(
+    cache: &dyn PackageCacheAccess,
+    staged: &[StagedUpdate],
+    failed_idx: usize,
+    cause: PlmError,
+) -> Vec<UpdateOutcome> {
+    let mut results = Vec::new();
+    for (idx, s) in staged.iter().enumerate() {
+        let mp = s.target.marketplace.as_deref();
+
+        if idx > failed_idx {
+            // swap 未実施・本番無改変 → restore せず後始末のみ（無改変ディレクトリを
+            // restore の delete→copy で壊さない）。
+            cleanup_staged(cache, mp, &s.target.cache_id);
+            cleanup_backup(cache, mp, &s.target.cache_id);
+            results.push(UpdateOutcome::rolled_back(&s.target.display_name, None));
+            continue;
+        }
+
+        // idx <= failed_idx: swap 済み、または swap 途中で失敗した当該 → backup から restore。
+        let restored = cache.restore(mp, &s.target.cache_id);
+        // swap 途中失敗の当該に temp が残っている場合に備えて掃除（既 swap 分は consume 済み）。
+        cleanup_staged(cache, mp, &s.target.cache_id);
+
+        if idx == failed_idx {
+            // 当該（swap 失敗）は Failed のみ。restore 結果は警告として error に併記。
+            let msg = match restored {
+                Ok(()) => format!("Commit (swap) failed: {}", cause),
+                Err(e) => format!(
+                    "Commit (swap) failed: {} (WARNING: restore also failed: {})",
+                    cause, e
+                ),
+            };
+            results.push(UpdateOutcome::failed(&s.target.display_name, msg));
+        } else {
+            results.push(match restored {
+                Ok(()) => UpdateOutcome::rolled_back(&s.target.display_name, None),
+                Err(e) => UpdateOutcome::rolled_back(
+                    &s.target.display_name,
+                    Some(format!("WARNING: restore failed: {}", e)),
+                ),
+            });
+        }
+    }
+    results
 }
 
 #[cfg(test)]
