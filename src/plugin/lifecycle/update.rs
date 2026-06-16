@@ -1056,11 +1056,14 @@ fn commit_all(
         }
         // best-effort: 失敗してもロールバックしない（アトミック境界は swap まで）が、
         // commit SHA がメタに反映されない不整合を無言にしないよう警告する。
-        // 次回 update の check_all で archive_sha 比較により収束する。
+        // check_all は meta の commit_sha とリモート SHA を比較して更新要否を判定するため、
+        // ここで write_meta が失敗すると commit_sha が旧値のまま残り、次回 update で
+        // 当該プラグインは再び更新対象として処理される（=自動収束ではなく再ダウンロード・再 swap）。
         if let Err(e) = meta::write_meta(&plugin_path, &new_meta) {
             eprintln!(
                 "Warning: Failed to write metadata for '{}': {} \
-                 (cache already updated; will reconcile on next update)",
+                 (cache already updated, but commit_sha was not persisted; \
+                 the plugin will be re-updated on the next run)",
                 s.target.display_name, e
             );
         }
