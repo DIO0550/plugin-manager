@@ -79,6 +79,7 @@ mod batch {
     use std::future::Future;
     use std::path::{Path, PathBuf};
     use std::pin::Pin;
+    use std::sync::atomic::{AtomicUsize, Ordering};
     use tempfile::TempDir;
 
     const OLD_SHA: &str = "oldsha";
@@ -401,6 +402,11 @@ mod batch {
         fail_restore: HashSet<String>,
         fail_commit_keyed: HashSet<String>,
         fail_restore_keyed: HashSet<String>,
+        /// N 番目（1 始まり）の commit_staged 呼び出しを失敗させる（0 = 無効）。
+        /// cache.list() の順序が非決定的なテストで「先に swap 成功した 1 件＋次で失敗」を
+        /// プラグイン名に依存せず再現するために使う。
+        fail_commit_nth: usize,
+        commit_calls: AtomicUsize,
     }
 
     impl FaultyCache {
@@ -411,6 +417,8 @@ mod batch {
                 fail_restore: HashSet::new(),
                 fail_commit_keyed: HashSet::new(),
                 fail_restore_keyed: HashSet::new(),
+                fail_commit_nth: 0,
+                commit_calls: AtomicUsize::new(0),
             }
         }
 
@@ -494,10 +502,12 @@ mod batch {
                 .stage_from_archive(marketplace, name, archive, source_path)
         }
         fn commit_staged(&self, marketplace: Option<&str>, name: &str) -> Result<PathBuf> {
+            let call = self.commit_calls.fetch_add(1, Ordering::SeqCst) + 1;
             if self.fail_commit.contains(name)
                 || self
                     .fail_commit_keyed
                     .contains(&Self::key(marketplace, name))
+                || (self.fail_commit_nth != 0 && self.fail_commit_nth == call)
             {
                 return Err(PlmError::Cache("injected commit failure".to_string()));
             }
@@ -752,27 +762,98 @@ mod batch {
 
     #[tokio::test]
     async fn test_rollback_restore_failure_warns() {
+        // swap 済み（RolledBack 予定）のプラグインの restore が失敗したら警告が outcome に載る。
+        // cache.list() の順序は非決定的なため、「2 番目の swap を失敗」させることで
+        // 「1 件目=swap 成功（後で restore 失敗）/ 2 件目=swap 失敗」をプラグイン名に依存せず再現する。
         let tmp = TempDir::new().unwrap();
         let cache_dir = tmp.path().to_path_buf();
         for id in ["repoA", "repoB"] {
             setup_plugin(&cache_dir, id, OLD_SHA, &[]);
         }
         let mut cache = FaultyCache::new(cache_dir.clone());
-        cache.fail_commit.insert("repoB".to_string());
-        // RolledBack 予定の repoA の restore を失敗させる
+        cache.fail_commit_nth = 2; // 2 番目の swap を失敗 → 1 番目は swap 済み
         cache.fail_restore.insert("repoA".to_string());
+        cache.fail_restore.insert("repoB".to_string()); // どちらが swap 済みでも restore 失敗
         let client = MockBatchClient::new();
         let resolver = NoMarketplaces;
 
         let results =
             update_all_plugins_with_deps(&cache, &client, &resolver, tmp.path(), None).await;
 
-        let a = find(&results, "repoA");
-        assert!(matches!(a.status, UpdateStatus::RolledBack));
+        assert_eq!(results.len(), 2);
+        // 1 件目（swap 済み）→ RolledBack + restore 失敗の警告
+        let rolled: Vec<&UpdateOutcome> = results
+            .iter()
+            .filter(|r| matches!(r.status, UpdateStatus::RolledBack))
+            .collect();
+        assert_eq!(rolled.len(), 1);
         assert!(
-            a.error.as_deref().unwrap_or("").contains("restore failed"),
-            "expected restore warning, got {:?}",
-            a.error
+            rolled[0]
+                .error
+                .as_deref()
+                .unwrap_or("")
+                .contains("restore failed"),
+            "expected restore warning on rolled-back plugin, got {:?}",
+            rolled[0].error
+        );
+        // 2 件目（swap 失敗）→ Failed（restore も失敗するため併記される）
+        let failed: Vec<&UpdateOutcome> = results
+            .iter()
+            .filter(|r| matches!(r.status, UpdateStatus::Failed))
+            .collect();
+        assert_eq!(failed.len(), 1);
+        assert!(
+            failed[0]
+                .error
+                .as_deref()
+                .unwrap_or("")
+                .contains("restore also failed"),
+            "expected combined warning on failed plugin, got {:?}",
+            failed[0].error
+        );
+    }
+
+    #[tokio::test]
+    async fn test_rollback_skips_restore_for_unswapped_plugins() {
+        // review 指摘: swap 未実施（idx > failed_idx）のプラグインには restore を呼ばない。
+        // 2 番目の swap を失敗させ、3 番目（未 swap）の restore を失敗注入しても、
+        // restore は呼ばれないため警告は出ず、本番は無改変（v1）のまま RolledBack になる。
+        let tmp = TempDir::new().unwrap();
+        let cache_dir = tmp.path().to_path_buf();
+        for id in ["repoA", "repoB", "repoC"] {
+            setup_plugin(&cache_dir, id, OLD_SHA, &[]);
+        }
+        let mut cache = FaultyCache::new(cache_dir.clone());
+        cache.fail_commit_nth = 2; // 1 件目 swap 成功 / 2 件目 swap 失敗 / 3 件目 未 swap
+                                   // 全件の restore を失敗注入する。未 swap の 3 件目で restore が呼ばれていれば
+                                   // 警告が載るが、呼ばれない設計なので 1 件は警告なし RolledBack になるはず。
+        for id in ["repoA", "repoB", "repoC"] {
+            cache.fail_restore.insert(id.to_string());
+        }
+        let client = MockBatchClient::new();
+        let resolver = NoMarketplaces;
+
+        let results =
+            update_all_plugins_with_deps(&cache, &client, &resolver, tmp.path(), None).await;
+
+        assert_eq!(results.len(), 3);
+        // Failed は 1 件（2 件目）
+        assert_eq!(
+            count_status(&results, |s| matches!(s, UpdateStatus::Failed)),
+            1
+        );
+        // RolledBack は 2 件。うち未 swap の 1 件は restore 未実行なので警告なし。
+        let rolled: Vec<&UpdateOutcome> = results
+            .iter()
+            .filter(|r| matches!(r.status, UpdateStatus::RolledBack))
+            .collect();
+        assert_eq!(rolled.len(), 2);
+        let no_warning = rolled.iter().filter(|r| r.error.is_none()).count();
+        assert_eq!(
+            no_warning,
+            1,
+            "unswapped plugin must be RolledBack without a restore attempt/warning, got {:?}",
+            rolled.iter().map(|r| &r.error).collect::<Vec<_>>()
         );
     }
 

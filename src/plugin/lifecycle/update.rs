@@ -1085,13 +1085,20 @@ fn commit_all(
     results
 }
 
-/// ROLLBACK: swap 済み全件 + 未 swap 残り全件を backup から restore する。
+/// ROLLBACK: `commit_all` の Phase 1（swap）で失敗したときに、本番キャッシュを更新前へ戻す。
+///
+/// `commit_all` は最初の `commit_staged` 失敗で即 return するため、`staged` を `failed_idx` 基準に
+/// 3 区分で扱う:
+/// - `idx < failed_idx`: swap 済み → backup から restore（巻き戻し）。RolledBack。
+/// - `idx == failed_idx`: swap に失敗した当該。swap が途中まで進んで本番を壊している可能性が
+///   あるため restore する。結果は `Failed` のみ 1 件（二重計上しない）。
+/// - `idx > failed_idx`: swap 未実施で本番は無改変。`restore()` は本番を一度削除してから backup を
+///   複製するため、無改変のプラグインに対して呼ぶと複製失敗時にかえって壊しうる。よって restore せず
+///   staging temp と backup の後始末のみ行う。RolledBack。
 ///
 /// restore 失敗は警告として該当 outcome の error に載せる（部分復元失敗）。
-/// `failed_idx` は swap に失敗した当該プラグインの `staged` 内インデックス。当該は restore
-/// （部分 swap の巻き戻しのため restore 自体は必要）しつつ、結果は `Failed` のみを 1 件 push する。
-/// `staged` 全件を単一パスで走査し、インデックス一致で当該を識別することで、
-/// 別 marketplace 間の同名 cache_id 衝突による二重計上を防ぐ。
+/// インデックス一致で当該を識別することで、別 marketplace 間の同名 cache_id 衝突による
+/// 二重計上を防ぐ。
 fn rollback_all(
     cache: &dyn PackageCacheAccess,
     staged: &[StagedUpdate],
@@ -1101,8 +1108,19 @@ fn rollback_all(
     let mut results = Vec::new();
     for (idx, s) in staged.iter().enumerate() {
         let mp = s.target.marketplace.as_deref();
+
+        if idx > failed_idx {
+            // swap 未実施・本番無改変 → restore せず後始末のみ（無改変ディレクトリを
+            // restore の delete→copy で壊さない）。
+            cleanup_staged(cache, mp, &s.target.cache_id);
+            cleanup_backup(cache, mp, &s.target.cache_id);
+            results.push(UpdateOutcome::rolled_back(&s.target.display_name, None));
+            continue;
+        }
+
+        // idx <= failed_idx: swap 済み、または swap 途中で失敗した当該 → backup から restore。
         let restored = cache.restore(mp, &s.target.cache_id);
-        // 未 swap 分に残る staging temp も掃除（既 swap 分は commit_staged で temp 消費済み）
+        // swap 途中失敗の当該に temp が残っている場合に備えて掃除（既 swap 分は consume 済み）。
         cleanup_staged(cache, mp, &s.target.cache_id);
 
         if idx == failed_idx {
