@@ -1,7 +1,16 @@
-# Claude Code ↔ Copilot CLI Hooks スキーマ対応表
+# Claude Code → 各ターゲット（Copilot CLI / Codex CLI / Antigravity）Hooks スキーマ対応表
 
 PLM でフック変換ツールを実装する際のリファレンス。
-公式ドキュメントから抽出した仕様を対比し、変換時の注意点をまとめる。
+Claude Code を入力元とし、各ターゲット環境（GitHub Copilot CLI / OpenAI Codex CLI / Google Antigravity）への
+変換仕様を対比し、変換時の注意点をまとめる。
+
+各セクションでは **公式仕様（最新）** と **PLM 実装状況** を区別して記載する。
+実装状況は囲み引用または「実装メモ」ラベルで示す。
+
+> **注記:** Codex / Antigravity の公式ドメイン（developers.openai.com, antigravity.google）は
+> bot 対策により直接フェッチが 403 を返すため、検索スニペット・GitHub Issue・公式フォーラム・
+> SDK README 等でクロスチェックした内容を記載している。記載は出典 URL を併記し、
+> 最新の公式ドキュメントで確認のうえ利用すること。
 
 ## 公式ドキュメント
 
@@ -12,6 +21,11 @@ PLM でフック変換ツールを実装する際のリファレンス。
 | Copilot CLI Hooks 設定 | https://docs.github.com/en/copilot/reference/hooks-configuration |
 | Copilot CLI Hooks ガイド | https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/use-hooks |
 | Copilot CLI Hooks チュートリアル | https://docs.github.com/en/copilot/tutorials/copilot-cli-hooks |
+| Codex Hooks | https://developers.openai.com/codex/hooks |
+| Codex Config（Advanced） | https://developers.openai.com/codex/config-advanced |
+| Antigravity Hooks | https://antigravity.google/docs/hooks |
+| Antigravity SDK（Python, hooks/README） | https://github.com/google-antigravity/antigravity-sdk-python |
+| Antigravity Hooks フォーラム | https://discuss.ai.google.dev/t/hooks-in-antigravity/120458 |
 
 ---
 
@@ -126,6 +140,31 @@ PLM でフック変換ツールを実装する際のリファレンス。
 | Copilot CLI | 近似手段 |
 |-------------|---------|
 | `errorOccurred` | `PostToolUseFailure` で部分的に代替 |
+
+### 3 ターゲット横断のイベント対応表
+
+Codex CLI と Antigravity は Claude Code と同じ **PascalCase** のイベント名を採用しているため、
+イベント名のケース変換は不要（Copilot CLI のみ camelCase）。
+○=サポート、×=未対応、（）内はターゲット固有の差異。
+
+| Claude Code | Copilot CLI | Codex CLI | Antigravity |
+|-------------|-------------|-----------|-------------|
+| `SessionStart` | `sessionStart` | `SessionStart` | `SessionStart` |
+| `SessionEnd` | `sessionEnd` | ×（公式イベント外） | `SessionEnd` |
+| `PreToolUse` | `preToolUse` | `PreToolUse` | `PreToolUse` |
+| `PostToolUse` | `postToolUse` | `PostToolUse` | `PostToolUse` |
+| `UserPromptSubmit` | `userPromptSubmitted` | `UserPromptSubmit` | `UserPromptSubmit` |
+| `Stop` | `agentStop` | `Stop` | `Stop` |
+| `SubagentStop` | `subagentStop` | `SubagentStop` | `SubagentStop` |
+| `SubagentStart` | × | `SubagentStart` | × |
+| `PermissionRequest` | （`preToolUse` で代替） | `PermissionRequest` | × |
+| `PreCompact` | × | `PreCompact` | `PreCompact` |
+| `PostCompact` | × | `PostCompact` | × |
+| `Notification` | × | ×（別系統の `notify` 設定あり） | `Notification` |
+
+> **注:** 上表は各環境の **公式仕様** に基づくイベント名の対応であり、PLM の実装可否とは別。
+> PLM が現状変換できるイベントは各ターゲットの「実装メモ」を参照（Codex は 6 イベントのみ、
+> Antigravity は未対応）。
 
 ---
 
@@ -546,3 +585,202 @@ Claude Code は PascalCase、Copilot CLI は小文字。
 5. `"timeoutSec"` → `"timeout"` にキー名変更
 6. `"cwd"` / `"env"` は Claude Code に対応がないため除外または警告
 7. `errorOccurred` は除外
+
+---
+
+## 10. Codex CLI（OpenAI Codex）
+
+出典: https://developers.openai.com/codex/hooks 、 https://developers.openai.com/codex/config-advanced
+（公式ドメインは 403 のため検索スニペット・関連 Issue 等でクロスチェック）
+
+Codex CLI の hooks は Claude Code と **同形のスキーマ**（PascalCase イベント名 + matcher グループ構造）を採用しており、
+変換時の差分は Copilot CLI より小さい。
+
+### 10.1 設定ファイル構造（公式仕様）
+
+設定方法は2通りあり、いずれも同一のイベントスキーマを共有する。
+
+**(a) `hooks.json`（JSON）:**
+
+```json
+{
+  "hooks": {
+    "<PascalCaseEvent>": [
+      {
+        "matcher": "<regex>",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "<shell command>",
+            "timeout": 30,
+            "statusMessage": "Processing...",
+            "command_windows": "<Windows 用コマンド>"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**(b) `config.toml` 内のインライン `[hooks]` テーブル（TOML）:**
+
+`~/.codex/config.toml` などアクティブな config レイヤーに直接記述する形式。JSON 版と同じ構造を TOML で表現する。
+
+**有効化（feature flag）:** `config.toml` で次のフラグが必要。
+
+```toml
+[features]
+codex_hooks = true
+```
+
+（`features.codex_hooks` は新方式への deprecated alias とされる。）
+
+**配置場所:**
+- `~/.codex/config.toml`（および `hooks.json`）— ユーザー/アクティブ config レイヤー
+- プラグインは plugin manifest または `hooks/hooks.json` でライフサイクル設定をバンドル可能
+
+### 10.2 サポートイベント（公式仕様、10種）
+
+Claude Code と同じ PascalCase イベント名を保持する。`scope` はイベントの適用範囲を示す。
+
+| イベント | scope |
+|---|---|
+| `PreToolUse` | turn |
+| `PermissionRequest` | turn |
+| `PostToolUse` | turn |
+| `PreCompact` | turn |
+| `PostCompact` | turn |
+| `UserPromptSubmit` | turn |
+| `SubagentStop` | turn |
+| `Stop` | turn |
+| `SessionStart` | thread |
+| `SubagentStart` | subagent-start |
+
+### 10.3 ハンドラとフィールド（公式仕様）
+
+- ハンドラは `type: "command"` のみ実行される。`prompt` / `agent` ハンドラは**パースされるがスキップ**される。
+- フィールド:
+
+| フィールド | 説明 |
+|-----------|------|
+| `matcher` | 正規表現。Claude Code と同じく matcher グループ単位 |
+| `type` | `"command"`（command のみ実行） |
+| `command` | 実行するシェルコマンド |
+| `timeout` | タイムアウト（秒） |
+| `statusMessage` | 実行中に表示するステータスメッセージ |
+| `command_windows` / `commandWindows` | Windows 用コマンド（OS 別の実行コマンド指定） |
+
+> **補足:** Codex には hooks とは別に `notify` 設定（`agent-turn-complete` のみ）が存在し、
+> デスクトップ通知/webhook 用途で使われる。これは hooks スキーマとは別物。
+
+### 10.4 Claude Code → Codex 変換のポイント
+
+- イベント名は **PascalCase のまま保持**（ケース変換不要）。matcher グループ構造も保持する。
+- トップレベルの `version` / `disableAllHooks` は削除する。
+- `timeout` はそのまま保持する。Copilot 形式の `timeoutSec` は `timeout` に正規化（重複時は `timeout` を優先）。
+- Copilot 形式の `comment` は `statusMessage` に変換する。
+- `async` / `once` / `bash` は削除する（必要に応じて警告）。
+- command hook には `"type": "command"` を補う。
+- Codex に対応のないイベント（例: `SessionEnd`, `Notification`）は除外する。
+
+> ### 実装メモ（PLM 現状）
+>
+> 関連コード: `src/hooks/converter/codex.rs`, `src/hooks/event/codex.rs`, `src/hooks/tool/codex.rs`,
+> `src/target/env/codex.rs`
+>
+> - Codex は Hook コンポーネントを **サポート済み**（`supported_components` に `Hook` を含む）。
+> - 配置先は `.codex/hooks.json`（personal/project とも）。**1 スコープにつき単一 `hooks.json` のみ**で、
+>   **複数 Hook コンポーネントのマージは未実装**（複数配置は conflict エラー）。
+> - 対応イベントは **6 種のみ**:
+>   `SessionStart`, `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `Stop`, `PermissionRequest`。
+>   → 公式にある **`PreCompact` / `PostCompact` / `SubagentStop` / `SubagentStart` は未対応**（変換時に除外）。
+> - StructureConverter: 常に Claude Code 形式とみなし、`version` / `disableAllHooks` を削除。matcher グループは保持。
+> - KeyMap: `timeout` 保持、`timeoutSec`→`timeout` 正規化、`comment`→`statusMessage`、
+>   `async` / `once` / `bash` は削除し警告、command hook に `"type": "command"` を補う。
+> - ScriptGenerator: **スクリプト生成なし**（JSON inline をそのまま保持）。
+>   `http` / `agent` / `prompt` ハンドラの扱いは未対応。
+> - ToolMap: pass-through（trim のみ）。
+> - **`config.toml` 形式の入出力は未対応**（JSON のみ）。
+> - **`command_windows` / `commandWindows` は未対応**。
+> - **feature flag（`[features] codex_hooks = true`）の案内/自動設定は未対応**。
+
+---
+
+## 11. Google Antigravity
+
+出典: https://antigravity.google/docs/hooks 、
+Antigravity SDK（Python, hooks/README）https://github.com/google-antigravity/antigravity-sdk-python 、
+フォーラム https://discuss.ai.google.dev/t/hooks-in-antigravity/120458
+（公式ドメインは 403 のため SDK README・フォーラム・検索スニペットでクロスチェック）
+
+Antigravity 2.0 は event-driven automation の hooks を主要機能の一つとして導入した。
+スキーマは Claude Code に酷似するが、**トップレベルの構造が異なる**点に注意。
+
+### 11.1 設定ファイル構造（公式仕様）
+
+フォーマットは `hooks.json`（JSON）。トップレベルは「**フック名 → イベント設定**」のマップ構造で、
+Claude Code（直接 `hooks.<Event>`）とはこの一段が異なる。
+
+```json
+{
+  "my-linter-hook": {
+    "PostToolUse": [
+      {
+        "matcher": "run_command",
+        "hooks": [
+          { "type": "command", "command": "./scripts/lint.sh", "timeout": 10 }
+        ]
+      }
+    ]
+  }
+}
+```
+
+| 項目 | Claude Code | Antigravity |
+|------|-------------|-------------|
+| トップレベル | `hooks.<Event>` | `<フック名>.<Event>`（フック名のマップが1段入る） |
+| イベント名 | PascalCase | PascalCase（同形） |
+| matcher グループ | `matcher`(regex) + `hooks[]` | 同形 |
+| ハンドラ | `type` / `command` / `timeout` | 同形 |
+| 個別無効化 | `disableAllHooks`（全体） | `enabled: false`（個別フック単位） |
+
+**配置場所:**
+- プロジェクト（workspace）スコープ: `.agents/` ディレクトリ
+- グローバル（personal）スコープ: `~/.gemini/config/hooks.json`
+
+### 11.2 サポートイベント（公式仕様、確認できた範囲）
+
+`PreToolUse`, `PostToolUse`, `Stop`, `SubagentStop`, `SessionStart`, `SessionEnd`,
+`UserPromptSubmit`, `PreCompact`, `Notification`
+
+### 11.3 I/O とアーキタイプ（公式仕様）
+
+- **stdin:** JSON を受け取る。主なフィールドは `toolCall.args`, `workspacePaths`,
+  `transcriptPath`, `artifactDirectoryPath` 等。
+- **stdout:** JSON を返却し、`allow` / `deny` / `ask` で判定を返す。
+- `enabled: false` を設定すると個別フックを無効化できる。
+- hooks の 3 アーキタイプ（SDK 概念）:
+
+| アーキタイプ | 特性 |
+|-------------|------|
+| Decide | read-only / blocking（許可・拒否を判定） |
+| Inspect | read-only / non-blocking（観測のみ） |
+| Transform | modifying / blocking（入力を変更しつつブロック可能） |
+
+> ### 実装メモ（PLM 現状）
+>
+> 関連コード: `src/target/env/antigravity.rs`, `src/hooks/converter`（`create_layers`）
+>
+> - Antigravity は Hook コンポーネント **非対応**（`supported_components` は `[Skill]` のみ）。
+> - hooks converter も **未実装**。`create_layers` で Codex / Copilot 以外は
+>   "Hook conversion is not yet implemented for target" エラーになる。
+> - → **Antigravity 向け hooks 変換は完全に未実装**。公式が hooks をサポートし始めたため、今後の対応が必要。
+
+---
+
+## 12. Gemini CLI（参考）
+
+- Gemini CLI 単体の hooks 公式仕様は確認できなかった（Antigravity 経由が実態の可能性）。
+- PLM では Gemini CLI は Hook **非対応**（`supported_components` は `[Skill, Instruction]`）。
+- → 現状「公式仕様未確認 / 非対応」として扱う。

@@ -19,10 +19,15 @@ PLMがサポートするAI開発環境（ターゲット）について説明し
 | Agents | ✅ | ✅ | ❌ | ❌ |
 | Commands | ❌ | ✅ | ❌ | ❌ |
 | Instructions | ✅ | ✅ | ❌* | ✅** |
-| Hooks | ❌ | ✅ | ❌ | ❌ |
+| Hooks | ✅ | ✅ | ❌*** | ❌**** |
 
 > *AntigravityはSkills専用の設計で、Instructionsは別途設定で管理します。
 > **Gemini CLIは`GEMINI.md`による階層的な指示システムを持ちます。
+> ***Antigravity 2.0 は公式に hooks をサポートしますが、PLM 側の変換は未実装です（後述）。
+> ****Gemini CLI 単体の hooks 公式仕様は未確認で、PLM では現状非対応です。
+
+> **Hooks の凡例**: ここでの ✅ は「公式仕様が存在し、かつ PLM が変換・配置を実装済み」を意味します。
+> 「公式仕様の最新状況」と「PLM の実装状況（実装済み/未実装）」は各ターゲットの節で区別して記載します。
 
 ## OpenAI Codex
 
@@ -54,6 +59,64 @@ PLMがサポートするAI開発環境（ターゲット）について説明し
 | Skills | `SKILL.md` | `~/.codex/skills/<marketplace>/<plugin>/<skill>/` | `.codex/skills/<marketplace>/<plugin>/<skill>/` |
 | Agents | `*.agent.md` | `~/.codex/agents/<marketplace>/<plugin>/` | `.codex/agents/<marketplace>/<plugin>/` |
 | Instructions | `AGENTS.md` | `~/.codex/AGENTS.md` | `AGENTS.md` |
+| Hooks | `hooks.json` | `~/.codex/hooks.json` | `.codex/hooks.json` |
+
+### Hooks
+
+Codex CLI はエージェントのライフサイクルイベントに対してコマンドを実行する hooks を公式にサポートしています。PLM もこの変換・配置を実装済みです。
+
+公式ドキュメント:
+- [Codex Hooks](https://developers.openai.com/codex/hooks)
+- [Codex Config (Advanced)](https://developers.openai.com/codex/config-advanced)
+
+> 注: Codex の公式ドメインは bot 対策により直接取得できないため、検索結果・GitHub Issue・公式フォーラム等とクロスチェックした情報です。細部は将来変更される可能性があります。
+
+#### 公式仕様（最新）
+
+- 設定方法は2通りで、同じイベントスキーマを共有します:
+  1. `hooks.json`（JSON）
+  2. `config.toml` 内のインライン `[hooks]` テーブル（TOML）。`~/.codex/config.toml` 等のアクティブな config レイヤーに配置。
+  - プラグインは plugin manifest または `hooks/hooks.json` でライフサイクル設定をバンドル可能。
+- 有効化には `config.toml` の feature flag が必要です。
+
+  ```toml
+  [features]
+  codex_hooks = true
+  ```
+
+- 構造は Claude Code と同じく **PascalCase イベント名 + matcher グループ（`matcher` + `hooks[]`）** を保持します。
+- サポートイベント（公式 10 種）:
+
+  | イベント | scope |
+  |---|---|
+  | `PreToolUse` | turn |
+  | `PermissionRequest` | turn |
+  | `PostToolUse` | turn |
+  | `PreCompact` | turn |
+  | `PostCompact` | turn |
+  | `UserPromptSubmit` | turn |
+  | `SubagentStop` | turn |
+  | `Stop` | turn |
+  | `SessionStart` | thread |
+  | `SubagentStart` | subagent-start |
+
+- 実行されるハンドラは `type: "command"` のみです（`prompt` / `agent` ハンドラはパースされますがスキップされます）。
+- フィールド: `matcher`（正規表現）, `type`（`"command"`）, `command`, `timeout`, `statusMessage`。Windows 用に `command_windows` / `commandWindows`。
+- 別系統の `notify` 設定（`agent-turn-complete` のみ）はデスクトップ通知/webhook 用で、hooks とは別物です。
+
+#### PLM の実装状況
+
+- Codex は Hook コンポーネントを **サポート済み** です。
+- 配置先は Personal / Project とも `hooks.json`（JSON inline）で、スクリプト生成は行いません。
+- 対応イベントは **6 種のみ**: `SessionStart`, `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `Stop`, `PermissionRequest`。
+  - 公式にある `PreCompact` / `PostCompact` / `SubagentStop` / `SubagentStart` は **未対応**（変換時に除外されます）。
+- matcher グループ構造は保持します（`version` / `disableAllHooks` は除去）。
+- フィールド正規化: `timeoutSec`（Copilot 形式）→ `timeout`、`comment`（Copilot 形式）→ `statusMessage`。`async` / `once` / `bash` は削除し警告。command hook には `"type": "command"` を自動挿入。
+- **未対応の項目:**
+  - 複数 Hook コンポーネントのマージ（1 スコープにつき単一 `hooks.json` のみ。複数配置は conflict エラー）
+  - `config.toml` 形式の入出力（JSON のみ対応）
+  - `command_windows` / `commandWindows`
+  - feature flag（`[features] codex_hooks = true`）の案内・自動設定
 
 ## VSCode GitHub Copilot
 
@@ -200,8 +263,46 @@ Google AntigravityはGemini 3 Pro搭載のエージェント指向IDE。2026年1
 
 ### 制約事項
 
-- **Skills専用**: Agents、Prompts、Instructionsは別のシステムで管理
+- **Skills専用（PLM 観点）**: PLM 経由で配置できるのは現状 Skills のみ。Agents、Prompts、Instructionsは別のシステムで管理されます。
 - Skillsはタスク終了後にコンテキストから解放される（エフェメラル）
+
+### Hooks
+
+Antigravity 2.0 は主要機能の一つとして event-driven automation の hooks を **公式サポート** するようになりました。ただし **PLM 側の変換は現状未実装** です（今後対応予定。関連 issue は別途登録されます）。
+
+公式ドキュメント:
+- [Antigravity Hooks](https://antigravity.google/docs/hooks)
+- [antigravity-sdk-python (hooks/README.md)](https://github.com/google-antigravity/antigravity-sdk-python)
+- [Hooks in Antigravity（公式フォーラム）](https://discuss.ai.google.dev/t/hooks-in-antigravity/120458)
+
+> 注: Antigravity の公式ドメインは bot 対策により直接取得できないため、検索結果・SDK リポジトリ・公式フォーラム等とクロスチェックした情報です。細部は将来変更される可能性があります。
+
+#### 公式仕様（最新・確認できた範囲）
+
+- フォーマット: `hooks.json`（JSON）。
+- 配置場所:
+  - Project（workspace）スコープ: `.agents/` ディレクトリ
+  - Global（personal）スコープ: `~/.gemini/config/hooks.json`
+- サポートイベント（確認できた範囲）: `PreToolUse`, `PostToolUse`, `Stop`, `SubagentStop`, `SessionStart`, `SessionEnd`, `UserPromptSubmit`, `PreCompact`, `Notification`。
+- 構造は Claude Code に酷似しますが、**トップレベルが「フック名 → イベント設定」のマップ** になる点が異なります（Claude Code は直接 `hooks.<Event>`）。
+
+  ```json
+  {
+    "my-linter-hook": {
+      "PostToolUse": [
+        { "matcher": "run_command",
+          "hooks": [ { "type": "command", "command": "./scripts/lint.sh", "timeout": 10 } ] }
+      ]
+    }
+  }
+  ```
+
+- I/O: stdin で JSON を受け取り、stdout で JSON（`allow` / `deny` / `ask`）を返します。`enabled: false` で個別 hook を無効化できます。
+
+#### PLM の実装状況
+
+- Antigravity は Hook コンポーネント **非対応**。変換 converter も未実装です。
+- 公式が hooks をサポートし始めたため、PLM 側でも今後の対応が必要です。
 
 ## Gemini CLI
 
@@ -272,6 +373,7 @@ Gemini CLIは `GEMINI.md` ファイルによる階層的な指示システムを
 - **実験的機能**: `/settings` で Agent Skills を `true` に設定して有効化が必要
 - **Agents非対応**: `.agent.md` 形式はサポートしない
 - **Prompts非対応**: `.prompt.md` 形式はサポートしない
+- **Hooks非対応**: Gemini CLI 単体の hooks 公式仕様は確認できておらず（Antigravity 経由が実態の可能性）、PLM でも現状 Hook コンポーネントは非対応です。
 
 ## PLMでの対応方針
 

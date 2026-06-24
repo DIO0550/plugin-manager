@@ -98,10 +98,12 @@ cargo deny check
 **Target Trait** - 環境差異を抽象化：
 | 環境 | Skills | Agents | Commands | Instructions | Hooks |
 |------------|--------|--------|----------|--------------|-------|
-| OpenAI Codex | ○ | ○ | × | ○ | × |
+| OpenAI Codex | ○ | ○ | × | ○ | ○ |
 | VSCode Copilot | ○ | ○ | ○ | ○ | ○ |
 | Google Antigravity | ○ | × | × | × | × |
 | Gemini CLI | ○ | × | × | ○ | × |
+
+※ Antigravity は Antigravity 2.0 で hooks を公式サポートするが、PLM の変換は未対応（対応予定）。
 
 **Component** - コンポーネントタイプを抽象化（`ComponentKind` enum）：
 - Skills: YAMLフロントマター付き `SKILL.md`
