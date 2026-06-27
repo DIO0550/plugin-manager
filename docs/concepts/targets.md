@@ -19,7 +19,7 @@ PLMがサポートするAI開発環境（ターゲット）について説明し
 | Agents | ✅ | ✅ | ❌ | ❌ |
 | Commands | ❌ | ✅ | ❌ | ❌ |
 | Instructions | ✅ | ✅ | ❌* | ✅** |
-| Hooks | ❌ | ✅ | ❌ | ❌ |
+| Hooks | ✅ | ✅ | ❌ | ❌ |
 
 > *AntigravityはSkills専用の設計で、Instructionsは別途設定で管理します。
 > **Gemini CLIは`GEMINI.md`による階層的な指示システムを持ちます。
@@ -54,6 +54,27 @@ PLMがサポートするAI開発環境（ターゲット）について説明し
 | Skills | `SKILL.md` | `~/.codex/skills/<marketplace>/<plugin>/<skill>/` | `.codex/skills/<marketplace>/<plugin>/<skill>/` |
 | Agents | `*.agent.md` | `~/.codex/agents/<marketplace>/<plugin>/` | `.codex/agents/<marketplace>/<plugin>/` |
 | Instructions | `AGENTS.md` | `~/.codex/AGENTS.md` | `AGENTS.md` |
+
+### Hooks（10 イベント対応）
+
+公式ドキュメント: [Codex Hooks](https://developers.openai.com/codex/hooks)
+
+Codex CLI は PascalCase 命名の hooks イベントを 10 種サポートし、PLM の `CodexEventMap` はそれらをすべて変換対象として保持する（イベント名は変換時にそのまま維持）。
+
+| イベント | scope |
+|----------|-------|
+| `SessionStart` | thread |
+| `PreToolUse` | turn |
+| `PermissionRequest` | turn |
+| `PostToolUse` | turn |
+| `UserPromptSubmit` | turn |
+| `Stop` | turn |
+| `PreCompact` | turn |
+| `PostCompact` | turn |
+| `SubagentStop` | turn |
+| `SubagentStart` | subagent-start |
+
+詳細なスキーマ対応は `docs/reference/hooks-schema-mapping.md` を参照。
 
 ## VSCode GitHub Copilot
 
