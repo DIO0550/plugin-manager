@@ -13,6 +13,10 @@ impl EventMap for CodexEventMap {
             "UserPromptSubmit" => Some("UserPromptSubmit"),
             "Stop" => Some("Stop"),
             "PermissionRequest" => Some("PermissionRequest"),
+            "PreCompact" => Some("PreCompact"),
+            "PostCompact" => Some("PostCompact"),
+            "SubagentStart" => Some("SubagentStart"),
+            "SubagentStop" => Some("SubagentStop"),
             _ => None,
         }
     }

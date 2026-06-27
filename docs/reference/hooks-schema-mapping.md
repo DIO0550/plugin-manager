@@ -12,6 +12,7 @@ PLM でフック変換ツールを実装する際のリファレンス。
 | Copilot CLI Hooks 設定 | https://docs.github.com/en/copilot/reference/hooks-configuration |
 | Copilot CLI Hooks ガイド | https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/use-hooks |
 | Copilot CLI Hooks チュートリアル | https://docs.github.com/en/copilot/tutorials/copilot-cli-hooks |
+| Codex CLI Hooks | https://developers.openai.com/codex/hooks |
 
 ---
 
@@ -126,6 +127,25 @@ PLM でフック変換ツールを実装する際のリファレンス。
 | Copilot CLI | 近似手段 |
 |-------------|---------|
 | `errorOccurred` | `PostToolUseFailure` で部分的に代替 |
+
+### Codex CLI（Claude Code と 1:1 対応）
+
+Codex hooks は Claude Code と同じ PascalCase 命名で 10 イベントをサポートし、PLM の `CodexEventMap` は変換時にイベント名をそのまま保持する。
+
+| Claude Code / Codex | scope | PLM 対応 |
+|---------------------|-------|----------|
+| `SessionStart` | thread | ✅ |
+| `PreToolUse` | turn | ✅ |
+| `PermissionRequest` | turn | ✅ |
+| `PostToolUse` | turn | ✅ |
+| `UserPromptSubmit` | turn | ✅ |
+| `Stop` | turn | ✅ |
+| `PreCompact` | turn | ✅ |
+| `PostCompact` | turn | ✅ |
+| `SubagentStop` | turn | ✅ |
+| `SubagentStart` | subagent-start | ✅ |
+
+出典: <https://developers.openai.com/codex/hooks>
 
 ---
 

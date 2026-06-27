@@ -22,7 +22,10 @@ fn test_codex_event_map_keeps_supported_events() {
         map.map_event("PermissionRequest"),
         Some("PermissionRequest")
     );
-    assert_eq!(map.map_event("SubagentStop"), None);
+    assert_eq!(map.map_event("PreCompact"), Some("PreCompact"));
+    assert_eq!(map.map_event("PostCompact"), Some("PostCompact"));
+    assert_eq!(map.map_event("SubagentStart"), Some("SubagentStart"));
+    assert_eq!(map.map_event("SubagentStop"), Some("SubagentStop"));
 }
 
 #[test]
