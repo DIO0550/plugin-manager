@@ -272,8 +272,7 @@ fn test_codex_convert_excludes_unsupported_hook_types() {
                 {
                     "matcher": "Bash",
                     "hooks": [
-                        {"type": "http", "url": "https://example.com"},
-                        {"type": "prompt", "prompt": "check this"}
+                        {"type": "http", "url": "https://example.com"}
                     ]
                 }
             ]
@@ -288,8 +287,192 @@ fn test_codex_convert_excludes_unsupported_hook_types() {
         w,
         ConversionWarning::UnsupportedHookType { hook_type, .. } if hook_type == "http"
     )));
-    assert!(result.warnings.iter().any(|w| matches!(
+}
+
+#[test]
+fn test_codex_script_generator_preserves_stub_inline_is_true() {
+    let gen = CodexScriptGenerator;
+    assert!(gen.preserves_stub_inline());
+}
+
+#[test]
+fn test_codex_convert_keeps_prompt_hook_inline_with_warning() {
+    let input = r#"{
+        "hooks": {
+            "PreToolUse": [
+                {
+                    "matcher": "Bash",
+                    "hooks": [
+                        {"type": "prompt", "prompt": "check this"}
+                    ]
+                }
+            ]
+        }
+    }"#;
+
+    let result = convert(input, TargetKind::Codex).unwrap();
+
+    assert!(result.scripts.is_empty());
+    assert_eq!(result.json["hooks"]["PreToolUse"][0]["matcher"], "Bash");
+    assert_eq!(
+        result.json["hooks"]["PreToolUse"][0]["hooks"][0]["type"],
+        "prompt"
+    );
+    assert_eq!(
+        result.json["hooks"]["PreToolUse"][0]["hooks"][0]["prompt"],
+        "check this"
+    );
+    let prompt_warnings: Vec<_> = result
+        .warnings
+        .iter()
+        .filter(|w| {
+            matches!(
+                w,
+                ConversionWarning::PromptAgentHookStub { hook_type, event }
+                    if hook_type == "prompt" && event == "PreToolUse"
+            )
+        })
+        .collect();
+    assert_eq!(prompt_warnings.len(), 1);
+    assert!(!result.warnings.iter().any(|w| matches!(
         w,
         ConversionWarning::UnsupportedHookType { hook_type, .. } if hook_type == "prompt"
     )));
+}
+
+#[test]
+fn test_codex_convert_keeps_agent_hook_inline_with_warning() {
+    let input = r#"{
+        "hooks": {
+            "PreToolUse": [
+                {
+                    "matcher": "Bash",
+                    "hooks": [
+                        {"type": "agent", "agent": "reviewer"}
+                    ]
+                }
+            ]
+        }
+    }"#;
+
+    let result = convert(input, TargetKind::Codex).unwrap();
+
+    assert!(result.scripts.is_empty());
+    assert_eq!(
+        result.json["hooks"]["PreToolUse"][0]["hooks"][0]["type"],
+        "agent"
+    );
+    assert_eq!(
+        result.json["hooks"]["PreToolUse"][0]["hooks"][0]["agent"],
+        "reviewer"
+    );
+    let agent_warnings: Vec<_> = result
+        .warnings
+        .iter()
+        .filter(|w| {
+            matches!(
+                w,
+                ConversionWarning::PromptAgentHookStub { hook_type, event }
+                    if hook_type == "agent" && event == "PreToolUse"
+            )
+        })
+        .collect();
+    assert_eq!(agent_warnings.len(), 1);
+    assert!(!result.warnings.iter().any(|w| matches!(
+        w,
+        ConversionWarning::UnsupportedHookType { hook_type, .. } if hook_type == "agent"
+    )));
+}
+
+#[test]
+fn test_codex_convert_keeps_mixed_command_and_prompt_inline() {
+    let input = r#"{
+        "hooks": {
+            "PreToolUse": [
+                {
+                    "matcher": "Bash",
+                    "hooks": [
+                        {"type": "command", "command": "echo hi"},
+                        {"type": "prompt", "prompt": "review"}
+                    ]
+                }
+            ]
+        }
+    }"#;
+
+    let result = convert(input, TargetKind::Codex).unwrap();
+
+    assert!(result.scripts.is_empty());
+    let hooks = result.json["hooks"]["PreToolUse"][0]["hooks"]
+        .as_array()
+        .expect("hooks array should be preserved");
+    assert_eq!(hooks.len(), 2);
+    assert_eq!(hooks[0]["type"], "command");
+    assert_eq!(hooks[0]["command"], "echo hi");
+    assert_eq!(hooks[1]["type"], "prompt");
+    assert_eq!(hooks[1]["prompt"], "review");
+    let prompt_warnings: Vec<_> = result
+        .warnings
+        .iter()
+        .filter(|w| {
+            matches!(
+                w,
+                ConversionWarning::PromptAgentHookStub { hook_type, .. } if hook_type == "prompt"
+            )
+        })
+        .collect();
+    assert_eq!(prompt_warnings.len(), 1);
+}
+
+#[test]
+fn test_codex_convert_emits_warning_per_prompt_hook() {
+    let input = r#"{
+        "hooks": {
+            "PreToolUse": [
+                {
+                    "matcher": "Bash",
+                    "hooks": [
+                        {"type": "prompt", "prompt": "first"},
+                        {"type": "prompt", "prompt": "second"},
+                        {"type": "agent", "agent": "reviewer"}
+                    ]
+                }
+            ]
+        }
+    }"#;
+
+    let result = convert(input, TargetKind::Codex).unwrap();
+
+    let hooks = result.json["hooks"]["PreToolUse"][0]["hooks"]
+        .as_array()
+        .expect("hooks array should be preserved");
+    assert_eq!(hooks.len(), 3);
+    let stub_warnings: Vec<_> = result
+        .warnings
+        .iter()
+        .filter(|w| matches!(w, ConversionWarning::PromptAgentHookStub { .. }))
+        .collect();
+    assert_eq!(stub_warnings.len(), 3);
+    let prompt_count = result
+        .warnings
+        .iter()
+        .filter(|w| {
+            matches!(
+                w,
+                ConversionWarning::PromptAgentHookStub { hook_type, .. } if hook_type == "prompt"
+            )
+        })
+        .count();
+    let agent_count = result
+        .warnings
+        .iter()
+        .filter(|w| {
+            matches!(
+                w,
+                ConversionWarning::PromptAgentHookStub { hook_type, .. } if hook_type == "agent"
+            )
+        })
+        .count();
+    assert_eq!(prompt_count, 2);
+    assert_eq!(agent_count, 1);
 }
