@@ -176,4 +176,8 @@ impl ScriptGenerator for CodexScriptGenerator {
             matcher: matcher.map(|s| s.to_string()),
         }
     }
+
+    fn preserves_stub_inline(&self) -> bool {
+        true
+    }
 }

@@ -231,6 +231,17 @@ pub(crate) trait ScriptGenerator {
         matcher: Option<&str>,
         index: usize,
     ) -> ScriptInfo;
+
+    /// Whether prompt/agent (stub) hooks should be preserved inline in the
+    /// converted output instead of being filtered out as unsupported.
+    ///
+    /// Defaults to `false`. Targets such as Codex – which parse but skip
+    /// `type: "prompt"` / `type: "agent"` handlers at runtime – override this
+    /// to `true` so the original entries remain in the config alongside a
+    /// `ConversionWarning::PromptAgentHookStub` warning.
+    fn preserves_stub_inline(&self) -> bool {
+        false
+    }
 }
 
 /// Container for the conversion layers resolved for a specific target.
@@ -649,6 +660,10 @@ fn convert_hook_definition(
         let hook_type = action.hook_type_str().to_string();
         match action {
             HookDefinition::Command(_) => {
+                out.warnings.extend(extra_warnings);
+                return Ok(Some(mapped));
+            }
+            HookDefinition::Stub(_) if layers.script_gen.preserves_stub_inline() => {
                 out.warnings.extend(extra_warnings);
                 return Ok(Some(mapped));
             }
