@@ -47,6 +47,34 @@ impl KeyMap for CodexKeyMap {
                 "comment" => {
                     output.insert("statusMessage".to_string(), value.clone());
                 }
+                "command_windows" if hook_type == "command" => {
+                    output.insert("command_windows".to_string(), value.clone());
+                }
+                "command_windows" => warnings.push(ConversionWarning::RemovedField {
+                    field: "command_windows".to_string(),
+                    reason: "Codex command_windows is only meaningful on command hooks".to_string(),
+                }),
+                // Duplicate detection reads the input `hook_obj` instead of `output`
+                // because `serde_json::Map` defaults to `BTreeMap` (no `preserve_order`
+                // feature), which iterates keys in sorted order. ASCII `'W'`(0x57) <
+                // `'_'`(0x5F) means `"commandWindows"` is visited before
+                // `"command_windows"`, so an output-side check would miss the conflict.
+                "commandWindows" if hook_type != "command" => {
+                    warnings.push(ConversionWarning::RemovedField {
+                        field: "commandWindows".to_string(),
+                        reason: "Codex command_windows is only meaningful on command hooks"
+                            .to_string(),
+                    });
+                }
+                "commandWindows" if hook_obj.contains_key("command_windows") => {
+                    warnings.push(ConversionWarning::RemovedField {
+                        field: "commandWindows".to_string(),
+                        reason: "Codex hooks use command_windows, not commandWindows".to_string(),
+                    });
+                }
+                "commandWindows" => {
+                    output.insert("command_windows".to_string(), value.clone());
+                }
                 _ => {
                     output.insert(key.clone(), value.clone());
                 }

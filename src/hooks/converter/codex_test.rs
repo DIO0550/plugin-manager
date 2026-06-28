@@ -80,6 +80,115 @@ fn test_codex_key_map_prefers_timeout_over_timeout_sec() {
 }
 
 #[test]
+fn test_codex_key_map_preserves_command_windows() {
+    let map = CodexKeyMap;
+    let hook = json!({
+        "type": "command",
+        "command": "echo hi",
+        "command_windows": "echo hi"
+    });
+
+    let (mapped, warnings) = map.map_keys(&hook, "command");
+
+    assert_eq!(mapped["command_windows"], "echo hi");
+    assert!(warnings.is_empty());
+}
+
+#[test]
+fn test_codex_key_map_renames_command_windows_camel_to_snake() {
+    let map = CodexKeyMap;
+    let hook = json!({
+        "type": "command",
+        "command": "echo hi",
+        "commandWindows": "echo hi"
+    });
+
+    let (mapped, warnings) = map.map_keys(&hook, "command");
+
+    assert_eq!(mapped["command_windows"], "echo hi");
+    assert!(mapped.get("commandWindows").is_none());
+    assert!(warnings.is_empty());
+}
+
+#[test]
+fn test_codex_key_map_prefers_command_windows_over_camel_case() {
+    let map = CodexKeyMap;
+    let hook = json!({
+        "type": "command",
+        "command": "echo hi",
+        "command_windows": "echo snake",
+        "commandWindows": "echo camel"
+    });
+
+    let (mapped, warnings) = map.map_keys(&hook, "command");
+
+    assert_eq!(mapped["command_windows"], "echo snake");
+    assert!(mapped.get("commandWindows").is_none());
+    assert_eq!(warnings.len(), 1);
+    assert!(matches!(
+        &warnings[0],
+        ConversionWarning::RemovedField { field, .. } if field == "commandWindows"
+    ));
+}
+
+#[test]
+fn test_codex_key_map_preserves_empty_command_windows_value() {
+    let map = CodexKeyMap;
+    let hook = json!({
+        "type": "command",
+        "command": "echo hi",
+        "command_windows": ""
+    });
+
+    let (mapped, warnings) = map.map_keys(&hook, "command");
+
+    assert_eq!(mapped["command_windows"], "");
+    assert!(warnings.is_empty());
+}
+
+#[test]
+fn test_codex_key_map_drops_command_windows_on_non_command_hook() {
+    let map = CodexKeyMap;
+    let hook = json!({
+        "type": "http",
+        "url": "https://example.com/hook",
+        "command_windows": "echo hi",
+        "commandWindows": "echo hi"
+    });
+
+    let (mapped, warnings) = map.map_keys(&hook, "http");
+
+    assert!(mapped.get("command_windows").is_none());
+    assert!(mapped.get("commandWindows").is_none());
+    assert_eq!(warnings.len(), 2);
+    assert!(warnings.iter().all(|w| matches!(
+        w,
+        ConversionWarning::RemovedField { field, .. }
+            if field == "command_windows" || field == "commandWindows"
+    )));
+}
+
+#[test]
+fn test_codex_key_map_command_windows_coexists_with_existing_fields() {
+    let map = CodexKeyMap;
+    let hook = json!({
+        "type": "command",
+        "command": "echo hi",
+        "command_windows": "echo hi",
+        "timeoutSec": 5,
+        "comment": "checking"
+    });
+
+    let (mapped, warnings) = map.map_keys(&hook, "command");
+
+    assert_eq!(mapped["command_windows"], "echo hi");
+    assert_eq!(mapped["timeout"], 5);
+    assert_eq!(mapped["statusMessage"], "checking");
+    assert_eq!(mapped["type"], "command");
+    assert!(warnings.is_empty());
+}
+
+#[test]
 fn test_codex_structure_converter_detects_claude_code() {
     let conv = CodexStructureConverter;
     let value = json!({"hooks": {"SessionStart": []}});

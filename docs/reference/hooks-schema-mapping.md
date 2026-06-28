@@ -147,6 +147,17 @@ Codex hooks は Claude Code と同じ PascalCase 命名で 10 イベントをサ
 
 出典: <https://developers.openai.com/codex/hooks>
 
+### Codex CLI コマンドフックのフィールドマッピング
+
+Codex の command フックは POSIX シェル向けの `command` と Windows 向けの `command_windows` を持つ。PLM は Claude Code 由来の表記揺れ（camelCase `commandWindows`）を Codex 仕様の snake_case (`command_windows`) に正規化する。
+
+| 入力キー (Claude Code 形式) | 出力キー (Codex 形式) | 挙動 |
+|---|---|---|
+| `command_windows` | `command_windows` | command 型なら保持。command 型以外では削除して警告 |
+| `commandWindows` | `command_windows` | snake_case にリネーム。`command_windows` と併存時は snake_case を優先し camelCase 側を警告付きで破棄 |
+
+**表記揺れ正規化の理由**: Codex 公式の `config.toml` は snake_case を採用するため、PLM は入力に `commandWindows`（camelCase）が含まれていれば自動で `command_windows` にリネームする。両キーが同時に存在する場合は仕様準拠側（snake_case）を優先し、`ConversionWarning::RemovedField` で重複を通知する。command 以外の hook 型（`http` など）に付与された Windows コマンドフィールドは意味を持たないため削除し警告する。
+
 ---
 
 ## 3. stdin スキーマ
