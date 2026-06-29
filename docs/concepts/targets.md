@@ -298,7 +298,7 @@ Gemini CLIは `GEMINI.md` ファイルによる階層的な指示システムを
 
 | ターゲット | Personal インストール | 追加アクション |
 |-----------|----------------------|----------------|
-| Codex | `~/.codex/` に配置 | 不要（自動読み込み） |
+| Codex | `~/.codex/` に配置 | Hook 配置時のみ `~/.codex/config.toml` に `[features] codex_hooks = true` を自動追記（`--no-enable-flag` で抑止可、`codex_hooks = false` 既設定時は警告のみでスキップ） |
 | Copilot | ファイル配置 + VSCode設定追記 | `settings.json` への参照追加が必要 |
 | Antigravity | `~/.gemini/antigravity/` に配置 | 不要（自動読み込み） |
 | Gemini CLI | `~/.gemini/skills/` に配置 | 不要（自動読み込み、要Settings有効化） |

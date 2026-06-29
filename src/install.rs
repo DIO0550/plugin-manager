@@ -60,6 +60,10 @@ pub struct PlaceRequest<'a> {
     pub targets: &'a [Box<dyn Target>],
     pub scope: Scope,
     pub project_root: &'a Path,
+    /// Codex Hook 配置時に `~/.codex/config.toml` の
+    /// `[features] codex_hooks = true` を自動追記するか。
+    /// `false` の場合（`--no-enable-flag` 指定時）は config.toml に触れない。
+    pub enable_codex_hooks_flag: bool,
 }
 
 /// 配置結果（成果レポート）
@@ -68,6 +72,9 @@ pub struct PlaceOutcome {
     pub plugin_name: String,
     pub successes: Vec<PlaceSuccess>,
     pub failures: Vec<PlaceFailure>,
+    /// Codex Hook 配置時に適用された feature flag の結果。
+    /// 1 回の `place_plugin` で 1 scope につき最大 1 件。
+    pub feature_flags: Vec<crate::target::FeatureFlagOutcome>,
 }
 
 /// 配置成功
@@ -182,6 +189,9 @@ pub fn scan_plugin(
 pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
     let mut successes = Vec::new();
     let mut failures = Vec::new();
+    let mut feature_flags = Vec::new();
+    // Codex の feature flag は per-call (1 scope につき) 1 回のみ適用する。
+    let mut codex_flag_applied = false;
 
     let origin =
         PluginOrigin::from_cached_plugin(request.scanned.marketplace(), request.scanned.id());
@@ -320,6 +330,29 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
                         hook_count,
                         hook_source_format,
                     });
+
+                    // Codex Hook 配置成功時、scope につき 1 回だけ
+                    // `~/.codex/config.toml` の feature flag を自動追記する。
+                    if request.enable_codex_hooks_flag
+                        && !codex_flag_applied
+                        && component.kind == ComponentKind::Hook
+                        && target.kind() == TargetKind::Codex
+                    {
+                        let config_path =
+                            CodexTarget::config_toml_path(request.scope, request.project_root);
+                        match crate::target::apply_codex_hooks_flag(&config_path) {
+                            Ok(ffo) => feature_flags.push(ffo),
+                            Err(e) => {
+                                // best-effort: hook 配置は成功扱いとし、警告のみ
+                                eprintln!(
+                                    "Warning: failed to enable [features] codex_hooks in {}: {}",
+                                    config_path.display(),
+                                    e
+                                );
+                            }
+                        }
+                        codex_flag_applied = true;
+                    }
                 }
                 Err(e) => {
                     failures.push(PlaceFailure {
@@ -350,6 +383,7 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
         plugin_name: request.scanned.name().to_string(),
         successes,
         failures,
+        feature_flags,
     }
 }
 

@@ -330,6 +330,8 @@ fn install_single_plugin(
         targets: ctx.targets,
         scope: ctx.scope,
         project_root: ctx.project_root,
+        // TUI 経由インストールでも CLI と同じデフォルト挙動（自動追記）に揃える。
+        enable_codex_hooks_flag: true,
     });
 
     install::update_meta_after_place(scanned.plugin_root(), &place_result);

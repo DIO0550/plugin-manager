@@ -1,5 +1,9 @@
 //! OpenAI Codex ターゲット実装
 
+mod feature_flag;
+
+pub use feature_flag::{apply_codex_hooks_flag, FeatureFlagOutcome};
+
 use crate::component::{Component, ComponentKind, PlacementContext, PlacementLocation, Scope};
 use crate::error::Result;
 use crate::target::paths::base_dir;
@@ -9,6 +13,7 @@ use crate::target::{Target, TargetKind};
 use std::path::{Path, PathBuf};
 
 const CODEX_SUBDIR: &str = ".codex";
+const CODEX_CONFIG_FILE: &str = "config.toml";
 
 /// OpenAI Codex ターゲット
 pub struct CodexTarget;
@@ -26,6 +31,19 @@ impl CodexTarget {
     /// * `project_root` - Project root directory used for project scope.
     fn base_dir(scope: Scope, project_root: &Path) -> PathBuf {
         base_dir(scope, project_root, CODEX_SUBDIR, CODEX_SUBDIR)
+    }
+
+    /// スコープに応じた `config.toml` のフルパスを返す。
+    ///
+    /// install/import 経路で `[features] codex_hooks = true` を自動追記する
+    /// 際の書き込み先計算に使う。
+    ///
+    /// # Arguments
+    ///
+    /// * `scope` - Scope (`Personal` or `Project`).
+    /// * `project_root` - Project root directory used for project scope.
+    pub(crate) fn config_toml_path(scope: Scope, project_root: &Path) -> PathBuf {
+        Self::base_dir(scope, project_root).join(CODEX_CONFIG_FILE)
     }
 
     /// この組み合わせで配置できるか

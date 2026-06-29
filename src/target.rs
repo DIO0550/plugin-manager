@@ -27,7 +27,10 @@ mod placed;
 pub(crate) use core::paths;
 pub use core::{AddOutcome, RemoveOutcome, TargetId, TargetRegistry};
 pub use effect::{AffectedTargets, OperationOutcome};
-pub use env::{AntigravityTarget, CodexTarget, CopilotTarget, GeminiCliTarget};
+pub use env::{
+    apply_codex_hooks_flag, AntigravityTarget, CodexTarget, CopilotTarget, FeatureFlagOutcome,
+    GeminiCliTarget,
+};
 pub use placed::scanner;
 pub(crate) use placed::{list_all_placed, placed_common};
 // PluginOrigin はモジュール内で定義されているのでここでは再エクスポート不要

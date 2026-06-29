@@ -13,11 +13,13 @@ use crate::output::CommandSummary;
 use crate::plugin::PackageCache;
 use crate::source::parse_source;
 use crate::target::{
-    all_targets, parse_target, CodexTarget, PluginOrigin, Scope, Target, TargetKind,
+    all_targets, apply_codex_hooks_flag, parse_target, CodexTarget, PluginOrigin, Scope, Target,
+    TargetKind,
 };
 use crate::tui;
 use chrono::Utc;
 use clap::Parser;
+use std::cell::Cell;
 use std::env;
 use std::path::Path;
 
@@ -44,6 +46,12 @@ pub struct Args {
     /// Force re-download even if cached
     #[arg(long)]
     pub force: bool,
+
+    /// Codex Hook 配置時の `[features] codex_hooks = true` 自動追記を抑止する。
+    /// デフォルトでは `~/.codex/config.toml`（または project の `.codex/config.toml`）
+    /// に追記される。`--no-enable-flag` を指定すると config.toml には触れない。
+    #[arg(long = "no-enable-flag", action = clap::ArgAction::SetFalse, default_value_t = true)]
+    pub enable_flag: bool,
 }
 
 /// Parse a component path string into (ComponentKind, name)
@@ -191,6 +199,12 @@ struct ImportContext<'a> {
     source_repo: &'a str,
     git_ref: &'a str,
     commit_sha: &'a str,
+    /// Codex Hook 配置時に `[features] codex_hooks = true` を自動追記するか。
+    enable_codex_hooks_flag: bool,
+    /// この import 呼び出し内で feature flag を既に適用したかどうか。
+    /// place_components はターゲット/コンポーネントをループするため、
+    /// scope 内で 1 回のみ適用するためのガード。
+    codex_flag_applied: Cell<bool>,
 }
 
 enum DeployOutcome {
@@ -284,6 +298,34 @@ fn deploy_one(
             let target_kind = target.kind();
             if target_kind == TargetKind::Codex && deployment.kind() == ComponentKind::Hook {
                 crate::install::record_codex_hook_ownership(ctx.plugin_root, deployment.path());
+
+                if ctx.enable_codex_hooks_flag && !ctx.codex_flag_applied.get() {
+                    let config_path = CodexTarget::config_toml_path(ctx.scope, ctx.project_root);
+                    match apply_codex_hooks_flag(&config_path) {
+                        Ok(ffo) => {
+                            if ffo.applied {
+                                println!(
+                                    "  + codex: Enabled [features] codex_hooks = true in {}",
+                                    ffo.target_path.display()
+                                );
+                            } else if let Some(reason) = &ffo.skipped_reason {
+                                println!(
+                                    "  - codex: Skipped feature flag in {}: {}",
+                                    ffo.target_path.display(),
+                                    reason
+                                );
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!(
+                                "Warning: failed to enable [features] codex_hooks in {}: {}",
+                                config_path.display(),
+                                e
+                            );
+                        }
+                    }
+                    ctx.codex_flag_applied.set(true);
+                }
             }
 
             if target_kind == TargetKind::GeminiCli {
@@ -474,6 +516,8 @@ pub async fn run(args: Args) -> Result<(), String> {
         source_repo: &args.source,
         git_ref: &cached_plugin.git_ref,
         commit_sha: &cached_plugin.commit_sha,
+        enable_codex_hooks_flag: args.enable_flag,
+        codex_flag_applied: Cell::new(false),
     };
 
     println!("\nPlacing to targets...");

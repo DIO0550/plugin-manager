@@ -199,6 +199,20 @@ fn test_codex_placement_location_hook_personal_scope() {
 }
 
 #[test]
+fn config_toml_path_project_scope_uses_project_root_codex_dir() {
+    let project_root = Path::new("/project");
+    let path = CodexTarget::config_toml_path(Scope::Project, project_root);
+    assert_eq!(path, Path::new("/project/.codex/config.toml"));
+}
+
+#[test]
+fn config_toml_path_personal_scope_uses_home_codex_dir() {
+    let project_root = Path::new("/project");
+    let path = CodexTarget::config_toml_path(Scope::Personal, project_root);
+    assert_eq!(path, home_dir().join(".codex/config.toml"));
+}
+
+#[test]
 fn hook_overwrite_error_returns_none_when_target_does_not_exist() {
     let temp = tempfile::TempDir::new().unwrap();
     let target_path = temp.path().join("hooks.json"); // 存在しない
