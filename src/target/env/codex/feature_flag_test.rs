@@ -80,6 +80,14 @@ fn edit_invalid_toml_returns_err() {
     assert!(edit_toml_str(input).is_err());
 }
 
+#[test]
+fn edit_features_is_non_table_returns_err() {
+    // `features` がテーブルでない場合（文字列・bool 等）は挿入できないため、
+    // 黙って Changed と返さず Err を返すことで呼出側に best-effort 警告を出させる。
+    let input = "features = \"not-a-table\"\n";
+    assert!(edit_toml_str(input).is_err());
+}
+
 // ---- apply: apply_codex_hooks_flag ----
 
 #[test]

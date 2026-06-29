@@ -62,7 +62,7 @@ pub(crate) fn edit_toml_str(input: &str) -> Result<EditResult> {
         });
     }
 
-    insert_codex_hooks_true(&mut doc);
+    insert_codex_hooks_true(&mut doc)?;
     Ok(EditResult::Changed(doc.to_string()))
 }
 
@@ -75,13 +75,21 @@ fn current_codex_hooks_value(doc: &DocumentMut) -> Option<bool> {
 }
 
 /// `[features]` テーブルを取得 or 新規挿入し、`codex_hooks = true` を入れる。
-fn insert_codex_hooks_true(doc: &mut DocumentMut) {
+///
+/// 既存の `features` がテーブルでない場合（例: `features = "foo"`）は、挿入できない
+/// 旨を呼出側に伝えるため `Err` を返す。黙って "Changed" 扱いにすると hook 配置は
+/// 成功扱いなのに実際にはフラグが立っていないという矛盾状態になるため。
+fn insert_codex_hooks_true(doc: &mut DocumentMut) -> Result<()> {
     let features = doc
         .entry(FEATURES_TABLE)
         .or_insert_with(|| Item::Table(toml_edit::Table::new()));
-    if let Some(table) = features.as_table_like_mut() {
-        table.insert(CODEX_HOOKS_KEY, value(true));
-    }
+    let table = features.as_table_like_mut().ok_or_else(|| {
+        PlmError::Parse(format!(
+            "config.toml: `{FEATURES_TABLE}` exists but is not a table; cannot add `{CODEX_HOOKS_KEY}`. Convert it to `[{FEATURES_TABLE}]` table form first."
+        ))
+    })?;
+    table.insert(CODEX_HOOKS_KEY, value(true));
+    Ok(())
 }
 
 /// `config.toml` に `[features] codex_hooks = true` を適用する。

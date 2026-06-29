@@ -181,7 +181,13 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
             );
         }
     }
-    if !args.enable_flag {
+    // --no-enable-flag の案内は、実際に Codex Hook を配置したときのみ表示する。
+    // Codex を選んでいない / Hook が無いインストールでは「何のフラグ？」と
+    // 誤解させるだけになるため。
+    let placed_codex_hook = result.successes.iter().any(|s| {
+        s.target_kind == crate::target::TargetKind::Codex && s.component_kind == ComponentKind::Hook
+    });
+    if !args.enable_flag && placed_codex_hook {
         println!(
             "  - codex: --no-enable-flag specified; add `[features] codex_hooks = true` to your config.toml manually to activate hooks."
         );
