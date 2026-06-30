@@ -301,6 +301,8 @@ mod place_components_tests {
             source_repo: "owner/repo",
             git_ref: "main",
             commit_sha: "abc123",
+            enable_codex_hooks_flag: false,
+            codex_flag_applied: std::cell::Cell::new(false),
         };
         let components = vec![make_hook("first"), make_hook("second")];
         let mut registry = ImportRegistry::with_path(registry_dir.path().join("imports.json"));
@@ -332,6 +334,8 @@ mod place_components_tests {
             source_repo: "owner/repo",
             git_ref: "main",
             commit_sha: "abc123",
+            enable_codex_hooks_flag: false,
+            codex_flag_applied: std::cell::Cell::new(false),
         };
         let components = vec![make_hook("only")];
         let mut registry = ImportRegistry::with_path(registry_dir.path().join("imports.json"));

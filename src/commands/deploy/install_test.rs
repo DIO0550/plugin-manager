@@ -237,6 +237,7 @@ fn update_status_after_install_marks_successful_targets_enabled() {
             Some(SourceFormat::ClaudeCode),
         )],
         failures: vec![],
+        feature_flags: vec![],
     };
 
     crate::install::update_meta_after_place(temp.path(), &result);
@@ -276,6 +277,7 @@ fn update_meta_after_place_does_not_rewrite_when_meta_already_up_to_date() {
             Some(SourceFormat::ClaudeCode),
         )],
         failures: vec![],
+        feature_flags: vec![],
     };
 
     crate::install::update_meta_after_place(temp.path(), &result);
@@ -307,6 +309,7 @@ fn update_meta_after_place_skips_managed_file_for_non_hook_codex_success() {
             None,
         )],
         failures: vec![],
+        feature_flags: vec![],
     };
 
     crate::install::update_meta_after_place(temp.path(), &result);
@@ -350,6 +353,7 @@ fn update_status_after_install_skips_status_when_target_has_failures() {
             error: "failed".to_string(),
             stage: PlaceFailureStage::Deployment,
         }],
+        feature_flags: vec![],
     };
 
     crate::install::update_meta_after_place(temp.path(), &result);
@@ -381,6 +385,7 @@ fn update_status_after_install_skips_write_when_all_failed() {
             error: "failed".to_string(),
             stage: PlaceFailureStage::Deployment,
         }],
+        feature_flags: vec![],
     };
 
     crate::install::update_meta_after_place(temp.path(), &result);

@@ -159,6 +159,7 @@ fn test_place_plugin_skill_to_codex() {
         targets: &targets,
         scope: crate::component::Scope::Project,
         project_root: project_dir.path(),
+        enable_codex_hooks_flag: false,
     });
 
     assert_eq!(result.plugin_name, "test-plugin");
@@ -186,6 +187,7 @@ fn test_place_plugin_unsupported_component_skipped() {
         targets: &targets,
         scope: crate::component::Scope::Project,
         project_root: project_dir.path(),
+        enable_codex_hooks_flag: false,
     });
 
     // Antigravity doesn't support Agent, so it should be skipped
@@ -208,6 +210,7 @@ fn test_place_plugin_empty_components() {
         targets: &targets,
         scope: crate::component::Scope::Project,
         project_root: project_dir.path(),
+        enable_codex_hooks_flag: false,
     });
 
     assert!(result.successes.is_empty());
@@ -230,6 +233,7 @@ fn test_place_plugin_multiple_targets() {
         targets: &targets,
         scope: crate::component::Scope::Project,
         project_root: project_dir.path(),
+        enable_codex_hooks_flag: false,
     });
 
     assert_eq!(result.successes.len(), 2);
@@ -289,6 +293,7 @@ fn test_place_plugin_uses_id_for_origin() {
         targets: &targets,
         scope: crate::component::Scope::Project,
         project_root: project_dir.path(),
+        enable_codex_hooks_flag: false,
     });
 
     // フラット配置: target_path 末尾は flattened_name (= "{plugin}_{original}")
@@ -389,6 +394,7 @@ fn test_place_plugin_claude_code_hook_propagates_source_format() {
         targets: &targets,
         scope: crate::component::Scope::Project,
         project_root: project_dir.path(),
+        enable_codex_hooks_flag: false,
     });
 
     assert_eq!(result.successes.len(), 1, "failures: {:?}", result.failures);
@@ -425,6 +431,7 @@ fn test_place_plugin_copilot_hook_with_missing_version_propagates_target_format(
         targets: &targets,
         scope: crate::component::Scope::Project,
         project_root: project_dir.path(),
+        enable_codex_hooks_flag: false,
     });
 
     assert_eq!(result.successes.len(), 1, "failures: {:?}", result.failures);
@@ -477,6 +484,7 @@ fn test_place_plugin_codex_hook_installs_inline_hooks_json() {
         targets: &targets,
         scope: crate::component::Scope::Project,
         project_root: project_dir.path(),
+        enable_codex_hooks_flag: false,
     });
 
     assert_eq!(result.successes.len(), 1, "failures: {:?}", result.failures);
@@ -561,6 +569,7 @@ fn test_place_plugin_codex_rejects_multiple_hook_components() {
         targets: &targets,
         scope: crate::component::Scope::Project,
         project_root: project_dir.path(),
+        enable_codex_hooks_flag: false,
     });
 
     assert!(result.successes.is_empty());

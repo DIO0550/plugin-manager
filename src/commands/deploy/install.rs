@@ -75,6 +75,12 @@ pub struct Args {
     /// キャッシュを無視して再ダウンロード
     #[arg(long)]
     pub force: bool,
+
+    /// Codex Hook 配置時の `[features] codex_hooks = true` 自動追記を抑止する。
+    /// デフォルトでは `~/.codex/config.toml`（または project の `.codex/config.toml`）
+    /// に追記される。`--no-enable-flag` を指定すると config.toml には触れない。
+    #[arg(long = "no-enable-flag", action = clap::ArgAction::SetFalse, default_value_t = true)]
+    pub enable_flag: bool,
 }
 
 /// # Arguments
@@ -157,8 +163,35 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
         targets: &targets,
         scope,
         project_root: &project_root,
+        enable_codex_hooks_flag: args.enable_flag,
     });
     install::update_meta_after_place(package.path(), &result);
+
+    for ffo in &result.feature_flags {
+        if ffo.applied {
+            println!(
+                "  + codex: Enabled [features] codex_hooks = true in {}",
+                ffo.target_path.display()
+            );
+        } else if let Some(reason) = &ffo.skipped_reason {
+            println!(
+                "  - codex: Skipped feature flag in {}: {}",
+                ffo.target_path.display(),
+                reason
+            );
+        }
+    }
+    // --no-enable-flag の案内は、実際に Codex Hook を配置したときのみ表示する。
+    // Codex を選んでいない / Hook が無いインストールでは「何のフラグ？」と
+    // 誤解させるだけになるため。
+    let placed_codex_hook = result.successes.iter().any(|s| {
+        s.target_kind == crate::target::TargetKind::Codex && s.component_kind == ComponentKind::Hook
+    });
+    if !args.enable_flag && placed_codex_hook {
+        println!(
+            "  - codex: --no-enable-flag specified; add `[features] codex_hooks = true` to your config.toml manually to activate hooks."
+        );
+    }
 
     // Results are grouped by target to stay compatible with the legacy layout.
     println!("\nPlacement Results:");

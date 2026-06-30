@@ -8,6 +8,6 @@ mod copilot;
 mod gemini_cli;
 
 pub use antigravity::AntigravityTarget;
-pub use codex::CodexTarget;
+pub use codex::{apply_codex_hooks_flag, CodexTarget, FeatureFlagOutcome};
 pub use copilot::CopilotTarget;
 pub use gemini_cli::GeminiCliTarget;
