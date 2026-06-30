@@ -8,7 +8,7 @@ use tempfile::TempDir;
 fn edit_empty_input_creates_features_section() {
     let result = edit_toml_str("").unwrap();
     match result {
-        EditResult::Changed(s) => {
+        TomlEdit::Changed(s) => {
             assert!(s.contains("[features]"), "missing [features] in: {s}");
             assert!(
                 s.contains("codex_hooks = true"),
@@ -24,7 +24,7 @@ fn edit_no_features_section_appends_section() {
     let input = "[model]\nname = \"gpt-5\"\n";
     let result = edit_toml_str(input).unwrap();
     match result {
-        EditResult::Changed(s) => {
+        TomlEdit::Changed(s) => {
             assert!(s.contains("[model]"));
             assert!(s.contains("name = \"gpt-5\""));
             assert!(s.contains("[features]"));
@@ -39,7 +39,7 @@ fn edit_features_section_without_codex_hooks_appends_key() {
     let input = "[features]\nother = true\n";
     let result = edit_toml_str(input).unwrap();
     match result {
-        EditResult::Changed(s) => {
+        TomlEdit::Changed(s) => {
             assert!(s.contains("other = true"));
             assert!(s.contains("codex_hooks = true"));
         }
@@ -50,13 +50,13 @@ fn edit_features_section_without_codex_hooks_appends_key() {
 #[test]
 fn edit_codex_hooks_true_is_unchanged() {
     let input = "[features]\ncodex_hooks = true\n";
-    assert_eq!(edit_toml_str(input).unwrap(), EditResult::Unchanged);
+    assert_eq!(edit_toml_str(input).unwrap(), TomlEdit::Unchanged);
 }
 
 #[test]
 fn edit_codex_hooks_false_returns_skipped_false() {
     let input = "[features]\ncodex_hooks = false\n";
-    assert_eq!(edit_toml_str(input).unwrap(), EditResult::SkippedFalse);
+    assert_eq!(edit_toml_str(input).unwrap(), TomlEdit::SkippedFalse);
 }
 
 #[test]
@@ -64,7 +64,7 @@ fn edit_preserves_existing_comments_and_keys() {
     let input = "# user comment\n[model]\nname = \"gpt-5\"\n\n[features]\nother = true\n";
     let result = edit_toml_str(input).unwrap();
     match result {
-        EditResult::Changed(s) => {
+        TomlEdit::Changed(s) => {
             assert!(s.contains("# user comment"), "lost comment: {s}");
             assert!(s.contains("name = \"gpt-5\""));
             assert!(s.contains("other = true"));

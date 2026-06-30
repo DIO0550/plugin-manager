@@ -31,9 +31,9 @@ pub struct FeatureFlagOutcome {
     pub target_path: PathBuf,
 }
 
-/// pure helper の戻り値。文字列→文字列の編集結果を表す。
+/// pure helper の戻り値。TOML 文字列に対する編集（の有無と内容）を表す。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum EditResult {
+pub(crate) enum TomlEdit {
     /// 編集後の TOML 文字列（書き込みが必要）。
     Changed(String),
     /// すでに `codex_hooks = true` のため変更不要。
@@ -50,20 +50,20 @@ pub(crate) enum EditResult {
 /// - `codex_hooks = true` 既設定 → `Unchanged`
 /// - `codex_hooks = false` 既設定 → `SkippedFalse`
 /// - TOML パースエラー → `Err`
-pub(crate) fn edit_toml_str(input: &str) -> Result<EditResult> {
+pub(crate) fn edit_toml_str(input: &str) -> Result<TomlEdit> {
     let mut doc: DocumentMut = input
         .parse::<DocumentMut>()
         .map_err(|e| PlmError::Parse(format!("config.toml: {e}")))?;
 
     if let Some(current) = current_codex_hooks_value(&doc) {
         return Ok(match current {
-            true => EditResult::Unchanged,
-            false => EditResult::SkippedFalse,
+            true => TomlEdit::Unchanged,
+            false => TomlEdit::SkippedFalse,
         });
     }
 
     insert_codex_hooks_true(&mut doc)?;
-    Ok(EditResult::Changed(doc.to_string()))
+    Ok(TomlEdit::Changed(doc.to_string()))
 }
 
 /// 現在の `[features].codex_hooks` の bool 値を返す（存在しない / bool でない場合 `None`）。
@@ -105,7 +105,7 @@ pub fn apply_codex_hooks_flag(config_path: &Path) -> Result<FeatureFlagOutcome> 
     };
 
     match edit_toml_str(&input)? {
-        EditResult::Changed(content) => {
+        TomlEdit::Changed(content) => {
             atomic_write(config_path, &content)?;
             Ok(FeatureFlagOutcome {
                 applied: true,
@@ -113,12 +113,12 @@ pub fn apply_codex_hooks_flag(config_path: &Path) -> Result<FeatureFlagOutcome> 
                 target_path: config_path.to_path_buf(),
             })
         }
-        EditResult::Unchanged => Ok(FeatureFlagOutcome {
+        TomlEdit::Unchanged => Ok(FeatureFlagOutcome {
             applied: false,
             skipped_reason: Some("already enabled".to_string()),
             target_path: config_path.to_path_buf(),
         }),
-        EditResult::SkippedFalse => Ok(FeatureFlagOutcome {
+        TomlEdit::SkippedFalse => Ok(FeatureFlagOutcome {
             applied: false,
             skipped_reason: Some(
                 "codex_hooks = false is explicitly set; change manually to enable hooks"
