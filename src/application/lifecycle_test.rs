@@ -29,10 +29,11 @@ fn test_get_uninstall_info_found() {
     let (temp_dir, cache) = create_test_cache();
     setup_plugin_fixture(temp_dir.path(), "github", "my-plugin", "1.0.0");
 
-    let result = get_uninstall_info(&cache, "my-plugin", Some("github"));
+    let result = get_uninstall_info(&cache, "my-plugin", "github");
     assert!(result.is_ok());
     let info = result.unwrap();
     assert_eq!(info.plugin_name, "my-plugin");
+    assert_eq!(info.marketplace, "github");
 }
 
 // ========================================
@@ -103,20 +104,12 @@ fn test_enable_plugin_success() {
 fn test_get_uninstall_info_not_found() {
     // 存在しないプラグインの場合はエラーを返す
     let (_temp_dir, cache) = create_test_cache();
-    let result = get_uninstall_info(&cache, "nonexistent-plugin-12345", Some("github"));
+    let result = get_uninstall_info(&cache, "nonexistent-plugin-12345", "github");
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(err.contains("not found"));
     assert!(err.contains("nonexistent-plugin-12345"));
-}
-
-#[test]
-fn test_get_uninstall_info_default_marketplace() {
-    // マーケットプレイス未指定時は "github" がデフォルト
-    let (_temp_dir, cache) = create_test_cache();
-    let result = get_uninstall_info(&cache, "nonexistent-plugin-12345", None);
-    assert!(result.is_err());
-    let err = result.unwrap_err();
+    // エラーメッセージには確定済み marketplace が含まれる
     assert!(err.contains("github"));
 }
 

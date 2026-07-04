@@ -39,3 +39,54 @@ fn test_parse_target_gemini() {
     let target = parse_target("gemini").unwrap();
     assert_eq!(target.name(), "gemini");
 }
+
+// ========================================
+// PluginOrigin tests
+// ========================================
+
+#[test]
+fn test_plugin_origin_from_marketplace_named() {
+    let origin = PluginOrigin::from_marketplace("official", "my-plugin");
+    assert_eq!(origin.dir_names(), Some(("official", "my-plugin")));
+}
+
+#[test]
+fn test_plugin_origin_from_marketplace_github_is_normalized() {
+    // marketplace = "github" は Github variant に正規化される
+    let origin = PluginOrigin::from_marketplace("github", "owner--repo");
+    assert!(matches!(origin, PluginOrigin::Github { .. }));
+    assert_eq!(origin.dir_names(), Some(("github", "owner--repo")));
+}
+
+#[test]
+fn test_plugin_origin_from_github() {
+    let origin = PluginOrigin::from_github("owner", "repo");
+    assert!(matches!(origin, PluginOrigin::Github { .. }));
+    // owner--repo エンコードは GithubCacheId に集約されている
+    assert_eq!(origin.dir_names(), Some(("github", "owner--repo")));
+}
+
+#[test]
+fn test_plugin_origin_from_cached_plugin_none_is_github() {
+    let origin = PluginOrigin::from_cached_plugin(None, "owner--repo");
+    assert!(matches!(origin, PluginOrigin::Github { .. }));
+    assert_eq!(origin.dir_names(), Some(("github", "owner--repo")));
+}
+
+#[test]
+fn test_plugin_origin_from_cached_plugin_some_github_is_github() {
+    // Some("github") と None の意味揺れを 1 つの variant に畳み込む
+    let origin = PluginOrigin::from_cached_plugin(Some("github"), "owner--repo");
+    assert!(matches!(origin, PluginOrigin::Github { .. }));
+}
+
+#[test]
+fn test_plugin_origin_from_cached_plugin_named_marketplace() {
+    let origin = PluginOrigin::from_cached_plugin(Some("official"), "my-plugin");
+    assert_eq!(origin.dir_names(), Some(("official", "my-plugin")));
+}
+
+#[test]
+fn test_plugin_origin_unknown_has_no_dir_names() {
+    assert_eq!(PluginOrigin::Unknown.dir_names(), None);
+}

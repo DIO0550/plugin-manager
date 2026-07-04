@@ -148,7 +148,7 @@ impl PackageSource for GitHubSource {
             let mut plugin_meta = meta::load_meta(&plugin_path).unwrap_or_default();
             plugin_meta.set_source_repo(self.repo.owner(), self.repo.name());
             plugin_meta.set_git_info(&git_ref, &commit_sha);
-            plugin_meta.marketplace = Some("github".to_string());
+            plugin_meta.marketplace = Some(crate::marketplace::DEFAULT_MARKETPLACE.to_string());
             if let Err(e) = meta::write_meta(&plugin_path, &plugin_meta) {
                 eprintln!("Warning: Failed to save plugin metadata: {}", e);
             }

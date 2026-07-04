@@ -96,12 +96,12 @@ impl<'a> Endpoint<'a> {
 /// `super::parse_component_name` で参照できる。
 pub(super) fn parse_component_name(name: &str) -> Result<(PluginOrigin, &str)> {
     if is_instruction_file(name) {
-        return Ok((PluginOrigin::from_marketplace("", ""), name));
+        return Ok((PluginOrigin::Unknown, name));
     }
 
     validate_flattened_name(name)?;
 
-    Ok((PluginOrigin::placeholder(), name))
+    Ok((PluginOrigin::Unknown, name))
 }
 
 /// `flattened_name` が単一の安全なパスセグメントであることを検証する。

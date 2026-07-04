@@ -43,6 +43,7 @@ use crate::component::{
 };
 use crate::error::{PlmError, Result};
 use crate::fs::{FileSystem, RealFs};
+use crate::marketplace::{MarketplaceRef, DEFAULT_MARKETPLACE};
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -52,24 +53,46 @@ use std::path::Path;
 /// コンポーネントがどのマーケットプレイス・プラグインから来たかを追跡する。
 /// デプロイ時に `<marketplace>/<plugin>/<component>` 階層を構築するために使用。
 #[derive(Debug, Clone)]
-pub struct PluginOrigin {
-    /// マーケットプレイス名（直接GitHubの場合は "github"）
-    pub marketplace: String,
-    /// プラグイン名（直接GitHubの場合は "owner--repo" 形式）
-    pub plugin: String,
+pub enum PluginOrigin {
+    /// 名前付きマーケットプレイス経由のプラグイン
+    Marketplace {
+        /// マーケットプレイス名
+        marketplace: String,
+        /// マーケットプレイス内でのプラグイン名（キャッシュディレクトリ名）
+        plugin: String,
+    },
+    /// 直接 GitHub 経由のプラグイン
+    Github {
+        /// キャッシュ ID（`{owner}--{repo}` 形式のディレクトリ名）
+        cache_id: crate::plugin::GithubCacheId,
+    },
+    /// 出自を復元できない配置物
+    ///
+    /// フラット 2 階層構造 `<base>/<plural>/<flattened_name>` では配置物から
+    /// marketplace / plugin を復元できない。スキャン層 (`scan_components`)
+    /// と sync ソース (`parse_component_name`) はいずれも `flattened_name`
+    /// 単独でキー化する想定でこの variant を使う。
+    Unknown,
 }
 
 impl PluginOrigin {
     /// マーケットプレイス経由のプラグイン
+    ///
+    /// `marketplace` がデフォルト（`"github"`）の場合は `Github` に正規化する。
     ///
     /// # Arguments
     ///
     /// * `marketplace` - Marketplace name.
     /// * `plugin` - Plugin name within the marketplace.
     pub fn from_marketplace(marketplace: &str, plugin: &str) -> Self {
-        Self {
-            marketplace: marketplace.to_string(),
-            plugin: plugin.to_string(),
+        match MarketplaceRef::parse(marketplace) {
+            MarketplaceRef::Github => Self::Github {
+                cache_id: crate::plugin::GithubCacheId::from_cache_name(plugin),
+            },
+            MarketplaceRef::Named(name) => Self::Marketplace {
+                marketplace: name,
+                plugin: plugin.to_string(),
+            },
         }
     }
 
@@ -80,39 +103,45 @@ impl PluginOrigin {
     /// * `owner` - GitHub owner (user or organization).
     /// * `repo` - GitHub repository name.
     pub fn from_github(owner: &str, repo: &str) -> Self {
-        Self {
-            marketplace: "github".to_string(),
-            plugin: crate::plugin::GithubCacheId::from_parts(owner, repo).into_string(),
+        Self::Github {
+            cache_id: crate::plugin::GithubCacheId::from_parts(owner, repo),
         }
     }
 
     /// キャッシュされたプラグイン情報から PluginOrigin を生成する
     ///
-    /// `marketplace` が `None` の場合は `"github"` を既定値として使用し、
-    /// `plugin_name` は id（ディレクトリ名）としてそのまま保持する。
+    /// `marketplace` が `None`（またはデフォルトの `"github"`）の場合は
+    /// `Github` として扱い、`plugin_name` は id（ディレクトリ名）として
+    /// そのまま保持する。
     ///
     /// # Arguments
     ///
-    /// * `marketplace` - Optional marketplace name; falls back to `"github"` when `None`.
+    /// * `marketplace` - Optional marketplace name; `None` means the default (GitHub).
     /// * `plugin_name` - id (directory name) used as the plugin identifier.
     pub fn from_cached_plugin(marketplace: Option<&str>, plugin_name: &str) -> Self {
-        Self {
-            marketplace: marketplace.unwrap_or("github").to_string(),
-            plugin: plugin_name.to_string(),
+        match MarketplaceRef::from_option(marketplace) {
+            MarketplaceRef::Github => Self::Github {
+                cache_id: crate::plugin::GithubCacheId::from_cache_name(plugin_name),
+            },
+            MarketplaceRef::Named(name) => Self::Marketplace {
+                marketplace: name,
+                plugin: plugin_name.to_string(),
+            },
         }
     }
 
-    /// origin が復元できない場面で埋めるプレースホルダ。
+    /// デプロイ階層 `<marketplace>/<plugin>` のディレクトリ名ペアを返す
     ///
-    /// フラット 2 階層構造 `<base>/<plural>/<flattened_name>` では配置物から
-    /// `marketplace` / `plugin` を復元できない。スキャン層 (`scan_components`)
-    /// と sync ソース (`parse_component_name`) はいずれも `flattened_name`
-    /// 単独でキー化する想定でこのプレースホルダを埋める。利用側はこの
-    /// フィールドを参照してはならない。
-    pub fn placeholder() -> Self {
-        Self {
-            marketplace: "_".to_string(),
-            plugin: "_".to_string(),
+    /// `Unknown`（出自を復元できない配置物）の場合は `None`。呼び出し側は
+    /// 番兵値を読む代わりに `None` を明示的に扱うこと。
+    pub fn dir_names(&self) -> Option<(&str, &str)> {
+        match self {
+            Self::Marketplace {
+                marketplace,
+                plugin,
+            } => Some((marketplace.as_str(), plugin.as_str())),
+            Self::Github { cache_id } => Some((DEFAULT_MARKETPLACE, cache_id.as_str())),
+            Self::Unknown => None,
         }
     }
 }

@@ -26,7 +26,8 @@ pub async fn run(args: Args) -> Result<(), String> {
     let cache = PackageCache::new().map_err(|e| format!("Failed to access cache: {}", e))?;
     let project_root =
         env::current_dir().map_err(|e| format!("Failed to get current dir: {}", e))?;
-    let marketplace = args.marketplace.marketplace.as_deref();
+    // デフォルト解決（未指定 = github）は CLI 境界で 1 回だけ行う（enable/disable と同じ経路）
+    let marketplace = args.marketplace.marketplace_or_default();
 
     let info = application::get_uninstall_info(&cache, &args.name, marketplace)?;
 
@@ -37,7 +38,8 @@ pub async fn run(args: Args) -> Result<(), String> {
         return Ok(());
     }
 
-    let result = application::uninstall_plugin(&cache, &args.name, marketplace, &project_root);
+    let result =
+        application::uninstall_plugin(&cache, &args.name, Some(marketplace), &project_root);
 
     if result.success {
         println!(

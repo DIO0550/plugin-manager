@@ -150,7 +150,7 @@ impl PluginMeta {
 
     /// GitHub プラグインかどうか
     pub fn is_github(&self) -> bool {
-        self.marketplace.as_deref() == Some("github") || self.marketplace.is_none()
+        crate::marketplace::MarketplaceRef::from_option(self.marketplace.as_deref()).is_github()
     }
 
     /// `target` の管理ファイル一覧に `path` を追加する。

@@ -8,7 +8,8 @@ use crate::error::{PlmError, Result};
 use crate::host::{HostClient, HostClientFactory, HostKind};
 use crate::http::with_retry;
 use crate::marketplace::{
-    MarketplaceCache, MarketplaceRegistry, MarketplaceSourceRef, PluginSource as MpPluginSource,
+    MarketplaceCache, MarketplaceRef, MarketplaceRegistry, MarketplaceSourceRef,
+    PluginSource as MpPluginSource,
 };
 use crate::plugin::lifecycle::plugin_resolver::{find_by_plugin_name, ResolvedPlugin};
 use crate::plugin::version::needs_update;
@@ -39,7 +40,6 @@ pub enum UpdateStatus {
 #[derive(Debug, Clone)]
 pub struct UpdateOutcome {
     pub plugin_name: String,
-    pub marketplace: String,
     pub status: UpdateStatus,
     pub error: Option<String>,
     /// 再デプロイに成功したターゲット
@@ -67,7 +67,6 @@ impl UpdateOutcome {
     ) -> Self {
         Self {
             plugin_name: name.to_string(),
-            marketplace: "github".to_string(),
             status: UpdateStatus::Updated {
                 from_sha: from,
                 to_sha: to,
@@ -86,7 +85,6 @@ impl UpdateOutcome {
     pub fn up_to_date(name: &str) -> Self {
         Self {
             plugin_name: name.to_string(),
-            marketplace: "github".to_string(),
             status: UpdateStatus::AlreadyUpToDate,
             error: None,
             deployed_targets: vec![],
@@ -103,7 +101,6 @@ impl UpdateOutcome {
     pub fn failed(name: &str, error: String) -> Self {
         Self {
             plugin_name: name.to_string(),
-            marketplace: "github".to_string(),
             status: UpdateStatus::Failed,
             error: Some(error),
             deployed_targets: vec![],
@@ -120,7 +117,6 @@ impl UpdateOutcome {
     pub fn skipped(name: &str, reason: String) -> Self {
         Self {
             plugin_name: name.to_string(),
-            marketplace: "github".to_string(),
             status: UpdateStatus::Skipped { reason },
             error: None,
             deployed_targets: vec![],
@@ -137,7 +133,6 @@ impl UpdateOutcome {
     pub fn rolled_back(name: &str, note: Option<String>) -> Self {
         Self {
             plugin_name: name.to_string(),
-            marketplace: "github".to_string(),
             status: UpdateStatus::RolledBack,
             error: note,
             deployed_targets: vec![],
@@ -331,10 +326,14 @@ pub async fn update_plugin(
         Err(e) => return UpdateOutcome::failed(plugin_input, e.to_string()),
     };
 
-    if let Some(market) = resolved.marketplace.clone() {
-        update_marketplace_plugin(cache, &market, &resolved, project_root, target_filter).await
-    } else {
-        update_github_plugin(cache, &resolved, project_root, target_filter).await
+    // `Some("github")` と `None` の意味揺れを正規化してから経路を分岐する
+    match MarketplaceRef::from_option(resolved.marketplace.as_deref()) {
+        MarketplaceRef::Named(market) => {
+            update_marketplace_plugin(cache, &market, &resolved, project_root, target_filter).await
+        }
+        MarketplaceRef::Github => {
+            update_github_plugin(cache, &resolved, project_root, target_filter).await
+        }
     }
 }
 
@@ -564,7 +563,7 @@ async fn do_safe_update(
 ///
 /// * `cache` - Package cache accessor for the plugin.
 /// * `plugin_name` - Plugin name being redeployed.
-/// * `marketplace` - Marketplace name (`None` falls back to `"github"`).
+/// * `marketplace` - Marketplace name (`None` means the default GitHub marketplace).
 /// * `targets` - Target names to redeploy to.
 /// * `project_root` - Project root path used for redeployment.
 fn redeploy_to_targets(
@@ -578,13 +577,7 @@ fn redeploy_to_targets(
     let mut failed = Vec::new();
 
     for target in targets {
-        let result = enable_plugin(
-            cache,
-            plugin_name,
-            marketplace.or(Some("github")),
-            project_root,
-            Some(target),
-        );
+        let result = enable_plugin(cache, plugin_name, marketplace, project_root, Some(target));
         if result.success {
             deployed.push(target.to_string());
         } else {
@@ -714,8 +707,7 @@ pub(crate) async fn update_all_plugins_with_deps(
         std::collections::HashMap::new();
     let unique_markets: std::collections::HashSet<String> = plugins
         .iter()
-        .filter_map(|(m, _)| m.clone())
-        .filter(|m| m != "github")
+        .filter_map(|(m, _)| MarketplaceRef::from_option(m.as_deref()).into_named())
         .collect();
     for m in unique_markets {
         if let Ok(Some(c)) = resolver.resolve(&m) {
@@ -786,7 +778,7 @@ struct CheckOutcome {
 
 /// CHECK: 全 plugin を走査し、SHA 比較で更新が必要な対象を `UpdateTarget` に確定する。
 ///
-/// marketplace 経由（`market != "github"`）と直接 GitHub（`None` または `"github"`）の 2 経路で
+/// 名前付き marketplace 経由と直接 GitHub（`MarketplaceRef::Github`）の 2 経路で
 /// `repo` / `source_path` の解決方法のみが異なり、SHA 比較・`UpdateTarget` 構築の末尾処理は共通化する。
 /// CHECK で `get_commit_sha` 等が失敗した plugin は従来どおり `error_count` でスキップし、
 /// 他対象のアトミック処理の引き金にはしない。
@@ -816,11 +808,11 @@ async fn check_all(
         let git_ref = plugin_meta.git_ref.as_deref().unwrap_or("HEAD");
 
         // 経路ごとに repo / source_path を解決（早期 continue で skip / up_to_date / error を確定）
-        let (repo, source_path) = if let Some(market) =
-            marketplace.as_deref().filter(|m| *m != "github")
+        let (repo, source_path) = if let MarketplaceRef::Named(market) =
+            MarketplaceRef::from_option(marketplace.as_deref())
         {
             // marketplace 経由
-            let mp_cache = match mp_caches.get(market) {
+            let mp_cache = match mp_caches.get(&market) {
                 Some(c) => c,
                 None => {
                     error_count += 1;
@@ -852,7 +844,7 @@ async fn check_all(
             };
             (repo, source_path)
         } else {
-            // 直接 GitHub 経路（marketplace == None もしくは "github"）
+            // 直接 GitHub 経路（MarketplaceRef::Github）
             if !plugin_meta.is_github() {
                 results.push(UpdateOutcome::skipped(
                     &display_name,

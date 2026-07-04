@@ -1,6 +1,7 @@
 //! scanner モジュールのテスト
 
 use super::scan_components;
+use crate::target::PluginOrigin;
 use std::fs;
 use tempfile::TempDir;
 
@@ -18,8 +19,7 @@ fn test_scan_components_flat_dir() {
 
     assert_eq!(results.len(), 1);
     let component = &results[0];
-    assert_eq!(component.origin.marketplace, "_");
-    assert_eq!(component.origin.plugin, "_");
+    assert!(matches!(component.origin, PluginOrigin::Unknown));
     assert_eq!(component.name, "plugin_my-skill");
     assert!(component.is_dir);
     assert_eq!(component.path, component_dir);
