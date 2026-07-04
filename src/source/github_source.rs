@@ -2,28 +2,37 @@
 
 use crate::error::Result;
 use crate::host::HostClientFactory;
-use crate::plugin::{meta, CachedPackage, PackageCacheAccess};
+use crate::plugin::{meta, CachedPackage, GithubCacheId, PackageCacheAccess};
 use crate::repo::Repo;
 use std::future::Future;
 use std::pin::Pin;
 
 use super::PackageSource;
 
+/// ダウンロードの文脈（直接 GitHub か marketplace 経由か）
+///
+/// 有効な組み合わせを型で表現し、不正状態（marketplace なしの
+/// plugin_identifier 等）を表現不能にする。
+enum SourceContext {
+    /// 直接 GitHub install（cache key は `{owner}--{repo}`）
+    Direct,
+    /// marketplace 経由 install
+    Marketplace {
+        /// marketplace 名
+        name: String,
+        /// marketplace 内でユニークなプラグイン識別子（validated 済み、cache key として使用）
+        plugin_identifier: String,
+        /// Local プラグインのソースパス（正規化済み）。External プラグインは `None`
+        source_path: Option<String>,
+    },
+}
+
 /// Git リポジトリからプラグインをダウンロードするソース
 ///
 /// GitHub, GitLab, Bitbucket 等のホスティングサービスに対応。
 pub struct GitHubSource {
     repo: Repo,
-    /// マーケットプレイス経由の場合はその名前
-    marketplace: Option<String>,
-    /// プラグインのソースパス（正規化済み）
-    /// マーケットプレイス内の Local プラグイン用
-    source_path: Option<String>,
-    /// marketplace 内でユニークなプラグイン識別子
-    ///
-    /// marketplace 経由 install のときに `MarketplacePlugin.name` (validated) を入れる。
-    /// `None` の場合は `repo.name()` にフォールバックする（直接 GitHub install 経路）。
-    plugin_identifier: Option<String>,
+    context: SourceContext,
 }
 
 impl GitHubSource {
@@ -35,53 +44,11 @@ impl GitHubSource {
     pub fn new(repo: Repo) -> Self {
         Self {
             repo,
-            marketplace: None,
-            source_path: None,
-            plugin_identifier: None,
+            context: SourceContext::Direct,
         }
     }
 
-    /// マーケットプレイス経由でのソースを作成
-    ///
-    /// # Arguments
-    ///
-    /// * `repo` - Repository descriptor for the underlying Git source.
-    /// * `marketplace` - Name of the marketplace that surfaced this plugin.
-    pub fn with_marketplace(repo: Repo, marketplace: String) -> Self {
-        Self {
-            repo,
-            marketplace: Some(marketplace),
-            source_path: None,
-            plugin_identifier: None,
-        }
-    }
-
-    /// マーケットプレイス経由 + ソースパス指定でのソース作成
-    /// Local プラグイン専用: marketplace と source_path は両方必須
-    ///
-    /// # Arguments
-    ///
-    /// * `repo` - Repository descriptor for the underlying Git source.
-    /// * `marketplace` - Name of the marketplace that surfaced this plugin.
-    /// * `source_path` - Normalized sub-path within the repository pointing at the local plugin.
-    pub fn with_marketplace_and_source_path(
-        repo: Repo,
-        marketplace: String,
-        source_path: String,
-    ) -> Self {
-        Self {
-            repo,
-            marketplace: Some(marketplace),
-            source_path: Some(source_path),
-            plugin_identifier: None,
-        }
-    }
-
-    /// marketplace 経由インストール用フルコンストラクタ。
-    ///
-    /// - `marketplace`: marketplace 名（必須）
-    /// - `source_path`: External プラグインで `None`、Local プラグインで `Some` を渡す
-    /// - `plugin_identifier`: validated 済みのプラグイン識別子（cache key として使用）
+    /// marketplace 経由インストール用コンストラクタ。
     ///
     /// # Arguments
     ///
@@ -97,23 +64,40 @@ impl GitHubSource {
     ) -> Self {
         Self {
             repo,
-            marketplace: Some(marketplace),
-            source_path,
-            plugin_identifier: Some(plugin_identifier),
+            context: SourceContext::Marketplace {
+                name: marketplace,
+                plugin_identifier,
+                source_path,
+            },
+        }
+    }
+
+    /// marketplace 名（直接 GitHub の場合は `None`）
+    fn marketplace_name(&self) -> Option<&str> {
+        match &self.context {
+            SourceContext::Direct => None,
+            SourceContext::Marketplace { name, .. } => Some(name),
+        }
+    }
+
+    /// Local プラグインのソースパス（直接 GitHub / External の場合は `None`）
+    fn source_path(&self) -> Option<&str> {
+        match &self.context {
+            SourceContext::Direct => None,
+            SourceContext::Marketplace { source_path, .. } => source_path.as_deref(),
         }
     }
 
     /// このソースの cache key を算出する
     ///
-    /// - marketplace 経由: `plugin_identifier` を優先。`None` のときは `repo.name()` フォールバック
-    /// - 直接 GitHub: `"{owner}--{repo}"`
+    /// - marketplace 経由: `plugin_identifier`
+    /// - 直接 GitHub: `"{owner}--{repo}"`（`GithubCacheId`）
     fn compute_cache_name(&self) -> String {
-        if self.marketplace.is_none() {
-            format!("{}--{}", self.repo.owner(), self.repo.name())
-        } else {
-            self.plugin_identifier
-                .clone()
-                .unwrap_or_else(|| self.repo.name().to_string())
+        match &self.context {
+            SourceContext::Direct => GithubCacheId::from_repo(&self.repo).into_string(),
+            SourceContext::Marketplace {
+                plugin_identifier, ..
+            } => plugin_identifier.clone(),
         }
     }
 }
@@ -128,10 +112,15 @@ impl PackageSource for GitHubSource {
             let factory = HostClientFactory::with_defaults();
             let client = factory.create(self.repo.host());
             let display_name = self.repo.name();
-            let marketplace = self.marketplace.as_deref();
+            let marketplace = self.marketplace_name();
 
             let cache_name = self.compute_cache_name();
-            let log_label = self.plugin_identifier.as_deref().unwrap_or(display_name);
+            let log_label = match &self.context {
+                SourceContext::Direct => display_name,
+                SourceContext::Marketplace {
+                    plugin_identifier, ..
+                } => plugin_identifier,
+            };
 
             if !force && cache.is_cached(marketplace, &cache_name) {
                 println!(
@@ -150,12 +139,8 @@ impl PackageSource for GitHubSource {
                 client.download_archive_with_sha(&self.repo).await?;
 
             println!("Extracting to cache...");
-            let plugin_path = cache.store_from_archive(
-                marketplace,
-                &cache_name,
-                &archive,
-                self.source_path.as_deref(),
-            )?;
+            let plugin_path =
+                cache.store_from_archive(marketplace, &cache_name, &archive, self.source_path())?;
 
             let manifest = cache.load_manifest(marketplace, &cache_name)?;
 
@@ -171,7 +156,7 @@ impl PackageSource for GitHubSource {
             Ok(CachedPackage {
                 name: manifest.name.clone(),
                 id: Some(cache_name.clone()),
-                marketplace: self.marketplace.clone(),
+                marketplace: self.marketplace_name().map(String::from),
                 path: plugin_path,
                 manifest,
                 git_ref,

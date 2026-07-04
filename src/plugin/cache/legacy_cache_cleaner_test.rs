@@ -9,7 +9,7 @@ fn make_cache(plugins: Vec<&str>) -> MarketplaceCache {
     MarketplaceCache {
         name: "d-market".to_string(),
         fetched_at: Utc::now(),
-        source: "github:owner/d-market-git".to_string(),
+        source: "github:owner/d-market-git".parse().unwrap(),
         owner: None,
         plugins: plugins
             .into_iter()

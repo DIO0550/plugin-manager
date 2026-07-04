@@ -1,7 +1,7 @@
 use crate::host::HostClientFactory;
 use crate::marketplace::{
-    normalize_name, normalize_source_path, to_display_source, MarketplaceConfig,
-    MarketplaceRegistration, MarketplaceRegistry,
+    normalize_name, normalize_source_path, MarketplaceConfig, MarketplaceRegistration,
+    MarketplaceRegistry, MarketplaceSourceRef,
 };
 use crate::repo;
 use clap::{Parser, Subcommand};
@@ -95,7 +95,7 @@ async fn run_list() -> Result<(), String> {
     table.set_header(vec!["NAME", "SOURCE", "PLUGINS", "LAST UPDATED"]);
 
     for entry in entries {
-        let source_display = to_display_source(&entry.source);
+        let source_display = entry.source.full_name();
         let (plugins_count, last_updated) = match registry.get(&entry.name) {
             Ok(Some(cache)) => {
                 let count = cache.plugins.len().to_string();
@@ -163,7 +163,7 @@ async fn run_add(source: String, name: Option<String>, path: Option<String>) -> 
 
     let entry = MarketplaceRegistration {
         name: normalized_name.clone(),
-        source: parsed_repo.full_name(),
+        source: MarketplaceSourceRef::from_repo(&parsed_repo),
         source_path,
     };
     config.add(entry)?;
@@ -227,14 +227,7 @@ async fn run_update(name: Option<String>) -> Result<(), String> {
 
     for entry in entries {
         print!("Updating '{}'... ", entry.name);
-        let repo = match repo::from_url(&entry.source) {
-            Ok(r) => r,
-            Err(e) => {
-                println!("FAILED");
-                failures.push((entry.name.clone(), e.to_string()));
-                continue;
-            }
-        };
+        let repo = entry.source.to_repo();
 
         let client = factory.create(repo.host());
         match registry
@@ -286,7 +279,7 @@ async fn run_show(name: String) -> Result<(), String> {
         .ok_or_else(|| format!("Marketplace '{}' not found.", name))?;
 
     println!("Marketplace: {}", entry.name);
-    println!("Source: {}", to_display_source(&entry.source));
+    println!("Source: {}", entry.source.full_name());
     println!("Path: {}", entry.source_path.as_deref().unwrap_or("(root)"));
 
     match registry.get(&name) {

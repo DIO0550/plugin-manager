@@ -7,10 +7,12 @@ use crate::application::enable_plugin;
 use crate::error::{PlmError, Result};
 use crate::host::{HostClient, HostClientFactory, HostKind};
 use crate::http::with_retry;
-use crate::marketplace::{MarketplaceCache, MarketplaceRegistry, PluginSource as MpPluginSource};
+use crate::marketplace::{
+    MarketplaceCache, MarketplaceRegistry, MarketplaceSourceRef, PluginSource as MpPluginSource,
+};
 use crate::plugin::lifecycle::plugin_resolver::{find_by_plugin_name, ResolvedPlugin};
 use crate::plugin::version::needs_update;
-use crate::plugin::{meta, PackageCacheAccess, PluginMeta};
+use crate::plugin::{meta, GithubCacheId, PackageCacheAccess, PluginMeta};
 use crate::repo::{self, Repo};
 use std::path::Path;
 
@@ -165,25 +167,21 @@ fn restore_repo(
         return Ok(repo);
     }
 
-    let parts: Vec<&str> = plugin_name.split("--").collect();
-    if parts.len() == 2 {
-        let repo = Repo::new(
+    match GithubCacheId::from_cache_name(plugin_name).parts() {
+        Some((owner, name)) => Ok(Repo::new(
             HostKind::GitHub,
-            parts[0],
-            parts[1],
+            owner,
+            name,
             Some(git_ref.to_string()),
-        );
-        Ok(repo)
-    } else {
-        Err(format!(
+        )),
+        None => Err(format!(
             "Cannot determine repository from plugin name: {}",
             plugin_name
-        ))
+        )),
     }
 }
 
-/// `MarketplaceCache.source` (`"github:{owner}/{name}"` 形式) と `PluginSource` から
-/// archive 取得用の `Repo` を再構築する。
+/// `MarketplaceCache.source` と `PluginSource` から archive 取得用の `Repo` を再構築する。
 ///
 /// `git_ref` は呼び出し側で必ず渡す（ローカル `PluginMeta.git_ref` を `unwrap_or("HEAD")` 等で解決）。
 /// `MarketplaceCache.source` は ref を持たないため、`Repo` に ref を詰めることで
@@ -191,23 +189,20 @@ fn restore_repo(
 ///
 /// # Arguments
 ///
-/// * `mp_source` - Marketplace source string in `github:owner/repo` form.
+/// * `mp_source` - Marketplace source repository reference.
 /// * `plugin_source` - Plugin source descriptor from the marketplace cache entry.
 /// * `git_ref` - Git reference to embed into the resulting `Repo`.
 fn parse_repo_from_mp_source(
-    mp_source: &str,
+    mp_source: &MarketplaceSourceRef,
     plugin_source: &MpPluginSource,
     git_ref: Option<&str>,
 ) -> Result<Repo> {
     // External は `repo` 文字列を `repo::from_url` で解析（`owner/repo@tag` や HTTPS URL に対応）。
     // 取り出した owner / name を使って、ローカル `PluginMeta.git_ref` で上書きした `Repo` を返す。
-    // Local は marketplace 自体の repo を参照（mp_source の "github:owner/name" を strip して再構築）。
+    // Local は marketplace 自体の repo を参照する。
     let parsed = match plugin_source {
         MpPluginSource::External { repo, .. } => repo::from_url(repo)?,
-        MpPluginSource::Local(_) => {
-            let stripped = mp_source.strip_prefix("github:").unwrap_or(mp_source);
-            repo::from_url(stripped)?
-        }
+        MpPluginSource::Local(_) => mp_source.to_repo(),
     };
     Ok(Repo::new(
         parsed.host(),

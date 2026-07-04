@@ -39,7 +39,7 @@ fn make_cache(name: &str, plugins: Vec<MarketplacePlugin>) -> MarketplaceCache {
     MarketplaceCache {
         name: name.to_string(),
         fetched_at: chrono::Utc::now(),
-        source: "owner/repo".to_string(),
+        source: "owner/repo".parse().unwrap(),
         owner: None,
         plugins,
     }

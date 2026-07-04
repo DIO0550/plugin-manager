@@ -131,7 +131,7 @@ fn sample_manifest_json() -> String {
 #[test]
 fn from_manifest_sets_source_as_github_owner_name() {
     let cache = MarketplaceCache::from_manifest(sample_manifest(), "catalog", &sample_repo());
-    assert_eq!(cache.source, "github:acme/catalog");
+    assert_eq!(cache.source.to_string(), "github:acme/catalog");
 }
 
 #[test]
@@ -192,7 +192,7 @@ async fn fetch_cache_happy_path_with_none_source_path() {
         .expect("fetch_cache should succeed");
 
     assert_eq!(cache.name, "catalog");
-    assert_eq!(cache.source, "github:acme/catalog");
+    assert_eq!(cache.source.to_string(), "github:acme/catalog");
     assert_eq!(
         client.last_path().as_deref(),
         Some(".claude-plugin/marketplace.json")
@@ -331,6 +331,6 @@ fn parse_legacy_cache_with_original_manifest_ignores_unknown_field() {
     }"#;
     let cache: MarketplaceCache = serde_json::from_str(json).expect("parse must not fail");
     assert_eq!(cache.name, "legacy");
-    assert_eq!(cache.source, "github:o/n");
+    assert_eq!(cache.source.to_string(), "github:o/n");
     assert!(cache.plugins.is_empty());
 }

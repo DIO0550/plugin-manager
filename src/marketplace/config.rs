@@ -1,3 +1,4 @@
+use crate::marketplace::MarketplaceSourceRef;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -8,7 +9,7 @@ const MAX_NAME_LENGTH: usize = 64;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MarketplaceRegistration {
     pub name: String,
-    pub source: String,
+    pub source: MarketplaceSourceRef,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_path: Option<String>,
 }
@@ -206,33 +207,6 @@ pub fn normalize_source_path(path: &str) -> Result<Option<String>, String> {
     }
 
     Ok(Some(normalized.to_string()))
-}
-
-/// 内部表現からユーザー表示用に変換
-/// github:owner/repo → owner/repo
-///
-/// # Arguments
-///
-/// * `internal` - Internal source string (e.g. `github:owner/repo`).
-pub fn to_display_source(internal: &str) -> String {
-    internal
-        .strip_prefix("github:")
-        .unwrap_or(internal)
-        .to_string()
-}
-
-/// ユーザー入力から内部表現に変換
-/// owner/repo → github:owner/repo
-///
-/// # Arguments
-///
-/// * `display` - User-facing source string (e.g. `owner/repo`).
-pub fn to_internal_source(display: &str) -> String {
-    if display.starts_with("github:") {
-        display.to_string()
-    } else {
-        format!("github:{}", display)
-    }
 }
 
 #[cfg(test)]

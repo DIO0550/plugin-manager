@@ -4,7 +4,9 @@ mod lifecycle;
 pub mod meta;
 
 pub(crate) use cache::{cleanup_legacy_hierarchy, cleanup_plugin_directories, list_installed};
-pub use cache::{CachedPackage, LegacyCacheCleaner, PackageCache, PackageCacheAccess};
+pub use cache::{
+    CachedPackage, GithubCacheId, LegacyCacheCleaner, PackageCache, PackageCacheAccess,
+};
 pub(crate) use content::{load_plugin, Plugin};
 pub use content::{InstalledPlugin, MarketplaceContent};
 pub use lifecycle::{

@@ -69,21 +69,7 @@ impl PackageSource for MarketplaceSource {
 
             let mut cached = match &plugin_entry.source {
                 MpPluginSource::Local(path) => {
-                    let parts: Vec<&str> = mp_cache
-                        .source
-                        .strip_prefix("github:")
-                        .unwrap_or(&mp_cache.source)
-                        .split('/')
-                        .collect();
-
-                    if parts.len() < 2 {
-                        return Err(PlmError::InvalidRepoFormat(mp_cache.source.clone()));
-                    }
-
-                    let owner = parts[0];
-                    let repo_name = parts[1];
-                    let repo = repo::from_url(&format!("{}/{}", owner, repo_name))?;
-
+                    let repo = mp_cache.source.to_repo();
                     let source_path: PluginSourcePath = path.parse()?;
 
                     GitHubSource::with_marketplace_plugin(
