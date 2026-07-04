@@ -52,23 +52,27 @@ PLMのキャッシュ設計について説明します。
 
 ```
 ~/.plm/
-├── config.toml                     # 設定ファイル
-├── plugins.json                    # プラグインキャッシュ
+├── targets.json                    # 有効ターゲット設定
+├── marketplaces.json               # マーケットプレイス登録設定
+├── imports.json                    # インポート履歴
 └── cache/
     ├── marketplaces/               # マーケットプレイスキャッシュ
     │   ├── anthropic.json
     │   └── company-tools.json
     └── plugins/                    # プラグインファイルキャッシュ
+        ├── .backup/                # 更新時のバックアップ（作業用）
+        ├── .temp/                  # 更新時のステージング（作業用）
         ├── company-tools/
-        │   ├── formatter/
+        │   ├── formatter/          # 各プラグイン直下に .plm-meta.json
         │   └── linter/
         ├── anthropic/
         │   ├── formatter/
         │   └── code-review/
         └── github/
-            └── owner/
-                └── repo/
+            └── owner--repo/        # 直接GitHubインストールは owner--repo 形式
 ```
+
+> 注: `~/.plm/config.toml` は未実装の将来仕様です（[reference/config](../reference/config.md) 参照）。
 
 ### プラグインキャッシュ（階層型）
 
@@ -83,48 +87,28 @@ PLMのキャッシュ設計について説明します。
     formatter/                      # 別マーケットプレイスの同名プラグイン
     code-review/
   github/                           # 直接GitHubインストール
-    owner/
-      repo/
+    owner--repo/                    # {owner}--{repo} 形式のID
 ```
 
-## プラグインキャッシュ（plugins.json）
+## プラグインメタデータ（.plm-meta.json）
+
+プラグインの状態は中央集約ファイルではなく、**各プラグインのキャッシュディレクトリ直下の `.plm-meta.json`** に分散して保持される（`src/plugin/meta/meta.rs`）。
 
 ```json
 {
-  "version": 1,
-  "plugins": [
-    {
-      "name": "code-formatter",
-      "source": "company/claude-plugins@v2.1.0",
-      "version": "2.1.0",
-      "status": "enabled",
-      "marketplace": "company-tools",
-      "installed_at": "2025-01-15T10:30:00Z",
-      "installed_sha": "abc123def456",
-      "author": {
-        "name": "Dev Team",
-        "email": "dev@company.com"
-      },
-      "components": {
-        "skills": ["code-formatter"],
-        "agents": ["formatter-agent"],
-        "commands": ["format"],
-        "hooks": []
-      },
-      "deployments": {
-        "codex": {
-          "scope": "personal",
-          "enabled": true,
-          "paths": ["~/.codex/skills/company-tools/code-formatter"]
-        },
-        "copilot": {
-          "scope": "project",
-          "enabled": true,
-          "paths": [".github/skills/company-tools/code-formatter"]
-        }
-      }
-    }
-  ]
+  "installedAt": "2025-01-15T10:30:00Z",
+  "updatedAt": "2025-02-01T09:00:00Z",
+  "statusByTarget": {
+    "codex": "enabled",
+    "copilot": "disabled"
+  },
+  "gitRef": "main",
+  "commitSha": "abc123def456...",
+  "sourceRepo": "company/claude-plugins",
+  "marketplace": "company-tools",
+  "managedFiles": {
+    "codex": ["/home/user/.codex/hooks.json"]
+  }
 }
 ```
 
@@ -132,16 +116,15 @@ PLMのキャッシュ設計について説明します。
 
 | フィールド | 説明 |
 |------------|------|
-| `name` | プラグイン名 |
-| `source` | GitRepo.raw形式のソース参照 |
-| `version` | インストールされているバージョン |
-| `status` | `enabled` または `disabled` |
-| `marketplace` | マーケットプレイス名（直接インストールの場合は`null`） |
-| `installed_at` | インストール日時 |
-| `installed_sha` | インストール時のコミットSHA |
-| `author` | 作者情報 |
-| `components` | 含まれるコンポーネント |
-| `deployments` | ターゲットごとの展開情報 |
+| `installedAt` / `updatedAt` | インストール・更新日時（RFC3339） |
+| `statusByTarget` | ターゲット別の `enabled` / `disabled` 状態 |
+| `gitRef` | Git参照（ブランチ・タグ） |
+| `commitSha` | インストール時のコミットSHA（更新判定に使用） |
+| `sourceRepo` | ソースリポジトリ（`owner/repo` 形式） |
+| `marketplace` | マーケットプレイス名（直接インストールは `github`） |
+| `managedFiles` | 共有配置先ファイル（`.codex/hooks.json` 等）の所有権追跡 |
+
+プラグイン名・バージョン・説明・コンポーネント一覧などは `.plm-meta.json` には持たず、キャッシュ内の `plugin.json`（上流成果物、変更しない）とディレクトリ走査から都度取得する。
 
 ## マーケットプレイスキャッシュ
 
@@ -173,45 +156,15 @@ PLMのキャッシュ設計について説明します。
 |------|------|
 | **オフライン表示** | TUI起動時にネットワーク不要で一覧表示 |
 | **状態管理** | Enabled/Disabled、バージョン情報 |
-| **更新検知** | `installed_sha`と最新を比較 |
-| **永続化** | `source`(raw)からいつでも`GitRepo`を復元可能 |
+| **更新検知** | `commitSha`とリモート最新SHAを比較 |
+| **永続化** | `sourceRepo` + `gitRef`からソース参照を復元可能 |
 | **marketplace追跡** | どのmarketplaceからインストールしたかを記録 |
 
 ## キャッシュ操作
 
-### 読み込み
-
-```rust
-impl PluginCache {
-    pub fn load() -> Result<Self> {
-        let path = dirs::home_dir()?.join(".plm/plugins.json");
-        let content = fs::read_to_string(path)?;
-        serde_json::from_str(&content)
-    }
-}
-```
-
-### 保存
-
-```rust
-impl PluginCache {
-    pub fn save(&self) -> Result<()> {
-        let path = dirs::home_dir()?.join(".plm/plugins.json");
-        let content = serde_json::to_string_pretty(self)?;
-        fs::write(path, content)
-    }
-}
-```
-
-### GitRepo復元
-
-```rust
-impl CachedPlugin {
-    pub fn git_repo(&self) -> Result<GitRepo> {
-        GitRepo::parse(&self.source)
-    }
-}
-```
+- **ルート解決**: キャッシュルートは `$PLM_HOME/.plm/cache/plugins/`（`PLM_HOME` 未設定時は `$HOME`）。
+- **書き込み**: `.plm-meta.json` は一時ファイル + rename によるアトミック書き込み。破損時は警告を出して `None` 扱いし、次回インストール時に再生成する。
+- **更新**: `backup → download → アトミック差し替え → 再デプロイ → メタ更新` の順で行い、失敗時は `.backup/` から復元する。`--all` は全プラグインを prepare → commit の2段階で処理するバッチアトミック方式（詳細は `src/plugin/lifecycle/update.rs`）。
 
 ## 関連
 
