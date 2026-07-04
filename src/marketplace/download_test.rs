@@ -37,7 +37,7 @@ async fn test_download_with_registry_plugin_not_found() {
         .store(&MarketplaceCache {
             name: "test-marketplace".to_string(),
             fetched_at: Utc::now(),
-            source: "github:test/repo".to_string(),
+            source: "github:test/repo".parse().unwrap(),
             owner: None,
             plugins: vec![],
         })

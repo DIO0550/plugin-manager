@@ -4,7 +4,8 @@
 
 use crate::error::{PlmError, Result};
 use crate::plugin::{
-    list_installed, meta, InstalledPlugin, MarketplaceContent, PackageCacheAccess, Plugin,
+    list_installed, meta, GithubCacheId, InstalledPlugin, MarketplaceContent, PackageCacheAccess,
+    Plugin,
 };
 use crate::target::{list_all_placed, PluginOrigin};
 use std::path::{Path, PathBuf};
@@ -183,11 +184,9 @@ fn determine_source(marketplace: &str, dir_name: &str) -> Source {
 ///
 /// * `dir_name` - Cache directory name in the `owner--repo` form.
 fn restore_github_repo(dir_name: &str) -> String {
-    if let Some(pos) = dir_name.find("--") {
-        let (owner, repo) = dir_name.split_at(pos);
-        format!("{}/{}", owner, &repo[2..])
-    } else {
-        dir_name.to_string()
+    match GithubCacheId::from_cache_name(dir_name).parts() {
+        Some((owner, repo)) => format!("{}/{}", owner, repo),
+        None => dir_name.to_string(),
     }
 }
 

@@ -54,35 +54,28 @@ async fn download_marketplace_plugin_with_registry(
 
     let cached = match &plugin_entry.source {
         MpPluginSource::Local(path) => {
-            let parts: Vec<&str> = mp_cache
-                .source
-                .strip_prefix("github:")
-                .unwrap_or(&mp_cache.source)
-                .split('/')
-                .collect();
-
-            if parts.len() < 2 {
-                return Err(PlmError::InvalidRepoFormat(mp_cache.source.clone()));
-            }
-
-            let owner = parts[0];
-            let repo_name = parts[1];
-            let repo = crate::repo::from_url(&format!("{}/{}", owner, repo_name))?;
+            let repo = mp_cache.source.to_repo();
             let source_path: PluginSourcePath = path.parse()?;
 
-            GitHubSource::with_marketplace_and_source_path(
+            GitHubSource::with_marketplace_plugin(
                 repo,
                 marketplace_name.to_string(),
-                source_path.into(),
+                Some(source_path.into()),
+                plugin_entry.name.clone(),
             )
             .download(cache, force)
             .await?
         }
         MpPluginSource::External { repo: repo_url, .. } => {
             let repo = crate::repo::from_url(repo_url)?;
-            GitHubSource::with_marketplace(repo, marketplace_name.to_string())
-                .download(cache, force)
-                .await?
+            GitHubSource::with_marketplace_plugin(
+                repo,
+                marketplace_name.to_string(),
+                None,
+                plugin_entry.name.clone(),
+            )
+            .download(cache, force)
+            .await?
         }
     };
 

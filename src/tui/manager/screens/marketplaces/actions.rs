@@ -8,8 +8,8 @@ use crate::component::Scope;
 use crate::host::HostClientFactory;
 use crate::install::{self, PlaceRequest};
 use crate::marketplace::{
-    download_marketplace_plugin_with_cache, to_display_source, to_internal_source,
-    MarketplaceCache, MarketplaceConfig, MarketplaceRegistration, MarketplaceRegistry,
+    download_marketplace_plugin_with_cache, MarketplaceCache, MarketplaceConfig,
+    MarketplaceRegistration, MarketplaceRegistry, MarketplaceSourceRef,
 };
 use crate::plugin::{PackageCache, PackageCacheAccess};
 use crate::repo;
@@ -39,7 +39,7 @@ pub fn add_marketplace(
         .map_err(|_| "No Tokio runtime available".to_string())?;
 
     let repo = repo::from_url(source).map_err(|e| e.to_string())?;
-    let internal_source = to_internal_source(&repo.full_name());
+    let source_ref = MarketplaceSourceRef::from_repo(&repo);
 
     let mut config = MarketplaceConfig::load()?;
 
@@ -49,7 +49,7 @@ pub fn add_marketplace(
 
     let entry = MarketplaceRegistration {
         name: name.to_string(),
-        source: internal_source.clone(),
+        source: source_ref.clone(),
         source_path: source_path.map(|s| s.to_string()),
     };
 
@@ -71,7 +71,7 @@ pub fn add_marketplace(
     Ok(MarketplaceAddOutcome {
         marketplace: MarketplaceItem {
             name: name.to_string(),
-            source: to_display_source(&internal_source),
+            source: source_ref.full_name(),
             source_path: source_path.map(|s| s.to_string()),
             plugin_count: Some(cache.plugins.len()),
             last_updated: Some(cache.fetched_at.format("%Y-%m-%d %H:%M").to_string()),
@@ -123,8 +123,8 @@ fn update_marketplace_registration(
     let handle = tokio::runtime::Handle::try_current()
         .map_err(|_| "No Tokio runtime available".to_string())?;
 
-    let display_source = to_display_source(&entry.source);
-    let repo = repo::from_url(&display_source).map_err(|e| e.to_string())?;
+    let display_source = entry.source.full_name();
+    let repo = entry.source.to_repo();
     let factory = HostClientFactory::with_defaults();
     let client = factory.create(repo.host());
     let registry = MarketplaceRegistry::new().map_err(|e| e.to_string())?;

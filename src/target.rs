@@ -82,7 +82,7 @@ impl PluginOrigin {
     pub fn from_github(owner: &str, repo: &str) -> Self {
         Self {
             marketplace: "github".to_string(),
-            plugin: format!("{}--{}", owner, repo),
+            plugin: crate::plugin::GithubCacheId::from_parts(owner, repo).into_string(),
         }
     }
 

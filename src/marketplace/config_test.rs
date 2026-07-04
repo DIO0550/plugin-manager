@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests {
     use crate::marketplace::{
-        normalize_name, normalize_source_path, to_display_source, to_internal_source,
-        validate_name, MarketplaceConfig, MarketplaceRegistration,
+        normalize_name, normalize_source_path, validate_name, MarketplaceConfig,
+        MarketplaceRegistration,
     };
     use tempfile::TempDir;
 
@@ -143,32 +143,6 @@ mod tests {
         assert!(normalize_source_path("plugins\\marketplace").is_err());
     }
 
-    // ==================== to_display_source / to_internal_source tests ====================
-
-    #[test]
-    fn to_display_source_removes_github_prefix() {
-        let result = to_display_source("github:owner/repo");
-        assert_eq!(result, "owner/repo");
-    }
-
-    #[test]
-    fn to_display_source_returns_unchanged_if_no_prefix() {
-        let result = to_display_source("owner/repo");
-        assert_eq!(result, "owner/repo");
-    }
-
-    #[test]
-    fn to_internal_source_adds_github_prefix() {
-        let result = to_internal_source("owner/repo");
-        assert_eq!(result, "github:owner/repo");
-    }
-
-    #[test]
-    fn to_internal_source_returns_unchanged_if_already_prefixed() {
-        let result = to_internal_source("github:owner/repo");
-        assert_eq!(result, "github:owner/repo");
-    }
-
     // ==================== MarketplaceConfig tests ====================
 
     #[test]
@@ -202,7 +176,7 @@ mod tests {
 
         let entry = MarketplaceRegistration {
             name: "my-mp".to_string(),
-            source: "owner/repo".to_string(),
+            source: "owner/repo".parse().unwrap(),
             source_path: None,
         };
         config.add(entry).unwrap();
@@ -221,7 +195,7 @@ mod tests {
 
         let entry = MarketplaceRegistration {
             name: "test-mp".to_string(),
-            source: "owner/repo".to_string(),
+            source: "owner/repo".parse().unwrap(),
             source_path: None,
         };
         config.add(entry).unwrap();
@@ -238,14 +212,14 @@ mod tests {
 
         let entry1 = MarketplaceRegistration {
             name: "test-mp".to_string(),
-            source: "owner/repo1".to_string(),
+            source: "owner/repo1".parse().unwrap(),
             source_path: None,
         };
         config.add(entry1).unwrap();
 
         let entry2 = MarketplaceRegistration {
             name: "test-mp".to_string(),
-            source: "owner/repo2".to_string(),
+            source: "owner/repo2".parse().unwrap(),
             source_path: None,
         };
         assert!(config.add(entry2).is_err());
@@ -259,7 +233,7 @@ mod tests {
 
         let entry = MarketplaceRegistration {
             name: "test-mp".to_string(),
-            source: "owner/repo".to_string(),
+            source: "owner/repo".parse().unwrap(),
             source_path: None,
         };
         config.add(entry).unwrap();
@@ -286,14 +260,14 @@ mod tests {
 
         let entry = MarketplaceRegistration {
             name: "test-mp".to_string(),
-            source: "owner/repo".to_string(),
+            source: "owner/repo".parse().unwrap(),
             source_path: Some("plugins".to_string()),
         };
         config.add(entry).unwrap();
 
         let result = config.get("test-mp");
         assert!(result.is_some());
-        assert_eq!(result.unwrap().source, "owner/repo");
+        assert_eq!(result.unwrap().source.full_name(), "owner/repo");
         assert_eq!(result.unwrap().source_path, Some("plugins".to_string()));
     }
 
@@ -315,14 +289,14 @@ mod tests {
         config
             .add(MarketplaceRegistration {
                 name: "mp1".to_string(),
-                source: "owner/repo1".to_string(),
+                source: "owner/repo1".parse().unwrap(),
                 source_path: None,
             })
             .unwrap();
         config
             .add(MarketplaceRegistration {
                 name: "mp2".to_string(),
-                source: "owner/repo2".to_string(),
+                source: "owner/repo2".parse().unwrap(),
                 source_path: None,
             })
             .unwrap();

@@ -289,7 +289,7 @@ mod batch {
             Ok(Some(MarketplaceCache {
                 name: self.market.clone(),
                 fetched_at: chrono::Utc::now(),
-                source: format!("github:owner/{}", self.market),
+                source: format!("github:owner/{}", self.market).parse().unwrap(),
                 owner: None,
                 plugins,
             }))

@@ -1,6 +1,7 @@
 use crate::error::{PlmError, Result};
 use crate::host::HostClient;
 use crate::marketplace::config::normalize_name;
+use crate::marketplace::MarketplaceSourceRef;
 use crate::repo::Repo;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -60,7 +61,7 @@ pub struct MarketplaceManifest {
 pub struct MarketplaceCache {
     pub name: String,
     pub fetched_at: DateTime<Utc>,
-    pub source: String,
+    pub source: MarketplaceSourceRef,
     #[serde(default)]
     pub owner: Option<MarketplaceOwner>,
     pub plugins: Vec<MarketplacePlugin>,
@@ -105,7 +106,7 @@ pub fn validate_plugin_names(plugins: &[MarketplacePlugin]) -> Result<()> {
 impl MarketplaceCache {
     /// MarketplaceManifest とメタ情報から MarketplaceCache を構築する。
     ///
-    /// - `source` は `"github:{repo_owner}/{repo_name}"` 形式で構築（`repo` 引数の owner / name を使用）
+    /// - `source` は `repo` 引数の owner / name から構築（保存形式は `"github:{owner}/{name}"`）
     /// - `fetched_at` は現在時刻（`Utc::now()`）
     ///
     /// # Arguments
@@ -117,7 +118,7 @@ impl MarketplaceCache {
         Self {
             name: name.to_string(),
             fetched_at: Utc::now(),
-            source: format!("github:{}/{}", repo.owner(), repo.name()),
+            source: MarketplaceSourceRef::from_repo(repo),
             owner: manifest.owner,
             plugins: manifest.plugins,
         }

@@ -5,7 +5,7 @@
 
 use crate::application::{list_installed_plugins, InstalledPlugin};
 use crate::component::ComponentKind;
-use crate::marketplace::{to_display_source, MarketplaceConfig, MarketplaceRegistry};
+use crate::marketplace::{MarketplaceConfig, MarketplaceRegistry};
 use crate::plugin::PackageCache;
 use std::io;
 
@@ -235,7 +235,7 @@ fn load_marketplaces() -> LoadMarketplacesOutcome {
                 .iter()
                 .map(|entry| MarketplaceItem {
                     name: entry.name.clone(),
-                    source: to_display_source(&entry.source),
+                    source: entry.source.full_name(),
                     source_path: entry.source_path.clone(),
                     plugin_count: None,
                     last_updated: None,
@@ -261,7 +261,7 @@ fn load_marketplaces() -> LoadMarketplacesOutcome {
             };
             MarketplaceItem {
                 name: entry.name.clone(),
-                source: to_display_source(&entry.source),
+                source: entry.source.full_name(),
                 source_path: entry.source_path.clone(),
                 plugin_count,
                 last_updated,
