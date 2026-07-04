@@ -4,6 +4,7 @@
 
 use crate::error::{PlmError, Result};
 use crate::fs::{FileSystem, RealFs};
+use crate::marketplace::MarketplaceRef;
 use crate::plugin::meta::resolve_manifest_path;
 use crate::plugin::MarketplaceContent;
 use crate::plugin::{meta, PluginManifest};
@@ -323,6 +324,30 @@ impl PackageCache {
         Ok(())
     }
 
+    /// `<cache_dir>[/<namespace>]/<marketplace>/<name>` の join 規則を一元化する
+    ///
+    /// marketplace 未指定時のデフォルト解決（`None` → `"github"`）を含め、
+    /// キャッシュ階層のパス構築はすべてこのメソッドを経由する。
+    ///
+    /// # Arguments
+    ///
+    /// * `namespace` - cache 直下のサブ領域（`.backup` / `.temp`）。本体は `None`
+    /// * `marketplace` - marketplace name (`None` uses the default)
+    /// * `name` - plugin name or repository identifier
+    fn entry_path(
+        &self,
+        namespace: Option<&str>,
+        marketplace: Option<&str>,
+        name: &str,
+    ) -> PathBuf {
+        let base = match namespace {
+            Some(ns) => self.cache_dir.join(ns),
+            None => self.cache_dir.clone(),
+        };
+        base.join(MarketplaceRef::from_option(marketplace).dir_name())
+            .join(name)
+    }
+
     /// バックアップパスを取得
     ///
     /// # Arguments
@@ -330,11 +355,7 @@ impl PackageCache {
     /// * `marketplace` - marketplace name (`None` uses `"github"`)
     /// * `name` - plugin name or repository identifier
     fn backup_path(&self, marketplace: Option<&str>, name: &str) -> PathBuf {
-        let marketplace_dir = marketplace.unwrap_or("github");
-        self.cache_dir
-            .join(".backup")
-            .join(marketplace_dir)
-            .join(name)
+        self.entry_path(Some(".backup"), marketplace, name)
     }
 
     /// 一時パスを取得
@@ -344,18 +365,13 @@ impl PackageCache {
     /// * `marketplace` - marketplace name (`None` uses `"github"`)
     /// * `name` - plugin name or repository identifier
     fn temp_path(&self, marketplace: Option<&str>, name: &str) -> PathBuf {
-        let marketplace_dir = marketplace.unwrap_or("github");
-        self.cache_dir
-            .join(".temp")
-            .join(marketplace_dir)
-            .join(name)
+        self.entry_path(Some(".temp"), marketplace, name)
     }
 }
 
 impl PackageCacheAccess for PackageCache {
     fn plugin_path(&self, marketplace: Option<&str>, name: &str) -> PathBuf {
-        let marketplace_dir = marketplace.unwrap_or("github");
-        self.cache_dir.join(marketplace_dir).join(name)
+        self.entry_path(None, marketplace, name)
     }
 
     fn is_cached(&self, marketplace: Option<&str>, name: &str) -> bool {
@@ -437,12 +453,10 @@ impl PackageCacheAccess for PackageCache {
                 if plugin_entry.is_dir() {
                     if let Some(plugin_name) = plugin_entry.path.file_name() {
                         let plugin_name = plugin_name.to_string_lossy().to_string();
-                        // "github" marketplace は None として扱う
-                        let mp = if marketplace_name.as_deref() == Some("github") {
-                            None
-                        } else {
-                            marketplace_name.clone()
-                        };
+                        // デフォルト marketplace（github）は None として扱う
+                        let mp = marketplace_name
+                            .as_deref()
+                            .and_then(|m| MarketplaceRef::parse(m).into_named());
                         plugins.push((mp, plugin_name));
                     }
                 }
@@ -628,13 +642,13 @@ impl PackageCacheAccess for PackageCache {
 
     fn has_marketplace_entry(&self, marketplace: &str, entry: &str) -> Result<bool> {
         let fs = RealFs;
-        let path = self.cache_dir.join(marketplace).join(entry);
+        let path = self.entry_path(None, Some(marketplace), entry);
         Ok(fs.exists(&path))
     }
 
     fn remove_marketplace_entry(&self, marketplace: &str, entry: &str) -> Result<()> {
         let fs = RealFs;
-        let path = self.cache_dir.join(marketplace).join(entry);
+        let path = self.entry_path(None, Some(marketplace), entry);
         if fs.exists(&path) {
             fs.remove_dir_all(&path)?;
         }

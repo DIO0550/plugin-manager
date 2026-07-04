@@ -2,8 +2,8 @@
 //!
 //! `<kind>/<flattened_name>` 構造を 1 階層走査する。`Component.name` は
 //! `flatten_name(plugin_name, original_name)` で平坦化済みのため、中間
-//! ディレクトリは存在しない。`origin` は復元できないためプレースホルダ
-//! (`PluginOrigin { marketplace: "_", plugin: "_" }`) を埋めて返す。
+//! ディレクトリは存在しない。`origin` は復元できないため
+//! `PluginOrigin::Unknown` を埋めて返す。
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -47,7 +47,7 @@ pub fn scan_components(base_dir: &Path) -> Result<Vec<ScannedComponent>> {
         // 既存挙動維持: path.is_dir() はメタデータエラーを握りつぶす
         let is_dir = path.is_dir();
         results.push(ScannedComponent {
-            origin: PluginOrigin::placeholder(),
+            origin: PluginOrigin::Unknown,
             name: entry_name_lossy(&entry),
             path,
             is_dir,

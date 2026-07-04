@@ -38,9 +38,8 @@ pub fn list_installed_plugins(cache: &dyn PackageCacheAccess) -> Result<Vec<Inst
         .into_iter()
         .filter_map(|pkg| {
             let name = pkg.manifest().name.clone();
-            let marketplace_str = pkg.marketplace().unwrap_or("github");
             let ops_key = pkg.id().unwrap_or(&name);
-            let origin = PluginOrigin::from_marketplace(marketplace_str, ops_key);
+            let origin = PluginOrigin::from_cached_plugin(pkg.marketplace(), ops_key);
             let plugin =
                 Plugin::new(pkg.manifest().clone(), pkg.path().to_path_buf(), origin).ok()?;
             // flatten_name の prefix は manifest.name に基づくため

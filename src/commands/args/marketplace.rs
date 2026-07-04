@@ -1,5 +1,6 @@
 //! `--marketplace` オプション用の共通 Args 部品。
 
+use crate::marketplace::DEFAULT_MARKETPLACE;
 use clap::Args as ClapArgs;
 
 #[derive(Debug, Clone, ClapArgs)]
@@ -10,10 +11,12 @@ pub struct MarketplaceArgs {
 }
 
 impl MarketplaceArgs {
-    /// run 側で使うフォールバック付きアクセッサ。
-    /// 既存 enable/disable の `default_value = "github"` 互換を保つために提供する。
+    /// CLI 境界でのデフォルト解決アクセッサ。
+    ///
+    /// 「未指定 = github」の解決はここで 1 回だけ行い、ドメイン層には
+    /// 確定値を渡す。
     pub fn marketplace_or_default(&self) -> &str {
-        self.marketplace.as_deref().unwrap_or("github")
+        self.marketplace.as_deref().unwrap_or(DEFAULT_MARKETPLACE)
     }
 }
 

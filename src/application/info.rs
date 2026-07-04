@@ -3,6 +3,7 @@
 //! 特定のプラグインの詳細情報を取得するユースケースを提供する。
 
 use crate::error::{PlmError, Result};
+use crate::marketplace::MarketplaceRef;
 use crate::plugin::{
     list_installed, meta, GithubCacheId, InstalledPlugin, MarketplaceContent, PackageCacheAccess,
     Plugin,
@@ -132,7 +133,7 @@ fn resolve_single_plugin(
     let filtered: Vec<_> = if let Some(mp) = marketplace_filter {
         candidates
             .into_iter()
-            .filter(|c| c.marketplace().unwrap_or("github") == mp)
+            .filter(|c| MarketplaceRef::from_option(c.marketplace()).dir_name() == mp)
             .collect()
     } else {
         candidates
@@ -147,7 +148,7 @@ fn resolve_single_plugin(
                 .map(|c| {
                     format!(
                         "{}/{}",
-                        c.marketplace().unwrap_or("github"),
+                        MarketplaceRef::from_option(c.marketplace()),
                         c.manifest().name
                     )
                 })
@@ -164,17 +165,16 @@ fn resolve_single_plugin(
 ///
 /// # Arguments
 ///
-/// * `marketplace` - Marketplace key (e.g. `"github"`).
+/// * `marketplace` - Marketplace reference.
 /// * `dir_name` - Cache directory name associated with the plugin.
-fn determine_source(marketplace: &str, dir_name: &str) -> Source {
-    if marketplace == "github" {
-        // owner--repo → owner/repo
-        let repository = restore_github_repo(dir_name);
-        Source::GitHub { repository }
-    } else {
-        Source::Marketplace {
-            name: marketplace.to_string(),
+fn determine_source(marketplace: &MarketplaceRef, dir_name: &str) -> Source {
+    match marketplace {
+        MarketplaceRef::Github => {
+            // owner--repo → owner/repo
+            let repository = restore_github_repo(dir_name);
+            Source::GitHub { repository }
         }
+        MarketplaceRef::Named(name) => Source::Marketplace { name: name.clone() },
     }
 }
 
@@ -204,10 +204,10 @@ fn build_plugin_info(content: MarketplaceContent) -> Result<PluginInfo> {
     let cache_path = content.path().to_path_buf();
     let manifest = content.manifest().clone();
 
-    // GitHub の場合は marketplace() == None。source / enabled 判定用に "github" を既定値とする
-    let marketplace_key = marketplace_opt.as_deref().unwrap_or("github");
+    // GitHub の場合は marketplace() == None。MarketplaceRef が既定値へ正規化する
+    let marketplace_ref = MarketplaceRef::from_option(marketplace_opt.as_deref());
 
-    let source = determine_source(marketplace_key, &dir_name);
+    let source = determine_source(&marketplace_ref, &dir_name);
 
     let installed_at = meta::resolve_installed_at(&cache_path);
 
@@ -217,7 +217,7 @@ fn build_plugin_info(content: MarketplaceContent) -> Result<PluginInfo> {
 
     // InstalledPlugin を組み立てる（list_installed_plugins と同じく marketplace は Option<String> を保つ）
     let id = Some(dir_name.clone());
-    let origin = PluginOrigin::from_marketplace(marketplace_key, &dir_name);
+    let origin = PluginOrigin::from_cached_plugin(marketplace_opt.as_deref(), &dir_name);
     let plugin = Plugin::new(manifest, cache_path, origin)?;
     let installed = InstalledPlugin::from_cached_package(plugin, id, marketplace_opt, enabled);
 

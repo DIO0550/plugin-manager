@@ -12,7 +12,7 @@ use crate::target::PluginOrigin;
 /// # Arguments
 ///
 /// * `cache` - package cache access used to read the manifest and path
-/// * `marketplace` - marketplace name (`None` defaults to `"github"`)
+/// * `marketplace` - marketplace name (`None` means the default GitHub marketplace)
 /// * `plugin_name` - id (cache directory name; e.g. `owner--repo` for GitHub)
 pub(crate) fn load_plugin(
     cache: &dyn PackageCacheAccess,

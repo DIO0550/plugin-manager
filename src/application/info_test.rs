@@ -301,7 +301,7 @@ fn test_resolve_single_plugin_filtered_not_found() {
 
 #[test]
 fn test_determine_source_github() {
-    let source = determine_source("github", "owner--repo");
+    let source = determine_source(&MarketplaceRef::Github, "owner--repo");
     match source {
         Source::GitHub { repository } => {
             assert_eq!(repository, "owner/repo");
@@ -312,7 +312,10 @@ fn test_determine_source_github() {
 
 #[test]
 fn test_determine_source_marketplace() {
-    let source = determine_source("awesome-plugins", "my-plugin");
+    let source = determine_source(
+        &MarketplaceRef::Named("awesome-plugins".to_string()),
+        "my-plugin",
+    );
     match source {
         Source::Marketplace { name } => {
             assert_eq!(name, "awesome-plugins");

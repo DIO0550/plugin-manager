@@ -134,19 +134,20 @@ fn cleanup_specs(
 }
 
 fn cleanup_one(fs: &dyn FileSystem, base: &Path, kind_subdir: &str, origin: &PluginOrigin) {
+    // 出自を復元できない配置物（Unknown）には対応する階層が存在しない
+    let Some((marketplace, plugin)) = origin.dir_names() else {
+        return;
+    };
     // 防御的検証: 不正な marketplace / plugin セグメントが渡された場合、
     // base の外で remove_dir_all が走ってしまうのを防ぐため cleanup をスキップする。
-    if !is_safe_path_segment(&origin.marketplace) || !is_safe_path_segment(&origin.plugin) {
+    if !is_safe_path_segment(marketplace) || !is_safe_path_segment(plugin) {
         return;
     }
 
-    let plugin_dir = base
-        .join(kind_subdir)
-        .join(&origin.marketplace)
-        .join(&origin.plugin);
+    let plugin_dir = base.join(kind_subdir).join(marketplace).join(plugin);
     remove_if_empty(fs, &plugin_dir);
 
-    let marketplace_dir = base.join(kind_subdir).join(&origin.marketplace);
+    let marketplace_dir = base.join(kind_subdir).join(marketplace);
     remove_if_empty(fs, &marketplace_dir);
 
     let kind_root = base.join(kind_subdir);
@@ -227,14 +228,18 @@ pub(crate) fn cleanup_legacy_hierarchy_impl(
 /// `<base>/<kind_subdir>/<mp>/<plg>` を quarantine rename → remove_dir_all で除去し、
 /// 空になった親 (mp_dir / kind_root) を昇格削除する。
 fn sweep_legacy_one(base: &Path, kind_subdir: &str, origin: &PluginOrigin) {
+    // 出自を復元できない配置物（Unknown）には対応する旧階層が存在しない
+    let Some((marketplace, plugin)) = origin.dir_names() else {
+        return;
+    };
     // ガード 1: marketplace / plugin が安全な path-segment か
-    if !is_safe_path_segment(&origin.marketplace) || !is_safe_path_segment(&origin.plugin) {
+    if !is_safe_path_segment(marketplace) || !is_safe_path_segment(plugin) {
         return;
     }
 
     let kind_root = base.join(kind_subdir);
-    let mp_dir = kind_root.join(&origin.marketplace);
-    let legacy = mp_dir.join(&origin.plugin);
+    let mp_dir = kind_root.join(marketplace);
+    let legacy = mp_dir.join(plugin);
 
     // ガード 2: legacy が存在
     if !legacy.exists() {
@@ -274,16 +279,16 @@ fn sweep_legacy_one(base: &Path, kind_subdir: &str, origin: &PluginOrigin) {
     }
 
     // ガード 8-9: file_name 一致
-    if mp_dir.file_name() != Some(OsStr::new(&origin.marketplace)) {
+    if mp_dir.file_name() != Some(OsStr::new(marketplace)) {
         return;
     }
-    if legacy.file_name() != Some(OsStr::new(&origin.plugin)) {
+    if legacy.file_name() != Some(OsStr::new(plugin)) {
         return;
     }
 
     // 全ガード通過 — quarantine rename → remove_dir_all
     let suffix = quarantine_suffix();
-    let quarantine = mp_dir.join(format!("{}.plm-quarantine-{}", origin.plugin, suffix));
+    let quarantine = mp_dir.join(format!("{}.plm-quarantine-{}", plugin, suffix));
     if std::fs::rename(&legacy, &quarantine).is_err() {
         // rename 失敗時は no-op で abort（race 中に削除されたなど誤削除を避ける）。
         return;

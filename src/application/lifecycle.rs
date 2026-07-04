@@ -126,7 +126,7 @@ pub fn enable_plugin(
 ///
 /// * `cache` - プラグインを検索するためのパッケージキャッシュアクセサ
 /// * `plugin_name` - プラグインの id（キャッシュディレクトリ名。GitHub なら `owner--repo`、Marketplace でも `cache.is_cached` / `load_plugin` に渡すディレクトリ名で、Marketplace 登録名とは一致しない場合がある。`InstalledPlugin::id()` 相当）
-/// * `marketplace` - マーケットプレイス名（任意、デフォルト: "github"）
+/// * `marketplace` - マーケットプレイス名（確定値。未指定時のデフォルト解決は CLI 境界の `MarketplaceArgs::marketplace_or_default` で行う）
 ///
 /// # Returns
 /// * `Ok(UninstallInfo)` - プラグイン情報
@@ -134,18 +134,16 @@ pub fn enable_plugin(
 pub fn get_uninstall_info(
     cache: &dyn PackageCacheAccess,
     plugin_name: &str,
-    marketplace: Option<&str>,
+    marketplace: &str,
 ) -> Result<UninstallInfo, String> {
-    let marketplace_str = marketplace.unwrap_or("github");
-
-    if !cache.is_cached(Some(marketplace_str), plugin_name) {
+    if !cache.is_cached(Some(marketplace), plugin_name) {
         return Err(format!(
             "Plugin '{}' not found in cache (marketplace: {})",
-            plugin_name, marketplace_str
+            plugin_name, marketplace
         ));
     }
 
-    let plugin = load_plugin(cache, Some(marketplace_str), plugin_name)?;
+    let plugin = load_plugin(cache, Some(marketplace), plugin_name)?;
     let components = plugin.components().to_vec();
 
     let affected_targets = all_targets()
@@ -156,7 +154,7 @@ pub fn get_uninstall_info(
 
     Ok(UninstallInfo {
         plugin_name: plugin_name.to_string(),
-        marketplace: marketplace_str.to_string(),
+        marketplace: marketplace.to_string(),
         components,
         affected_targets,
     })
