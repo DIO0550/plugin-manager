@@ -72,7 +72,7 @@ PLMのキャッシュ設計について説明します。
             └── owner--repo/        # 直接GitHubインストールは owner--repo 形式
 ```
 
-> 注: `~/.plm/config.toml` は未実装の将来仕様です（[#333](https://github.com/DIO0550/plugin-manager/issues/333)、[reference/config](../reference/config.md) 参照）。
+> 注: `~/.plm/config.toml` は未実装の将来仕様です（[reference/config](../reference/config.md) 参照）。
 
 ### プラグインキャッシュ（階層型）
 
