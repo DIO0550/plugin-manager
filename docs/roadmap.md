@@ -67,10 +67,10 @@ PLMの実装状況と将来の計画について説明します。
 - [x] `plm sync` コマンド
 - [x] バージョン/SHA比較ロジック
 
-### Phase 9: 作成・配布機能 ✅
+### Phase 9: 作成・配布機能 🚧
 
-- [x] `plm init` コマンド（テンプレート生成）
-- [x] `plm pack` コマンド（ZIP作成）
+- [ ] `plm init` コマンド（テンプレート生成）※CLI定義のみで**未実装スタブ**（[#323](https://github.com/DIO0550/plugin-manager/issues/323)）
+- [ ] `plm pack` コマンド（ZIP作成）※CLI定義のみで**未実装スタブ**（[#323](https://github.com/DIO0550/plugin-manager/issues/323)）
 
 ### Phase 10: インポート機能 ✅
 
@@ -84,10 +84,10 @@ PLMの実装状況と将来の計画について説明します。
 - [x] 基本レイアウト（タブ、リスト、詳細）
 - [x] キーバインド設計
 
-### Phase 12: TUIタブ実装 ✅
+### Phase 12: TUIタブ実装 🚧
 
 - [x] Installedタブ（プラグイン一覧、詳細、View on GitHub）
-- [x] Discoverタブ（マーケットプレイス検索・インストール）
+- [ ] Discoverタブ（マーケットプレイス検索・インストール）※現状は**プレースホルダのみ**で操作不可（[#325](https://github.com/DIO0550/plugin-manager/issues/325)）
 - [x] Marketplacesタブ
 - [x] Errorsタブ
 - [x] プラグイン選択ダイアログ（同名競合時）
@@ -138,15 +138,41 @@ impl GitRepo {
 
 ### 追加機能候補
 
-| 機能 | 説明 |
-|------|------|
-| `plm search` | プラグイン検索 |
-| 依存関係解決 | プラグイン間の依存関係管理 |
-| Lockfile | バージョン固定機能 |
-| `plm dev` | ローカルプラグイン開発支援 |
-| `plm validate` | プラグインバリデーション |
-| CI/CD統合 | GitHub Actions対応 |
-| ホスティング | プラグインのホスティング機能 |
+| 機能 | 説明 | Issue |
+|------|------|-------|
+| `plm search` | プラグイン検索 | [#325](https://github.com/DIO0550/plugin-manager/issues/325) |
+| 依存関係解決 | プラグイン間の依存関係管理 | [#318](https://github.com/DIO0550/plugin-manager/issues/318) |
+| Lockfile | バージョン固定機能 | [#327](https://github.com/DIO0550/plugin-manager/issues/327) |
+| `plm dev` | ローカルプラグイン開発支援 | [#324](https://github.com/DIO0550/plugin-manager/issues/324) |
+| `plm validate` | プラグインバリデーション | [#326](https://github.com/DIO0550/plugin-manager/issues/326) |
+| CI/CD統合 | GitHub Actions対応 | [#322](https://github.com/DIO0550/plugin-manager/issues/322)（非対話環境対応） |
+| ホスティング | プラグインのホスティング機能 | - |
+
+### Claude Code Plugin とのギャップ（Issue 管理）
+
+Claude Code のプラグインシステム（`claude plugin` CLI / `/plugin`）との比較で判明した不足仕様・利便性ギャップは、以下の Issue で管理する（2026-07 調査）。
+
+| 分類 | Issue |
+|------|-------|
+| plugin.json: `mcpServers` / `lspServers` が警告なしで無視される | [#317](https://github.com/DIO0550/plugin-manager/issues/317) |
+| plugin.json: 配列型パス・`displayName`・`defaultEnabled`・`dependencies` 等の未対応 | [#318](https://github.com/DIO0550/plugin-manager/issues/318) |
+| marketplace.json: source の `ref`/`sha`・`url`・`git-subdir`、`metadata.pluginRoot`、`strict` 未対応 | [#319](https://github.com/DIO0550/plugin-manager/issues/319) |
+| `${CLAUDE_PLUGIN_ROOT}` の markdown 本文置換 | [#320](https://github.com/DIO0550/plugin-manager/issues/320) |
+| `enable`/`disable`/`update` の `--target` が codex/copilot 限定 | [#321](https://github.com/DIO0550/plugin-manager/issues/321) |
+| 非対話環境（CI）対応: デフォルト scope / `--yes` | [#322](https://github.com/DIO0550/plugin-manager/issues/322) |
+| `plm init` / `plm pack` の実装 | [#323](https://github.com/DIO0550/plugin-manager/issues/323) |
+| ローカルパスからの install / import（開発ループ） | [#324](https://github.com/DIO0550/plugin-manager/issues/324) |
+| `plm search` と TUI Discover タブの実装 | [#325](https://github.com/DIO0550/plugin-manager/issues/325) |
+| `plm validate` の実装 | [#326](https://github.com/DIO0550/plugin-manager/issues/326) |
+| バージョン管理強化（version/semver・marketplace ref 固定・lockfile） | [#327](https://github.com/DIO0550/plugin-manager/issues/327) |
+| sync 改善（Hook 対応・`--no-delete`） | [#328](https://github.com/DIO0550/plugin-manager/issues/328) |
+| CLI 整合性・出力改善（`marketplace list --json`・shell 補完等） | [#329](https://github.com/DIO0550/plugin-manager/issues/329) |
+| インストール前の内訳表示・変換ロスの可視化 | [#330](https://github.com/DIO0550/plugin-manager/issues/330) |
+| 名前空間 flatten の prefix 衝突・marketplace `renames` 追従 | [#331](https://github.com/DIO0550/plugin-manager/issues/331) |
+| プロジェクト設定ファイルによるチーム共有（`plm apply`） | [#332](https://github.com/DIO0550/plugin-manager/issues/332) |
+| `~/.plm/config.toml` の実装 | [#333](https://github.com/DIO0550/plugin-manager/issues/333) |
+
+hooks 関連のギャップは既存 Issue（[#304](https://github.com/DIO0550/plugin-manager/issues/304), [#308](https://github.com/DIO0550/plugin-manager/issues/308), [#309](https://github.com/DIO0550/plugin-manager/issues/309), [#310](https://github.com/DIO0550/plugin-manager/issues/310)）で管理する。
 
 ## 参考リンク
 

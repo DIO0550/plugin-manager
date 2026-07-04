@@ -1,5 +1,7 @@
 # plm init
 
+> **⚠️ 未実装**: `plm init` は CLI に定義されていますが、ハンドラは未実装のスタブであり、実行すると `not implemented` エラーになります。実装は [#323](https://github.com/DIO0550/plugin-manager/issues/323) で管理しています。以下は実装予定の仕様です。
+
 コンポーネントのテンプレートを作成します。
 
 ## 基本構文
