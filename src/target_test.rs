@@ -40,6 +40,15 @@ fn test_parse_target_gemini() {
     assert_eq!(target.name(), "gemini");
 }
 
+#[test]
+fn test_name_is_derived_from_kind() {
+    // `Target::name()` は `kind().as_str()` から導出される単一の真実源。
+    // 各ターゲットで両者が一致することを保証し、識別子表現のドリフトを防ぐ。
+    for target in all_targets() {
+        assert_eq!(target.name(), target.kind().as_str());
+    }
+}
+
 // ========================================
 // PluginOrigin tests
 // ========================================
