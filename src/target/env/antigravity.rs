@@ -71,10 +71,6 @@ impl Default for AntigravityTarget {
 }
 
 impl Target for AntigravityTarget {
-    fn name(&self) -> &'static str {
-        "antigravity"
-    }
-
     fn display_name(&self) -> &'static str {
         "Google Antigravity"
     }

@@ -80,10 +80,6 @@ impl Default for CopilotTarget {
 }
 
 impl Target for CopilotTarget {
-    fn name(&self) -> &'static str {
-        "copilot"
-    }
-
     fn display_name(&self) -> &'static str {
         "GitHub Copilot"
     }

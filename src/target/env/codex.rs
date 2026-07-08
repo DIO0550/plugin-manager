@@ -141,10 +141,6 @@ impl Default for CodexTarget {
 }
 
 impl Target for CodexTarget {
-    fn name(&self) -> &'static str {
-        "codex"
-    }
-
     fn display_name(&self) -> &'static str {
         "OpenAI Codex"
     }

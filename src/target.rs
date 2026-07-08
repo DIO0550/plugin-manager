@@ -25,7 +25,7 @@ mod env;
 mod placed;
 
 pub(crate) use core::paths;
-pub use core::{AddOutcome, RemoveOutcome, TargetId, TargetRegistry};
+pub use core::{AddOutcome, RemoveOutcome, TargetRegistry};
 pub use effect::{AffectedTargets, OperationOutcome};
 pub use env::{
     apply_codex_hooks_flag, AntigravityTarget, CodexTarget, CopilotTarget, FeatureFlagOutcome,
@@ -147,7 +147,9 @@ impl PluginOrigin {
 }
 
 /// ターゲット種別（CLIオプション用）
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, ValueEnum, Serialize, Deserialize,
+)]
 #[serde(rename_all = "lowercase")]
 pub enum TargetKind {
     Antigravity,
@@ -199,14 +201,18 @@ impl TargetKind {
 /// 各ターゲット（Codex, Copilot）がこのtraitを実装する。
 /// 使う側は具体的なターゲットを意識せずに配置操作を行える。
 pub trait Target: Send + Sync {
-    /// ターゲット識別子（"codex", "copilot"）
-    fn name(&self) -> &'static str;
+    /// ターゲット種別（識別子の単一の真実源）
+    fn kind(&self) -> TargetKind;
+
+    /// ターゲット識別子文字列（"codex", "copilot" …）。
+    ///
+    /// `kind()` から導出するため、各ターゲットで再実装する必要はない。
+    fn name(&self) -> &'static str {
+        self.kind().as_str()
+    }
 
     /// 表示名
     fn display_name(&self) -> &'static str;
-
-    /// ターゲット種別
-    fn kind(&self) -> TargetKind;
 
     /// Command コンポーネントのフォーマットを取得
     fn command_format(&self) -> CommandFormat {

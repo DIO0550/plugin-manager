@@ -13,21 +13,22 @@ use crate::component::{
     ProjectContext, Scope, ScopedPath,
 };
 use crate::fs::{FileSystem, RealFs};
-use crate::target::TargetId;
-use crate::target::{all_targets, AffectedTargets, OperationOutcome, PluginOrigin, Target};
+use crate::target::{
+    all_targets, AffectedTargets, OperationOutcome, PluginOrigin, Target, TargetKind,
+};
 use std::path::{Path, PathBuf};
 
 /// 単一コンポーネントの操作生成結果
 type CreateOperationResult =
-    std::result::Result<Option<(TargetId, FileOperation)>, (TargetId, String)>;
+    std::result::Result<Option<(TargetKind, FileOperation)>, (TargetKind, String)>;
 
 /// `expand()` の結果
 #[derive(Debug)]
 pub struct ExpandOutcome {
     /// 正常に生成されたファイル操作
-    pub operations: Vec<(TargetId, FileOperation)>,
-    /// パス検証エラー（ターゲットID, エラーメッセージ）
-    pub validation_errors: Vec<(TargetId, String)>,
+    pub operations: Vec<(TargetKind, FileOperation)>,
+    /// パス検証エラー（ターゲット種別, エラーメッセージ）
+    pub validation_errors: Vec<(TargetKind, String)>,
 }
 
 /// プラグイン操作意図（事前スキャン済みデータを保持）
@@ -177,15 +178,11 @@ impl PluginIntent {
             None => return Ok(None),
         };
         let target_path = location.into_path();
-        let scoped = ScopedPath::new(target_path, &self.project_root).map_err(|e| {
-            (
-                TargetId::new(target.name()),
-                format!("Path validation failed: {}", e),
-            )
-        })?;
+        let scoped = ScopedPath::new(target_path, &self.project_root)
+            .map_err(|e| (target.kind(), format!("Path validation failed: {}", e)))?;
 
         let op = self.build_file_operation(component, scoped);
-        Ok(Some((TargetId::new(target.name()), op)))
+        Ok(Some((target.kind(), op)))
     }
 
     /// Imperative Shell: 実行（副作用）
@@ -210,18 +207,18 @@ fn execute_file_operations(
     let fs = RealFs;
     let mut affected = AffectedTargets::new();
 
-    for (target_id, msg) in expand_outcome.validation_errors {
-        affected.record_error(target_id.as_str(), msg);
+    for (target_kind, msg) in expand_outcome.validation_errors {
+        affected.record_error(target_kind.as_str(), msg);
     }
 
-    let mut by_target: std::collections::HashMap<TargetId, Vec<FileOperation>> =
+    let mut by_target: std::collections::HashMap<TargetKind, Vec<FileOperation>> =
         std::collections::HashMap::new();
 
-    for (target_id, op) in expand_outcome.operations {
-        by_target.entry(target_id).or_default().push(op);
+    for (target_kind, op) in expand_outcome.operations {
+        by_target.entry(target_kind).or_default().push(op);
     }
 
-    for (target_id, ops) in by_target {
+    for (target_kind, ops) in by_target {
         let mut success_count = 0;
         let mut error_msg = None;
 
@@ -257,9 +254,9 @@ fn execute_file_operations(
         }
 
         if let Some(msg) = error_msg {
-            affected.record_error(target_id.as_str(), msg);
+            affected.record_error(target_kind.as_str(), msg);
         } else {
-            affected.record_success(target_id.as_str(), success_count);
+            affected.record_success(target_kind.as_str(), success_count);
         }
     }
 

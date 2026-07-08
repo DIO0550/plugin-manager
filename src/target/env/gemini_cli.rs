@@ -65,10 +65,6 @@ impl Default for GeminiCliTarget {
 }
 
 impl Target for GeminiCliTarget {
-    fn name(&self) -> &'static str {
-        "gemini"
-    }
-
     fn display_name(&self) -> &'static str {
         "Gemini CLI"
     }
