@@ -9,7 +9,9 @@ use std::path::Path;
 
 use super::super::convert;
 use super::super::convert::TargetFormat;
-use super::super::frontmatter::{emit_frontmatter, parse_frontmatter, stem_without_suffixes, ParsedDocument};
+use super::super::frontmatter::{
+    emit_frontmatter, parse_frontmatter, stem_without_suffixes, ParsedDocument,
+};
 
 /// Codex Agent frontmatter fields.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
