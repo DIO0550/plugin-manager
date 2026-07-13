@@ -199,7 +199,7 @@ impl ScriptGenerator for CopilotScriptGenerator {
         let script_content = format!(
             "#!/bin/bash\nset -euo pipefail\n\nHOOK_EVENT='{}'\n\n{}\n{}\nORIGINAL_CMD='{}'\n\n{}\n",
             shell_escape(event),
-            &build_env_bridge(event),
+            build_env_bridge(event),
             matcher_filter,
             shell_escape(hook.command),
             EXIT_CODE_HANDLER
@@ -256,7 +256,7 @@ fi
 exit 0
 "#,
             shell_escape(event),
-            &build_env_bridge(event),
+            build_env_bridge(event),
             matcher_filter,
             hook.method,
             hook.url.replace('\n', "\\n").replace('\r', "\\r"),
@@ -297,7 +297,7 @@ exit 0
 
         let script_content = format!(
             "#!/bin/bash\nset -euo pipefail\n\n{}\n{}\n# TODO: This is a stub for a Claude Code '{}' hook.\n# prompt/agent hooks are Claude Code-specific features.\n# Please manually rewrite as scripts.\n#\n# Original configuration:\n# {}\n\necho \"STUB: {} hook for event '{}' - please implement manually\" >&2\nexit 0\n",
-            &build_env_bridge(event),
+            build_env_bridge(event),
             matcher_filter,
             hook.hook_type,
             original_json.replace('\n', "\n# "),
