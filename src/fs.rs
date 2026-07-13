@@ -68,9 +68,10 @@ pub trait FileSystem: Send + Sync {
     /// * `dst` - Destination directory path.
     fn copy_dir(&self, src: &Path, dst: &Path) -> Result<()>;
 
-    /// ディレクトリを再帰的にコピー（置換）
+    /// ディレクトリをミラーリングコピー
     ///
-    /// - 宛先が存在すれば削除してからコピー（余剰ファイルは残らない）
+    /// - 宛先を削除してからコピーし、宛先をソースの完全な写像にする
+    /// - 余剰ファイルは残らない
     /// - シンボリックリンクは追従
     /// - 同一/子孫パスへのコピーは Err
     ///
@@ -78,7 +79,7 @@ pub trait FileSystem: Send + Sync {
     ///
     /// * `src` - Source directory path.
     /// * `dst` - Destination directory path.
-    fn copy_dir_replace(&self, src: &Path, dst: &Path) -> Result<()>;
+    fn copy_dir_mirror(&self, src: &Path, dst: &Path) -> Result<()>;
 
     /// ファイルまたはディレクトリを削除
     ///
@@ -204,7 +205,7 @@ impl FileSystem for RealFs {
         copy_dir_recursive(src, dst)
     }
 
-    fn copy_dir_replace(&self, src: &Path, dst: &Path) -> Result<()> {
+    fn copy_dir_mirror(&self, src: &Path, dst: &Path) -> Result<()> {
         self.guard_copy_dir_into_self(src, dst)?;
         if dst.exists() {
             std::fs::remove_dir_all(dst)?;

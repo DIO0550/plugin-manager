@@ -136,7 +136,7 @@ impl FileSystem for MockFs {
         Ok(())
     }
 
-    fn copy_dir_replace(&self, src: &Path, dst: &Path) -> Result<()> {
+    fn copy_dir_mirror(&self, src: &Path, dst: &Path) -> Result<()> {
         let src_str = src.to_string_lossy().to_string();
         let dst_str = dst.to_string_lossy().to_string();
 

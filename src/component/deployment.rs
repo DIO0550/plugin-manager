@@ -76,8 +76,8 @@ impl ComponentDeployment {
     }
 
     fn deploy_skill(&self, fs: &dyn FileSystem) -> Result<DeploymentOutput> {
-        // Skills are directories — replace existing target to avoid stale files.
-        fs.copy_dir_replace(self.source_path(), &self.target_path)?;
+        // Skills are directories — mirror source to avoid stale files in target.
+        fs.copy_dir_mirror(self.source_path(), &self.target_path)?;
 
         // ターゲットがサポートしない frontmatter フィールドを SKILL.md から除去する。
         if let ConversionConfig::Skill { target_kind } = &self.conversion {

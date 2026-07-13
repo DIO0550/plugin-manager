@@ -56,7 +56,7 @@ impl PathExt for Path {
     }
 
     fn copy_dir_to(&self, target: &Path) -> Result<()> {
-        RealFs.copy_dir_replace(self, target)
+        RealFs.copy_dir_mirror(self, target)
     }
 
     fn copy_file_to(&self, target: &Path) -> Result<()> {

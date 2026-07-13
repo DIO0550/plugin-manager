@@ -227,7 +227,7 @@ fn execute_file_operations(
                     fs.copy_file(source, target.as_path())
                 }
                 FileOperation::CopyDir { source, target } => {
-                    fs.copy_dir_replace(source, target.as_path())
+                    fs.copy_dir_mirror(source, target.as_path())
                 }
                 FileOperation::RemoveFile { path } => {
                     let p = path.as_path();

@@ -41,7 +41,7 @@ fn test_mock_fs_content_hash() {
 }
 
 #[test]
-fn test_mock_fs_copy_dir_replace_removes_stale_files() {
+fn test_mock_fs_copy_dir_mirror_removes_stale_files() {
     let fs = MockFs::new();
 
     fs.add_dir("/src");
@@ -49,7 +49,7 @@ fn test_mock_fs_copy_dir_replace_removes_stale_files() {
     fs.add_dir("/dst");
     fs.add_file("/dst/old.txt", "old");
 
-    fs.copy_dir_replace(Path::new("/src"), Path::new("/dst"))
+    fs.copy_dir_mirror(Path::new("/src"), Path::new("/dst"))
         .unwrap();
 
     assert!(fs.exists(Path::new("/dst/new.txt")));
