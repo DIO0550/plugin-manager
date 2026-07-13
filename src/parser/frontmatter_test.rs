@@ -1,7 +1,11 @@
 //! Tests for frontmatter parser.
 
-use super::frontmatter::parse_frontmatter;
+use super::frontmatter::{
+    emit_frontmatter, normalize_optional_name, parse_frontmatter, stem_without_suffixes,
+    yaml_single_quoted_array,
+};
 use serde::Deserialize;
+use std::path::Path;
 
 #[derive(Debug, Clone, Default, Deserialize, PartialEq)]
 struct TestFrontmatter {
@@ -167,4 +171,76 @@ Body with --- dashes in text."#;
 
     assert!(result.frontmatter.is_some());
     assert!(result.body.contains("--- dashes"));
+}
+
+#[test]
+fn stem_without_suffixes_prefers_longer_agent_suffix() {
+    let path = Path::new("/tmp/code-reviewer.agent.md");
+    assert_eq!(
+        stem_without_suffixes(path, &[".agent.md", ".md"]),
+        Some("code-reviewer".to_string())
+    );
+}
+
+#[test]
+fn stem_without_suffixes_prefers_longer_prompt_suffix() {
+    let path = Path::new("/tmp/commit.prompt.md");
+    assert_eq!(
+        stem_without_suffixes(path, &[".prompt.md", ".md"]),
+        Some("commit".to_string())
+    );
+}
+
+#[test]
+fn stem_without_suffixes_falls_back_to_md() {
+    let path = Path::new("/tmp/helper.md");
+    assert_eq!(
+        stem_without_suffixes(path, &[".agent.md", ".md"]),
+        Some("helper".to_string())
+    );
+}
+
+#[test]
+fn stem_without_suffixes_rejects_empty_stem() {
+    let path = Path::new("/tmp/.md");
+    assert_eq!(stem_without_suffixes(path, &[".md"]), None);
+}
+
+#[test]
+fn normalize_optional_name_trims_and_filters_empty() {
+    assert_eq!(
+        normalize_optional_name(Some("  name  ".to_string())),
+        Some("name".to_string())
+    );
+    assert_eq!(normalize_optional_name(Some("".to_string())), None);
+    assert_eq!(normalize_optional_name(Some("   ".to_string())), None);
+    assert_eq!(normalize_optional_name(None), None);
+}
+
+#[test]
+fn emit_frontmatter_returns_body_when_fields_empty() {
+    assert_eq!(emit_frontmatter(&[], "Body only."), "Body only.");
+}
+
+#[test]
+fn emit_frontmatter_wraps_fields() {
+    let fields = vec!["name: test".to_string(), "model: opus".to_string()];
+    assert_eq!(
+        emit_frontmatter(&fields, "Body"),
+        "---\nname: test\nmodel: opus\n---\n\nBody"
+    );
+}
+
+#[test]
+fn yaml_single_quoted_array_escapes_quotes() {
+    let items = vec!["tool'with'quotes".to_string(), "codebase".to_string()];
+    assert_eq!(
+        yaml_single_quoted_array(&items),
+        "['tool''with''quotes', 'codebase']"
+    );
+}
+
+#[test]
+fn yaml_single_quoted_array_empty() {
+    assert_eq!(yaml_single_quoted_array(&[]), "[]");
 }

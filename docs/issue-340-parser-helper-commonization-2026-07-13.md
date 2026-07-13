@@ -196,6 +196,42 @@ emit_frontmatter(&fields, &self.body)
 - `convert` は tool/model/body 変換と `TargetFormat` の場所。path stem / frontmatter envelope は変換ではない。
 - `escape_yaml_string` は既にここにあるが、配列断片をさらに足すと「変換」と「文書組み立て」が混ざる。envelope/array は frontmatter 側が自然。
 
+## 実装計画（Phase 1）
+
+本節が実装の作業指示である。trait 化・serde 直列化寄せは対象外。
+
+### スコープ
+
+| やる | やらない |
+|---|---|
+| `frontmatter.rs` に 4 helper を追加 | `ParsedDocumentFile` trait |
+| 6 パーサーからローカル `extract_name_from_path` を削除 | `serde_yaml` による `to_markdown` |
+| 4 パーサーからローカル `normalize_name` を削除 | 空 `tools` の agent/prompt 挙動統一 |
+| envelope / YAML 配列断片を helper 呼び出しへ | `marketplace::normalize_name` の変更 |
+
+### 手順
+
+1. `frontmatter_test.rs` に helper 単体テストを追加（Red）。
+2. `frontmatter.rs` に次を `pub(crate)` で実装（Green）。
+   - `stem_without_suffixes`
+   - `normalize_optional_name`
+   - `emit_frontmatter`
+   - `yaml_single_quoted_array`
+3. 各パーサーを置換し、ローカル定義を削除する。
+   - agent: `stem_without_suffixes(path, &[".agent.md", ".md"])`（Claude Code agent は `&[".md"]`）
+   - Copilot prompt: `&[".prompt.md", ".md"]`
+   - Codex prompt / Claude Code command: `&[".md"]`
+   - `normalize_name(...)` → `normalize_optional_name(...)`
+   - envelope 末尾 → `emit_frontmatter(&fields, &self.body)`
+   - Copilot tools 配列 → `yaml_single_quoted_array(tools)`（空配列の省略/出力条件は呼び出し側に残す）
+4. `cargo fmt` → `cargo check` → `cargo test`（parser 配下）で確認する。
+
+### 受け入れ条件
+
+- ローカルの `extract_name_from_path` / `normalize_name` が 6/4 ファイルから消えている。
+- 既存 `to_markdown_*` / `load` / `extract_name_*` テストが無変更で通る。
+- `marketplace::normalize_name` と衝突する公開名を追加していない。
+
 ## 将来移行手順
 
 1. 既存の `*_test.rs`（特に `to_markdown_*` / `extract_name_*` / load fallback）を現状固定の回帰として確認する。

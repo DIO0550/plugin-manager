@@ -9,7 +9,7 @@ use std::path::Path;
 
 use super::super::convert;
 use super::super::convert::TargetFormat;
-use super::super::frontmatter::{parse_frontmatter, ParsedDocument};
+use super::super::frontmatter::{emit_frontmatter, parse_frontmatter, stem_without_suffixes, ParsedDocument};
 
 /// Codex Agent frontmatter fields.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -63,7 +63,7 @@ impl CodexAgent {
         let content = fs::read_to_string(path)?;
         let mut agent = Self::parse(&content)?;
 
-        agent.name = extract_name_from_path(path);
+        agent.name = stem_without_suffixes(path, &[".agent.md", ".md"]);
 
         Ok(agent)
     }
@@ -78,29 +78,6 @@ impl TargetFormat for CodexAgent {
             fields.push(format!("description: {}", convert::escape_yaml_string(v)));
         }
 
-        if fields.is_empty() {
-            self.body.clone()
-        } else {
-            format!("---\n{}\n---\n\n{}", fields.join("\n"), self.body)
-        }
+        emit_frontmatter(&fields, &self.body)
     }
-}
-
-/// Extracts agent name from file path.
-///
-/// Removes `.agent.md` or `.md` extension from the filename.
-///
-/// # Arguments
-///
-/// * `path` - File path whose stem will be used as the agent name.
-fn extract_name_from_path(path: &Path) -> Option<String> {
-    path.file_name()
-        .and_then(|s| s.to_str())
-        .map(|s| {
-            s.strip_suffix(".agent.md")
-                .or_else(|| s.strip_suffix(".md"))
-                .unwrap_or(s)
-                .to_string()
-        })
-        .filter(|s| !s.is_empty())
 }

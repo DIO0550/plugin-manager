@@ -10,7 +10,10 @@ use std::path::Path;
 use super::super::codex::CodexPrompt;
 use super::super::convert::{self, TargetFormat, TargetType};
 use super::super::copilot::CopilotPrompt;
-use super::super::frontmatter::{parse_frontmatter, ParsedDocument};
+use super::super::frontmatter::{
+    emit_frontmatter, normalize_optional_name, parse_frontmatter, stem_without_suffixes,
+    ParsedDocument,
+};
 
 /// Claude Code Command frontmatter fields.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -81,7 +84,7 @@ impl ClaudeCodeCommand {
         let fm = frontmatter.unwrap_or_default();
 
         Ok(ClaudeCodeCommand {
-            name: normalize_name(fm.name),
+            name: normalize_optional_name(fm.name),
             description: fm.description,
             allowed_tools: fm.allowed_tools,
             argument_hint: fm.argument_hint,
@@ -104,7 +107,7 @@ impl ClaudeCodeCommand {
         let mut command = Self::parse(&content)?;
 
         if command.name.is_none() {
-            command.name = extract_name_from_path(path);
+            command.name = stem_without_suffixes(path, &[".md"]);
         }
 
         Ok(command)
@@ -136,11 +139,7 @@ impl ClaudeCodeCommand {
             fields.push(format!("user-invocable: {}", v));
         }
 
-        if fields.is_empty() {
-            self.body.clone()
-        } else {
-            format!("---\n{}\n---\n\n{}", fields.join("\n"), self.body)
-        }
+        emit_frontmatter(&fields, &self.body)
     }
 
     /// Converts to the specified target format.
@@ -195,27 +194,4 @@ impl ClaudeCodeCommand {
             body: self.body.clone(), // Codex doesn't support variables
         }
     }
-}
-
-/// Normalizes name: empty or whitespace-only string becomes None.
-///
-/// # Arguments
-///
-/// * `name` - Optional raw name string from frontmatter.
-fn normalize_name(name: Option<String>) -> Option<String> {
-    name.map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
-}
-
-/// Extracts command name from file path.
-///
-/// Removes the `.md` extension from the filename.
-///
-/// # Arguments
-///
-/// * `path` - File path whose stem will be used as the command name.
-fn extract_name_from_path(path: &Path) -> Option<String> {
-    path.file_name()
-        .and_then(|s| s.to_str())
-        .map(|s| s.strip_suffix(".md").unwrap_or(s).to_string())
-        .filter(|s| !s.is_empty())
 }

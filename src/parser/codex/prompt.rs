@@ -9,7 +9,7 @@ use std::path::Path;
 
 use super::super::convert;
 use super::super::convert::TargetFormat;
-use super::super::frontmatter::{parse_frontmatter, ParsedDocument};
+use super::super::frontmatter::{emit_frontmatter, parse_frontmatter, stem_without_suffixes, ParsedDocument};
 
 /// Codex Prompt frontmatter fields.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -63,7 +63,7 @@ impl CodexPrompt {
         let content = fs::read_to_string(path)?;
         let mut prompt = Self::parse(&content)?;
 
-        prompt.name = extract_name_from_path(path);
+        prompt.name = stem_without_suffixes(path, &[".md"]);
 
         Ok(prompt)
     }
@@ -78,24 +78,6 @@ impl TargetFormat for CodexPrompt {
             fields.push(format!("description: {}", convert::escape_yaml_string(v)));
         }
 
-        if fields.is_empty() {
-            self.body.clone()
-        } else {
-            format!("---\n{}\n---\n\n{}", fields.join("\n"), self.body)
-        }
+        emit_frontmatter(&fields, &self.body)
     }
-}
-
-/// Extracts prompt name from file path.
-///
-/// Removes the `.md` extension from the filename.
-///
-/// # Arguments
-///
-/// * `path` - File path whose stem will be used as the prompt name.
-fn extract_name_from_path(path: &Path) -> Option<String> {
-    path.file_name()
-        .and_then(|s| s.to_str())
-        .map(|s| s.strip_suffix(".md").unwrap_or(s).to_string())
-        .filter(|s| !s.is_empty())
 }

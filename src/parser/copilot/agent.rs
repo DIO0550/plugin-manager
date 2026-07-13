@@ -9,7 +9,10 @@ use std::path::Path;
 
 use super::super::convert;
 use super::super::convert::TargetFormat;
-use super::super::frontmatter::{parse_frontmatter, ParsedDocument};
+use super::super::frontmatter::{
+    emit_frontmatter, normalize_optional_name, parse_frontmatter, stem_without_suffixes,
+    yaml_single_quoted_array, ParsedDocument,
+};
 
 /// Copilot Agent handoff entry.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -90,7 +93,7 @@ impl CopilotAgent {
         let fm = frontmatter.unwrap_or_default();
 
         Ok(CopilotAgent {
-            name: normalize_name(fm.name),
+            name: normalize_optional_name(fm.name),
             description: fm.description,
             tools: fm.tools,
             model: fm.model,
@@ -112,7 +115,7 @@ impl CopilotAgent {
         let mut agent = Self::parse(&content)?;
 
         if agent.name.is_none() {
-            agent.name = extract_name_from_path(path);
+            agent.name = stem_without_suffixes(path, &[".agent.md", ".md"]);
         }
 
         Ok(agent)
@@ -132,12 +135,7 @@ impl TargetFormat for CopilotAgent {
         if let Some(ref tools) = self.tools {
             if !tools.is_empty() {
                 // YAML array format: tools: ['codebase', 'terminal']
-                let arr = tools
-                    .iter()
-                    .map(|t| format!("'{}'", t.replace('\'', "''")))
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                fields.push(format!("tools: [{}]", arr));
+                fields.push(format!("tools: {}", yaml_single_quoted_array(tools)));
             }
         }
         if let Some(ref v) = self.model {
@@ -170,38 +168,6 @@ impl TargetFormat for CopilotAgent {
             }
         }
 
-        if fields.is_empty() {
-            self.body.clone()
-        } else {
-            format!("---\n{}\n---\n\n{}", fields.join("\n"), self.body)
-        }
+        emit_frontmatter(&fields, &self.body)
     }
-}
-
-/// Normalizes name: empty or whitespace-only string becomes None.
-///
-/// # Arguments
-///
-/// * `name` - Optional raw name string from frontmatter.
-fn normalize_name(name: Option<String>) -> Option<String> {
-    name.map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
-}
-
-/// Extracts agent name from file path.
-///
-/// Removes `.agent.md` or `.md` extension from the filename.
-///
-/// # Arguments
-///
-/// * `path` - File path whose stem will be used as the agent name.
-fn extract_name_from_path(path: &Path) -> Option<String> {
-    path.file_name()
-        .and_then(|s| s.to_str())
-        .map(|s| {
-            s.strip_suffix(".agent.md")
-                .or_else(|| s.strip_suffix(".md"))
-                .unwrap_or(s)
-                .to_string()
-        })
-        .filter(|s| !s.is_empty())
 }

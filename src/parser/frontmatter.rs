@@ -1,9 +1,11 @@
 //! Generic YAML frontmatter parser.
 //!
 //! Parses documents with YAML frontmatter delimited by `---` markers.
+//! Also provides shared helpers for name extraction and frontmatter emission.
 
 use crate::error::{PlmError, Result};
 use serde::de::DeserializeOwned;
+use std::path::Path;
 
 /// Parsed document with separated frontmatter and body.
 #[derive(Debug, Clone)]
@@ -110,4 +112,71 @@ pub fn parse_frontmatter<T: DeserializeOwned + Default>(
         frontmatter: Some(frontmatter),
         body,
     })
+}
+
+/// Extracts a component name from a file path by stripping known suffixes.
+///
+/// Suffixes are tried in the given order; callers should pass longer suffixes
+/// first (e.g. `.agent.md` before `.md`) so that `foo.agent.md` becomes `foo`
+/// rather than `foo.agent`.
+///
+/// # Arguments
+///
+/// * `path` - File path whose file name will be used as the stem source.
+/// * `suffixes` - Candidate suffixes to strip, in preference order.
+pub(crate) fn stem_without_suffixes(path: &Path, suffixes: &[&str]) -> Option<String> {
+    path.file_name()
+        .and_then(|s| s.to_str())
+        .map(|s| {
+            suffixes
+                .iter()
+                .find_map(|suffix| s.strip_suffix(suffix))
+                .unwrap_or(s)
+                .to_string()
+        })
+        .filter(|s| !s.is_empty())
+}
+
+/// Normalizes an optional frontmatter name: trim whitespace, empty becomes None.
+///
+/// Distinct from [`crate::marketplace::normalize_name`], which validates
+/// marketplace identifiers.
+///
+/// # Arguments
+///
+/// * `name` - Optional raw name string from frontmatter.
+pub(crate) fn normalize_optional_name(name: Option<String>) -> Option<String> {
+    name.map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
+}
+
+/// Builds a YAML frontmatter envelope around `body`.
+///
+/// When `fields` is empty, returns `body` unchanged (no `---` markers).
+///
+/// # Arguments
+///
+/// * `fields` - Pre-formatted `key: value` lines for the frontmatter block.
+/// * `body` - Markdown body after the frontmatter.
+pub(crate) fn emit_frontmatter(fields: &[String], body: &str) -> String {
+    if fields.is_empty() {
+        body.to_string()
+    } else {
+        format!("---\n{}\n---\n\n{}", fields.join("\n"), body)
+    }
+}
+
+/// Formats a YAML flow sequence using single-quoted scalars.
+///
+/// Single quotes inside items are escaped by doubling (`'` → `''`).
+///
+/// # Arguments
+///
+/// * `items` - Array elements to serialize (e.g. Copilot `tools`).
+pub(crate) fn yaml_single_quoted_array(items: &[String]) -> String {
+    let arr = items
+        .iter()
+        .map(|t| format!("'{}'", t.replace('\'', "''")))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("[{}]", arr)
 }
