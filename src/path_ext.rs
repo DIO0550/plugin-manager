@@ -3,7 +3,7 @@
 //! 標準ライブラリの `Path` に便利メソッドを追加する。
 
 use crate::error::Result;
-use std::fs;
+use crate::fs::{FileSystem, RealFs};
 use std::path::{Path, PathBuf};
 
 /// Path の拡張トレイト
@@ -56,32 +56,11 @@ impl PathExt for Path {
     }
 
     fn copy_dir_to(&self, target: &Path) -> Result<()> {
-        if target.exists() {
-            fs::remove_dir_all(target)?;
-        }
-        fs::create_dir_all(target)?;
-
-        for entry in fs::read_dir(self)? {
-            let entry = entry?;
-            let source_path = entry.path();
-            let target_path = target.join(entry.file_name());
-
-            if source_path.is_dir() {
-                source_path.copy_dir_to(&target_path)?;
-            } else {
-                fs::copy(&source_path, &target_path)?;
-            }
-        }
-
-        Ok(())
+        RealFs.copy_dir_replace(self, target)
     }
 
     fn copy_file_to(&self, target: &Path) -> Result<()> {
-        if let Some(parent) = target.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        fs::copy(self, target)?;
-        Ok(())
+        RealFs.copy_file(self, target)
     }
 }
 

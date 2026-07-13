@@ -4,6 +4,7 @@
 //! ソース形式からターゲット形式への自動変換を行う。
 
 use crate::error::{PlmError, Result};
+use crate::fs::{FileSystem, RealFs};
 use crate::parser::{ClaudeCodeAgent, ClaudeCodeCommand, TargetType};
 use crate::target::TargetKind;
 use std::fs;
@@ -236,11 +237,7 @@ fn convert_agent_content(
 /// * `source` - Source file to copy from.
 /// * `dest` - Destination path to copy to; parent directories are created as needed.
 fn copy_file(source: &Path, dest: &Path) -> Result<()> {
-    if let Some(parent) = dest.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    fs::copy(source, dest)?;
-    Ok(())
+    RealFs.copy_file(source, dest)
 }
 
 /// アトミック書き込み（一時ファイル → rename）

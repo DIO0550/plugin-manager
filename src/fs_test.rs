@@ -39,3 +39,34 @@ fn test_mock_fs_content_hash() {
     assert_eq!(hash_a, hash_b);
     assert_ne!(hash_a, hash_c);
 }
+
+#[test]
+fn test_mock_fs_copy_dir_replace_removes_stale_files() {
+    let fs = MockFs::new();
+
+    fs.add_dir("/src");
+    fs.add_file("/src/new.txt", "new");
+    fs.add_dir("/dst");
+    fs.add_file("/dst/old.txt", "old");
+
+    fs.copy_dir_replace(Path::new("/src"), Path::new("/dst"))
+        .unwrap();
+
+    assert!(fs.exists(Path::new("/dst/new.txt")));
+    assert!(!fs.exists(Path::new("/dst/old.txt")));
+}
+
+#[test]
+fn test_mock_fs_copy_dir_merges_without_removing_stale_files() {
+    let fs = MockFs::new();
+
+    fs.add_dir("/src");
+    fs.add_file("/src/new.txt", "new");
+    fs.add_dir("/dst");
+    fs.add_file("/dst/old.txt", "old");
+
+    fs.copy_dir(Path::new("/src"), Path::new("/dst")).unwrap();
+
+    assert!(fs.exists(Path::new("/dst/new.txt")));
+    assert!(fs.exists(Path::new("/dst/old.txt")));
+}

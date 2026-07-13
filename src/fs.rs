@@ -56,9 +56,9 @@ pub trait FileSystem: Send + Sync {
     /// * `dst` - Destination file path.
     fn copy_file(&self, src: &Path, dst: &Path) -> Result<()>;
 
-    /// ディレクトリを再帰的にコピー
+    /// ディレクトリを再帰的にコピー（マージ）
     ///
-    /// - 宛先ディレクトリにマージ（既存ファイルは上書き）
+    /// - 宛先ディレクトリにマージ（既存ファイルは上書き、余剰ファイルは残る）
     /// - シンボリックリンクは追従
     /// - 同一/子孫パスへのコピーは Err
     ///
@@ -67,6 +67,18 @@ pub trait FileSystem: Send + Sync {
     /// * `src` - Source directory path.
     /// * `dst` - Destination directory path.
     fn copy_dir(&self, src: &Path, dst: &Path) -> Result<()>;
+
+    /// ディレクトリを再帰的にコピー（置換）
+    ///
+    /// - 宛先が存在すれば削除してからコピー（余剰ファイルは残らない）
+    /// - シンボリックリンクは追従
+    /// - 同一/子孫パスへのコピーは Err
+    ///
+    /// # Arguments
+    ///
+    /// * `src` - Source directory path.
+    /// * `dst` - Destination directory path.
+    fn copy_dir_replace(&self, src: &Path, dst: &Path) -> Result<()>;
 
     /// ファイルまたはディレクトリを削除
     ///
@@ -188,13 +200,14 @@ impl FileSystem for RealFs {
     }
 
     fn copy_dir(&self, src: &Path, dst: &Path) -> Result<()> {
-        if let (Ok(src_canonical), Ok(dst_canonical)) = (src.canonicalize(), dst.canonicalize()) {
-            if dst_canonical.starts_with(&src_canonical) {
-                return Err(crate::error::PlmError::Io(std::io::Error::new(
-                    std::io::ErrorKind::InvalidInput,
-                    "Cannot copy directory into itself or its subdirectory",
-                )));
-            }
+        self.guard_copy_dir_into_self(src, dst)?;
+        copy_dir_recursive(src, dst)
+    }
+
+    fn copy_dir_replace(&self, src: &Path, dst: &Path) -> Result<()> {
+        self.guard_copy_dir_into_self(src, dst)?;
+        if dst.exists() {
+            std::fs::remove_dir_all(dst)?;
         }
         copy_dir_recursive(src, dst)
     }
@@ -306,6 +319,20 @@ impl FileSystem for RealFs {
             });
         }
         Ok(entries)
+    }
+}
+
+impl RealFs {
+    fn guard_copy_dir_into_self(&self, src: &Path, dst: &Path) -> Result<()> {
+        if let (Ok(src_canonical), Ok(dst_canonical)) = (src.canonicalize(), dst.canonicalize()) {
+            if dst_canonical.starts_with(&src_canonical) {
+                return Err(crate::error::PlmError::Io(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "Cannot copy directory into itself or its subdirectory",
+                )));
+            }
+        }
+        Ok(())
     }
 }
 
