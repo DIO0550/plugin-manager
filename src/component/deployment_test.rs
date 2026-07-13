@@ -556,3 +556,58 @@ fn test_execute_skill_keeps_frontmatter_for_non_codex_target() {
     let manifest = fs::read_to_string(target.join("SKILL.md")).unwrap();
     assert_eq!(manifest, original);
 }
+
+// ========================================
+// MockFs deployment tests
+// ========================================
+
+#[test]
+fn test_execute_skill_with_mock_fs_replaces_existing_directory() {
+    use crate::fs::mock::MockFs;
+
+    let fs = MockFs::new();
+    fs.add_dir("/src/skill");
+    fs.add_file("/src/skill/new.md", "new");
+    fs.add_dir("/dst/skill");
+    fs.add_file("/dst/skill/old.md", "old");
+
+    let deployment = make_deployment(
+        Component {
+            kind: ComponentKind::Skill,
+            name: "skill".to_string(),
+            path: PathBuf::from("/src/skill"),
+        },
+        PathBuf::from("/dst/skill"),
+        ConversionConfig::None,
+    );
+
+    deployment.execute_with_fs(&fs).unwrap();
+
+    assert!(fs.exists(Path::new("/dst/skill/new.md")));
+    assert!(!fs.exists(Path::new("/dst/skill/old.md")));
+}
+
+#[test]
+fn test_execute_agent_with_mock_fs_copies_file() {
+    use crate::fs::mock::MockFs;
+
+    let fs = MockFs::new();
+    fs.add_file("/src/agent.md", "agent content");
+
+    let deployment = make_deployment(
+        Component {
+            kind: ComponentKind::Agent,
+            name: "test-agent".to_string(),
+            path: PathBuf::from("/src/agent.md"),
+        },
+        PathBuf::from("/dest/agent.md"),
+        ConversionConfig::None,
+    );
+
+    deployment.execute_with_fs(&fs).unwrap();
+
+    assert_eq!(
+        fs.read_to_string(Path::new("/dest/agent.md")).unwrap(),
+        "agent content"
+    );
+}

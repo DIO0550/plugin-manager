@@ -12,7 +12,6 @@ use crate::component::{
     Component, ComponentKind, ComponentRef, FileOperation, PlacementContext, PlacementScope,
     ProjectContext, Scope, ScopedPath,
 };
-use crate::fs::{FileSystem, RealFs};
 use crate::target::{
     all_targets, AffectedTargets, OperationOutcome, PluginOrigin, Target, TargetKind,
 };
@@ -202,7 +201,7 @@ fn execute_file_operations(
     expand_outcome: ExpandOutcome,
     _project_root: &Path,
 ) -> OperationOutcome {
-    use crate::path_ext::PathExt;
+    use crate::fs::{FileSystem, RealFs};
 
     let fs = RealFs;
     let mut affected = AffectedTargets::new();
@@ -224,8 +223,12 @@ fn execute_file_operations(
 
         for op in ops {
             let result = match &op {
-                FileOperation::CopyFile { source, target } => source.copy_file_to(target.as_path()),
-                FileOperation::CopyDir { source, target } => source.copy_dir_to(target.as_path()),
+                FileOperation::CopyFile { source, target } => {
+                    fs.copy_file(source, target.as_path())
+                }
+                FileOperation::CopyDir { source, target } => {
+                    fs.replace_dir(source, target.as_path())
+                }
                 FileOperation::RemoveFile { path } => {
                     let p = path.as_path();
                     if fs.exists(p) {

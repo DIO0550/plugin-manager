@@ -4,12 +4,11 @@ use super::bash::{escape_for_bash_double_quote, write_executable_script};
 use super::output::{DeploymentOutput, HookConvertOutput};
 use super::ComponentDeployment;
 use crate::error::{PlmError, Result};
+use crate::fs::FileSystem;
 use crate::hooks::converter::{self, SourceFormat, SCRIPTS_DIR};
 use crate::hooks::name::HookName;
-use crate::path_ext::PathExt;
 use crate::target::TargetKind;
 use std::collections::HashSet;
-use std::fs;
 use std::path::Path;
 
 impl ComponentDeployment {
@@ -79,10 +78,11 @@ impl ComponentDeployment {
     /// `ConversionConfig::Hook` から取り出した値を渡す。
     pub(super) fn deploy_hook_converted(
         &self,
+        fs: &dyn FileSystem,
         target_kind: TargetKind,
         plugin_root: Option<&Path>,
     ) -> Result<DeploymentOutput> {
-        let input = fs::read_to_string(self.source_path())?;
+        let input = fs.read_to_string(self.source_path())?;
 
         let mut convert_result = converter::convert(&input, target_kind)?;
 
@@ -93,7 +93,7 @@ impl ComponentDeployment {
             && convert_result.scripts.is_empty()
             && convert_result.warnings.is_empty()
         {
-            self.source_path().copy_file_to(&self.target_path)?;
+            fs.copy_file(self.source_path(), &self.target_path)?;
             return Ok(DeploymentOutput::Copied);
         }
 
@@ -124,10 +124,10 @@ impl ComponentDeployment {
         let hook_count = Self::count_hooks_in_json(&convert_result.json);
 
         if let Some(parent) = self.target_path.parent() {
-            fs::create_dir_all(parent)?;
+            fs.create_dir_all(parent)?;
         }
 
-        fs::write(&self.target_path, &json_str)?;
+        fs.write(&self.target_path, json_str.as_bytes())?;
 
         let script_count = convert_result.scripts.len();
         if script_count == 0 {
@@ -154,7 +154,7 @@ impl ComponentDeployment {
             })?
             .join(SCRIPTS_DIR)
             .join(safe_name);
-        fs::create_dir_all(&script_dir)?;
+        fs.create_dir_all(&script_dir)?;
 
         let escaped = escape_for_bash_double_quote(&plugin_root_str);
 

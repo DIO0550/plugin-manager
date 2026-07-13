@@ -136,6 +136,21 @@ impl FileSystem for MockFs {
         Ok(())
     }
 
+    fn replace_dir(&self, src: &Path, dst: &Path) -> Result<()> {
+        let src_str = src.to_string_lossy().to_string();
+        let dst_str = dst.to_string_lossy().to_string();
+
+        if dst_str.starts_with(&src_str) {
+            return Err(crate::error::PlmError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "Cannot copy directory into itself or its subdirectory",
+            )));
+        }
+
+        self.remove_dir_all(dst)?;
+        self.copy_dir(src, dst)
+    }
+
     fn remove(&self, path: &Path) -> Result<()> {
         let path_str = path.to_string_lossy().to_string();
         let mut files = self.files.write().unwrap();

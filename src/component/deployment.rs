@@ -12,7 +12,7 @@ mod output;
 use crate::component::convert;
 use crate::component::{Component, ComponentKind, Scope};
 use crate::error::Result;
-use crate::path_ext::PathExt;
+use crate::fs::{FileSystem, RealFs};
 use std::path::{Path, PathBuf};
 
 pub use builder::ComponentDeploymentBuilder;
@@ -61,25 +61,30 @@ impl ComponentDeployment {
     ///
     /// `ComponentKind` ごとに専用の `deploy_*` メソッドへディスパッチする。
     pub fn execute(&self) -> Result<DeploymentOutput> {
+        self.execute_with_fs(&RealFs)
+    }
+
+    /// テスト用エントリポイント（`FileSystem` を注入）
+    pub fn execute_with_fs(&self, fs: &dyn FileSystem) -> Result<DeploymentOutput> {
         match self.kind() {
-            ComponentKind::Skill => self.deploy_skill(),
-            ComponentKind::Command => self.deploy_command(),
-            ComponentKind::Agent => self.deploy_agent(),
-            ComponentKind::Instruction => self.deploy_instruction(),
-            ComponentKind::Hook => self.deploy_hook(),
+            ComponentKind::Skill => self.deploy_skill(fs),
+            ComponentKind::Command => self.deploy_command(fs),
+            ComponentKind::Agent => self.deploy_agent(fs),
+            ComponentKind::Instruction => self.deploy_instruction(fs),
+            ComponentKind::Hook => self.deploy_hook(fs),
         }
     }
 
-    fn deploy_skill(&self) -> Result<DeploymentOutput> {
-        // Skills are directories
-        self.source_path().copy_dir_to(&self.target_path)?;
+    fn deploy_skill(&self, fs: &dyn FileSystem) -> Result<DeploymentOutput> {
+        // Skills are directories — replace target to avoid stale files.
+        fs.replace_dir(self.source_path(), &self.target_path)?;
 
         // ターゲットがサポートしない frontmatter フィールドを SKILL.md から除去する。
         if let ConversionConfig::Skill { target_kind } = &self.conversion {
             if let Some(allowed) = convert::skill_allowed_fields(*target_kind) {
                 let manifest = self.target_path.join("SKILL.md");
-                if manifest.is_file() {
-                    let original = std::fs::read_to_string(&manifest)?;
+                if fs.exists(&manifest) && !fs.is_dir(&manifest) {
+                    let original = fs.read_to_string(&manifest)?;
                     let stripped = convert::strip_skill_frontmatter_fields(&original, allowed);
                     if stripped != original {
                         // 部分書き込みでデプロイ済み Skill を壊さないよう、
@@ -93,7 +98,7 @@ impl ComponentDeployment {
         Ok(DeploymentOutput::Copied)
     }
 
-    fn deploy_command(&self) -> Result<DeploymentOutput> {
+    fn deploy_command(&self, fs: &dyn FileSystem) -> Result<DeploymentOutput> {
         match &self.conversion {
             ConversionConfig::Command { source, dest } => {
                 let result = convert::convert_and_write(
@@ -105,13 +110,13 @@ impl ComponentDeployment {
                 Ok(DeploymentOutput::CommandConverted(result))
             }
             _ => {
-                self.source_path().copy_file_to(&self.target_path)?;
+                fs.copy_file(self.source_path(), &self.target_path)?;
                 Ok(DeploymentOutput::Copied)
             }
         }
     }
 
-    fn deploy_agent(&self) -> Result<DeploymentOutput> {
+    fn deploy_agent(&self, fs: &dyn FileSystem) -> Result<DeploymentOutput> {
         match &self.conversion {
             ConversionConfig::Agent { source, dest } => {
                 let result = convert::convert_agent_and_write(
@@ -123,25 +128,25 @@ impl ComponentDeployment {
                 Ok(DeploymentOutput::AgentConverted(result))
             }
             _ => {
-                self.source_path().copy_file_to(&self.target_path)?;
+                fs.copy_file(self.source_path(), &self.target_path)?;
                 Ok(DeploymentOutput::Copied)
             }
         }
     }
 
-    fn deploy_instruction(&self) -> Result<DeploymentOutput> {
-        self.source_path().copy_file_to(&self.target_path)?;
+    fn deploy_instruction(&self, fs: &dyn FileSystem) -> Result<DeploymentOutput> {
+        fs.copy_file(self.source_path(), &self.target_path)?;
         Ok(DeploymentOutput::Copied)
     }
 
-    fn deploy_hook(&self) -> Result<DeploymentOutput> {
+    fn deploy_hook(&self, fs: &dyn FileSystem) -> Result<DeploymentOutput> {
         match &self.conversion {
             ConversionConfig::Hook {
                 target_kind,
                 plugin_root,
-            } => self.deploy_hook_converted(*target_kind, plugin_root.as_deref()),
+            } => self.deploy_hook_converted(fs, *target_kind, plugin_root.as_deref()),
             _ => {
-                self.source_path().copy_file_to(&self.target_path)?;
+                fs.copy_file(self.source_path(), &self.target_path)?;
                 Ok(DeploymentOutput::Copied)
             }
         }
