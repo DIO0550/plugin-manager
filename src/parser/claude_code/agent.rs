@@ -10,7 +10,10 @@ use std::path::Path;
 use super::super::codex::CodexAgent;
 use super::super::convert::{self, TargetFormat, TargetType};
 use super::super::copilot::CopilotAgent;
-use super::super::frontmatter::{parse_frontmatter, ParsedDocument};
+use super::super::frontmatter::{
+    emit_frontmatter, normalize_optional_name, parse_frontmatter, stem_without_suffixes,
+    ParsedDocument,
+};
 
 /// Claude Code Agent frontmatter fields.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -63,7 +66,7 @@ impl ClaudeCodeAgent {
         let fm = frontmatter.unwrap_or_default();
 
         Ok(ClaudeCodeAgent {
-            name: normalize_name(fm.name),
+            name: normalize_optional_name(fm.name),
             description: fm.description,
             tools: fm.tools,
             model: fm.model,
@@ -83,7 +86,7 @@ impl ClaudeCodeAgent {
         let mut agent = Self::parse(&content)?;
 
         if agent.name.is_none() {
-            agent.name = extract_name_from_path(path);
+            agent.name = stem_without_suffixes(path, &[".md"]);
         }
 
         Ok(agent)
@@ -106,11 +109,7 @@ impl ClaudeCodeAgent {
             fields.push(format!("model: {}", v));
         }
 
-        if fields.is_empty() {
-            self.body.clone()
-        } else {
-            format!("---\n{}\n---\n\n{}", fields.join("\n"), self.body)
-        }
+        emit_frontmatter(&fields, &self.body)
     }
 
     /// Converts to the specified target format.
@@ -163,27 +162,4 @@ impl ClaudeCodeAgent {
             body: self.body.clone(),
         }
     }
-}
-
-/// Normalizes name: empty or whitespace-only string becomes None.
-///
-/// # Arguments
-///
-/// * `name` - Optional raw name string from frontmatter.
-fn normalize_name(name: Option<String>) -> Option<String> {
-    name.map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
-}
-
-/// Extracts agent name from file path.
-///
-/// Removes the `.md` extension from the filename.
-///
-/// # Arguments
-///
-/// * `path` - File path whose stem will be used as the agent name.
-fn extract_name_from_path(path: &Path) -> Option<String> {
-    path.file_name()
-        .and_then(|s| s.to_str())
-        .map(|s| s.strip_suffix(".md").unwrap_or(s).to_string())
-        .filter(|s| !s.is_empty())
 }
