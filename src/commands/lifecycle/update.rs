@@ -3,23 +3,9 @@
 //! プラグインを最新バージョンに更新する。
 
 use crate::plugin::{update_all_plugins, update_plugin, PackageCache, UpdateOutcome, UpdateStatus};
-use clap::{Parser, ValueEnum};
+use crate::target::TargetKind;
+use clap::Parser;
 use std::env;
-
-#[derive(Debug, Clone, ValueEnum)]
-pub enum TargetKind {
-    Codex,
-    Copilot,
-}
-
-impl TargetKind {
-    fn as_str(&self) -> &'static str {
-        match self {
-            TargetKind::Codex => "codex",
-            TargetKind::Copilot => "copilot",
-        }
-    }
-}
 
 #[derive(Debug, Parser)]
 pub struct Args {
@@ -31,7 +17,7 @@ pub struct Args {
     #[arg(long, conflicts_with = "name")]
     pub all: bool,
 
-    /// Target environment filter (codex or copilot)
+    /// Target environment filter (codex, copilot, antigravity, or gemini)
     #[arg(long, value_enum)]
     pub target: Option<TargetKind>,
 }

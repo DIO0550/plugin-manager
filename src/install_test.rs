@@ -6,6 +6,7 @@ use tempfile::TempDir;
 use super::*;
 use crate::component::ComponentKind;
 use crate::hooks::converter::{ConversionWarning, SourceFormat};
+use crate::plugin::meta::TargetStatus;
 use crate::plugin::{CachedPackage, MarketplaceContent, PluginManifest};
 use crate::target::{CodexTarget, CopilotTarget};
 
@@ -594,7 +595,7 @@ fn record_codex_hook_ownership_writes_managed_file_and_status() {
     record_codex_hook_ownership(plugin_dir.path(), &hook_path);
 
     let plugin_meta = crate::plugin::meta::load_meta(plugin_dir.path()).unwrap();
-    assert_eq!(plugin_meta.get_status("codex"), Some("enabled"));
+    assert_eq!(plugin_meta.get_status("codex"), Some(TargetStatus::Enabled));
     assert!(plugin_meta.manages_file("codex", &hook_path));
 }
 

@@ -5,7 +5,8 @@ use crate::component::{AgentFormat, CommandFormat, ComponentKind, Scope};
 use crate::component::{Component, ComponentDeployment, ConversionConfig, DeploymentOutput};
 use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
 use crate::plugin::{
-    cleanup_legacy_hierarchy, meta, MarketplaceContent, PackageCache, PackageCacheAccess,
+    cleanup_legacy_hierarchy, meta, meta::TargetStatus, MarketplaceContent, PackageCache,
+    PackageCacheAccess,
 };
 use crate::source::parse_source;
 use crate::target::{CodexTarget, PluginOrigin, Target, TargetKind};
@@ -431,14 +432,14 @@ pub fn update_meta_after_place(plugin_path: &Path, result: &PlaceOutcome) {
             updated = true;
         }
 
-        // statusByTarget = "enabled" は「target 全体として成功した」状態を表す
+        // statusByTarget = Enabled は「target 全体として成功した」状態を表す
         // ため、同じ target に failure があれば enabled に昇格させない。
-        // 既に "enabled" の場合は内容変化なしの no-op 書き込みを避けるため
+        // 既に Enabled の場合は内容変化なしの no-op 書き込みを避けるため
         // set_status を呼ばずに skip する（mtime 汚染を防ぐ）。
         if !failed_targets.contains(success.target.as_str())
-            && plugin_meta.get_status(&success.target) != Some("enabled")
+            && plugin_meta.get_status(&success.target) != Some(TargetStatus::Enabled)
         {
-            plugin_meta.set_status(&success.target, "enabled");
+            plugin_meta.set_status(&success.target, TargetStatus::Enabled);
             updated = true;
         }
     }
@@ -467,13 +468,13 @@ pub fn update_meta_after_place(plugin_path: &Path, result: &PlaceOutcome) {
 pub fn record_codex_hook_ownership(plugin_path: &Path, hook_path: &Path) {
     let mut plugin_meta = meta::load_meta(plugin_path).unwrap_or_default();
     let was_managed = plugin_meta.manages_file("codex", hook_path);
-    let was_enabled = plugin_meta.get_status("codex") == Some("enabled");
+    let was_enabled = plugin_meta.get_status("codex") == Some(TargetStatus::Enabled);
 
     if was_managed && was_enabled {
         return;
     }
 
-    plugin_meta.set_status("codex", "enabled");
+    plugin_meta.set_status("codex", TargetStatus::Enabled);
     plugin_meta.add_managed_file("codex", hook_path);
 
     if let Err(e) = meta::write_meta(plugin_path, &plugin_meta) {

@@ -2,6 +2,7 @@ use super::*;
 use crate::component::ComponentKind;
 use crate::hooks::converter::{ConversionWarning, SourceFormat};
 use crate::install::{PlaceFailure, PlaceFailureStage, PlaceOutcome, PlaceSuccess};
+use crate::plugin::meta::TargetStatus;
 use crate::target::TargetKind;
 use std::path::PathBuf;
 use tempfile::TempDir;
@@ -243,7 +244,7 @@ fn update_status_after_install_marks_successful_targets_enabled() {
     crate::install::update_meta_after_place(temp.path(), &result);
 
     let plugin_meta = crate::plugin::meta::load_meta(temp.path()).unwrap();
-    assert_eq!(plugin_meta.get_status("codex"), Some("enabled"));
+    assert_eq!(plugin_meta.get_status("codex"), Some(TargetStatus::Enabled));
     // Hook + Codex は所有権としても記録される
     assert!(plugin_meta.manages_file("codex", std::path::Path::new("/dest/codex/hooks.json")));
 }
@@ -254,7 +255,7 @@ fn update_meta_after_place_does_not_rewrite_when_meta_already_up_to_date() {
     // .plm-meta.json の mtime を更新してはならない。
     let temp = TempDir::new().unwrap();
     let mut prepared = crate::plugin::meta::PluginMeta::default();
-    prepared.set_status("codex", "enabled");
+    prepared.set_status("codex", TargetStatus::Enabled);
     prepared.add_managed_file("codex", std::path::Path::new("/dest/codex/hooks.json"));
     crate::plugin::meta::write_meta(temp.path(), &prepared).unwrap();
 
@@ -315,7 +316,7 @@ fn update_meta_after_place_skips_managed_file_for_non_hook_codex_success() {
     crate::install::update_meta_after_place(temp.path(), &result);
 
     let plugin_meta = crate::plugin::meta::load_meta(temp.path()).unwrap();
-    assert_eq!(plugin_meta.get_status("codex"), Some("enabled"));
+    assert_eq!(plugin_meta.get_status("codex"), Some(TargetStatus::Enabled));
     assert!(
         !plugin_meta.manages_file("codex", std::path::Path::new("/dest/codex/hooks.json")),
         "Skill 配置のみで hooks.json の所有権を獲得してはならない"
@@ -366,7 +367,7 @@ fn update_status_after_install_skips_status_when_target_has_failures() {
     );
     assert_ne!(
         plugin_meta.get_status("codex"),
-        Some("enabled"),
+        Some(TargetStatus::Enabled),
         "target に failure があれば statusByTarget は enabled 昇格しない"
     );
 }
