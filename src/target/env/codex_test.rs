@@ -1,5 +1,6 @@
 use super::*;
 use crate::component::{ComponentRef, PlacementScope, ProjectContext};
+use crate::plugin::meta::TargetStatus;
 use crate::target::paths::home_dir;
 use crate::target::PluginOrigin;
 
@@ -265,7 +266,7 @@ fn hook_overwrite_error_rejects_when_status_enabled_but_path_not_managed() {
 
     let plugin_root_dir = tempfile::TempDir::new().unwrap();
     let mut meta = crate::plugin::meta::PluginMeta::default();
-    meta.set_status("codex", "enabled");
+    meta.set_status("codex", TargetStatus::Enabled);
     // 別の path のみ管理対象として登録（Skill 配置等で enable はされたが、
     // 実際の hooks.json は別プラグインの所有という想定）
     meta.add_managed_file("codex", std::path::Path::new("/somewhere/else/hooks.json"));
