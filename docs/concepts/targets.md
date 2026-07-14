@@ -4,25 +4,27 @@ PLMがサポートするAI開発環境（ターゲット）について説明し
 
 ## 対応ターゲット
 
-| ターゲット | 説明 |
-|------------|------|
-| **codex** | OpenAI Codex CLI |
-| **copilot** | VSCode GitHub Copilot |
-| **antigravity** | Google Antigravity IDE |
-| **gemini** | Gemini CLI（ターミナルベースAIエージェント） |
+| ターゲット | 説明 | 状態 |
+|------------|------|------|
+| **codex** | OpenAI Codex CLI | ✅ 対応済み |
+| **copilot** | VSCode GitHub Copilot | ✅ 対応済み |
+| **antigravity** | Google Antigravity IDE | ✅ 対応済み |
+| **gemini** | Gemini CLI（ターミナルベースAIエージェント） | ✅ 対応済み |
+| **cursor** | Cursor（IDE / CLI） | 🚧 計画中（[#356](https://github.com/DIO0550/plugin-manager/issues/356)） |
 
 ## サポートするコンポーネント
 
-| コンポーネント | Codex | Copilot | Antigravity | Gemini CLI |
-|----------------|-------|---------|-------------|------------|
-| Skills | ✅ | ✅ | ✅ | ✅ |
-| Agents | ✅ | ✅ | ❌ | ❌ |
-| Commands | ❌ | ✅ | ❌ | ❌ |
-| Instructions | ✅ | ✅ | ❌* | ✅** |
-| Hooks | ✅ | ✅ | ❌ | ❌ |
+| コンポーネント | Codex | Copilot | Antigravity | Gemini CLI | Cursor 🚧 |
+|----------------|-------|---------|-------------|------------|-----------|
+| Skills | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Agents | ✅ | ✅ | ❌ | ❌ | ✅ |
+| Commands | ❌ | ✅ | ❌ | ❌ | ✅ |
+| Instructions | ✅ | ✅ | ❌* | ✅** | ✅*** |
+| Hooks | ✅ | ✅ | ❌ | ❌ | 🚧 |
 
 > *AntigravityはSkills専用の設計で、Instructionsは別途設定で管理します。
 > **Gemini CLIは`GEMINI.md`による階層的な指示システムを持ちます。
+> ***CursorのInstructionsはProjectスコープ（`AGENTS.md`）のみ。Personalスコープの指示（User Rules）はアプリ設定画面で管理されるため対象外。Hooksは単一設定ファイル（`hooks.json`）のためマージ戦略の設計後に対応（[#361](https://github.com/DIO0550/plugin-manager/issues/361)）。
 
 ## OpenAI Codex
 
@@ -294,6 +296,74 @@ Gemini CLIは `GEMINI.md` ファイルによる階層的な指示システムを
 - **Agents非対応**: `.agent.md` 形式はサポートしない
 - **Prompts非対応**: `.prompt.md` 形式はサポートしない
 
+## Cursor 🚧（計画中）
+
+> **実装状況**: 未実装。実装は Epic [#356](https://github.com/DIO0550/plugin-manager/issues/356) で追跡。本セクションは実装のための仕様であり、「要検証」項目は実装時に確認して本ドキュメントへ反映すること。
+
+### 概要
+
+CursorはAnysphere社のAIコードエディタ。エディタに加えてターミナルから使えるCursor CLI（`cursor-agent`）を持つ。Cursor 2.4でAgent Skills（Anthropic発のopen standard、`SKILL.md`形式）をエディタ・CLIの両方でサポートした。サブエージェント、カスタムスラッシュコマンド、`AGENTS.md`、Hooksもサポートする。
+
+公式ドキュメント:
+- [Agent Skills | Cursor Docs](https://cursor.com/docs/context/skills)
+- [Subagents | Cursor Docs](https://cursor.com/docs/agent/subagents)
+- [Rules / AGENTS.md | Cursor Docs](https://cursor.com/docs/context/rules)
+- [Hooks | Cursor Docs](https://cursor.com/docs/agent/hooks)
+- [Cursor 2.4 Changelog（Subagents / Skills）](https://cursor.com/changelog/2-4)
+
+### 読み込みパスと優先順位
+
+| 種別 | スコープ | パス | 自動読み込み | 備考 |
+|------|---------|------|--------------|------|
+| Skills | User | `~/.cursor/skills/`, `~/.agents/skills/` | ✅ | 互換パスとして `~/.claude/skills/`, `~/.codex/skills/` も読む |
+| Skills | Project | `.cursor/skills/`, `.agents/skills/` | ✅ | 互換パスとして `.claude/skills/`, `.codex/skills/` も読む。skillsルートを**再帰走査**して `SKILL.md` を発見 |
+| Agents | User | `~/.cursor/agents/` | ✅ | 互換: `~/.claude/agents/`, `~/.codex/agents/`（同名時は `.cursor/` 優先） |
+| Agents | Project | `.cursor/agents/` | ✅ | 互換: `.claude/agents/`, `.codex/agents/` |
+| Commands | User | `~/.cursor/commands/` | ✅ | プレーンMarkdown |
+| Commands | Project | `.cursor/commands/` | ✅ | `/` 入力で一覧表示 |
+| Rules | Project | `.cursor/rules/*.mdc` | ✅ | frontmatter（`alwaysApply` / `description` / `globs`）付き |
+| Instructions | Project | `AGENTS.md` | ✅ | プロジェクトルート＋サブディレクトリのネスト対応（深い階層が優先） |
+| Hooks | User | `~/.cursor/hooks.json` | ✅ | 単一ファイル |
+| Hooks | Project | `.cursor/hooks.json` | ✅ | 単一ファイル |
+
+### 重要な特徴
+
+- **SKILL.md形式**: frontmatterは `name`（必須、小文字・数字・ハイフンのみ、フォルダ名と一致）と `description`（必須）に加え、`paths`（globで適用範囲を制限）、`disable-model-invocation`（trueで明示的スラッシュコマンド専用化）、`metadata` をサポート
+- **skillsルートの再帰走査**: ネストしたディレクトリ内の `SKILL.md` も発見されるため、PLMの `<marketplace>/<plugin>/<skill>/` 階層はそのまま読み込まれる見込み
+- **Agents（サブエージェント）**: YAMLフロントマター（`name`, `description`, `model`, `readonly`, `is_background`）付きMarkdown。エディタ・CLI・Cloud Agentsで利用可能
+- **CommandsはSkillsへ移行中**: `/migrate-to-skills` により既存のCommandsは `disable-model-invocation: true` 付きSkillsへ変換される方向。`.cursor/commands/` 自体は引き続き動作する
+- **Claude Code互換**: `.claude/skills/` / `.claude/agents/` を互換パスとして読むため、コンポーネントのフォーマット変換はほぼ不要（`CommandFormat::ClaudeCode` / `AgentFormat::ClaudeCode`）
+
+### Hooks
+
+設定は単一の `hooks.json`（`{"version": 1, "hooks": {"<event>": [{"command": "..."}]}}`）。イベント名は**camelCase**で、Copilot CLI形式（camelCase + `"version": 1`）に近い。
+
+主なイベント: `sessionStart`, `sessionEnd`, `preToolUse`, `postToolUse`, `postToolUseFailure`, `subagentStart`, `subagentStop`, `beforeShellExecution`, `afterShellExecution`, `beforeMCPExecution`, `afterMCPExecution`, `beforeReadFile`, `afterFileEdit`, `beforeSubmitPrompt`, `preCompact`, `stop`, `afterAgentResponse` など。
+
+Claude Code側に対応イベントがないもの（`beforeShellExecution` 等のCursor固有イベント）は変換対象外。単一ファイルのため、複数プラグインのhooksを配置するには非管理エントリを壊さないマージ戦略が必要（[#361](https://github.com/DIO0550/plugin-manager/issues/361)）。
+
+### コンポーネント配置場所（計画）
+
+| 種別 | ファイル形式 | Personal | Project |
+|------|-------------|----------|---------|
+| Skills | `SKILL.md` | `~/.cursor/skills/<marketplace>/<plugin>/<skill>/` | `.cursor/skills/<marketplace>/<plugin>/<skill>/` |
+| Agents | `*.md` | `~/.cursor/agents/<marketplace>/<plugin>/` | `.cursor/agents/<marketplace>/<plugin>/` |
+| Commands | `*.md` | `~/.cursor/commands/<marketplace>/<plugin>/` | `.cursor/commands/<marketplace>/<plugin>/` |
+| Instructions | `AGENTS.md` | - | `AGENTS.md` |
+| Hooks 🚧 | `hooks.json` へマージ | `~/.cursor/hooks.json` | `.cursor/hooks.json` |
+
+### 制約事項
+
+- **Instructions は Project スコープのみ**: Personalスコープの指示（User Rules）はアプリ設定画面で管理され、ファイルベースのグローバルパスがない（Copilotと同型の制約）
+- **`AGENTS.md` は Codex ターゲットと同一ファイルを共有**: 両ターゲット有効時の所有権・削除の扱いは実装時に設計する（[#360](https://github.com/DIO0550/plugin-manager/issues/360)）
+- **Hooks は単一設定ファイル**: ディレクトリ配置ではなく `hooks.json` へのマージが必要
+
+### 要検証（実装時に確認）
+
+- Agents のファイル名: Cursorが期待するのは `<name>.md`。PLMの `.agent.md` サフィックスのままで認識されるか（[#359](https://github.com/DIO0550/plugin-manager/issues/359)）
+- Agents / Commands ディレクトリで `<marketplace>/<plugin>/` のネスト階層が発見されるか（Skillsと異なり再帰走査が明記されていない）
+- Cursor CLI（`cursor-agent`）でどのhooksイベントが発火するか
+
 ## PLMでの対応方針
 
 | ターゲット | Personal インストール | 追加アクション |
@@ -302,10 +372,13 @@ Gemini CLIは `GEMINI.md` ファイルによる階層的な指示システムを
 | Copilot | ファイル配置 + VSCode設定追記 | `settings.json` への参照追加が必要 |
 | Antigravity | `~/.gemini/antigravity/` に配置 | 不要（自動読み込み） |
 | Gemini CLI | `~/.gemini/skills/` に配置 | 不要（自動読み込み、要Settings有効化） |
+| Cursor 🚧 | `~/.cursor/` に配置 | 不要（自動読み込み）。Hooksのみ `hooks.json` へのマージが必要 |
 
 ## 将来の拡張候補
 
-- Cursor（.cursor/）
+対応調査は [#363](https://github.com/DIO0550/plugin-manager/issues/363) で追跡。
+
+- Claude Code（[#96](https://github.com/DIO0550/plugin-manager/issues/96) で計画中）
 - Windsurf
 - Aider
 - その他SKILL.md対応ツール
