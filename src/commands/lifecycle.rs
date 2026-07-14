@@ -4,5 +4,6 @@
 
 pub mod disable;
 pub mod enable;
+mod toggle;
 pub mod uninstall;
 pub mod update;

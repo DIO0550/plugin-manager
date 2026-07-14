@@ -10,8 +10,8 @@ use tempfile::TempDir;
 fn test_status_by_target_serde_rename() {
     // JSON キー名が "statusByTarget" になることを確認
     let mut meta = PluginMeta::default();
-    meta.set_status("codex", "enabled");
-    meta.set_status("copilot", "disabled");
+    meta.set_status("codex", TargetStatus::Enabled);
+    meta.set_status("copilot", TargetStatus::Disabled);
 
     let json = serde_json::to_string(&meta).unwrap();
     assert!(json.contains("statusByTarget"));
@@ -44,8 +44,8 @@ fn test_status_by_target_deserialize() {
     let json = r#"{"installedAt":"2025-01-15T10:30:00Z","statusByTarget":{"codex":"enabled","copilot":"disabled"}}"#;
     let meta: PluginMeta = serde_json::from_str(json).unwrap();
 
-    assert_eq!(meta.get_status("codex"), Some("enabled"));
-    assert_eq!(meta.get_status("copilot"), Some("disabled"));
+    assert_eq!(meta.get_status("codex"), Some(TargetStatus::Enabled));
+    assert_eq!(meta.get_status("copilot"), Some(TargetStatus::Disabled));
     assert_eq!(meta.get_status("unknown"), None);
 }
 
@@ -55,11 +55,11 @@ fn test_get_set_status() {
 
     assert_eq!(meta.get_status("codex"), None);
 
-    meta.set_status("codex", "enabled");
-    assert_eq!(meta.get_status("codex"), Some("enabled"));
+    meta.set_status("codex", TargetStatus::Enabled);
+    assert_eq!(meta.get_status("codex"), Some(TargetStatus::Enabled));
 
-    meta.set_status("codex", "disabled");
-    assert_eq!(meta.get_status("codex"), Some("disabled"));
+    meta.set_status("codex", TargetStatus::Disabled);
+    assert_eq!(meta.get_status("codex"), Some(TargetStatus::Disabled));
 }
 
 #[test]
@@ -68,10 +68,10 @@ fn test_is_enabled() {
 
     assert!(!meta.is_enabled("codex"));
 
-    meta.set_status("codex", "enabled");
+    meta.set_status("codex", TargetStatus::Enabled);
     assert!(meta.is_enabled("codex"));
 
-    meta.set_status("codex", "disabled");
+    meta.set_status("codex", TargetStatus::Disabled);
     assert!(!meta.is_enabled("codex"));
 }
 
@@ -81,10 +81,10 @@ fn test_any_enabled() {
 
     assert!(!meta.any_enabled());
 
-    meta.set_status("codex", "disabled");
+    meta.set_status("codex", TargetStatus::Disabled);
     assert!(!meta.any_enabled());
 
-    meta.set_status("copilot", "enabled");
+    meta.set_status("copilot", TargetStatus::Enabled);
     assert!(meta.any_enabled());
 }
 
@@ -97,8 +97,8 @@ fn test_write_and_load_meta_with_status() {
         installed_at: Some("2025-01-15T10:30:00Z".to_string()),
         ..Default::default()
     };
-    meta.set_status("codex", "enabled");
-    meta.set_status("copilot", "disabled");
+    meta.set_status("codex", TargetStatus::Enabled);
+    meta.set_status("copilot", TargetStatus::Disabled);
 
     write_meta(plugin_dir, &meta).unwrap();
 
@@ -107,8 +107,8 @@ fn test_write_and_load_meta_with_status() {
         loaded.installed_at,
         Some("2025-01-15T10:30:00Z".to_string())
     );
-    assert_eq!(loaded.get_status("codex"), Some("enabled"));
-    assert_eq!(loaded.get_status("copilot"), Some("disabled"));
+    assert_eq!(loaded.get_status("codex"), Some(TargetStatus::Enabled));
+    assert_eq!(loaded.get_status("copilot"), Some(TargetStatus::Disabled));
 }
 
 // =============================================================================
@@ -299,9 +299,9 @@ fn test_enabled_targets_empty() {
 #[test]
 fn test_enabled_targets_filters_enabled_only() {
     let mut meta = PluginMeta::default();
-    meta.set_status("codex", "enabled");
-    meta.set_status("copilot", "disabled");
-    meta.set_status("claude", "enabled");
+    meta.set_status("codex", TargetStatus::Enabled);
+    meta.set_status("copilot", TargetStatus::Disabled);
+    meta.set_status("claude", TargetStatus::Enabled);
 
     let mut targets = meta.enabled_targets();
     targets.sort();
@@ -445,7 +445,7 @@ fn test_is_enabled_func_with_status_by_target_enabled() {
 
     // statusByTarget が有効な場合
     let mut meta = PluginMeta::default();
-    meta.set_status("codex", "enabled");
+    meta.set_status("codex", TargetStatus::Enabled);
     write_meta(plugin_dir, &meta).unwrap();
 
     let deployed: HashSet<String> = HashSet::new();
@@ -459,7 +459,7 @@ fn test_is_enabled_func_with_status_by_target_disabled() {
 
     // statusByTarget が無効のみの場合
     let mut meta = PluginMeta::default();
-    meta.set_status("codex", "disabled");
+    meta.set_status("codex", TargetStatus::Disabled);
     write_meta(plugin_dir, &meta).unwrap();
 
     let deployed: HashSet<String> = HashSet::new();
@@ -603,7 +603,7 @@ fn test_is_enabled_indexed_uses_status_by_target_when_present() {
     let plugin_dir = temp_dir.path();
 
     let mut meta = PluginMeta::default();
-    meta.set_status("codex", "enabled");
+    meta.set_status("codex", TargetStatus::Enabled);
     write_meta(plugin_dir, &meta).unwrap();
 
     // deployed_plugins が空でも statusByTarget で enabled なら true

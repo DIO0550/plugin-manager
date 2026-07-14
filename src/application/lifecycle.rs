@@ -11,8 +11,8 @@
 
 use crate::component::Component;
 use crate::plugin::{
-    cleanup_legacy_hierarchy, cleanup_plugin_directories, load_plugin, PackageCacheAccess,
-    PluginAction, PluginIntent,
+    cleanup_legacy_hierarchy, cleanup_plugin_directories, load_plugin, meta, meta::TargetStatus,
+    PackageCacheAccess, PluginAction, PluginIntent,
 };
 use crate::target::{all_targets, OperationOutcome};
 use std::path::Path;
@@ -73,6 +73,15 @@ pub fn disable_plugin(
         }
     }
 
+    // Imperative Shell: ステータス更新（I/O）
+    update_meta_status(
+        cache,
+        plugin_name,
+        marketplace,
+        &result,
+        TargetStatus::Disabled,
+    );
+
     result
 }
 
@@ -115,7 +124,18 @@ pub fn enable_plugin(
     );
 
     // Imperative Shell: 実行（I/O）
-    intent.apply()
+    let result = intent.apply();
+
+    // Imperative Shell: ステータス更新（I/O）
+    update_meta_status(
+        cache,
+        plugin_name,
+        marketplace,
+        &result,
+        TargetStatus::Enabled,
+    );
+
+    result
 }
 
 /// アンインストール前の情報取得
@@ -198,6 +218,39 @@ pub fn uninstall_plugin(
     }
 
     disable_result
+}
+
+/// 操作後に `.plm-meta.json` の `statusByTarget` を更新する（Imperative Shell）。
+///
+/// 影響を受けたターゲットに対して `status` を書き込む。書き込みエラーは
+/// 警告として出力し、操作全体の失敗扱いにはしない（best-effort）。
+///
+/// # Arguments
+///
+/// * `cache` - プラグインを検索するためのパッケージキャッシュアクセサ
+/// * `plugin_name` - プラグインの id
+/// * `marketplace` - マーケットプレイス名（任意）
+/// * `result` - 操作結果
+/// * `status` - 書き込むステータス値
+fn update_meta_status(
+    cache: &dyn PackageCacheAccess,
+    plugin_name: &str,
+    marketplace: Option<&str>,
+    result: &OperationOutcome,
+    status: TargetStatus,
+) {
+    let target_names = result.affected_targets.target_names();
+    if target_names.is_empty() {
+        return;
+    }
+    let plugin_path = cache.plugin_path(marketplace, plugin_name);
+    let mut plugin_meta = meta::load_meta(&plugin_path).unwrap_or_default();
+    for target_name in target_names {
+        plugin_meta.set_status(target_name, status);
+    }
+    if let Err(e) = meta::write_meta(&plugin_path, &plugin_meta) {
+        eprintln!("Warning: Failed to update .plm-meta.json: {}", e);
+    }
 }
 
 #[cfg(test)]

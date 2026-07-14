@@ -12,6 +12,7 @@ use crate::marketplace::{
     PluginSource as MpPluginSource,
 };
 use crate::plugin::lifecycle::plugin_resolver::{find_by_plugin_name, ResolvedPlugin};
+use crate::plugin::meta::TargetStatus;
 use crate::plugin::version::needs_update;
 use crate::plugin::{meta, GithubCacheId, PackageCacheAccess, PluginMeta};
 use crate::repo::{self, Repo};
@@ -545,7 +546,7 @@ async fn do_safe_update(
     let mut new_meta = old_meta.clone();
     new_meta.set_git_info(git_ref, &archive_sha);
     for t in &failed {
-        new_meta.set_status(t, "disabled");
+        new_meta.set_status(t, TargetStatus::Disabled);
     }
     if let Err(e) = meta::write_meta(&plugin_path, &new_meta) {
         let _ = cache.restore(marketplace, cache_id);
@@ -1039,7 +1040,7 @@ fn commit_all(
         let mut new_meta = s.target.old_meta.clone();
         new_meta.set_git_info(&s.target.git_ref, &s.archive_sha);
         for t in &failed {
-            new_meta.set_status(t, "disabled");
+            new_meta.set_status(t, TargetStatus::Disabled);
         }
         // best-effort: 失敗してもロールバックしない（アトミック境界は swap まで）が、
         // commit SHA がメタに反映されない不整合を無言にしないよう警告する。
