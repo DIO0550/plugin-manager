@@ -63,9 +63,12 @@ Cursor は `name` / `description` / `paths` / `disable-model-invocation` / `meta
 ## 検証
 
 ```bash
-cargo fmt
-cargo check
-cargo test cursor -- --nocapture
-cargo test cleanup -- --nocapture
-cargo test --lib
+cargo +stable fmt
+cargo +stable check
+cargo +stable test cursor
+cargo +stable test cleanup
+cargo +stable test target::
+cargo +stable test
 ```
+
+（このクレートはバイナリ専用のため `--lib` は使わない。）
