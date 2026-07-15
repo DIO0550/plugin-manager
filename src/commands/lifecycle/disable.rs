@@ -5,7 +5,7 @@
 
 use crate::application::{disable_plugin, OperationOutcome};
 use crate::commands::args::MarketplaceArgs;
-use crate::plugin::{meta, PackageCache, PackageCacheAccess};
+use crate::plugin::{meta, meta::TargetStatus, PackageCache, PackageCacheAccess};
 use clap::{Parser, ValueEnum};
 use std::env;
 
@@ -99,7 +99,7 @@ fn update_status_after_disable(plugin_path: &std::path::Path, result: &Operation
 
     let target_names = result.affected_targets.target_names();
     for target_name in target_names {
-        plugin_meta.set_status(target_name, "disabled");
+        plugin_meta.set_status(target_name, TargetStatus::Disabled);
     }
 
     // When a filter is given and the target is unsupported, it is not present

@@ -8,9 +8,34 @@ use crate::fs::{FileSystem, RealFs};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+use std::fmt;
 use std::io::Write;
 use std::path::Path;
 use tempfile::NamedTempFile;
+
+/// プラグインのターゲット別ステータス
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum TargetStatus {
+    Enabled,
+    Disabled,
+}
+
+impl TargetStatus {
+    /// Returns the string representation of this status.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            TargetStatus::Enabled => "enabled",
+            TargetStatus::Disabled => "disabled",
+        }
+    }
+}
+
+impl fmt::Display for TargetStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
 
 /// メタデータファイル名
 const META_FILE: &str = ".plm-meta.json";
@@ -23,14 +48,14 @@ pub struct PluginMeta {
     #[serde(default, rename = "installedAt")]
     pub installed_at: Option<String>,
 
-    /// ターゲット別ステータス（"enabled" / "disabled"）
+    /// ターゲット別ステータス
     /// 空の場合はシリアライズ時に省略
     #[serde(
         default,
         rename = "statusByTarget",
         skip_serializing_if = "HashMap::is_empty"
     )]
-    pub status_by_target: HashMap<String, String>,
+    pub status_by_target: HashMap<String, TargetStatus>,
 
     /// Git参照（ブランチ名やタグ）
     #[serde(default, rename = "gitRef", skip_serializing_if = "Option::is_none")]
@@ -83,8 +108,8 @@ impl PluginMeta {
     /// # Arguments
     ///
     /// * `target` - Target name (e.g. `"codex"`, `"copilot"`).
-    pub fn get_status(&self, target: &str) -> Option<&str> {
-        self.status_by_target.get(target).map(|s| s.as_str())
+    pub fn get_status(&self, target: &str) -> Option<TargetStatus> {
+        self.status_by_target.get(target).copied()
     }
 
     /// 指定ターゲットのステータスを設定
@@ -92,10 +117,9 @@ impl PluginMeta {
     /// # Arguments
     ///
     /// * `target` - Target name.
-    /// * `status` - Status string (`"enabled"` or `"disabled"`).
-    pub fn set_status(&mut self, target: &str, status: &str) {
-        self.status_by_target
-            .insert(target.to_string(), status.to_string());
+    /// * `status` - Status value (`TargetStatus::Enabled` or `TargetStatus::Disabled`).
+    pub fn set_status(&mut self, target: &str, status: TargetStatus) {
+        self.status_by_target.insert(target.to_string(), status);
     }
 
     /// 指定ターゲットが有効化されているか
@@ -104,12 +128,14 @@ impl PluginMeta {
     ///
     /// * `target` - Target name.
     pub fn is_enabled(&self, target: &str) -> bool {
-        self.get_status(target) == Some("enabled")
+        self.get_status(target) == Some(TargetStatus::Enabled)
     }
 
     /// いずれかのターゲットが有効化されているか
     pub fn any_enabled(&self) -> bool {
-        self.status_by_target.values().any(|s| s == "enabled")
+        self.status_by_target
+            .values()
+            .any(|s| *s == TargetStatus::Enabled)
     }
 
     /// Git参照情報を更新
@@ -128,7 +154,7 @@ impl PluginMeta {
     pub fn enabled_targets(&self) -> Vec<&str> {
         self.status_by_target
             .iter()
-            .filter(|(_, status)| *status == "enabled")
+            .filter(|(_, status)| **status == TargetStatus::Enabled)
             .map(|(target, _)| target.as_str())
             .collect()
     }
