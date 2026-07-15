@@ -128,6 +128,12 @@ fn cleanup_specs(
             }
             specs.push((project_root.join(".gemini"), "skills"));
         }
+        TargetKind::Cursor => {
+            if let Some(h) = home {
+                specs.push((h.join(".cursor"), "skills"));
+            }
+            specs.push((project_root.join(".cursor"), "skills"));
+        }
     }
 
     specs

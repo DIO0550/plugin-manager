@@ -168,6 +168,42 @@ fn cleanup_gemini_cli_removes_empty_skills_dir_project() {
 }
 
 #[test]
+fn cleanup_cursor_removes_empty_skills_dir_personal() {
+    let tmp = TempDir::new().unwrap();
+    let home = tmp.path().join("home");
+    let project = tmp.path().join("proj");
+    let plugin_dir = make_empty_plugin_dir(&home.join(".cursor"), "skills");
+
+    cleanup_plugin_directories_impl(
+        &RealFs,
+        TargetKind::Cursor,
+        Some(&home),
+        &origin(),
+        &project,
+    );
+
+    assert!(!plugin_dir.exists());
+}
+
+#[test]
+fn cleanup_cursor_removes_empty_skills_dir_project() {
+    let tmp = TempDir::new().unwrap();
+    let home = tmp.path().join("home");
+    let project = tmp.path().join("proj");
+    let plugin_dir = make_empty_plugin_dir(&project.join(".cursor"), "skills");
+
+    cleanup_plugin_directories_impl(
+        &RealFs,
+        TargetKind::Cursor,
+        Some(&home),
+        &origin(),
+        &project,
+    );
+
+    assert!(!plugin_dir.exists());
+}
+
+#[test]
 fn cleanup_keeps_non_empty_dir() {
     let tmp = TempDir::new().unwrap();
     let home = tmp.path().join("home");
@@ -206,6 +242,13 @@ fn cleanup_is_noop_when_dir_missing() {
     cleanup_plugin_directories_impl(
         &RealFs,
         TargetKind::GeminiCli,
+        Some(&home),
+        &origin(),
+        &project,
+    );
+    cleanup_plugin_directories_impl(
+        &RealFs,
+        TargetKind::Cursor,
         Some(&home),
         &origin(),
         &project,
@@ -436,6 +479,7 @@ fn cleanup_specs_with_home_none_returns_only_project_entries() {
         TargetKind::Copilot,
         TargetKind::Antigravity,
         TargetKind::GeminiCli,
+        TargetKind::Cursor,
     ] {
         let specs = cleanup_specs(kind, None, project);
         assert!(

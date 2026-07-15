@@ -116,8 +116,8 @@ PLMの実装状況と将来の計画について説明します。
 
 Epic: [#356](https://github.com/DIO0550/plugin-manager/issues/356)（仕様: `docs/concepts/targets.md` の「Cursor」セクション）
 
-- [ ] `TargetKind` に Cursor バリアントを追加（[#357](https://github.com/DIO0550/plugin-manager/issues/357)）
-- [ ] `CursorTarget` 実装（Skills 配置）（[#358](https://github.com/DIO0550/plugin-manager/issues/358)）
+- [x] `TargetKind` に Cursor バリアントを追加（[#357](https://github.com/DIO0550/plugin-manager/issues/357)）
+- [x] `CursorTarget` 実装（Skills 配置）（[#358](https://github.com/DIO0550/plugin-manager/issues/358)）
 - [ ] Agents / Commands 配置対応（[#359](https://github.com/DIO0550/plugin-manager/issues/359)）
 - [ ] Instructions（AGENTS.md）配置対応（[#360](https://github.com/DIO0550/plugin-manager/issues/360)）
 - [ ] Hooks（hooks.json）変換・配置対応（[#361](https://github.com/DIO0550/plugin-manager/issues/361)）

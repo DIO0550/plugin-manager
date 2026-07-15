@@ -52,6 +52,7 @@ impl Default for TargetsConfig {
                 TargetKind::Antigravity,
                 TargetKind::Codex,
                 TargetKind::Copilot,
+                TargetKind::Cursor,
             ],
         }
     }

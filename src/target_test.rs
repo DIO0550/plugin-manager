@@ -27,10 +27,11 @@ fn test_parse_target_antigravity() {
 #[test]
 fn test_all_targets() {
     let targets = all_targets();
-    assert_eq!(targets.len(), 4);
+    assert_eq!(targets.len(), 5);
     assert!(targets.iter().any(|t| t.name() == "antigravity"));
     assert!(targets.iter().any(|t| t.name() == "codex"));
     assert!(targets.iter().any(|t| t.name() == "copilot"));
+    assert!(targets.iter().any(|t| t.name() == "cursor"));
     assert!(targets.iter().any(|t| t.name() == "gemini"));
 }
 
@@ -38,6 +39,27 @@ fn test_all_targets() {
 fn test_parse_target_gemini() {
     let target = parse_target("gemini").unwrap();
     assert_eq!(target.name(), "gemini");
+}
+
+#[test]
+fn test_parse_target_cursor() {
+    let target = parse_target("cursor").unwrap();
+    assert_eq!(target.name(), "cursor");
+    assert_eq!(target.display_name(), "Cursor");
+    assert_eq!(target.kind(), TargetKind::Cursor);
+}
+
+#[test]
+fn test_target_kind_cursor_as_str_and_formats() {
+    assert_eq!(TargetKind::Cursor.as_str(), "cursor");
+    assert_eq!(
+        TargetKind::Cursor.command_format(),
+        crate::component::CommandFormat::ClaudeCode
+    );
+    assert_eq!(
+        TargetKind::Cursor.agent_format(),
+        crate::component::AgentFormat::ClaudeCode
+    );
 }
 
 #[test]

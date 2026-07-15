@@ -28,8 +28,8 @@ pub(crate) use core::paths;
 pub use core::{AddOutcome, RemoveOutcome, TargetRegistry};
 pub use effect::{AffectedTargets, OperationOutcome};
 pub use env::{
-    apply_codex_hooks_flag, AntigravityTarget, CodexTarget, CopilotTarget, FeatureFlagOutcome,
-    GeminiCliTarget,
+    apply_codex_hooks_flag, AntigravityTarget, CodexTarget, CopilotTarget, CursorTarget,
+    FeatureFlagOutcome, GeminiCliTarget,
 };
 pub use placed::scanner;
 pub(crate) use placed::{list_all_placed, placed_common};
@@ -155,6 +155,7 @@ pub enum TargetKind {
     Antigravity,
     Codex,
     Copilot,
+    Cursor,
     #[value(name = "gemini")]
     #[serde(rename = "gemini")]
     GeminiCli,
@@ -167,6 +168,7 @@ impl TargetKind {
             TargetKind::Antigravity => "antigravity",
             TargetKind::Codex => "codex",
             TargetKind::Copilot => "copilot",
+            TargetKind::Cursor => "cursor",
             TargetKind::GeminiCli => "gemini",
         }
     }
@@ -179,6 +181,8 @@ impl TargetKind {
             TargetKind::Antigravity => CommandFormat::ClaudeCode, // Antigravity は Skills のみ
             TargetKind::Codex => CommandFormat::Codex,
             TargetKind::Copilot => CommandFormat::Copilot,
+            // Cursor は Claude Code 互換の Command 形式（#359 で配置対応）
+            TargetKind::Cursor => CommandFormat::ClaudeCode,
             TargetKind::GeminiCli => CommandFormat::ClaudeCode, // Gemini CLI は Command 非サポート
         }
     }
@@ -191,6 +195,8 @@ impl TargetKind {
             TargetKind::Antigravity => AgentFormat::ClaudeCode, // Antigravity は Agent 非サポート
             TargetKind::Codex => AgentFormat::Codex,
             TargetKind::Copilot => AgentFormat::Copilot,
+            // Cursor は Claude Code 互換の Agent 形式（#359 で配置対応）
+            TargetKind::Cursor => AgentFormat::ClaudeCode,
             TargetKind::GeminiCli => AgentFormat::ClaudeCode, // Gemini CLI は Agent 非サポート
         }
     }
@@ -312,12 +318,13 @@ pub trait Target: Send + Sync {
 ///
 /// # Arguments
 ///
-/// * `name` - Target name (`"antigravity"`, `"codex"`, `"copilot"`, or `"gemini"`).
+/// * `name` - Target name (`"antigravity"`, `"codex"`, `"copilot"`, `"cursor"`, or `"gemini"`).
 pub fn parse_target(name: &str) -> Result<Box<dyn Target>> {
     match name {
         "antigravity" => Ok(Box::new(AntigravityTarget::new())),
         "codex" => Ok(Box::new(CodexTarget::new())),
         "copilot" => Ok(Box::new(CopilotTarget::new())),
+        "cursor" => Ok(Box::new(CursorTarget::new())),
         "gemini" => Ok(Box::new(GeminiCliTarget::new())),
         _ => Err(PlmError::TargetNotFound(name.to_string())),
     }
@@ -329,6 +336,7 @@ pub fn all_targets() -> Vec<Box<dyn Target>> {
         Box::new(AntigravityTarget::new()),
         Box::new(CodexTarget::new()),
         Box::new(CopilotTarget::new()),
+        Box::new(CursorTarget::new()),
         Box::new(GeminiCliTarget::new()),
     ]
 }

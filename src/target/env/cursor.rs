@@ -1,0 +1,123 @@
+//! Cursor ターゲット実装（Phase 2: Skills のみ）
+//!
+//! Agents / Commands / Instructions / Hooks は後続 Issue（#359〜#361）で対応する。
+
+use crate::component::{ComponentKind, PlacementContext, PlacementLocation, Scope};
+use crate::error::Result;
+use crate::target::paths::base_dir;
+use crate::target::scanner::{scan_components, ScannedComponent};
+use crate::target::{Target, TargetKind};
+use std::path::{Path, PathBuf};
+
+const CURSOR_SUBDIR: &str = ".cursor";
+
+/// Cursor ターゲット
+pub struct CursorTarget;
+
+impl CursorTarget {
+    pub fn new() -> Self {
+        Self
+    }
+
+    /// スコープに応じたベースディレクトリを取得
+    ///
+    /// # Arguments
+    ///
+    /// * `scope` - Scope (`Personal` or `Project`) that selects the base directory.
+    /// * `project_root` - Project root directory used for project scope.
+    fn base_dir(scope: Scope, project_root: &Path) -> PathBuf {
+        base_dir(scope, project_root, CURSOR_SUBDIR, CURSOR_SUBDIR)
+    }
+
+    /// この組み合わせで配置できるか（Skill のみサポート、#358）
+    ///
+    /// # Arguments
+    ///
+    /// * `kind` - Component kind to check.
+    fn can_place(kind: ComponentKind) -> bool {
+        kind == ComponentKind::Skill
+    }
+
+    /// コンポーネント種別に応じたフィルタリング（SKILL.md 存在チェック）
+    ///
+    /// # Arguments
+    ///
+    /// * `c` - Scanned component entry.
+    /// * `kind` - Component kind expected for the entry.
+    fn filter_component(c: &ScannedComponent, kind: ComponentKind) -> Option<String> {
+        match kind {
+            ComponentKind::Skill if c.is_dir => {
+                let skill_md = c.path.join("SKILL.md");
+                if skill_md.exists() {
+                    Some(c.name.clone())
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+}
+
+impl Default for CursorTarget {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Target for CursorTarget {
+    fn display_name(&self) -> &'static str {
+        "Cursor"
+    }
+
+    fn kind(&self) -> TargetKind {
+        TargetKind::Cursor
+    }
+
+    fn supported_components(&self) -> &[ComponentKind] {
+        &[ComponentKind::Skill]
+    }
+
+    fn placement_location(&self, context: &PlacementContext) -> Option<PlacementLocation> {
+        let kind = context.kind();
+        if !Self::can_place(kind) {
+            return None;
+        }
+
+        let scope = context.scope();
+        let project_root = context.project_root();
+        let base = Self::base_dir(scope, project_root);
+        let name = context.name();
+
+        Some(match kind {
+            // フラット構造: skills/<flattened_name> (ディレクトリ)
+            ComponentKind::Skill => PlacementLocation::dir(base.join("skills").join(name)),
+            _ => return None,
+        })
+    }
+
+    fn list_placed(
+        &self,
+        kind: ComponentKind,
+        scope: Scope,
+        project_root: &Path,
+    ) -> Result<Vec<String>> {
+        if !Self::can_place(kind) {
+            return Ok(vec![]);
+        }
+
+        let base = Self::base_dir(scope, project_root);
+        let dir_path = base.join("skills");
+
+        let names = scan_components(&dir_path)?
+            .into_iter()
+            .filter_map(|c| Self::filter_component(&c, kind))
+            .collect();
+
+        Ok(names)
+    }
+}
+
+#[cfg(test)]
+#[path = "cursor_test.rs"]
+mod tests;

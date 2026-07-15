@@ -293,7 +293,8 @@ pub fn skill_allowed_fields(target: TargetKind) -> Option<&'static [&'static str
     match target {
         TargetKind::Codex => Some(&["name", "description", "metadata"]),
         TargetKind::GeminiCli => Some(&["name", "description"]),
-        TargetKind::Antigravity | TargetKind::Copilot => None,
+        // Cursor は paths / disable-model-invocation / metadata も許容するため除去しない
+        TargetKind::Antigravity | TargetKind::Copilot | TargetKind::Cursor => None,
     }
 }
 
