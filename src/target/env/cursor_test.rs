@@ -28,10 +28,11 @@ fn test_cursor_kind() {
 fn test_cursor_supported_components() {
     let target = CursorTarget::new();
     let supported = target.supported_components();
-    assert_eq!(supported.len(), 3);
+    assert_eq!(supported.len(), 4);
     assert!(supported.contains(&ComponentKind::Skill));
     assert!(supported.contains(&ComponentKind::Agent));
     assert!(supported.contains(&ComponentKind::Command));
+    assert!(supported.contains(&ComponentKind::Instruction));
 }
 
 #[test]
@@ -53,9 +54,9 @@ fn test_cursor_supports_command() {
 }
 
 #[test]
-fn test_cursor_not_supports_instruction() {
+fn test_cursor_supports_instruction() {
     let target = CursorTarget::new();
-    assert!(!target.supports(ComponentKind::Instruction));
+    assert!(target.supports(ComponentKind::Instruction));
 }
 
 #[test]
@@ -88,6 +89,18 @@ fn test_cursor_supports_scope_command() {
     let target = CursorTarget::new();
     assert!(target.supports_scope(ComponentKind::Command, Scope::Personal));
     assert!(target.supports_scope(ComponentKind::Command, Scope::Project));
+}
+
+#[test]
+fn test_cursor_supports_scope_instruction_project() {
+    let target = CursorTarget::new();
+    assert!(target.supports_scope(ComponentKind::Instruction, Scope::Project));
+}
+
+#[test]
+fn test_cursor_supports_scope_instruction_personal_returns_false() {
+    let target = CursorTarget::new();
+    assert!(!target.supports_scope(ComponentKind::Instruction, Scope::Personal));
 }
 
 #[test]
@@ -244,7 +257,7 @@ fn test_cursor_placement_location_command_project() {
 }
 
 #[test]
-fn test_cursor_placement_location_instruction_returns_none() {
+fn test_cursor_placement_location_instruction_project() {
     let target = CursorTarget::new();
     let project_root = Path::new("/project");
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
@@ -253,6 +266,24 @@ fn test_cursor_placement_location_instruction_returns_none() {
         component: ComponentRef::new(ComponentKind::Instruction, "test"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
+        project: ProjectContext::new(project_root),
+    };
+    let location = target.placement_location(&ctx).unwrap();
+
+    assert!(location.is_file());
+    assert_eq!(location.as_path(), Path::new("/project/AGENTS.md"));
+}
+
+#[test]
+fn test_cursor_placement_location_instruction_personal_returns_none() {
+    let target = CursorTarget::new();
+    let project_root = Path::new("/project");
+    let origin = PluginOrigin::from_marketplace("official", "my-plugin");
+
+    let ctx = PlacementContext {
+        component: ComponentRef::new(ComponentKind::Instruction, "test"),
+        origin: &origin,
+        scope: PlacementScope::new(Scope::Personal),
         project: ProjectContext::new(project_root),
     };
     assert!(target.placement_location(&ctx).is_none());
@@ -391,6 +422,46 @@ fn test_cursor_list_placed_ignores_agent_md_suffix() {
 
     let result = target
         .list_placed(ComponentKind::Agent, Scope::Project, project_root)
+        .unwrap();
+    assert!(result.is_empty());
+}
+
+#[test]
+fn test_cursor_list_placed_instruction_exists() {
+    let target = CursorTarget::new();
+    let temp_dir = TempDir::new().unwrap();
+    let project_root = temp_dir.path();
+
+    std::fs::write(project_root.join("AGENTS.md"), "# Agents").unwrap();
+
+    let result = target
+        .list_placed(ComponentKind::Instruction, Scope::Project, project_root)
+        .unwrap();
+    assert_eq!(result, vec!["AGENTS.md".to_string()]);
+}
+
+#[test]
+fn test_cursor_list_placed_instruction_not_exists() {
+    let target = CursorTarget::new();
+    let temp_dir = TempDir::new().unwrap();
+    let project_root = temp_dir.path();
+
+    let result = target
+        .list_placed(ComponentKind::Instruction, Scope::Project, project_root)
+        .unwrap();
+    assert!(result.is_empty());
+}
+
+#[test]
+fn test_cursor_list_placed_instruction_personal_returns_empty() {
+    let target = CursorTarget::new();
+    let temp_dir = TempDir::new().unwrap();
+    let project_root = temp_dir.path();
+
+    std::fs::write(project_root.join("AGENTS.md"), "# Agents").unwrap();
+
+    let result = target
+        .list_placed(ComponentKind::Instruction, Scope::Personal, project_root)
         .unwrap();
     assert!(result.is_empty());
 }
