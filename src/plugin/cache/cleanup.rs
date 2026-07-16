@@ -131,8 +131,12 @@ fn cleanup_specs(
         TargetKind::Cursor => {
             if let Some(h) = home {
                 specs.push((h.join(".cursor"), "skills"));
+                specs.push((h.join(".cursor"), "agents"));
+                specs.push((h.join(".cursor"), "commands"));
             }
             specs.push((project_root.join(".cursor"), "skills"));
+            specs.push((project_root.join(".cursor"), "agents"));
+            specs.push((project_root.join(".cursor"), "commands"));
         }
     }
 
