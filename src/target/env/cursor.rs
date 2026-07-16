@@ -4,7 +4,6 @@
 
 use crate::component::{ComponentKind, PlacementContext, PlacementLocation, Scope};
 use crate::error::Result;
-use crate::scan::constants::{AGENT_SUFFIX, MARKDOWN_SUFFIX, PROMPT_SUFFIX};
 use crate::target::paths::base_dir;
 use crate::target::scanner::{scan_components, ScannedComponent};
 use crate::target::{Target, TargetKind};
@@ -47,9 +46,7 @@ impl CursorTarget {
     /// PLM 内部の `.agent.md` / `.prompt.md` サフィックスは Cursor では
     /// 認識されないため除外する（#359 検証結果）。
     fn is_plain_markdown(name: &str) -> bool {
-        name.ends_with(MARKDOWN_SUFFIX)
-            && !name.ends_with(AGENT_SUFFIX)
-            && !name.ends_with(PROMPT_SUFFIX)
+        name.ends_with(".md") && !name.ends_with(".agent.md") && !name.ends_with(".prompt.md")
     }
 
     /// コンポーネント種別に応じたフィルタリング
@@ -69,10 +66,10 @@ impl CursorTarget {
                 }
             }
             ComponentKind::Agent if !c.is_dir && Self::is_plain_markdown(&c.name) => {
-                Some(c.name.trim_end_matches(MARKDOWN_SUFFIX).to_string())
+                Some(c.name.trim_end_matches(".md").to_string())
             }
             ComponentKind::Command if !c.is_dir && Self::is_plain_markdown(&c.name) => {
-                Some(c.name.trim_end_matches(MARKDOWN_SUFFIX).to_string())
+                Some(c.name.trim_end_matches(".md").to_string())
             }
             _ => None,
         }
