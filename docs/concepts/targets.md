@@ -10,7 +10,7 @@ PLMがサポートするAI開発環境（ターゲット）について説明し
 | **copilot** | VSCode GitHub Copilot | ✅ 対応済み |
 | **antigravity** | Google Antigravity IDE | ✅ 対応済み |
 | **gemini** | Gemini CLI（ターミナルベースAIエージェント） | ✅ 対応済み |
-| **cursor** | Cursor（IDE / CLI） | 🚧 計画中（[#356](https://github.com/DIO0550/plugin-manager/issues/356)） |
+| **cursor** | Cursor（IDE / CLI） | 🚧 Skills 対応済み（[#356](https://github.com/DIO0550/plugin-manager/issues/356)） |
 
 ## サポートするコンポーネント
 
@@ -298,7 +298,7 @@ Gemini CLIは `GEMINI.md` ファイルによる階層的な指示システムを
 
 ## Cursor 🚧（計画中）
 
-> **実装状況**: 未実装。実装は Epic [#356](https://github.com/DIO0550/plugin-manager/issues/356) で追跡。本セクションは実装のための仕様であり、「要検証」項目は実装時に確認して本ドキュメントへ反映すること。
+> **実装状況**: Skills 配置は [#358](https://github.com/DIO0550/plugin-manager/issues/358) で実装済み。Agents / Commands / Instructions / Hooks は [#359](https://github.com/DIO0550/plugin-manager/issues/359)〜[#361](https://github.com/DIO0550/plugin-manager/issues/361) で追跡。「要検証」項目は実装時に確認して本ドキュメントへ反映すること。
 
 ### 概要
 

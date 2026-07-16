@@ -12,6 +12,7 @@ fn target_kind_from_name(name: &str) -> TargetKind {
         "antigravity" => TargetKind::Antigravity,
         "codex" => TargetKind::Codex,
         "copilot" => TargetKind::Copilot,
+        "cursor" => TargetKind::Cursor,
         "gemini" => TargetKind::GeminiCli,
         other => panic!("unknown target name in test fixture: {}", other),
     }

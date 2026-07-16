@@ -542,6 +542,7 @@ fn test_skill_allowed_fields_gemini_keeps_only_name_description() {
 fn test_skill_allowed_fields_unrestricted_targets() {
     assert!(skill_allowed_fields(TargetKind::Copilot).is_none());
     assert!(skill_allowed_fields(TargetKind::Antigravity).is_none());
+    assert!(skill_allowed_fields(TargetKind::Cursor).is_none());
 }
 
 #[test]

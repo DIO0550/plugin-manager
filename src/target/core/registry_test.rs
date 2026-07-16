@@ -11,10 +11,11 @@ fn create_test_registry() -> (TargetRegistry, TempDir) {
 #[test]
 fn test_default_config() {
     let config = TargetsConfig::default();
-    assert_eq!(config.targets.len(), 3);
+    assert_eq!(config.targets.len(), 4);
     assert!(config.targets.contains(&TargetKind::Antigravity));
     assert!(config.targets.contains(&TargetKind::Codex));
     assert!(config.targets.contains(&TargetKind::Copilot));
+    assert!(config.targets.contains(&TargetKind::Cursor));
 }
 
 #[test]
@@ -29,10 +30,11 @@ fn test_load_nonexistent() {
     let config = registry.load().unwrap();
 
     // ファイルが存在しない場合はデフォルト
-    assert_eq!(config.targets.len(), 3);
+    assert_eq!(config.targets.len(), 4);
     assert!(config.targets.contains(&TargetKind::Antigravity));
     assert!(config.targets.contains(&TargetKind::Codex));
     assert!(config.targets.contains(&TargetKind::Copilot));
+    assert!(config.targets.contains(&TargetKind::Cursor));
 }
 
 #[test]
@@ -197,6 +199,7 @@ fn test_empty_targets_allowed() {
     registry.remove(TargetKind::Antigravity).unwrap();
     registry.remove(TargetKind::Codex).unwrap();
     registry.remove(TargetKind::Copilot).unwrap();
+    registry.remove(TargetKind::Cursor).unwrap();
 
     let targets = registry.list().unwrap();
     assert!(targets.is_empty());

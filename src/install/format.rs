@@ -129,6 +129,7 @@ fn target_display_name(target_kind: TargetKind) -> &'static str {
         TargetKind::Copilot => "Copilot CLI",
         TargetKind::Codex => "Codex CLI",
         TargetKind::Antigravity => "Antigravity",
+        TargetKind::Cursor => "Cursor",
         TargetKind::GeminiCli => "Gemini CLI",
     }
 }
