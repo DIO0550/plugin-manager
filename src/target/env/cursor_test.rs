@@ -28,8 +28,10 @@ fn test_cursor_kind() {
 fn test_cursor_supported_components() {
     let target = CursorTarget::new();
     let supported = target.supported_components();
-    assert_eq!(supported.len(), 1);
-    assert_eq!(supported[0], ComponentKind::Skill);
+    assert_eq!(supported.len(), 3);
+    assert!(supported.contains(&ComponentKind::Skill));
+    assert!(supported.contains(&ComponentKind::Agent));
+    assert!(supported.contains(&ComponentKind::Command));
 }
 
 #[test]
@@ -39,15 +41,15 @@ fn test_cursor_supports_skill() {
 }
 
 #[test]
-fn test_cursor_not_supports_agent() {
+fn test_cursor_supports_agent() {
     let target = CursorTarget::new();
-    assert!(!target.supports(ComponentKind::Agent));
+    assert!(target.supports(ComponentKind::Agent));
 }
 
 #[test]
-fn test_cursor_not_supports_command() {
+fn test_cursor_supports_command() {
     let target = CursorTarget::new();
-    assert!(!target.supports(ComponentKind::Command));
+    assert!(target.supports(ComponentKind::Command));
 }
 
 #[test]
@@ -75,10 +77,17 @@ fn test_cursor_supports_scope_skill_project() {
 }
 
 #[test]
-fn test_cursor_supports_scope_agent_returns_false() {
+fn test_cursor_supports_scope_agent() {
     let target = CursorTarget::new();
-    assert!(!target.supports_scope(ComponentKind::Agent, Scope::Personal));
-    assert!(!target.supports_scope(ComponentKind::Agent, Scope::Project));
+    assert!(target.supports_scope(ComponentKind::Agent, Scope::Personal));
+    assert!(target.supports_scope(ComponentKind::Agent, Scope::Project));
+}
+
+#[test]
+fn test_cursor_supports_scope_command() {
+    let target = CursorTarget::new();
+    assert!(target.supports_scope(ComponentKind::Command, Scope::Personal));
+    assert!(target.supports_scope(ComponentKind::Command, Scope::Project));
 }
 
 #[test]
@@ -147,33 +156,91 @@ fn test_cursor_placement_location_skill_with_prefixed_name() {
 }
 
 #[test]
-fn test_cursor_placement_location_agent_returns_none() {
+fn test_cursor_placement_location_agent_personal() {
     let target = CursorTarget::new();
     let project_root = Path::new("/project");
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Agent, "my-agent"),
+        component: ComponentRef::new(ComponentKind::Agent, "my-plugin_my-agent"),
         origin: &origin,
-        scope: PlacementScope::new(Scope::Project),
+        scope: PlacementScope::new(Scope::Personal),
         project: ProjectContext::new(project_root),
     };
-    assert!(target.placement_location(&ctx).is_none());
+    let location = target.placement_location(&ctx).unwrap();
+
+    assert!(location.is_file());
+    let home = std::env::var("HOME").unwrap();
+    let expected = std::path::PathBuf::from(home)
+        .join(".cursor")
+        .join("agents")
+        .join("my-plugin_my-agent.md");
+    assert_eq!(location.as_path(), expected.as_path());
 }
 
 #[test]
-fn test_cursor_placement_location_command_returns_none() {
+fn test_cursor_placement_location_agent_project() {
     let target = CursorTarget::new();
     let project_root = Path::new("/project");
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Command, "test"),
+        component: ComponentRef::new(ComponentKind::Agent, "my-plugin_my-agent"),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
     };
-    assert!(target.placement_location(&ctx).is_none());
+    let location = target.placement_location(&ctx).unwrap();
+
+    assert!(location.is_file());
+    assert_eq!(
+        location.as_path(),
+        Path::new("/project/.cursor/agents/my-plugin_my-agent.md")
+    );
+}
+
+#[test]
+fn test_cursor_placement_location_command_personal() {
+    let target = CursorTarget::new();
+    let project_root = Path::new("/project");
+    let origin = PluginOrigin::from_marketplace("official", "my-plugin");
+
+    let ctx = PlacementContext {
+        component: ComponentRef::new(ComponentKind::Command, "my-plugin_my-command"),
+        origin: &origin,
+        scope: PlacementScope::new(Scope::Personal),
+        project: ProjectContext::new(project_root),
+    };
+    let location = target.placement_location(&ctx).unwrap();
+
+    assert!(location.is_file());
+    let home = std::env::var("HOME").unwrap();
+    let expected = std::path::PathBuf::from(home)
+        .join(".cursor")
+        .join("commands")
+        .join("my-plugin_my-command.md");
+    assert_eq!(location.as_path(), expected.as_path());
+}
+
+#[test]
+fn test_cursor_placement_location_command_project() {
+    let target = CursorTarget::new();
+    let project_root = Path::new("/project");
+    let origin = PluginOrigin::from_marketplace("official", "my-plugin");
+
+    let ctx = PlacementContext {
+        component: ComponentRef::new(ComponentKind::Command, "my-plugin_my-command"),
+        origin: &origin,
+        scope: PlacementScope::new(Scope::Project),
+        project: ProjectContext::new(project_root),
+    };
+    let location = target.placement_location(&ctx).unwrap();
+
+    assert!(location.is_file());
+    assert_eq!(
+        location.as_path(),
+        Path::new("/project/.cursor/commands/my-plugin_my-command.md")
+    );
 }
 
 #[test]
@@ -279,10 +346,48 @@ fn test_cursor_list_placed_no_skill_md() {
 }
 
 #[test]
-fn test_cursor_list_placed_agent_returns_empty() {
+fn test_cursor_list_placed_with_agents() {
     let target = CursorTarget::new();
     let temp_dir = TempDir::new().unwrap();
     let project_root = temp_dir.path();
+
+    let agents_dir = project_root.join(".cursor").join("agents");
+    std::fs::create_dir_all(&agents_dir).unwrap();
+    std::fs::write(agents_dir.join("plugin_agent-1.md"), "# Agent 1").unwrap();
+
+    let result = target
+        .list_placed(ComponentKind::Agent, Scope::Project, project_root)
+        .unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0], "plugin_agent-1");
+}
+
+#[test]
+fn test_cursor_list_placed_with_commands() {
+    let target = CursorTarget::new();
+    let temp_dir = TempDir::new().unwrap();
+    let project_root = temp_dir.path();
+
+    let commands_dir = project_root.join(".cursor").join("commands");
+    std::fs::create_dir_all(&commands_dir).unwrap();
+    std::fs::write(commands_dir.join("plugin_cmd-1.md"), "# Command 1").unwrap();
+
+    let result = target
+        .list_placed(ComponentKind::Command, Scope::Project, project_root)
+        .unwrap();
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0], "plugin_cmd-1");
+}
+
+#[test]
+fn test_cursor_list_placed_ignores_agent_md_suffix() {
+    let target = CursorTarget::new();
+    let temp_dir = TempDir::new().unwrap();
+    let project_root = temp_dir.path();
+
+    let agents_dir = project_root.join(".cursor").join("agents");
+    std::fs::create_dir_all(&agents_dir).unwrap();
+    std::fs::write(agents_dir.join("legacy.agent.md"), "# Legacy").unwrap();
 
     let result = target
         .list_placed(ComponentKind::Agent, Scope::Project, project_root)

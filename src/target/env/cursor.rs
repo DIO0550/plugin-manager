@@ -1,9 +1,10 @@
-//! Cursor ターゲット実装（Phase 2: Skills のみ）
+//! Cursor ターゲット実装（Phase 3: Skills / Agents / Commands）
 //!
-//! Agents / Commands / Instructions / Hooks は後続 Issue（#359〜#361）で対応する。
+//! Instructions / Hooks は後続 Issue（#360〜#361）で対応する。
 
 use crate::component::{ComponentKind, PlacementContext, PlacementLocation, Scope};
 use crate::error::Result;
+use crate::scan::constants::{AGENT_SUFFIX, MARKDOWN_SUFFIX, PROMPT_SUFFIX};
 use crate::target::paths::base_dir;
 use crate::target::scanner::{scan_components, ScannedComponent};
 use crate::target::{Target, TargetKind};
@@ -29,16 +30,29 @@ impl CursorTarget {
         base_dir(scope, project_root, CURSOR_SUBDIR, CURSOR_SUBDIR)
     }
 
-    /// この組み合わせで配置できるか（Skill のみサポート、#358）
+    /// この組み合わせで配置できるか（Skill / Agent / Command をサポート）
     ///
     /// # Arguments
     ///
     /// * `kind` - Component kind to check.
     fn can_place(kind: ComponentKind) -> bool {
-        kind == ComponentKind::Skill
+        matches!(
+            kind,
+            ComponentKind::Skill | ComponentKind::Agent | ComponentKind::Command
+        )
     }
 
-    /// コンポーネント種別に応じたフィルタリング（SKILL.md 存在チェック）
+    /// Cursor が期待するプレーン `.md` ファイルか判定する。
+    ///
+    /// PLM 内部の `.agent.md` / `.prompt.md` サフィックスは Cursor では
+    /// 認識されないため除外する（#359 検証結果）。
+    fn is_plain_markdown(name: &str) -> bool {
+        name.ends_with(MARKDOWN_SUFFIX)
+            && !name.ends_with(AGENT_SUFFIX)
+            && !name.ends_with(PROMPT_SUFFIX)
+    }
+
+    /// コンポーネント種別に応じたフィルタリング
     ///
     /// # Arguments
     ///
@@ -53,6 +67,12 @@ impl CursorTarget {
                 } else {
                     None
                 }
+            }
+            ComponentKind::Agent if !c.is_dir && Self::is_plain_markdown(&c.name) => {
+                Some(c.name.trim_end_matches(MARKDOWN_SUFFIX).to_string())
+            }
+            ComponentKind::Command if !c.is_dir && Self::is_plain_markdown(&c.name) => {
+                Some(c.name.trim_end_matches(MARKDOWN_SUFFIX).to_string())
             }
             _ => None,
         }
@@ -75,7 +95,11 @@ impl Target for CursorTarget {
     }
 
     fn supported_components(&self) -> &[ComponentKind] {
-        &[ComponentKind::Skill]
+        &[
+            ComponentKind::Skill,
+            ComponentKind::Agent,
+            ComponentKind::Command,
+        ]
     }
 
     fn placement_location(&self, context: &PlacementContext) -> Option<PlacementLocation> {
@@ -92,6 +116,14 @@ impl Target for CursorTarget {
         Some(match kind {
             // フラット構造: skills/<flattened_name> (ディレクトリ)
             ComponentKind::Skill => PlacementLocation::dir(base.join("skills").join(name)),
+            // フラット構造: agents/<flattened_name>.md (ファイル)
+            ComponentKind::Agent => {
+                PlacementLocation::file(base.join("agents").join(format!("{name}.md")))
+            }
+            // フラット構造: commands/<flattened_name>.md (ファイル)
+            ComponentKind::Command => {
+                PlacementLocation::file(base.join("commands").join(format!("{name}.md")))
+            }
             _ => return None,
         })
     }
@@ -107,7 +139,12 @@ impl Target for CursorTarget {
         }
 
         let base = Self::base_dir(scope, project_root);
-        let dir_path = base.join("skills");
+        let dir_path = match kind {
+            ComponentKind::Skill => base.join("skills"),
+            ComponentKind::Agent => base.join("agents"),
+            ComponentKind::Command => base.join("commands"),
+            _ => return Ok(vec![]),
+        };
 
         let names = scan_components(&dir_path)?
             .into_iter()
