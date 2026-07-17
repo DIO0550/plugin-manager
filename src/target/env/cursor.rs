@@ -1,10 +1,11 @@
-//! Cursor ターゲット実装（Phase 3: Skills / Agents / Commands）
+//! Cursor ターゲット実装（Skills / Agents / Commands / Instructions）
 //!
-//! Instructions / Hooks は後続 Issue（#360〜#361）で対応する。
+//! Hooks は後続 Issue（#361）で対応する。
 
 use crate::component::{ComponentKind, PlacementContext, PlacementLocation, Scope};
 use crate::error::Result;
 use crate::target::paths::base_dir;
+use crate::target::placed_common;
 use crate::target::scanner::{scan_components, ScannedComponent};
 use crate::target::{Target, TargetKind};
 use std::path::{Path, PathBuf};
@@ -29,15 +30,21 @@ impl CursorTarget {
         base_dir(scope, project_root, CURSOR_SUBDIR, CURSOR_SUBDIR)
     }
 
-    /// この組み合わせで配置できるか（Skill / Agent / Command をサポート）
+    /// この組み合わせで配置できるか
+    ///
+    /// Instructions は Project スコープのみ（Personal の User Rules は対象外）。
     ///
     /// # Arguments
     ///
     /// * `kind` - Component kind to check.
-    fn can_place(kind: ComponentKind) -> bool {
+    /// * `scope` - Scope (`Personal` or `Project`) to check.
+    fn can_place(kind: ComponentKind, scope: Scope) -> bool {
         matches!(
-            kind,
-            ComponentKind::Skill | ComponentKind::Agent | ComponentKind::Command
+            (kind, scope),
+            (ComponentKind::Skill, _)
+                | (ComponentKind::Agent, _)
+                | (ComponentKind::Command, _)
+                | (ComponentKind::Instruction, Scope::Project)
         )
     }
 
@@ -96,16 +103,17 @@ impl Target for CursorTarget {
             ComponentKind::Skill,
             ComponentKind::Agent,
             ComponentKind::Command,
+            ComponentKind::Instruction,
         ]
     }
 
     fn placement_location(&self, context: &PlacementContext) -> Option<PlacementLocation> {
         let kind = context.kind();
-        if !Self::can_place(kind) {
+        let scope = context.scope();
+        if !Self::can_place(kind, scope) {
             return None;
         }
 
-        let scope = context.scope();
         let project_root = context.project_root();
         let base = Self::base_dir(scope, project_root);
         let name = context.name();
@@ -121,6 +129,8 @@ impl Target for CursorTarget {
             ComponentKind::Command => {
                 PlacementLocation::file(base.join("commands").join(format!("{name}.md")))
             }
+            // Project scope: AGENTS.md at project root (shared with Codex)
+            ComponentKind::Instruction => PlacementLocation::file(project_root.join("AGENTS.md")),
             _ => return None,
         })
     }
@@ -131,8 +141,17 @@ impl Target for CursorTarget {
         scope: Scope,
         project_root: &Path,
     ) -> Result<Vec<String>> {
-        if !Self::can_place(kind) {
+        if !Self::can_place(kind, scope) {
             return Ok(vec![]);
+        }
+
+        if kind == ComponentKind::Instruction {
+            return Ok(placed_common::list_instruction(
+                self,
+                scope,
+                project_root,
+                "AGENTS.md",
+            ));
         }
 
         let base = Self::base_dir(scope, project_root);
