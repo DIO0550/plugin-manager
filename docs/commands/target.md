@@ -1,6 +1,6 @@
 # plm target
 
-ターゲット環境（Codex, Copilot等）を管理します。
+ターゲット環境（Codex, Copilot, Cursor等）を管理します。
 
 ## サブコマンド
 
@@ -18,8 +18,9 @@
 $ plm target list
 📍 Active targets:
    • antigravity (skills)
-   • codex       (skills, agents, instructions)
-   • copilot     (skills, agents, commands, instructions)
+   • codex       (skills, agents, instructions, hooks)
+   • copilot     (skills, agents, commands, instructions, hooks)
+   • cursor      (skills, agents, commands, instructions, hooks)
    • gemini      (skills, instructions)
 ```
 
@@ -38,11 +39,11 @@ plm target add <target-name>
 ```bash
 $ plm target add codex
 ✅ Added target: codex
-   Supports: skills, agents, instructions
+   Supports: skills, agents, instructions, hooks
 
 $ plm target add copilot
 ✅ Added target: copilot
-   Supports: skills, agents, commands, instructions
+   Supports: skills, agents, commands, instructions, hooks
 
 $ plm target add antigravity
 ✅ Added target: antigravity
@@ -51,6 +52,10 @@ $ plm target add antigravity
 $ plm target add gemini
 ✅ Added target: gemini
    Supports: skills, instructions
+
+$ plm target add cursor
+✅ Added target: cursor
+   Supports: skills, agents, commands, instructions, hooks
 ```
 
 ### 利用可能なターゲット
@@ -58,8 +63,9 @@ $ plm target add gemini
 | ターゲット | サポートするコンポーネント |
 |------------|----------------------------|
 | `antigravity` | Skills |
-| `codex` | Skills, Agents, Instructions |
-| `copilot` | Skills, Agents, Commands, Instructions |
+| `codex` | Skills, Agents, Instructions, Hooks |
+| `copilot` | Skills, Agents, Commands, Instructions, Hooks |
+| `cursor` | Skills, Agents, Commands, Instructions, Hooks |
 | `gemini` | Skills, Instructions |
 
 ## plm target remove

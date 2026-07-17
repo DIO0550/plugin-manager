@@ -20,7 +20,7 @@ PLMが管理するコンポーネントの種類について説明します。
 
 - YAML frontmatterでメタデータを定義
 - 専門的なタスクを実行するための詳細な指示を含む
-- Codex、Copilot、Gemini CLIでサポート（Antigravityも対応）
+- Codex、Copilot、Gemini CLI、Cursorでサポート（Antigravityも対応）
 
 ### ファイル形式
 
@@ -45,6 +45,7 @@ metadata:
 | Copilot | - | `.github/skills/<marketplace>/<plugin>/<skill>/` |
 | Antigravity | `~/.gemini/antigravity/skills/<marketplace>/<plugin>/<skill>/` | `.agent/skills/<marketplace>/<plugin>/<skill>/` |
 | Gemini CLI | `~/.gemini/skills/<marketplace>/<plugin>/<skill>/` | `.gemini/skills/<marketplace>/<plugin>/<skill>/` |
+| Cursor | `~/.cursor/skills/<flattened_name>/` | `.cursor/skills/<flattened_name>/` |
 
 ## Agents
 
@@ -54,7 +55,7 @@ metadata:
 
 - 特定のタスクに特化したエージェントを定義
 - 使用可能なツールを指定可能
-- Copilotで公式サポート、Codexは将来対応見込み
+- Codex、Copilot、Cursorでサポート
 
 ### ファイル形式
 
@@ -76,6 +77,7 @@ tools: ['search', 'fetch', 'edit']
 |------------|----------|---------|
 | Codex | `~/.codex/agents/<marketplace>/<plugin>/` | `.codex/agents/<marketplace>/<plugin>/` |
 | Copilot | `~/.copilot/agents/<marketplace>/<plugin>/` | `.github/agents/<marketplace>/<plugin>/` |
+| Cursor | `~/.cursor/agents/<flattened_name>.md` | `.cursor/agents/<flattened_name>.md` |
 
 ## Commands
 
@@ -84,7 +86,7 @@ tools: ['search', 'fetch', 'edit']
 ### 特徴
 
 - Claude Code のスラッシュコマンド（`.prompt.md`形式）を他ターゲットにも展開
-- Copilotでのみサポート（Copilot Prompt Files として配置）
+- Copilot（Prompt Files）と Cursor（プレーン Markdown）でサポート
 - 手動で呼び出して使用
 
 ### ファイル形式
@@ -106,6 +108,7 @@ description: コマンドの説明
 |------------|----------|---------|
 | Codex | - | - |
 | Copilot | - | `.github/prompts/<marketplace>/<plugin>/` |
+| Cursor | `~/.cursor/commands/<flattened_name>.md` | `.cursor/commands/<flattened_name>.md` |
 
 ## Instructions
 
@@ -115,7 +118,7 @@ description: コマンドの説明
 
 - AGENTS.md形式のオープン標準（Linux Foundation管轄）
 - プロジェクト全体に適用される指示
-- Codex、Copilot、Gemini CLIでサポート（Gemini CLIは`GEMINI.md`で対応）
+- Codex、Copilot、Gemini CLI、Cursorでサポート（Gemini CLIは`GEMINI.md`で対応）
 
 ### ファイル形式
 
@@ -132,6 +135,7 @@ description: コマンドの説明
 | Codex | `~/.codex/AGENTS.md` | `AGENTS.md` |
 | Copilot | - | `.github/copilot-instructions.md`, `AGENTS.md` |
 | Gemini CLI | `~/.gemini/GEMINI.md` | `GEMINI.md` |
+| Cursor | - | `AGENTS.md` |
 
 ## Hooks
 
@@ -144,6 +148,7 @@ description: コマンドの説明
 - stdin/stdoutのJSONプロトコルで入出力を行い、操作の許可/拒否を制御可能
 - VSCode Copilot Agent Mode（Preview）でサポート
 - GitHub Copilot CLI / Coding Agent の hooks 形式とも互換性あり
+- Cursor は単一の `hooks.json`（camelCase + `version: 1`）として配置
 
 ### ファイル形式
 
@@ -172,6 +177,7 @@ description: コマンドの説明
 | ターゲット | Personal | Project |
 |------------|----------|---------|
 | Copilot | - | `.github/hooks/<marketplace>/<plugin>/` |
+| Cursor | `~/.cursor/hooks.json` | `.cursor/hooks.json` |
 
 ### イベント種別
 
@@ -188,15 +194,17 @@ description: コマンドの説明
 
 ## ターゲット別サポート状況
 
-| コンポーネント | Codex | Copilot | Antigravity | Gemini CLI |
-|----------------|-------|---------|-------------|------------|
-| Skills | ✅ | ✅ | ✅ | ✅ |
-| Agents | ✅ | ✅ | ❌ | ❌ |
-| Commands | ❌ | ✅ | ❌ | ❌ |
-| Instructions | ✅ | ✅ | ❌ | ✅* |
-| Hooks | ❌ | ✅ | ❌ | ❌ |
+| コンポーネント | Codex | Copilot | Antigravity | Gemini CLI | Cursor |
+|----------------|-------|---------|-------------|------------|--------|
+| Skills | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Agents | ✅ | ✅ | ❌ | ❌ | ✅ |
+| Commands | ❌ | ✅ | ❌ | ❌ | ✅ |
+| Instructions | ✅ | ✅ | ❌ | ✅* | ✅** |
+| Hooks | ✅ | ✅ | ❌ | ❌ | ✅*** |
 
 > *Gemini CLIは`GEMINI.md`形式で対応（`AGENTS.md`は設定で変更可能）。
+> **CursorのInstructionsはProjectスコープ（`AGENTS.md`）のみ。
+> ***CursorのHooksは単一 `hooks.json`。非管理ファイルの上書きと複数 Hook 同時配置は拒否（フルマージ未実装）。
 
 ## 共通規格
 

@@ -112,16 +112,16 @@ PLMの実装状況と将来の計画について説明します。
 - [x] `plm link` コマンド（シンボリックリンク作成）
 - [x] `plm unlink` コマンド（シンボリックリンク削除）
 
-### Phase 16: Cursor ターゲット対応 🚧
+### Phase 16: Cursor ターゲット対応 ✅
 
 Epic: [#356](https://github.com/DIO0550/plugin-manager/issues/356)（仕様: `docs/concepts/targets.md` の「Cursor」セクション）
 
 - [x] `TargetKind` に Cursor バリアントを追加（[#357](https://github.com/DIO0550/plugin-manager/issues/357)）
 - [x] `CursorTarget` 実装（Skills 配置）（[#358](https://github.com/DIO0550/plugin-manager/issues/358)）
-- [ ] Agents / Commands 配置対応（[#359](https://github.com/DIO0550/plugin-manager/issues/359)）
-- [ ] Instructions（AGENTS.md）配置対応（[#360](https://github.com/DIO0550/plugin-manager/issues/360)）
-- [ ] Hooks（hooks.json）変換・配置対応（[#361](https://github.com/DIO0550/plugin-manager/issues/361)）
-- [ ] ドキュメント・整合性更新（[#362](https://github.com/DIO0550/plugin-manager/issues/362)）
+- [x] Agents / Commands 配置対応（[#359](https://github.com/DIO0550/plugin-manager/issues/359)）
+- [x] Instructions（AGENTS.md）配置対応（[#360](https://github.com/DIO0550/plugin-manager/issues/360)）
+- [x] Hooks（hooks.json）変換・配置対応（[#361](https://github.com/DIO0550/plugin-manager/issues/361)）
+- [x] ドキュメント・整合性更新（[#362](https://github.com/DIO0550/plugin-manager/issues/362)）
 
 ## 将来の拡張
 
@@ -131,7 +131,6 @@ Epic: [#356](https://github.com/DIO0550/plugin-manager/issues/356)（仕様: `do
 
 | ターゲット | 説明 | 状態 |
 |------------|------|------|
-| Cursor | .cursor/ ディレクトリ | 🚧 Phase 16 で対応中（[#356](https://github.com/DIO0550/plugin-manager/issues/356)） |
 | Claude Code | .claude/ ディレクトリ | 計画中（[#96](https://github.com/DIO0550/plugin-manager/issues/96)） |
 | Windsurf | Windsurf IDE | 調査対象 |
 | Aider | Aider CLI | 調査対象 |

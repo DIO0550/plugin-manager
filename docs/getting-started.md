@@ -23,11 +23,11 @@ cargo build --release
 ```bash
 $ plm target add codex
 ✅ Added target: codex
-   Supports: skills, agents, instructions
+   Supports: skills, agents, instructions, hooks
 
 $ plm target add copilot
 ✅ Added target: copilot
-   Supports: skills, agents, commands, instructions
+   Supports: skills, agents, commands, instructions, hooks
 
 $ plm target add antigravity
 ✅ Added target: antigravity
@@ -36,6 +36,10 @@ $ plm target add antigravity
 $ plm target add gemini
 ✅ Added target: gemini
    Supports: skills, instructions
+
+$ plm target add cursor
+✅ Added target: cursor
+   Supports: skills, agents, commands, instructions, hooks
 ```
 
 ターゲットの確認:
@@ -44,8 +48,9 @@ $ plm target add gemini
 $ plm target list
 📍 Active targets:
    • antigravity (skills)
-   • codex       (skills, agents, instructions)
-   • copilot     (skills, agents, commands, instructions)
+   • codex       (skills, agents, instructions, hooks)
+   • copilot     (skills, agents, commands, instructions, hooks)
+   • cursor      (skills, agents, commands, instructions, hooks)
    • gemini      (skills, instructions)
 ```
 
@@ -138,6 +143,9 @@ plm install owner/repo --target codex
 
 # Copilotのみ
 plm install owner/repo --target copilot
+
+# Cursorのみ
+plm install owner/repo --target cursor
 ```
 
 ## インタラクティブ選択
@@ -161,6 +169,6 @@ $ plm install formatter@my-market
 ## 次のステップ
 
 - [コマンドリファレンス](./commands/index.md) - すべてのコマンドの詳細
-- [ターゲット環境](./concepts/targets.md) - Codex/Copilotの違い
+- [ターゲット環境](./concepts/targets.md) - Codex/Copilot/Cursor等の違い
 - [コンポーネント種別](./concepts/components.md) - Skills, Agents, Prompts, Instructions
 - [マーケットプレイス](./concepts/marketplace.md) - マーケットプレイスの仕組み
