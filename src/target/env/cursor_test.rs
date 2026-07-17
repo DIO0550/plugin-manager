@@ -2,8 +2,9 @@
 
 use super::*;
 use crate::component::{ComponentRef, PlacementScope, ProjectContext};
+use crate::target::paths::home_dir;
 use crate::target::PluginOrigin;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tempfile::TempDir;
 
 #[test]
@@ -28,11 +29,12 @@ fn test_cursor_kind() {
 fn test_cursor_supported_components() {
     let target = CursorTarget::new();
     let supported = target.supported_components();
-    assert_eq!(supported.len(), 4);
+    assert_eq!(supported.len(), 5);
     assert!(supported.contains(&ComponentKind::Skill));
     assert!(supported.contains(&ComponentKind::Agent));
     assert!(supported.contains(&ComponentKind::Command));
     assert!(supported.contains(&ComponentKind::Instruction));
+    assert!(supported.contains(&ComponentKind::Hook));
 }
 
 #[test]
@@ -60,9 +62,9 @@ fn test_cursor_supports_instruction() {
 }
 
 #[test]
-fn test_cursor_not_supports_hook() {
+fn test_cursor_supports_hook() {
     let target = CursorTarget::new();
-    assert!(!target.supports(ComponentKind::Hook));
+    assert!(target.supports(ComponentKind::Hook));
 }
 
 #[test]
@@ -290,7 +292,7 @@ fn test_cursor_placement_location_instruction_personal_returns_none() {
 }
 
 #[test]
-fn test_cursor_placement_location_hook_returns_none() {
+fn test_cursor_placement_location_hook_project() {
     let target = CursorTarget::new();
     let project_root = Path::new("/project");
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
@@ -301,7 +303,85 @@ fn test_cursor_placement_location_hook_returns_none() {
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
     };
-    assert!(target.placement_location(&ctx).is_none());
+    let location = target.placement_location(&ctx).unwrap();
+    assert!(location.is_file());
+    assert_eq!(location.as_path(), Path::new("/project/.cursor/hooks.json"));
+}
+
+#[test]
+fn test_cursor_placement_location_hook_personal() {
+    let target = CursorTarget::new();
+    let project_root = Path::new("/project");
+    let origin = PluginOrigin::from_marketplace("official", "my-plugin");
+
+    let ctx = PlacementContext {
+        component: ComponentRef::new(ComponentKind::Hook, "test"),
+        origin: &origin,
+        scope: PlacementScope::new(Scope::Personal),
+        project: ProjectContext::new(project_root),
+    };
+    let location = target.placement_location(&ctx).unwrap();
+    assert!(location.is_file());
+    assert_eq!(location.as_path(), home_dir().join(".cursor/hooks.json"));
+}
+
+#[test]
+fn hook_overwrite_error_returns_none_when_target_does_not_exist() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let target_path = temp.path().join("hooks.json");
+    let plugin_root = temp.path();
+
+    assert!(CursorTarget::hook_overwrite_error(&target_path, plugin_root).is_none());
+}
+
+#[test]
+fn hook_overwrite_error_returns_error_when_target_exists_and_not_managed() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let target_path = temp.path().join("hooks.json");
+    std::fs::write(&target_path, "{}").unwrap();
+
+    let plugin_root_dir = tempfile::TempDir::new().unwrap();
+    let result = CursorTarget::hook_overwrite_error(&target_path, plugin_root_dir.path());
+    assert!(result.is_some());
+    let msg = result.unwrap();
+    assert!(msg.contains("already exists"));
+    assert!(msg.contains("not managed by this plugin"));
+}
+
+#[test]
+fn hook_overwrite_error_returns_none_when_plugin_already_owns_target_path() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let target_path = temp.path().join("hooks.json");
+    std::fs::write(&target_path, "{}").unwrap();
+
+    let plugin_root_dir = tempfile::TempDir::new().unwrap();
+    let mut meta = crate::plugin::meta::PluginMeta::default();
+    meta.add_managed_file("cursor", &target_path);
+    crate::plugin::meta::write_meta(plugin_root_dir.path(), &meta).unwrap();
+
+    assert!(
+        CursorTarget::hook_overwrite_error(&target_path, plugin_root_dir.path()).is_none(),
+        "re-install of the same plugin must be allowed for a managed file path"
+    );
+}
+
+#[test]
+fn hook_component_conflict_error_rejects_multiple_hooks() {
+    let components = vec![
+        Component {
+            name: "hook-a".into(),
+            kind: ComponentKind::Hook,
+            path: PathBuf::from("hooks/a.json"),
+        },
+        Component {
+            name: "hook-b".into(),
+            kind: ComponentKind::Hook,
+            path: PathBuf::from("hooks/b.json"),
+        },
+    ];
+    let err = CursorTarget::hook_component_conflict_error(&components);
+    assert!(err.is_some());
+    assert!(err.unwrap().contains("single hooks.json"));
 }
 
 #[test]

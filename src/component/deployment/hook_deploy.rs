@@ -34,11 +34,11 @@ impl ComponentDeployment {
             .sum()
     }
 
-    /// JSON 内の hooks[].bash パスを名前空間付きに書き換える
+    /// JSON 内の hooks[].bash / hooks[].command パスを名前空間付きに書き換える
     ///
     /// # Arguments
     ///
-    /// * `json` - Hook definition JSON whose `hooks[].bash` paths should be rewritten in place.
+    /// * `json` - Hook definition JSON whose script paths should be rewritten in place.
     /// * `original_paths` - Set of original `./<SCRIPTS_DIR>/...` paths eligible for rewriting.
     /// * `safe_name` - Sanitized hook name used as the namespace segment in the new path.
     fn rewrite_script_paths_in_json(
@@ -59,16 +59,18 @@ impl ComponentDeployment {
             .flatten();
 
         for hook in hook_defs {
-            let Some(bash) = hook.get("bash").and_then(|b| b.as_str()) else {
-                continue;
-            };
-            if !original_paths.contains(bash) {
-                continue;
+            for key in ["bash", "command"] {
+                let Some(path) = hook.get(key).and_then(|b| b.as_str()) else {
+                    continue;
+                };
+                if !original_paths.contains(path) {
+                    continue;
+                }
+                let new_path = path.replacen(&original_prefix, &namespaced_prefix, 1);
+                hook.as_object_mut()
+                    .unwrap()
+                    .insert(key.to_string(), serde_json::Value::String(new_path));
             }
-            let new_path = bash.replacen(&original_prefix, &namespaced_prefix, 1);
-            hook.as_object_mut()
-                .unwrap()
-                .insert("bash".to_string(), serde_json::Value::String(new_path));
         }
     }
 
