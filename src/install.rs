@@ -199,7 +199,7 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
 
     for target in request.targets {
         let failures_before = failures.len();
-        let single_file_hook_conflict = match target.kind() {
+        let hook_component_conflict = match target.kind() {
             TargetKind::Codex => {
                 CodexTarget::hook_component_conflict_error(&request.scanned.components)
             }
@@ -215,7 +215,7 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
             }
 
             if component.kind == ComponentKind::Hook {
-                if let Some(error) = &single_file_hook_conflict {
+                if let Some(error) = &hook_component_conflict {
                     failures.push(PlaceFailure {
                         target: target.name().to_string(),
                         component_name: component.name.clone(),

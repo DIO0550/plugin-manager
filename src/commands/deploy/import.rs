@@ -406,7 +406,7 @@ fn place_components(
 
     for target_name in target_names {
         let target = parse_target(target_name).map_err(|e| e.to_string())?;
-        let single_file_hook_conflict = match target.kind() {
+        let hook_component_conflict = match target.kind() {
             TargetKind::Codex => CodexTarget::hook_component_conflict_error(components),
             TargetKind::Cursor => CursorTarget::hook_component_conflict_error(components),
             _ => None,
@@ -414,7 +414,7 @@ fn place_components(
 
         for component in components {
             if component.kind == ComponentKind::Hook {
-                if let Some(error) = &single_file_hook_conflict {
+                if let Some(error) = &hook_component_conflict {
                     println!(
                         "  x {} {}: {} - {}",
                         target.name(),
