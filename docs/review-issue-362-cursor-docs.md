@@ -46,5 +46,8 @@ Epic: [#356](https://github.com/DIO0550/plugin-manager/issues/356)
 
 ## 検証
 
-- ドキュメントのみの変更のため `cargo fmt` / `clippy` / `test` は回帰確認として実行
+- `cargo fmt --check`: **PASS**（変更なし）
+- `cargo clippy --all-targets`: **PASS**（既存警告 32 件。`-D warnings` は既存 deprecation 等で FAIL）
+- `cargo test`（`cargo build` 後）: **PASS**（1835 passed / 0 failed）
+- 単独 `cargo test` は `assert_cmd` が `target/debug/plm` を要求するため 29 件 FAIL（既存の取り回し。本 PR 非起因）
 - 手動フロー（`plm target add cursor` → install → list → uninstall）は実装 PR（#358–#361）でカバー済み。本 Issue は docs 整合が主目的
