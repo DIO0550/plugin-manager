@@ -252,6 +252,10 @@ pub(crate) struct HookConversionLayers {
     pub structure: Box<dyn StructureConverter>,
     pub script_gen: Box<dyn ScriptGenerator>,
     pub preserve_matcher_groups: bool,
+    /// When flattening matcher groups, attach the (tool-mapped) matcher to
+    /// each flat hook entry instead of moving it into a wrapper script.
+    /// Used by Cursor, which supports entry-level `matcher` on flat arrays.
+    pub attach_matcher_to_entries: bool,
 }
 
 /// Create conversion layers for the given target.
@@ -268,6 +272,7 @@ pub(crate) fn create_layers(target: TargetKind) -> Result<HookConversionLayers, 
             structure: Box::new(super::copilot::CopilotStructureConverter),
             script_gen: Box::new(super::copilot::CopilotScriptGenerator),
             preserve_matcher_groups: false,
+            attach_matcher_to_entries: false,
         }),
         TargetKind::Codex => Ok(HookConversionLayers {
             event_map: Box::new(super::codex::CodexEventMap),
@@ -276,6 +281,16 @@ pub(crate) fn create_layers(target: TargetKind) -> Result<HookConversionLayers, 
             structure: Box::new(super::codex::CodexStructureConverter),
             script_gen: Box::new(super::codex::CodexScriptGenerator),
             preserve_matcher_groups: true,
+            attach_matcher_to_entries: false,
+        }),
+        TargetKind::Cursor => Ok(HookConversionLayers {
+            event_map: Box::new(super::cursor::CursorEventMap),
+            tool_map: Some(Box::new(super::super::tool::cursor::CursorToolMap)),
+            key_map: Box::new(super::cursor::CursorKeyMap),
+            structure: Box::new(super::cursor::CursorStructureConverter),
+            script_gen: Box::new(super::cursor::CursorScriptGenerator),
+            preserve_matcher_groups: false,
+            attach_matcher_to_entries: true,
         }),
         other => Err(PlmError::HookConversion(format!(
             "Hook conversion is not yet implemented for target: {}",
@@ -553,20 +568,59 @@ fn flatten_matchers(
         };
 
         if let Some(m) = matcher {
-            out.warnings.push(ConversionWarning::RemovedField {
-                field: "matcher".to_string(),
-                reason: format!("Matcher '{}' moved to script for event '{}'", m, event),
-            });
+            if !layers.attach_matcher_to_entries {
+                out.warnings.push(ConversionWarning::RemovedField {
+                    field: "matcher".to_string(),
+                    reason: format!("Matcher '{}' moved to script for event '{}'", m, event),
+                });
+            }
         }
 
+        let mapped_matcher = matcher.map(|m| map_matcher_pattern(m, layers.tool_map.as_deref()));
+
         for hook in hooks {
-            if let Some(converted) = convert_hook_definition(hook, matcher, event, layers, out)? {
+            // When attaching matcher to JSON entries, do not also embed it in
+            // wrapper scripts (Cursor keeps commands inline anyway).
+            let script_matcher = if layers.attach_matcher_to_entries {
+                None
+            } else {
+                matcher
+            };
+            if let Some(mut converted) =
+                convert_hook_definition(hook, script_matcher, event, layers, out)?
+            {
+                if layers.attach_matcher_to_entries {
+                    if let Some(ref mapped) = mapped_matcher {
+                        if let Some(obj) = converted.as_object_mut() {
+                            obj.insert("matcher".to_string(), Value::from(mapped.as_str()));
+                        }
+                    }
+                }
                 result.push(converted);
             }
         }
     }
 
     Ok(result)
+}
+
+/// Map Claude Code tool names inside a matcher pattern to target tool names.
+///
+/// Splits on `|` (Claude Code's common alternation form such as `Write|Edit`)
+/// and maps each segment via `ToolMap`. Complex regex beyond simple
+/// alternation is passed through segment-wise best-effort.
+fn map_matcher_pattern(pattern: &str, tool_map: Option<&dyn ToolMap>) -> String {
+    let Some(tool_map) = tool_map else {
+        return pattern.to_string();
+    };
+    let mut parts = Vec::new();
+    for part in pattern.split('|') {
+        let mapped = tool_map.map_tool(part.trim());
+        if !parts.iter().any(|existing| existing == &mapped) {
+            parts.push(mapped);
+        }
+    }
+    parts.join("|")
 }
 
 /// Insert `bash` script path and `type: "command"` into a mapped hook value.

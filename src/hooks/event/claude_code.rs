@@ -1,17 +1,24 @@
 /// Claude Code side hook event enum.
 ///
 /// Known events have dedicated variants. Unknown or excluded events
-/// (PostToolUseFailure, PreCompact, etc.) use `Other(String)`,
+/// (`PostCompact`, `Notification`, etc.) use `Other(String)`,
 /// preserving the original name for diagnostics.
+///
+/// Variants such as `PostToolUseFailure` / `SubagentStart` / `PreCompact`
+/// exist so Cursor (and similar) targets can map them via `EventBridge`
+/// without bypassing the shared enum (#341 / #361).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum HookEvent {
     SessionStart,
     SessionEnd,
     PreToolUse,
     PostToolUse,
+    PostToolUseFailure,
     UserPromptSubmit,
     Stop,
+    SubagentStart,
     SubagentStop,
+    PreCompact,
     Other(String),
 }
 
@@ -28,9 +35,12 @@ impl HookEvent {
             "SessionEnd" => Self::SessionEnd,
             "PreToolUse" => Self::PreToolUse,
             "PostToolUse" => Self::PostToolUse,
+            "PostToolUseFailure" => Self::PostToolUseFailure,
             "UserPromptSubmit" => Self::UserPromptSubmit,
             "Stop" => Self::Stop,
+            "SubagentStart" => Self::SubagentStart,
             "SubagentStop" => Self::SubagentStop,
+            "PreCompact" => Self::PreCompact,
             other => Self::Other(other.to_string()),
         }
     }

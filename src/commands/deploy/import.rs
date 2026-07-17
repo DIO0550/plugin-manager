@@ -13,8 +13,8 @@ use crate::output::CommandSummary;
 use crate::plugin::PackageCache;
 use crate::source::parse_source;
 use crate::target::{
-    all_targets, apply_codex_hooks_flag, parse_target, CodexTarget, PluginOrigin, Scope, Target,
-    TargetKind,
+    all_targets, apply_codex_hooks_flag, parse_target, CodexTarget, CursorTarget, PluginOrigin,
+    Scope, Target, TargetKind,
 };
 use crate::tui;
 use chrono::Utc;
@@ -240,8 +240,13 @@ fn build_deployment(
         None => return Ok(None),
     };
 
-    if component.kind == ComponentKind::Hook && target.kind() == TargetKind::Codex {
-        if let Some(error) = CodexTarget::hook_overwrite_error(&target_path, ctx.plugin_root) {
+    if component.kind == ComponentKind::Hook {
+        let overwrite_error = match target.kind() {
+            TargetKind::Codex => CodexTarget::hook_overwrite_error(&target_path, ctx.plugin_root),
+            TargetKind::Cursor => CursorTarget::hook_overwrite_error(&target_path, ctx.plugin_root),
+            _ => None,
+        };
+        if let Some(error) = overwrite_error {
             return Err(error);
         }
     }
@@ -251,7 +256,12 @@ fn build_deployment(
             source: AgentFormat::ClaudeCode,
             dest: target.agent_format(),
         },
-        ComponentKind::Hook if matches!(target.kind(), TargetKind::Codex | TargetKind::Copilot) => {
+        ComponentKind::Hook
+            if matches!(
+                target.kind(),
+                TargetKind::Codex | TargetKind::Copilot | TargetKind::Cursor
+            ) =>
+        {
             ConversionConfig::Hook {
                 target_kind: target.kind(),
                 plugin_root: Some(ctx.plugin_root.to_path_buf()),
@@ -296,35 +306,52 @@ fn deploy_one(
             );
 
             let target_kind = target.kind();
-            if target_kind == TargetKind::Codex && deployment.kind() == ComponentKind::Hook {
-                crate::install::record_codex_hook_ownership(ctx.plugin_root, deployment.path());
+            if deployment.kind() == ComponentKind::Hook {
+                match target_kind {
+                    TargetKind::Codex => {
+                        crate::install::record_hook_file_ownership(
+                            ctx.plugin_root,
+                            deployment.path(),
+                            "codex",
+                        );
 
-                if ctx.enable_codex_hooks_flag && !ctx.codex_flag_applied.get() {
-                    let config_path = CodexTarget::config_toml_path(ctx.scope, ctx.project_root);
-                    match apply_codex_hooks_flag(&config_path) {
-                        Ok(ffo) => {
-                            if ffo.applied {
-                                println!(
-                                    "  + codex: Enabled [features] codex_hooks = true in {}",
-                                    ffo.target_path.display()
-                                );
-                            } else if let Some(reason) = &ffo.skipped_reason {
-                                println!(
-                                    "  - codex: Skipped feature flag in {}: {}",
-                                    ffo.target_path.display(),
-                                    reason
-                                );
+                        if ctx.enable_codex_hooks_flag && !ctx.codex_flag_applied.get() {
+                            let config_path =
+                                CodexTarget::config_toml_path(ctx.scope, ctx.project_root);
+                            match apply_codex_hooks_flag(&config_path) {
+                                Ok(ffo) => {
+                                    if ffo.applied {
+                                        println!(
+                                            "  + codex: Enabled [features] codex_hooks = true in {}",
+                                            ffo.target_path.display()
+                                        );
+                                    } else if let Some(reason) = &ffo.skipped_reason {
+                                        println!(
+                                            "  - codex: Skipped feature flag in {}: {}",
+                                            ffo.target_path.display(),
+                                            reason
+                                        );
+                                    }
+                                }
+                                Err(e) => {
+                                    eprintln!(
+                                        "  ! codex: Failed to enable feature flag in {}: {}",
+                                        config_path.display(),
+                                        e
+                                    );
+                                }
                             }
-                        }
-                        Err(e) => {
-                            eprintln!(
-                                "Warning: failed to enable [features] codex_hooks in {}: {}",
-                                config_path.display(),
-                                e
-                            );
+                            ctx.codex_flag_applied.set(true);
                         }
                     }
-                    ctx.codex_flag_applied.set(true);
+                    TargetKind::Cursor => {
+                        crate::install::record_hook_file_ownership(
+                            ctx.plugin_root,
+                            deployment.path(),
+                            "cursor",
+                        );
+                    }
+                    _ => {}
                 }
             }
 
@@ -379,15 +406,15 @@ fn place_components(
 
     for target_name in target_names {
         let target = parse_target(target_name).map_err(|e| e.to_string())?;
-        let codex_hook_conflict = if target.kind() == TargetKind::Codex {
-            CodexTarget::hook_component_conflict_error(components)
-        } else {
-            None
+        let hook_component_conflict = match target.kind() {
+            TargetKind::Codex => CodexTarget::hook_component_conflict_error(components),
+            TargetKind::Cursor => CursorTarget::hook_component_conflict_error(components),
+            _ => None,
         };
 
         for component in components {
             if component.kind == ComponentKind::Hook {
-                if let Some(error) = &codex_hook_conflict {
+                if let Some(error) = &hook_component_conflict {
                     println!(
                         "  x {} {}: {} - {}",
                         target.name(),

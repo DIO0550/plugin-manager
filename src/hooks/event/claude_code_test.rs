@@ -13,22 +13,28 @@ fn test_from_str_all_supported_events() {
     assert_eq!(HookEvent::from_str("PreToolUse"), HookEvent::PreToolUse);
     assert_eq!(HookEvent::from_str("PostToolUse"), HookEvent::PostToolUse);
     assert_eq!(
+        HookEvent::from_str("PostToolUseFailure"),
+        HookEvent::PostToolUseFailure
+    );
+    assert_eq!(
         HookEvent::from_str("UserPromptSubmit"),
         HookEvent::UserPromptSubmit
     );
     assert_eq!(HookEvent::from_str("Stop"), HookEvent::Stop);
+    assert_eq!(
+        HookEvent::from_str("SubagentStart"),
+        HookEvent::SubagentStart
+    );
     assert_eq!(HookEvent::from_str("SubagentStop"), HookEvent::SubagentStop);
+    assert_eq!(HookEvent::from_str("PreCompact"), HookEvent::PreCompact);
 }
 
 #[test]
 fn test_from_str_excluded_events_become_other() {
     let excluded = [
-        "PostToolUseFailure",
-        "PreCompact",
         "PostCompact",
         "PermissionRequest",
         "Notification",
-        "SubagentStart",
         "TeammateIdle",
         "TaskCompleted",
         "InstructionsLoaded",
@@ -110,7 +116,7 @@ fn test_to_target_event_other_returns_none() {
         target: "sessionStart",
     }];
     assert_eq!(
-        to_target_event(table, &HookEvent::Other("PostToolUseFailure".into())),
+        to_target_event(table, &HookEvent::Other("Notification".into())),
         None
     );
 }

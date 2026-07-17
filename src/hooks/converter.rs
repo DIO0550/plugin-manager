@@ -9,6 +9,7 @@ mod codex;
 #[allow(clippy::module_inception)]
 mod converter;
 mod copilot;
+mod cursor;
 
 pub use self::converter::*;
 
@@ -18,3 +19,5 @@ mod codex_test;
 mod converter_test;
 #[cfg(test)]
 mod copilot_test;
+#[cfg(test)]
+mod cursor_test;

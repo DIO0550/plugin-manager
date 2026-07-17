@@ -1,8 +1,6 @@
-//! Cursor ターゲット実装（Skills / Agents / Commands / Instructions）
-//!
-//! Hooks は後続 Issue（#361）で対応する。
+//! Cursor ターゲット実装（Skills / Agents / Commands / Instructions / Hooks）
 
-use crate::component::{ComponentKind, PlacementContext, PlacementLocation, Scope};
+use crate::component::{Component, ComponentKind, PlacementContext, PlacementLocation, Scope};
 use crate::error::Result;
 use crate::target::paths::base_dir;
 use crate::target::placed_common;
@@ -45,6 +43,7 @@ impl CursorTarget {
                 | (ComponentKind::Agent, _)
                 | (ComponentKind::Command, _)
                 | (ComponentKind::Instruction, Scope::Project)
+                | (ComponentKind::Hook, _)
         )
     }
 
@@ -54,6 +53,53 @@ impl CursorTarget {
     /// 認識されないため除外する（#359 検証結果）。
     fn is_plain_markdown(name: &str) -> bool {
         name.ends_with(".md") && !name.ends_with(".agent.md") && !name.ends_with(".prompt.md")
+    }
+
+    /// Cursor は 1 スコープにつき単一の `hooks.json` を読むため、複数 Hook を
+    /// 個別配置すると同じファイルを上書きする。マージ未実装の間は拒否する。
+    ///
+    /// # Arguments
+    ///
+    /// * `components` - Components being placed in a single install/import call.
+    pub fn hook_component_conflict_error(components: &[Component]) -> Option<String> {
+        let hook_count = components
+            .iter()
+            .filter(|component| component.kind == ComponentKind::Hook)
+            .count();
+
+        (hook_count > 1).then(|| {
+            format!(
+                "Cursor target supports a single hooks.json per scope; {} Hook components would overwrite each other. Select one Hook component or wait for merge support.",
+                hook_count
+            )
+        })
+    }
+
+    /// 配置先 `hooks.json` がすでに存在し、`target_path` が現在のプラグインの
+    /// 管理下に無い場合にエラー文字列を返す。
+    ///
+    /// # Arguments
+    ///
+    /// * `target_path` - Resolved destination path (e.g. `.cursor/hooks.json`).
+    /// * `plugin_root` - Cached plugin directory; `.plm-meta.json` lives here.
+    pub fn hook_overwrite_error(target_path: &Path, plugin_root: &Path) -> Option<String> {
+        if !target_path.exists() {
+            return None;
+        }
+
+        let already_owned = crate::plugin::meta::load_meta(plugin_root)
+            .map(|meta| meta.manages_file("cursor", target_path))
+            .unwrap_or(false);
+
+        if already_owned {
+            return None;
+        }
+
+        Some(format!(
+            "{} already exists and is not managed by this plugin. \
+             Refusing to overwrite; remove the file or merge it manually before re-installing.",
+            target_path.display()
+        ))
     }
 
     /// コンポーネント種別に応じたフィルタリング
@@ -78,6 +124,7 @@ impl CursorTarget {
             ComponentKind::Command if !c.is_dir && Self::is_plain_markdown(&c.name) => {
                 Some(c.name.trim_end_matches(".md").to_string())
             }
+            ComponentKind::Hook if !c.is_dir && c.name == "hooks.json" => Some("hooks".to_string()),
             _ => None,
         }
     }
@@ -104,6 +151,7 @@ impl Target for CursorTarget {
             ComponentKind::Agent,
             ComponentKind::Command,
             ComponentKind::Instruction,
+            ComponentKind::Hook,
         ]
     }
 
@@ -131,7 +179,7 @@ impl Target for CursorTarget {
             }
             // Project scope: AGENTS.md at project root (shared with Codex)
             ComponentKind::Instruction => PlacementLocation::file(project_root.join("AGENTS.md")),
-            _ => return None,
+            ComponentKind::Hook => PlacementLocation::file(base.join("hooks.json")),
         })
     }
 
@@ -159,6 +207,7 @@ impl Target for CursorTarget {
             ComponentKind::Skill => base.join("skills"),
             ComponentKind::Agent => base.join("agents"),
             ComponentKind::Command => base.join("commands"),
+            ComponentKind::Hook => base.clone(),
             _ => return Ok(vec![]),
         };
 

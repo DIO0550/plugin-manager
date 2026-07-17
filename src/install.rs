@@ -9,7 +9,7 @@ use crate::plugin::{
     PackageCacheAccess,
 };
 use crate::source::parse_source;
-use crate::target::{CodexTarget, PluginOrigin, Target, TargetKind};
+use crate::target::{CodexTarget, CursorTarget, PluginOrigin, Target, TargetKind};
 
 pub mod format;
 pub use crate::hooks::converter::{ConversionWarning, SourceFormat};
@@ -199,10 +199,14 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
 
     for target in request.targets {
         let failures_before = failures.len();
-        let codex_hook_conflict = if target.kind() == TargetKind::Codex {
-            CodexTarget::hook_component_conflict_error(&request.scanned.components)
-        } else {
-            None
+        let hook_component_conflict = match target.kind() {
+            TargetKind::Codex => {
+                CodexTarget::hook_component_conflict_error(&request.scanned.components)
+            }
+            TargetKind::Cursor => {
+                CursorTarget::hook_component_conflict_error(&request.scanned.components)
+            }
+            _ => None,
         };
 
         for component in &request.scanned.components {
@@ -211,7 +215,7 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
             }
 
             if component.kind == ComponentKind::Hook {
-                if let Some(error) = &codex_hook_conflict {
+                if let Some(error) = &hook_component_conflict {
                     failures.push(PlaceFailure {
                         target: target.name().to_string(),
                         component_name: component.name.clone(),
@@ -235,10 +239,19 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
                 None => continue,
             };
 
-            if component.kind == ComponentKind::Hook && target.kind() == TargetKind::Codex {
-                if let Some(error) =
-                    CodexTarget::hook_overwrite_error(&target_path, request.scanned.plugin_root())
-                {
+            if component.kind == ComponentKind::Hook {
+                let overwrite_error = match target.kind() {
+                    TargetKind::Codex => CodexTarget::hook_overwrite_error(
+                        &target_path,
+                        request.scanned.plugin_root(),
+                    ),
+                    TargetKind::Cursor => CursorTarget::hook_overwrite_error(
+                        &target_path,
+                        request.scanned.plugin_root(),
+                    ),
+                    _ => None,
+                };
+                if let Some(error) = overwrite_error {
                     failures.push(PlaceFailure {
                         target: target.name().to_string(),
                         component_name: component.name.clone(),
@@ -260,7 +273,10 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
                     dest: target.agent_format(),
                 },
                 ComponentKind::Hook
-                    if matches!(target.kind(), TargetKind::Codex | TargetKind::Copilot) =>
+                    if matches!(
+                        target.kind(),
+                        TargetKind::Codex | TargetKind::Copilot | TargetKind::Cursor
+                    ) =>
                 {
                     ConversionConfig::Hook {
                         target_kind: target.kind(),
@@ -426,7 +442,7 @@ pub fn update_meta_after_place(plugin_path: &Path, result: &PlaceOutcome) {
         // add_managed_file は重複時 false を返すので、内容変化なしの no-op
         // 書き込み（mtime 汚染）を避けるため戻り値で updated を立てる。
         if success.component_kind == ComponentKind::Hook
-            && success.target_kind == TargetKind::Codex
+            && matches!(success.target_kind, TargetKind::Codex | TargetKind::Cursor)
             && plugin_meta.add_managed_file(&success.target, &success.target_path)
         {
             updated = true;
@@ -453,33 +469,44 @@ pub fn update_meta_after_place(plugin_path: &Path, result: &PlaceOutcome) {
     }
 }
 
-/// 単発の Codex Hook 配置成功時に所有権を `.plm-meta.json` に記録する。
+/// 単発の単一ファイル Hook 配置成功時に所有権を `.plm-meta.json` に記録する。
 ///
 /// `plm import` は `place_plugin` を経由しないため `update_meta_after_place`
 /// で所有権が記録されない。同じプラグインを再 import すると
-/// `CodexTarget::hook_overwrite_error` が「未管理ファイル」と判定して
-/// 拒否してしまうので、import の deploy 成功時に明示的に呼び出して
-/// `managedFiles["codex"]` に絶対パスを追記する。
+/// overwrite ガードが「未管理ファイル」と判定して拒否してしまうので、
+/// import の deploy 成功時に明示的に呼び出して `managedFiles[target]` に
+/// 絶対パスを追記する。
+///
+/// # Arguments
+///
+/// * `plugin_path` - Filesystem path of the cached plugin (`.plm-meta.json` のディレクトリ).
+/// * `hook_path` - 実際に書き込んだ `hooks.json` の絶対パス.
+/// * `target` - Target key recorded in `managedFiles` / `statusByTarget` (`codex` / `cursor`).
+pub fn record_hook_file_ownership(plugin_path: &Path, hook_path: &Path, target: &str) {
+    let mut plugin_meta = meta::load_meta(plugin_path).unwrap_or_default();
+    let was_managed = plugin_meta.manages_file(target, hook_path);
+    let was_enabled = plugin_meta.get_status(target) == Some(TargetStatus::Enabled);
+
+    if was_managed && was_enabled {
+        return;
+    }
+
+    plugin_meta.set_status(target, TargetStatus::Enabled);
+    plugin_meta.add_managed_file(target, hook_path);
+
+    if let Err(e) = meta::write_meta(plugin_path, &plugin_meta) {
+        eprintln!("Warning: Failed to update .plm-meta.json: {}", e);
+    }
+}
+
+/// Codex Hook 配置成功時の所有権記録（後方互換ラッパー）。
 ///
 /// # Arguments
 ///
 /// * `plugin_path` - Filesystem path of the cached plugin (`.plm-meta.json` のディレクトリ).
 /// * `hook_path` - 実際に書き込んだ `hooks.json` の絶対パス.
 pub fn record_codex_hook_ownership(plugin_path: &Path, hook_path: &Path) {
-    let mut plugin_meta = meta::load_meta(plugin_path).unwrap_or_default();
-    let was_managed = plugin_meta.manages_file("codex", hook_path);
-    let was_enabled = plugin_meta.get_status("codex") == Some(TargetStatus::Enabled);
-
-    if was_managed && was_enabled {
-        return;
-    }
-
-    plugin_meta.set_status("codex", TargetStatus::Enabled);
-    plugin_meta.add_managed_file("codex", hook_path);
-
-    if let Err(e) = meta::write_meta(plugin_path, &plugin_meta) {
-        eprintln!("Warning: Failed to update .plm-meta.json: {}", e);
-    }
+    record_hook_file_ownership(plugin_path, hook_path, "codex");
 }
 
 #[cfg(test)]
