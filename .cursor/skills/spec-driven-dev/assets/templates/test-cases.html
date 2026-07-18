@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>テストケース仕様 — {機能名}</title>
+<style>
+:root {
+  --bg: oklch(0.985 0.003 255);
+  --surface: #ffffff;
+  --surface-2: oklch(0.978 0.004 255);
+  --surface-3: oklch(0.965 0.005 255);
+  --border: oklch(0.925 0.005 255);
+  --border-strong: oklch(0.875 0.007 255);
+  --text: oklch(0.28 0.012 262);
+  --text-2: oklch(0.52 0.012 262);
+  --text-3: oklch(0.65 0.011 262);
+  --accent: oklch(0.55 0.16 264);
+  --accent-2: oklch(0.5 0.16 264);
+  --accent-soft: oklch(0.955 0.025 264);
+  --accent-border: oklch(0.86 0.06 264);
+
+  --green: oklch(0.5 0.11 156);
+  --green-soft: oklch(0.955 0.04 156);
+  --green-border: oklch(0.85 0.07 156);
+  --rose: oklch(0.54 0.16 22);
+  --rose-soft: oklch(0.957 0.03 22);
+  --rose-border: oklch(0.87 0.06 22);
+  --amber: oklch(0.52 0.1 72);
+  --amber-soft: oklch(0.955 0.05 82);
+  --amber-border: oklch(0.85 0.08 82);
+
+  --r-sm: 6px;
+  --r-md: 9px;
+  --r-lg: 13px;
+  --shadow-sm: 0 1px 2px oklch(0.4 0.02 262 / 0.05);
+  --shadow-md: 0 4px 14px oklch(0.4 0.02 262 / 0.08), 0 1px 3px oklch(0.4 0.02 262 / 0.05);
+
+  --pad: 20px;
+  --gap: 16px;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body { height: 100%; }
+body {
+  font-family: "Noto Sans JP", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: 0.01em;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ============ Header ============ */
+header.topbar {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 0 22px;
+  height: 60px;
+  flex: 0 0 auto;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  z-index: 5;
+}
+.brand { display: flex; align-items: center; gap: 11px; flex: 0 0 auto; }
+.brand-mark {
+  width: 30px; height: 30px; border-radius: 8px;
+  background: linear-gradient(150deg, var(--accent), var(--accent-2));
+  display: grid; place-items: center; flex: 0 0 auto;
+  box-shadow: var(--shadow-sm);
+}
+.brand-mark::before {
+  content: ""; width: 12px; height: 12px;
+  border: 2px solid #fff; border-radius: 3px;
+  transform: rotate(45deg);
+}
+.brand-title { display: flex; flex-direction: column; line-height: 1.2; }
+.brand-title b { font-size: 16px; font-weight: 700; letter-spacing: 0.02em; white-space: nowrap; }
+.brand-title span {
+  font-size: 11.5px; color: var(--text-3); font-family: var(--mono);
+  display: flex; align-items: center; gap: 6px; white-space: nowrap;
+}
+.branch-chip {
+  font-family: var(--mono); font-size: 11px; color: var(--accent-2);
+  background: var(--accent-soft); border: 1px solid var(--accent-border);
+  padding: 1px 7px; border-radius: 20px; white-space: nowrap;
+}
+
+.stats { display: flex; align-items: stretch; gap: 0; margin-left: auto; }
+.stat {
+  display: flex; flex-direction: column; align-items: flex-start;
+  padding: 0 18px; border-left: 1px solid var(--border);
+}
+.stat:first-child { border-left: none; }
+.stat .num { font-size: 17px; font-weight: 700; font-family: var(--mono); letter-spacing: -0.01em; }
+.stat .lbl { font-size: 10.5px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; }
+.stat .num.warn { color: var(--amber); }
+.stat .num.accent { color: var(--accent); }
+
+.cov-meter { display: flex; flex-direction: column; gap: 5px; padding: 0 18px; border-left: 1px solid var(--border); justify-content: center; }
+.cov-meter .lbl { font-size: 10.5px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; }
+.cov-meter .track { width: 96px; height: 6px; border-radius: 4px; background: var(--surface-3); overflow: hidden; }
+.cov-meter .fill { height: 100%; background: linear-gradient(90deg, var(--green), oklch(0.6 0.12 156)); border-radius: 4px; }
+.cov-meter .pct { font-size: 11px; font-family: var(--mono); font-weight: 700; color: var(--green); }
+
+.btn {
+  font-family: inherit; font-size: 13px; font-weight: 500;
+  border: 1px solid var(--border-strong); background: var(--surface);
+  color: var(--text); padding: 7px 13px; border-radius: var(--r-sm);
+  cursor: pointer; display: inline-flex; align-items: center; gap: 7px;
+  transition: background .12s, border-color .12s, box-shadow .12s;
+  white-space: nowrap;
+}
+.btn:hover { background: var(--surface-2); border-color: var(--text-3); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: var(--shadow-sm); }
+.btn.primary:hover { background: var(--accent-2); border-color: var(--accent-2); }
+.btn .kbd { font-family: var(--mono); font-size: 10.5px; opacity: 0.65; }
+
+/* ============ Body ============ */
+.body { flex: 1 1 auto; display: flex; min-height: 0; }
+
+/* ---- Master ---- */
+aside.master {
+  flex: 0 0 332px; width: 332px;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  display: flex; flex-direction: column; min-height: 0;
+}
+.master-head {
+  padding: 14px 18px 10px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex: 0 0 auto;
+}
+.master-head h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); font-weight: 700; }
+.master-head .count { font-size: 11px; color: var(--text-3); font-family: var(--mono); background: var(--surface-3); padding: 1px 8px; border-radius: 20px; }
+.file-list { overflow-y: auto; padding: 0 10px 14px; display: flex; flex-direction: column; gap: 3px; }
+
+.file-item {
+  position: relative; text-align: left; width: 100%;
+  background: transparent; border: 1px solid transparent; border-radius: var(--r-md);
+  padding: 11px 12px 11px 14px; cursor: pointer; font-family: inherit;
+  transition: background .1s, border-color .1s;
+  display: flex; flex-direction: column; gap: 7px;
+}
+.file-item:hover { background: var(--surface-2); }
+.file-item.active { background: var(--accent-soft); border-color: var(--accent-border); }
+.file-item.active::before {
+  content: ""; position: absolute; left: 0; top: 9px; bottom: 9px; width: 3px;
+  background: var(--accent); border-radius: 0 3px 3px 0;
+}
+.fi-top { display: flex; align-items: center; gap: 8px; }
+.fi-dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
+.fi-dot.pending { background: var(--amber); box-shadow: 0 0 0 3px var(--amber-soft); }
+.fi-dot.done { background: var(--green); box-shadow: 0 0 0 3px var(--green-soft); }
+.fi-name { font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--text); }
+.fi-cases { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--text-3); }
+.fi-path { font-family: var(--mono); font-size: 11px; color: var(--text-3); padding-left: 15px; margin-top: -3px; word-break: break-all; }
+.fi-desc { font-size: 12px; color: var(--text-2); padding-left: 15px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.fi-bars { display: flex; gap: 3px; padding-left: 15px; align-items: center; }
+.seg { height: 4px; border-radius: 2px; }
+.seg.normal { background: var(--green); }
+.seg.error { background: var(--rose); }
+.seg.boundary { background: var(--amber); }
+.fi-warn { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; color: var(--amber); font-weight: 500; margin-left: auto; }
+.fi-warn::before { content: "▲"; font-size: 8px; }
+
+/* ---- Detail ---- */
+main.detail { flex: 1 1 auto; overflow-y: auto; min-width: 0; background: var(--bg); }
+.detail-inner { max-width: 1080px; margin: 0 auto; padding: 26px 32px 80px; }
+
+.file-header {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); padding: 22px 24px; box-shadow: var(--shadow-sm);
+  margin-bottom: 22px;
+}
+.fh-pathrow { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.fh-path {
+  font-family: var(--mono); font-size: 13.5px; font-weight: 700; color: var(--text);
+  background: var(--surface-3); border: 1px solid var(--border);
+  padding: 4px 10px; border-radius: var(--r-sm); display: inline-flex; align-items: center; gap: 8px;
+}
+.fh-path .dir { color: var(--text-3); font-weight: 400; }
+.lang-tag { font-family: var(--mono); font-size: 11px; color: var(--text-2); border: 1px solid var(--border-strong); padding: 2px 8px; border-radius: 20px; }
+.fh-desc-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-3); font-weight: 700; margin-bottom: 5px; }
+.fh-desc { font-size: 14px; color: var(--text); line-height: 1.6; max-width: 760px; }
+
+.cov-grid { display: flex; gap: 28px; margin-top: 18px; padding-top: 18px; border-top: 1px dashed var(--border-strong); flex-wrap: wrap; align-items: flex-end; }
+.cov-block { display: flex; flex-direction: column; gap: 7px; min-width: 150px; }
+.cov-block .ctitle { font-size: 11px; color: var(--text-3); font-weight: 500; display: flex; justify-content: space-between; }
+.cov-block .ctitle b { font-family: var(--mono); color: var(--text); }
+.cov-block .ctrack { height: 7px; border-radius: 4px; background: var(--surface-3); overflow: hidden; }
+.cov-block .cfill { height: 100%; border-radius: 4px; }
+.cov-fns .cfill { background: linear-gradient(90deg, var(--accent), oklch(0.62 0.14 264)); }
+.cov-br .cfill { background: linear-gradient(90deg, var(--green), oklch(0.6 0.12 156)); }
+.cov-gap {
+  margin-left: auto; align-self: stretch; display: flex; flex-direction: column; gap: 5px;
+  background: var(--amber-soft); border: 1px solid var(--amber-border);
+  border-radius: var(--r-md); padding: 9px 13px; min-width: 210px;
+}
+.cov-gap .gtitle { font-size: 11px; font-weight: 700; color: var(--amber); display: flex; align-items: center; gap: 6px; }
+.cov-gap .gtitle::before { content: "▲"; font-size: 9px; }
+.cov-gap .gitems { font-size: 12px; color: var(--text-2); line-height: 1.5; }
+.cov-gap code { font-family: var(--mono); font-size: 11.5px; color: var(--text); background: oklch(1 0 0 / 0.6); padding: 1px 5px; border-radius: 4px; }
+
+/* ---- Toolbar above cases ---- */
+.cases-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.cases-bar h3 { font-size: 15px; font-weight: 700; letter-spacing: 0.01em; }
+.cases-bar h3 .n { color: var(--text-3); font-weight: 500; font-family: var(--mono); }
+.filters { display: flex; gap: 6px; }
+.chip {
+  font-family: inherit; font-size: 12px; cursor: pointer;
+  border: 1px solid var(--border-strong); background: var(--surface);
+  color: var(--text-2); padding: 4px 11px; border-radius: 20px; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 6px; transition: all .1s;
+}
+.chip:hover { border-color: var(--text-3); color: var(--text); }
+.chip.active { background: var(--text); border-color: var(--text); color: #fff; }
+.chip .dot { width: 7px; height: 7px; border-radius: 50%; }
+.chip .dot.normal { background: var(--green); }
+.chip .dot.error { background: var(--rose); }
+.chip .dot.boundary { background: var(--amber); }
+.cases-bar .right { margin-left: auto; display: flex; gap: 8px; }
+
+/* ---- Case list / cards ---- */
+.cases { display: flex; flex-direction: column; gap: 14px; }
+
+.case {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-sm);
+  overflow: hidden; transition: box-shadow .14s, border-color .14s;
+}
+.case:hover { box-shadow: var(--shadow-md); border-color: var(--border-strong); }
+
+.case-head { display: flex; align-items: center; gap: 11px; padding: 15px 18px; flex-wrap: wrap; }
+.case-id { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--text-3); }
+.case-title { font-size: 14.5px; font-weight: 700; color: var(--text); flex: 1 1 auto; min-width: 160px; }
+.badge {
+  font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 20px;
+  display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+  border: 1px solid transparent;
+}
+.badge.normal { color: var(--green); background: var(--green-soft); border-color: var(--green-border); }
+.badge.error { color: var(--rose); background: var(--rose-soft); border-color: var(--rose-border); }
+.badge.boundary { color: var(--amber); background: var(--amber-soft); border-color: var(--amber-border); }
+.prio { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 5px; display: inline-flex; align-items: center; gap: 4px; }
+.prio::before { content: ""; width: 6px; height: 6px; border-radius: 50%; }
+.prio.high { color: var(--rose); background: var(--rose-soft); }
+.prio.high::before { background: var(--rose); }
+.prio.med { color: var(--amber); background: var(--amber-soft); }
+.prio.med::before { background: var(--amber); }
+.prio.low { color: var(--text-2); background: var(--surface-3); }
+.prio.low::before { background: var(--text-3); }
+.case-status { font-size: 11px; color: var(--text-3); display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); }
+.case-status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 0 3px var(--amber-soft); }
+
+.case-body { padding: 0 18px 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.field { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.field.full { grid-column: 1 / -1; }
+.field-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-3); font-weight: 700; display: flex; align-items: center; gap: 6px; }
+.field-label::before { content: ""; width: 3px; height: 11px; border-radius: 2px; background: var(--border-strong); }
+
+ol.steps { list-style: none; display: flex; flex-direction: column; gap: 6px; counter-reset: s; }
+ol.steps li { font-size: 13px; color: var(--text); padding-left: 26px; position: relative; line-height: 1.5; }
+ol.steps li::before {
+  counter-increment: s; content: counter(s);
+  position: absolute; left: 0; top: 1px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--surface-3); border: 1px solid var(--border);
+  font-family: var(--mono); font-size: 10.5px; font-weight: 700; color: var(--text-2);
+  display: grid; place-items: center;
+}
+.precond { font-size: 12.5px; color: var(--text-2); background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 8px 11px; line-height: 1.5; }
+.precond b { color: var(--text); font-weight: 500; }
+
+.io { display: flex; flex-direction: column; gap: 8px; }
+.io-block { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-sm); overflow: hidden; }
+.io-block .io-tag { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 5px 11px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 6px; }
+.io-block.in .io-tag { color: var(--accent-2); background: var(--accent-soft); }
+.io-block.out .io-tag { color: var(--green); background: var(--green-soft); }
+.io-block pre { font-family: var(--mono); font-size: 12px; color: var(--text); padding: 9px 11px; white-space: pre-wrap; word-break: break-word; line-height: 1.55; }
+.io-block.out.throws pre { color: var(--rose); }
+.io-arrow { align-self: center; color: var(--text-3); font-size: 13px; font-family: var(--mono); }
+
+.cov-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.cov-chip { font-family: var(--mono); font-size: 11.5px; padding: 3px 9px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.cov-chip .ck { font-size: 9.5px; color: var(--text-3); font-family: "Noto Sans JP"; white-space: nowrap; }
+.cov-chip.branch { background: var(--accent-soft); border-color: var(--accent-border); color: var(--accent-2); }
+
+.ai {
+  grid-column: 1 / -1; display: flex; gap: 12px;
+  background: linear-gradient(180deg, var(--accent-soft), oklch(0.975 0.012 264));
+  border: 1px solid var(--accent-border); border-radius: var(--r-md);
+  padding: 12px 15px;
+}
+.ai-mark { flex: 0 0 auto; width: 24px; height: 24px; border-radius: 7px; background: linear-gradient(150deg, var(--accent), var(--accent-2)); display: grid; place-items: center; box-shadow: var(--shadow-sm); }
+.ai-mark::before { content: ""; width: 9px; height: 9px; background: #fff; clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%); }
+.ai-body { min-width: 0; }
+.ai-body .ai-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent-2); margin-bottom: 3px; }
+.ai-body p { font-size: 13px; color: var(--text); line-height: 1.55; }
+
+.case-foot {
+  display: flex; align-items: center; gap: 8px;
+  padding: 11px 18px; border-top: 1px solid var(--border); background: var(--surface-2);
+}
+.case-foot .hint { font-size: 11.5px; color: var(--text-3); }
+.case-foot .actions { margin-left: auto; display: flex; gap: 8px; }
+.btn.sm { padding: 5px 11px; font-size: 12px; }
+.btn.ok { color: var(--green); border-color: var(--green-border); }
+.btn.ok:hover { background: var(--green-soft); }
+.btn.warn { color: var(--amber); border-color: var(--amber-border); }
+.btn.warn:hover { background: var(--amber-soft); }
+
+/* ============ LIST layout tweak ============ */
+#app[data-layout="list"] .cases { gap: 0; border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-sm); }
+#app[data-layout="list"] .case { border-radius: 0; border: none; border-bottom: 1px solid var(--border); box-shadow: none; }
+#app[data-layout="list"] .case:last-child { border-bottom: none; }
+#app[data-layout="list"] .case:hover { box-shadow: none; background: var(--surface-2); }
+#app[data-layout="list"] .case-head { padding: 12px 16px; }
+#app[data-layout="list"] .case-body { grid-template-columns: 1.1fr 1fr; gap: 14px 22px; padding: 0 16px 14px; }
+#app[data-layout="list"] .field.steps-field { display: none; }
+#app[data-layout="list"] .precond { background: transparent; border: none; padding: 0; }
+#app[data-layout="list"] .ai { background: transparent; border: none; border-top: 1px dashed var(--accent-border); border-radius: 0; padding: 10px 0 0; }
+#app[data-layout="list"] .ai-mark { width: 20px; height: 20px; }
+#app[data-layout="list"] .case-foot { padding: 9px 16px; }
+
+/* ============ DENSITY tweak ============ */
+#app[data-density="compact"] { font-size: 13px; }
+#app[data-density="compact"] .detail-inner { padding: 18px 24px 60px; }
+#app[data-density="compact"] .file-header { padding: 16px 18px; margin-bottom: 16px; }
+#app[data-density="compact"] .case-head { padding: 11px 14px; }
+#app[data-density="compact"] .case-body { padding: 0 14px 12px; gap: 13px; }
+#app[data-density="compact"] .cases { gap: 10px; }
+#app[data-density="compact"] .ai { padding: 9px 12px; }
+
+/* ============ Header legend ============ */
+.legend { display: flex; gap: 14px; align-items: center; padding-left: 4px; }
+.legend .lg { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-2); white-space: nowrap; }
+.legend .dot { width: 8px; height: 8px; border-radius: 50%; }
+.legend .dot.normal { background: var(--green); }
+.legend .dot.error { background: var(--rose); }
+.legend .dot.boundary { background: var(--amber); }
+
+/* ============ Master nav groups ============ */
+.master-scroll { overflow-y: auto; padding: 12px 10px 20px; display: flex; flex-direction: column; }
+.nav-group + .nav-group { margin-top: 8px; }
+.nav-grouphead { display: flex; align-items: center; justify-content: space-between; padding: 8px 8px 7px; }
+.nav-grouphead h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); font-weight: 700; }
+.nav-grouphead .count { font-size: 11px; color: var(--text-3); font-family: var(--mono); background: var(--surface-3); padding: 1px 8px; border-radius: 20px; }
+.nav-items { display: flex; flex-direction: column; gap: 2px; }
+
+.nav-item {
+  position: relative; text-align: left; width: 100%;
+  background: transparent; border: 1px solid transparent; border-radius: var(--r-md);
+  padding: 9px 11px; cursor: pointer; font-family: inherit; color: var(--text);
+  transition: background .1s, border-color .1s; display: flex; align-items: center; gap: 10px;
+}
+.nav-item:hover { background: var(--surface-2); }
+.nav-item.active { background: var(--accent-soft); border-color: var(--accent-border); }
+.nav-item.active::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; background: var(--accent); border-radius: 0 3px 3px 0; }
+.nav-ico { flex: 0 0 auto; width: 26px; height: 26px; border-radius: 7px; background: var(--surface-3); border: 1px solid var(--border); display: grid; place-items: center; color: var(--text-2); }
+.nav-item.active .nav-ico { background: #fff; border-color: var(--accent-border); color: var(--accent); }
+.nav-ico svg { width: 15px; height: 15px; }
+.nav-label { font-size: 13.5px; font-weight: 500; line-height: 1.25; }
+.nav-item .nav-tag { margin-left: auto; font-size: 10px; font-family: var(--mono); color: var(--amber); background: var(--amber-soft); border: 1px solid var(--amber-border); padding: 1px 6px; border-radius: 20px; }
+
+/* ============ Detail: section heading ============ */
+.view-head { margin-bottom: 20px; }
+.view-kicker { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent-2); font-weight: 700; margin-bottom: 6px; }
+.view-title { font-size: 22px; font-weight: 700; letter-spacing: 0.01em; }
+.view-lead { font-size: 13.5px; color: var(--text-2); margin-top: 8px; max-width: 720px; line-height: 1.65; }
+
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); padding: 20px 22px; margin-bottom: 16px; }
+.panel-title { font-size: 13px; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.panel-title .pn { font-family: var(--mono); font-size: 11px; color: #fff; background: var(--accent); width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; flex: 0 0 auto; }
+.panel-title .pn svg { width: 13px; height: 13px; }
+.panel-title .ptsub { font-size: 11.5px; font-weight: 400; color: var(--text-3); display: inline-flex; align-items: center; gap: 5px; }
+.panel-title .ptsub .mx-empty { display: inline-block; }
+.approach { font-size: 13.5px; color: var(--text); line-height: 1.7; max-width: 760px; }
+.bullets { list-style: none; display: flex; flex-direction: column; gap: 7px; }
+.bullets li { position: relative; padding-left: 17px; font-size: 13.5px; color: var(--text); line-height: 1.6; }
+.bullets li::before { content: ""; position: absolute; left: 2px; top: 9px; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+.muted-note { font-size: 12.5px; color: var(--text-3); padding: 4px 0; }
+
+/* doc: label + content rows */
+.doc-row { display: grid; grid-template-columns: 150px 1fr; gap: 18px; padding: 13px 0; border-top: 1px solid var(--border); }
+.doc-row:first-child { border-top: none; padding-top: 0; }
+.doc-row .dl { font-size: 12px; font-weight: 700; color: var(--text-3); padding-top: 2px; }
+.doc-row .dc { font-size: 13.5px; color: var(--text); line-height: 1.65; }
+.doc-row .dc ul { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.doc-row .dc ul li { position: relative; padding-left: 16px; }
+.doc-row .dc ul li::before { content: ""; position: absolute; left: 2px; top: 9px; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+.scope-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.scope-box { border: 1px solid var(--border); border-radius: var(--r-md); padding: 11px 13px; }
+.scope-box .sb-h { font-size: 11px; font-weight: 700; margin-bottom: 7px; display: flex; align-items: center; gap: 6px; }
+.scope-box.in .sb-h { color: var(--green); }
+.scope-box.out .sb-h { color: var(--text-3); }
+.scope-box code { font-family: var(--mono); font-size: 11.5px; }
+.scope-box ul { list-style: none; display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: var(--text-2); }
+
+.levelbars { display: flex; flex-direction: column; gap: 9px; max-width: 420px; }
+.levelbar { display: grid; grid-template-columns: 70px 1fr 48px; gap: 10px; align-items: center; font-size: 12.5px; }
+.levelbar .lv-track { height: 8px; border-radius: 4px; background: var(--surface-3); overflow: hidden; }
+.levelbar .lv-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--accent), oklch(0.62 0.14 264)); }
+.levelbar .lv-val { font-family: var(--mono); font-size: 12px; color: var(--text-2); text-align: right; }
+.levelbar .lv-note { font-size: 11px; color: var(--text-3); }
+
+/* generic data table */
+table.dtable { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.dtable th { text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); font-weight: 700; padding: 0 12px 9px; border-bottom: 1px solid var(--border-strong); }
+table.dtable td { padding: 11px 12px; border-bottom: 1px solid var(--border); vertical-align: top; line-height: 1.55; }
+table.dtable tr:last-child td { border-bottom: none; }
+table.dtable tr:hover td { background: var(--surface-2); }
+table.dtable code, .mono { font-family: var(--mono); font-size: 12px; }
+.reqid { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--accent-2); }
+.tc-ref { font-family: var(--mono); font-size: 11px; color: var(--text-2); background: var(--surface-3); border: 1px solid var(--border); padding: 1px 7px; border-radius: 5px; display: inline-block; margin: 2px 4px 2px 0; }
+.pill { font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 20px; border: 1px solid transparent; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.pill.ok { color: var(--green); background: var(--green-soft); border-color: var(--green-border); }
+.pill.gap { color: var(--amber); background: var(--amber-soft); border-color: var(--amber-border); }
+.pill.real { color: var(--green); background: var(--green-soft); border-color: var(--green-border); }
+.pill.fake { color: var(--accent-2); background: var(--accent-soft); border-color: var(--accent-border); }
+.pill.stub { color: var(--amber); background: var(--amber-soft); border-color: var(--amber-border); }
+.pill.mock { color: var(--rose); background: var(--rose-soft); border-color: var(--rose-border); }
+
+/* matrix */
+table.matrix td.cell { text-align: center; min-width: 110px; }
+table.matrix th.coltype { text-align: center; }
+table.matrix .grouprow td { background: var(--surface-3); font-family: var(--mono); font-size: 11.5px; font-weight: 700; color: var(--text-2); padding: 7px 12px; }
+table.matrix .fn { font-family: var(--mono); font-size: 12.5px; font-weight: 500; }
+.mx-empty { display: inline-block; width: 22px; height: 3px; border-radius: 2px; background: var(--border-strong); opacity: 0.7; }
+.mx-cell-ids { display: inline-flex; flex-direction: column; gap: 3px; align-items: center; }
+.mx-id { font-family: var(--mono); font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 5px; white-space: nowrap; }
+.mx-id.normal { color: var(--green); background: var(--green-soft); }
+.mx-id.error { color: var(--rose); background: var(--rose-soft); }
+.mx-id.boundary { color: var(--amber); background: var(--amber-soft); }
+
+/* test data cards */
+.data-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.data-card { border: 1px solid var(--border); border-radius: var(--r-md); padding: 13px 15px; background: var(--surface); }
+.data-card .dh { display: flex; align-items: baseline; gap: 9px; margin-bottom: 7px; flex-wrap: wrap; }
+.data-card .dh .dname { font-size: 13.5px; font-weight: 700; }
+.data-card .dh .did { font-family: var(--mono); font-size: 11px; color: var(--text-3); }
+.data-card .ddesc { font-size: 12.5px; color: var(--text-2); line-height: 1.55; margin-bottom: 9px; }
+.data-card pre.code { font-family: var(--mono); font-size: 11.5px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 8px 10px; white-space: pre-wrap; word-break: break-word; color: var(--text); margin-bottom: 9px; line-height: 1.5; }
+.data-card .usedby { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.data-card .usedby .ub-lb { font-size: 10px; color: var(--text-3); margin-right: 2px; }
+
+.callout { display: flex; gap: 12px; background: linear-gradient(180deg, var(--accent-soft), oklch(0.975 0.012 264)); border: 1px solid var(--accent-border); border-radius: var(--r-md); padding: 14px 16px; margin-bottom: 16px; }
+.callout .ci { flex: 0 0 auto; width: 24px; height: 24px; border-radius: 7px; background: linear-gradient(150deg, var(--accent), var(--accent-2)); display: grid; place-items: center; }
+.callout .ci::before { content: ""; width: 9px; height: 9px; background: #fff; clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%); }
+.callout .ct { font-size: 13px; color: var(--text); line-height: 1.6; }
+.callout .ct b { font-weight: 700; }
+
+@media (max-width: 1000px) {
+  .data-grid, .scope-grid { grid-template-columns: 1fr; }
+  .doc-row { grid-template-columns: 1fr; gap: 6px; }
+}
+
+/* scrollbars */
+.master-scroll::-webkit-scrollbar, main.detail::-webkit-scrollbar { width: 11px; }
+.master-scroll::-webkit-scrollbar-thumb, main.detail::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 20px; border: 3px solid var(--surface); }
+main.detail::-webkit-scrollbar-thumb { border-color: var(--bg); }
+
+@media (max-width: 900px) {
+  .case-body, #app[data-layout="list"] .case-body { grid-template-columns: 1fr; }
+  .stats .stat:nth-child(n+3) { display: none; }
+}
+
+/* ===== 4th category: edge (エッジケース) ===== */
+:root {
+  --purple: oklch(0.5 0.16 300);
+  --purple-soft: oklch(0.955 0.04 300);
+  --purple-border: oklch(0.85 0.07 300);
+}
+.legend .dot.edge { background: var(--purple); }
+.chip .dot.edge { background: var(--purple); }
+.seg.edge { background: var(--purple); }
+.badge.edge { color: var(--purple); background: var(--purple-soft); border-color: var(--purple-border); }
+.mx-id.edge { color: var(--purple); background: var(--purple-soft); }
+
+</style>
+</head>
+<body>
+
+<div id="app" data-layout="card" data-density="regular">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div class="brand-title">
+        <b>テストケース仕様</b>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><span class="num" id="stat-files">0</span><span class="lbl">ファイル</span></div>
+      <div class="stat"><span class="num" id="stat-cases">0</span><span class="lbl">ケース</span></div>
+      <div class="stat"><span class="num warn" id="stat-pending">0</span><span class="lbl">要確認</span></div>
+      <div class="cov-meter">
+        <span class="lbl">想定カバレッジ</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="track"><div class="fill" id="cov-fill" style="width:0%"></div></div>
+          <span class="pct" id="cov-pct">0%</span>
+        </div>
+      </div>
+    </div>
+    <div class="legend">
+      <span class="lg"><span class="dot normal"></span>正常系</span>
+      <span class="lg"><span class="dot boundary"></span>境界値</span>
+      <span class="lg"><span class="dot error"></span>異常系</span>
+      <span class="lg"><span class="dot edge"></span>エッジケース</span>
+    </div>
+  </header>
+
+  <div class="body">
+    <aside class="master">
+      <div class="master-scroll" id="master-scroll"></div>
+    </aside>
+    <main class="detail" id="detail"></main>
+  </div>
+</div>
+
+<!-- ============================================================
+     DATA — このスクリプトだけをエージェントが実データで置き換える
+     ============================================================ -->
+<script>
+/*
+ * ============================================================================
+ *  test-case-designer エージェントへ:
+ *  この FILES と PLAN を、実際のテスト計画データで丸ごと置き換えること。
+ *  下記はデータ構造（スキーマ）の例。HTMLは書かない — データだけ書けばよい。
+ * ----------------------------------------------------------------------------
+ *  FILES[]: テスト対象ファイルごとのオブジェクト
+ *    name      : ファイル名（例 "price.ts"）
+ *    dir       : ディレクトリ（例 "src/utils/"）
+ *    lang      : 言語タグ（例 "TypeScript"）
+ *    purpose   : このファイルの役割（1〜2文）
+ *    approach  : テスト方針（どう検証するか）
+ *    viewpoints: string[]  重点的に確認する観点
+ *    coverage  : { fns:[到達,全体], branches:[到達,全体] }  ← 数値
+ *    gaps      : string[]  未カバーの疑い（空配列なら「カバー済」表示）。<code> 可
+ *    cases[]   : テストケース
+ *      id       : "TC-01" など
+ *      title    : ケース名
+ *      cat      : "normal" | "boundary" | "error" | "edge"   （正常/境界/異常/エッジ）
+ *      prio     : "high" | "med" | "low"
+ *      precond  : 前提条件
+ *      steps    : string[]  実行手順
+ *      input    : 入力値（複数行可、\n 区切り）
+ *      expected : 期待結果（throws:true のときは期待される例外）
+ *      throws   : boolean   例外を期待するか
+ *      coverage : [{ k:"関数"|"分岐", v:"名前", branch?:true }]  ← k:"関数" がマトリクスの行になる
+ *      ai       : このケースをなぜ提案したか（レビュー補助の一文）
+ *
+ *  PLAN: 計画全体
+ *    strategy : { purpose, scopeIn:[], scopeOut:[], levels:[{label,pct,note}],
+ *                 viewpoints:[], priority, exit:[] }
+ *    trace    : [{ id:"REQ-1", req, tcs:["price/TC-01", ...], status:"ok"|"gap" }]
+ *    testData : [{ id, name, desc, code, usedBy:["<file-base>/TC-xx", ...] }]
+ *               usedBy の <file-base> は name から拡張子を除いたもの（price.ts → price）
+ * ============================================================================
+ */
+const FILES = [
+  {
+    name: "{ファイル名}.ts",
+    dir: "src/{ディレクトリ}/",
+    lang: "TypeScript",
+    purpose: "{このファイルが何を検証する対象か}",
+    approach: "{テスト方針}",
+    viewpoints: ["{重点観点1}", "{重点観点2}"],
+    status: "pending",
+    coverage: { fns: [0, 1], branches: [0, 1] },
+    gaps: ["{未カバーの疑い。なければ空配列 []}"],
+    cases: [
+      {
+        id: "TC-01",
+        title: "{最も基本的な正常系}",
+        cat: "normal",
+        prio: "high",
+        precond: "{前提条件}",
+        steps: ["{手順1}", "{手順2}"],
+        input: "{入力値}",
+        expected: "{期待結果}",
+        throws: false,
+        coverage: [{ k: "関数", v: "{関数名}" }, { k: "分岐", v: "{分岐}", branch: true }],
+        ai: "{このケースを提案した理由}",
+      },
+      {
+        id: "TC-02",
+        title: "{境界値ケース}",
+        cat: "boundary",
+        prio: "med",
+        precond: "{前提}",
+        steps: ["{手順}"],
+        input: "{最小/最大/ゼロ}",
+        expected: "{期待結果}",
+        throws: false,
+        coverage: [{ k: "関数", v: "{関数名}" }],
+        ai: "{理由}",
+      },
+      {
+        id: "TC-03",
+        title: "{異常系ケース}",
+        cat: "error",
+        prio: "high",
+        precond: "{前提}",
+        steps: ["{手順}"],
+        input: "{不正入力}",
+        expected: "{期待される例外}",
+        throws: true,
+        coverage: [{ k: "関数", v: "{関数名}" }],
+        ai: "{理由}",
+      },
+      {
+        id: "TC-04",
+        title: "{エッジケース}",
+        cat: "edge",
+        prio: "low",
+        precond: "{前提}",
+        steps: ["{手順}"],
+        input: "{想定外だが起こりうる入力}",
+        expected: "{期待される振る舞い}",
+        throws: false,
+        coverage: [{ k: "関数", v: "{関数名}" }],
+        ai: "{理由}",
+      },
+    ],
+  },
+];
+
+const PLAN = {
+  strategy: {
+    purpose: "{この計画で何をどこまで保証するか}",
+    scopeIn: ["{対象ファイル/モジュール}"],
+    scopeOut: ["{対象外}"],
+    levels: [
+      { label: "単体", pct: 80, note: "{比重の根拠}" },
+      { label: "結合", pct: 20, note: "{}" },
+      { label: "E2E", pct: 0, note: "{別計画 等}" },
+    ],
+    viewpoints: ["{計画全体の重点観点}"],
+    priority: "{優先度の付け方の方針}",
+    exit: ["{終了基準1}", "{終了基準2}"],
+  },
+  trace: [
+    { id: "REQ-1", req: "{受け入れ条件}", tcs: ["{file-base}/TC-01"], status: "ok" },
+    { id: "REQ-2", req: "{未カバーの要件}", tcs: [], status: "gap" },
+  ],
+  testData: [
+    { id: "{id}", name: "{名前}", desc: "{説明}", code: "{固定データ}", usedBy: ["{file-base}/TC-01"] },
+  ],
+};
+
+</script>
+
+<!-- ===== 以下 2つのスクリプト（ヘルパー / レンダラ）は固定。編集しない ===== -->
+<script>
+(function () {
+  const CAT = { normal: "正常系", error: "異常系", boundary: "境界値", edge: "エッジケース" };
+  const PRIO = { high: "高", med: "中", low: "低" };
+
+  const esc = (s) =>
+    String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+
+  // 'price/TC-01' -> chip
+  const tcRef = (s) => `<span class="tc-ref">${esc(s)}</span>`;
+
+  // nav icons (simple line icons)
+  const ICON = {
+    strategy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.2"/><path d="M12 1.5V4M12 20v2.5M1.5 12H4M20 12h2.5"/></svg>',
+    matrix: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>',
+    data: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5.5" rx="7.5" ry="3"/><path d="M4.5 5.5v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6"/><path d="M4.5 11.5v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6"/></svg>',
+    mock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M5 19L19 5"/></svg>',
+    trace: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.6"/><circle cx="18" cy="18" r="2.6"/><path d="M8.4 7.6l7.2 8.8"/><path d="M16 6h4v4"/></svg>',
+  };
+
+  let view = { type: "plan", key: "strategy" };
+
+  function catCounts(file) {
+    const c = { normal: 0, error: 0, boundary: 0, edge: 0 };
+    file.cases.forEach((x) => (c[x.cat] += 1));
+    return c;
+  }
+  const covPct = ([a, b]) => (b === 0 ? 0 : Math.round((a / b) * 100));
+
+  // ---------------- Master ----------------
+  const PLAN_NAV = [
+    { key: "strategy", label: "テスト戦略" },
+    { key: "trace", label: "要件トレーサビリティ" },
+  ];
+
+  function renderMaster() {
+    const root = document.getElementById("master-scroll");
+
+    const planItems = PLAN_NAV.map((n) => {
+      const active = view.type === "plan" && view.key === n.key ? "active" : "";
+      const tag = n.key === "trace" ? '<span class="nav-tag">1</span>' : "";
+      return `<button class="nav-item ${active}" data-type="plan" data-key="${n.key}">
+        <span class="nav-ico">${ICON[n.key]}</span>
+        <span class="nav-label">${n.label}</span>${tag}
+      </button>`;
+    }).join("");
+
+    const fileItems = FILES.map((f, i) => {
+      const c = catCounts(f);
+      const hasGap = f.gaps && f.gaps.length;
+      const bars = ["normal", "error", "boundary", "edge"]
+        .filter((k) => c[k] > 0)
+        .map((k) => `<div class="seg ${k}" style="flex:${c[k]}" title="${CAT[k]} ${c[k]}件"></div>`)
+        .join("");
+      const warn = hasGap ? `<span class="fi-warn">未カバー ${f.gaps.length}</span>` : "";
+      const active = view.type === "file" && view.index === i ? "active" : "";
+      return `<button class="file-item ${active}" data-type="file" data-index="${i}">
+        <div class="fi-top">
+          <span class="fi-dot ${hasGap ? "pending" : "done"}"></span>
+          <span class="fi-name">${esc(f.name)}</span>
+          <span class="fi-cases">${f.cases.length} cases</span>
+        </div>
+        <div class="fi-path">${esc(f.dir)}</div>
+        <div class="fi-desc">${esc(f.purpose)}</div>
+        <div class="fi-bars">${bars}${warn}</div>
+      </button>`;
+    }).join("");
+
+    root.innerHTML = `
+      <div class="nav-group">
+        <div class="nav-grouphead"><h2>計画全体</h2></div>
+        <div class="nav-items">${planItems}</div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-grouphead"><h2>テスト対象ファイル</h2><span class="count">${FILES.length}</span></div>
+        <div class="nav-items">${fileItems}</div>
+      </div>`;
+
+    root.querySelectorAll("[data-type]").forEach((el) => {
+      el.addEventListener("click", () => {
+        view = el.dataset.type === "plan"
+          ? { type: "plan", key: el.dataset.key }
+          : { type: "file", index: +el.dataset.index };
+        renderMaster();
+        window.__renderDetail();
+        document.getElementById("detail").scrollTop = 0;
+      });
+    });
+  }
+
+  // expose pieces for the rest of the file
+  window.__rev = { CAT, PRIO, esc, tcRef, catCounts, covPct, getView: () => view, ICON };
+
+  window.__renderMaster = renderMaster;
+})();
+
+</script>
+<script>
+(function () {
+  const { CAT, PRIO, esc, tcRef, catCounts, covPct, getView, ICON } = window.__rev;
+
+  // ---------------- case card ----------------
+  function renderCase(c) {
+    const cov = c.coverage
+      .map((x) => `<span class="cov-chip ${x.branch ? "branch" : ""}"><span class="ck">${esc(x.k)}</span>${esc(x.v)}</span>`)
+      .join("");
+    const steps = c.steps.map((s) => `<li>${esc(s)}</li>`).join("");
+    return `
+      <article class="case" data-cat="${c.cat}">
+        <div class="case-head">
+          <span class="case-id">${esc(c.id)}</span>
+          <span class="case-title">${esc(c.title)}</span>
+          <span class="badge ${c.cat}">${CAT[c.cat]}</span>
+          <span class="prio ${c.prio}">優先度 ${PRIO[c.prio]}</span>
+        </div>
+        <div class="case-body">
+          <div class="field steps-field">
+            <div class="field-label">前提条件・手順</div>
+            <div class="precond"><b>前提:</b> ${esc(c.precond)}</div>
+            <ol class="steps">${steps}</ol>
+          </div>
+          <div class="field">
+            <div class="field-label">入力値 / 期待される結果</div>
+            <div class="io">
+              <div class="io-block in"><div class="io-tag">入力値</div><pre>${esc(c.input)}</pre></div>
+              <div class="io-arrow">↓</div>
+              <div class="io-block out ${c.throws ? "throws" : ""}"><div class="io-tag">${c.throws ? "期待される例外" : "期待される結果"}</div><pre>${esc(c.expected)}</pre></div>
+            </div>
+          </div>
+          <div class="field full">
+            <div class="field-label">カバレッジ — 検証する関数 / 分岐</div>
+            <div class="cov-chips">${cov}</div>
+          </div>
+          <div class="ai">
+            <div class="ai-mark"></div>
+            <div class="ai-body">
+              <div class="ai-label">AI がこのケースを提案した理由</div>
+              <p>${esc(c.ai)}</p>
+            </div>
+          </div>
+        </div>
+      </article>`;
+  }
+
+  // ---------------- per-file: 網羅性マトリクス ----------------
+  function fileMatrixPanel(f) {
+    const fns = [];
+    f.cases.forEach((c) => c.coverage.forEach((x) => { if (x.k === "関数" && !fns.includes(x.v)) fns.push(x.v); }));
+    let filled = 0, total = 0;
+    const rows = fns.map((fn) => {
+      const cells = ["normal", "error", "boundary", "edge"].map((cat) => {
+        const ids = f.cases.filter((c) => c.cat === cat && c.coverage.some((x) => x.k === "関数" && x.v === fn)).map((c) => c.id);
+        total += 1;
+        if (ids.length) { filled += 1; return `<td class="cell"><span class="mx-cell-ids">${ids.map((id) => `<span class="mx-id ${cat}">${esc(id)}</span>`).join("")}</span></td>`; }
+        return `<td class="cell"><span class="mx-empty"></span></td>`;
+      }).join("");
+      return `<tr><td class="fn">${esc(fn)}</td>${cells}</tr>`;
+    }).join("");
+    return `
+      <section class="panel">
+        <div class="panel-title"><span class="pn">${ICON.matrix}</span>網羅性マトリクス<span class="ptsub">関数 × 観点 — 空欄(<span class="mx-empty"></span>)はその観点のケースが無い箇所</span></div>
+        <table class="dtable matrix">
+          <thead><tr><th>関数</th><th class="coltype">正常系</th><th class="coltype">異常系</th><th class="coltype">境界値</th><th class="coltype">エッジケース</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </section>`;
+  }
+
+  // ---------------- per-file: テストデータ ----------------
+  function fileDataPanel(f) {
+    const base = f.name.replace(/\.[^.]+$/, "");
+    const items = PLAN.testData.filter((d) => d.usedBy.some((u) => u.startsWith(base + "/")));
+    const body = items.length
+      ? `<div class="data-grid">${items.map((d) => `
+          <div class="data-card">
+            <div class="dh"><span class="dname">${esc(d.name)}</span><span class="did">${esc(d.id)}</span></div>
+            <div class="ddesc">${esc(d.desc)}</div>
+            <pre class="code">${esc(d.code)}</pre>
+            <div class="usedby"><span class="ub-lb">使用:</span>${d.usedBy.map(tcRef).join("")}</div>
+          </div>`).join("")}</div>`
+      : `<p class="muted-note">このファイル専用の共有テストデータはありません。</p>`;
+    return `
+      <section class="panel">
+        <div class="panel-title"><span class="pn">${ICON.data}</span>テストデータ<span class="ptsub">ケース間で共有する固定データ（フィクスチャ）</span></div>
+        ${body}
+      </section>`;
+  }
+
+  // ---------------- per-file: テスト方針 ----------------
+  function fileApproachPanel(f) {
+    const vps = (f.viewpoints || []).map((v) => `<li>${esc(v)}</li>`).join("");
+    return `
+      <section class="panel">
+        <div class="panel-title"><span class="pn">${ICON.strategy}</span>テスト方針</div>
+        <p class="approach">${esc(f.approach || "")}</p>
+        ${vps ? `<div class="field-label" style="margin:15px 0 9px">重点的に確認する観点</div><ul class="bullets">${vps}</ul>` : ""}
+      </section>`;
+  }
+
+  // ---------------- file view ----------------
+  let activeFilter = "all";
+  function renderFile(detail) {
+    const f = FILES[getView().index];
+    const gapBlock = f.gaps && f.gaps.length
+      ? `<div class="cov-gap">
+           <div class="gtitle">レビューで要確認 — 未カバーの疑い</div>
+           <div class="gitems">${f.gaps.map((g) => "・" + g).join("<br>")}</div>
+         </div>`
+      : `<div class="cov-gap" style="background:var(--green-soft);border-color:var(--green-border)">
+           <div class="gtitle" style="color:var(--green)">主要な関数・分岐をカバー</div>
+           <div class="gitems">明らかな未カバー箇所は検出されていません。</div>
+         </div>`;
+
+    const counts = catCounts(f);
+    const filters = ["all", "normal", "error", "boundary", "edge"].map((k) => {
+      const n = k === "all" ? f.cases.length : counts[k];
+      const label = k === "all" ? "すべて" : CAT[k];
+      const dot = k === "all" ? "" : `<span class="dot ${k}"></span>`;
+      return `<button class="chip ${k === activeFilter ? "active" : ""}" data-filter="${k}">${dot}${label} <span style="opacity:.6">${n}</span></button>`;
+    }).join("");
+    const visible = f.cases.filter((c) => activeFilter === "all" || c.cat === activeFilter);
+
+    detail.innerHTML = `
+      <div class="detail-inner">
+        <section class="file-header">
+          <div class="fh-pathrow">
+            <span class="fh-path"><span class="dir">${esc(f.dir)}</span>${esc(f.name)}</span>
+            <span class="lang-tag">${esc(f.lang)}</span>
+          </div>
+          <div class="fh-desc-label">このファイルの役割</div>
+          <p class="fh-desc">${esc(f.purpose)}</p>
+          <div class="cov-grid">
+            <div class="cov-block cov-fns">
+              <div class="ctitle"><span>関数カバレッジ</span><b>${f.coverage.fns[0]}/${f.coverage.fns[1]}</b></div>
+              <div class="ctrack"><div class="cfill" style="width:${covPct(f.coverage.fns)}%"></div></div>
+            </div>
+            <div class="cov-block cov-br">
+              <div class="ctitle"><span>分岐カバレッジ</span><b>${f.coverage.branches[0]}/${f.coverage.branches[1]}</b></div>
+              <div class="ctrack"><div class="cfill" style="width:${covPct(f.coverage.branches)}%"></div></div>
+            </div>
+            ${gapBlock}
+          </div>
+        </section>
+
+        ${fileApproachPanel(f)}
+        ${fileMatrixPanel(f)}
+        ${fileDataPanel(f)}
+
+        <div class="cases-bar">
+          <h3>テストケース <span class="n">${visible.length}/${f.cases.length}</span></h3>
+          <div class="filters">${filters}</div>
+        </div>
+        <div class="cases">${visible.map(renderCase).join("")}</div>
+      </div>`;
+
+    detail.querySelectorAll(".chip").forEach((el) => {
+      el.addEventListener("click", () => { activeFilter = el.dataset.filter; renderFile(detail); });
+    });
+  }
+
+  // ---------------- plan-level views ----------------
+  function viewHead(kicker, title, lead) {
+    return `<div class="view-head"><div class="view-kicker">${kicker}</div><div class="view-title">${title}</div>${lead ? `<p class="view-lead">${lead}</p>` : ""}</div>`;
+  }
+
+  function renderStrategy() {
+    const s = PLAN.strategy;
+    const levels = s.levels.map((l) => `
+      <div class="levelbar">
+        <span>${l.label}</span>
+        <div class="lv-track"><div class="lv-fill" style="width:${l.pct}%"></div></div>
+        <span class="lv-val">${l.pct}%</span>
+        <span class="lv-note" style="grid-column:2/4">${esc(l.note)}</span>
+      </div>`).join("");
+    return viewHead("計画全体", "テスト戦略", "この計画で「何を・どこまで・どう」検証するかの全体方針。ファイル個別の方針は各ファイルのページに記載。") + `
+      <div class="panel">
+        <div class="doc-row"><div class="dl">目的</div><div class="dc">${esc(s.purpose)}</div></div>
+        <div class="doc-row"><div class="dl">スコープ</div><div class="dc">
+          <div class="scope-grid">
+            <div class="scope-box in"><div class="sb-h">対象</div><ul>${s.scopeIn.map((x) => `<li><code>${esc(x)}</code></li>`).join("")}</ul></div>
+            <div class="scope-box out"><div class="sb-h">対象外</div><ul>${s.scopeOut.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>
+          </div>
+        </div></div>
+        <div class="doc-row"><div class="dl">テストレベルと比重</div><div class="dc"><div class="levelbars">${levels}</div></div></div>
+        <div class="doc-row"><div class="dl">テスト観点（重点）</div><div class="dc"><ul>${s.viewpoints.map((v) => `<li>${esc(v)}</li>`).join("")}</ul></div></div>
+        <div class="doc-row"><div class="dl">優先度の方針</div><div class="dc">${esc(s.priority)}</div></div>
+        <div class="doc-row"><div class="dl">終了基準</div><div class="dc"><ul>${s.exit.map((v) => `<li>${esc(v)}</li>`).join("")}</ul></div></div>
+      </div>`;
+  }
+
+  function renderMock() {
+    const m = PLAN.mock;
+    const rows = m.rows.map((r) => `
+      <tr>
+        <td><b>${esc(r.dep)}</b></td>
+        <td><span class="pill ${r.kind}">${esc(r.policy)}</span></td>
+        <td style="color:var(--text-2)">${esc(r.why)}</td>
+      </tr>`).join("");
+    return viewHead("計画全体", "モック戦略", "依存ごとに「実物 / 偽物」のどちらで検証するかの方針。") + `
+      <div class="callout"><div class="ci"></div><div class="ct"><b>原則：</b> ${esc(m.principle)}</div></div>
+      <div class="panel" style="padding:14px 16px">
+        <table class="dtable">
+          <thead><tr><th>依存対象</th><th>方針</th><th>理由</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  function renderTrace() {
+    const rows = PLAN.trace.map((t) => `
+      <tr>
+        <td><span class="reqid">${esc(t.id)}</span></td>
+        <td>${esc(t.req)}</td>
+        <td>${t.tcs.length ? t.tcs.map(tcRef).join("") : '<span style="color:var(--text-3)">—</span>'}</td>
+        <td>${t.status === "ok" ? '<span class="pill ok">カバー</span>' : '<span class="pill gap">ギャップ</span>'}</td>
+      </tr>`).join("");
+    const gaps = PLAN.trace.filter((t) => t.status === "gap").length;
+    return viewHead("計画全体", "要件トレーサビリティ", "受け入れ条件（要件）と、それを満たすテストケースの対応表。どの要件が未検証かを一目で把握する。") + `
+      <div class="callout"><div class="ci"></div><div class="ct">${PLAN.trace.length} 件中 <b>${PLAN.trace.length - gaps}</b> 件をカバー、<b>${gaps}</b> 件にギャップ。<code>REQ-8</code>（二重課金防止／冪等性）は対応ケースが無く、追加検討が必要。</div></div>
+      <div class="panel" style="padding:14px 16px">
+        <table class="dtable">
+          <thead><tr><th style="width:80px">要件</th><th>受け入れ条件</th><th style="width:180px">対応テストケース</th><th style="width:110px">状況</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  const PLAN_RENDER = { strategy: renderStrategy, trace: renderTrace };
+
+  function renderDetail() {
+    const detail = document.getElementById("detail");
+    const v = getView();
+    if (v.type === "file") { renderFile(detail); return; }
+    detail.innerHTML = `<div class="detail-inner">${PLAN_RENDER[v.key]()}</div>`;
+  }
+
+  function renderStats() {
+    const totalCases = FILES.reduce((s, f) => s + f.cases.length, 0);
+    const gaps = FILES.reduce((s, f) => s + (f.gaps ? f.gaps.length : 0), 0);
+    document.getElementById("stat-files").textContent = FILES.length;
+    document.getElementById("stat-cases").textContent = totalCases;
+    document.getElementById("stat-pending").textContent = gaps;
+    const fa = FILES.reduce((s, f) => s + f.coverage.fns[0], 0);
+    const fb = FILES.reduce((s, f) => s + f.coverage.fns[1], 0);
+    const pct = fb === 0 ? 0 : Math.round((fa / fb) * 100);
+    const fill = document.getElementById("cov-fill");
+    const pctEl = document.getElementById("cov-pct");
+    if (fill) fill.style.width = pct + "%";
+    if (pctEl) pctEl.textContent = pct + "%";
+  }
+
+  window.__renderDetail = renderDetail;
+  renderStats();
+  window.__renderMaster();
+  renderDetail();
+})();
+
+</script>
+
+</body>
+</html>

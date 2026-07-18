@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>実装前 理解度クイズ — {機能名}</title>
+<style>
+:root {
+  --bg: oklch(0.985 0.003 255);
+  --surface: #ffffff;
+  --surface-2: oklch(0.978 0.004 255);
+  --surface-3: oklch(0.965 0.005 255);
+  --border: oklch(0.925 0.005 255);
+  --border-strong: oklch(0.875 0.007 255);
+  --text: oklch(0.28 0.012 262);
+  --text-2: oklch(0.52 0.012 262);
+  --text-3: oklch(0.65 0.011 262);
+  --accent: oklch(0.55 0.16 264);
+  --accent-2: oklch(0.5 0.16 264);
+  --accent-soft: oklch(0.955 0.025 264);
+  --accent-border: oklch(0.86 0.06 264);
+  --green: oklch(0.5 0.11 156);
+  --green-soft: oklch(0.955 0.04 156);
+  --green-border: oklch(0.85 0.07 156);
+  --rose: oklch(0.54 0.16 22);
+  --rose-soft: oklch(0.957 0.03 22);
+  --rose-border: oklch(0.87 0.06 22);
+  --amber: oklch(0.52 0.1 72);
+  --amber-soft: oklch(0.955 0.05 82);
+  --amber-border: oklch(0.85 0.08 82);
+  --r-sm: 6px; --r-md: 9px; --r-lg: 13px;
+  --shadow-sm: 0 1px 2px oklch(0.4 0.02 262 / 0.05);
+  --shadow-md: 0 4px 14px oklch(0.4 0.02 262 / 0.08), 0 1px 3px oklch(0.4 0.02 262 / 0.05);
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: "Noto Sans JP", system-ui, sans-serif;
+  background: var(--bg); color: var(--text);
+  font-size: 14.5px; line-height: 1.7; -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 820px; margin: 0 auto; padding: 40px 24px 96px; }
+
+/* ---- Header ---- */
+.hero {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-sm);
+  padding: 26px 28px; margin-bottom: 22px;
+}
+.hero .kind {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-family: var(--mono); font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--accent-2); background: var(--accent-soft);
+  border: 1px solid var(--accent-border); padding: 3px 10px; border-radius: 20px;
+}
+.hero .kind::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+.hero h1 { font-size: 25px; font-weight: 700; letter-spacing: -0.01em; margin: 13px 0 8px; line-height: 1.3; }
+.hero .intro { font-size: 14.5px; color: var(--text-2); line-height: 1.75; max-width: 680px; }
+.hero .sources { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 15px; }
+.hero .src { font-family: var(--mono); font-size: 11.5px; color: var(--text-2); background: var(--surface-3); border: 1px solid var(--border); padding: 2px 9px; border-radius: 5px; }
+.hero .advisory {
+  margin-top: 16px; display: flex; gap: 11px; align-items: flex-start;
+  background: var(--amber-soft); border: 1px solid var(--amber-border);
+  border-radius: var(--r-md); padding: 11px 14px; font-size: 12.5px; color: var(--text-2); line-height: 1.6;
+}
+.hero .advisory b { color: var(--text); }
+
+/* ---- Section (解説 + 設問) ---- */
+.section { margin-bottom: 26px; }
+.section-head { display: flex; align-items: baseline; gap: 10px; margin: 30px 0 10px; }
+.section-head .sn { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--accent-2); }
+.section-head h2 { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+.brief {
+  background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  border-radius: 0 var(--r-md) var(--r-md) 0; padding: 14px 18px; margin-bottom: 16px;
+  font-size: 13.5px; color: var(--text-2); line-height: 1.75;
+}
+.brief b { color: var(--text); }
+
+/* ---- Question card ---- */
+.q {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-sm);
+  padding: 20px 22px; margin-bottom: 14px; transition: border-color .14s, box-shadow .14s;
+}
+.q.correct { border-color: var(--green-border); box-shadow: 0 0 0 1px var(--green-border); }
+.q.wrong { border-color: var(--rose-border); box-shadow: 0 0 0 1px var(--rose-border); }
+.q-head { display: flex; align-items: center; gap: 9px; margin-bottom: 5px; flex-wrap: wrap; }
+.q-id { font-family: var(--mono); font-size: 11.5px; font-weight: 700; color: var(--text-3); }
+.q-type { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 8px; border-radius: 20px; color: var(--accent-2); background: var(--accent-soft); border: 1px solid var(--accent-border); }
+.q-prompt { font-size: 15px; font-weight: 600; color: var(--text); line-height: 1.6; margin: 8px 0 6px; }
+.q-intent { font-size: 12px; color: var(--text-3); margin-bottom: 13px; }
+.q-intent::before { content: "◎ 意図: "; color: var(--accent-2); font-weight: 700; }
+
+/* choices */
+.opts { display: flex; flex-direction: column; gap: 8px; }
+.opt {
+  display: flex; align-items: flex-start; gap: 11px;
+  border: 1px solid var(--border-strong); border-radius: var(--r-md);
+  padding: 11px 14px; cursor: pointer; transition: background .1s, border-color .1s;
+  font-size: 14px; line-height: 1.5;
+}
+.q:not(.done) .opt:hover { background: var(--surface-2); }
+.opt input { margin-top: 3px; accent-color: var(--accent); flex: 0 0 auto; width: 16px; height: 16px; }
+.opt .ok-mark, .opt .no-mark { margin-left: auto; font-weight: 700; font-size: 12px; display: none; flex: 0 0 auto; }
+.opt.is-answer { border-color: var(--green-border); background: var(--green-soft); }
+.opt.is-answer .ok-mark { display: inline; color: var(--green); }
+.opt.is-picked-wrong { border-color: var(--rose-border); background: var(--rose-soft); }
+.opt.is-picked-wrong .no-mark { display: inline; color: var(--rose); }
+
+/* boolean */
+.bool { display: flex; gap: 10px; }
+.bool label {
+  flex: 1; text-align: center; border: 1px solid var(--border-strong); border-radius: var(--r-md);
+  padding: 12px; cursor: pointer; font-weight: 700; font-size: 14px; transition: background .1s, border-color .1s;
+}
+.q:not(.done) .bool label:hover { background: var(--surface-2); }
+.bool input { display: none; }
+.bool input:checked + span { color: var(--accent-2); }
+.bool label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.bool label.is-answer { border-color: var(--green-border); background: var(--green-soft); }
+.bool label.is-picked-wrong { border-color: var(--rose-border); background: var(--rose-soft); }
+
+/* 回答済み（ロック済み）の設問 */
+.q.done .opt, .q.done .bool label { cursor: default; }
+.q.done .opt:not(.is-answer):not(.is-picked-wrong),
+.q.done .bool label:not(.is-answer):not(.is-picked-wrong) { opacity: 0.55; }
+.q.done .bool label.is-answer { border-color: var(--green-border); background: var(--green-soft); }
+.q.done .bool label.is-answer span { color: var(--green); }
+.q.done .bool label.is-picked-wrong { border-color: var(--rose-border); background: var(--rose-soft); }
+.q.done .bool label.is-picked-wrong span { color: var(--rose); }
+
+/* order */
+.order-list { display: flex; flex-direction: column; gap: 7px; }
+.order-item {
+  display: flex; align-items: center; gap: 11px;
+  border: 1px solid var(--border-strong); border-radius: var(--r-md); padding: 10px 12px; background: var(--surface);
+  font-size: 14px;
+}
+.order-item .oi-idx { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--text-3); width: 20px; flex: 0 0 auto; }
+.order-item .oi-text { flex: 1; line-height: 1.5; }
+.order-item .oi-move { display: flex; gap: 4px; flex: 0 0 auto; }
+.order-item.correct-pos { border-color: var(--green-border); background: var(--green-soft); }
+.order-item.wrong-pos { border-color: var(--rose-border); background: var(--rose-soft); }
+.mv {
+  font-family: inherit; border: 1px solid var(--border-strong); background: var(--surface);
+  color: var(--text-2); width: 26px; height: 26px; border-radius: var(--r-sm); cursor: pointer; font-size: 13px;
+}
+.mv:hover { background: var(--surface-2); border-color: var(--text-3); }
+.mv:disabled { opacity: 0.3; cursor: default; }
+.order-confirm-row { margin-top: 10px; display: flex; justify-content: flex-end; }
+.order-ref { margin-top: 10px; background: var(--green-soft); border: 1px solid var(--green-border); border-radius: var(--r-md); padding: 10px 14px; }
+.order-ref .or-head { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--green); margin-bottom: 5px; }
+.order-ref .or-item { display: flex; gap: 10px; padding: 3px 0; font-size: 13.5px; }
+.order-ref .or-item .oi-idx { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--green); width: 20px; flex: 0 0 auto; }
+
+/* explain */
+.explain { display: none; margin-top: 13px; border-top: 1px dashed var(--border-strong); padding-top: 12px; font-size: 13px; color: var(--text-2); line-height: 1.7; }
+.explain.show { display: block; }
+.explain .el { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent-2); margin-bottom: 4px; }
+
+/* ---- Footer / score ---- */
+.actions { position: sticky; bottom: 0; margin-top: 30px; display: flex; align-items: center; gap: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-md); padding: 15px 20px; }
+.progress-lbl { font-size: 13px; color: var(--text-2); }
+.btn {
+  font-family: inherit; font-size: 14px; font-weight: 600; border: 1px solid var(--border-strong);
+  background: var(--surface); color: var(--text); padding: 10px 18px; border-radius: var(--r-sm);
+  cursor: pointer; transition: background .12s, border-color .12s;
+}
+.btn:hover { background: var(--surface-2); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: var(--shadow-sm); }
+.btn.primary:hover { background: var(--accent-2); }
+.score { margin-left: auto; text-align: right; }
+.score .num { font-family: var(--mono); font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
+.score .num.pass { color: var(--green); }
+.score .num.fail { color: var(--rose); }
+.score .lbl { font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; }
+.verdict { margin-top: 16px; border-radius: var(--r-md); padding: 15px 18px; font-size: 14px; line-height: 1.7; display: none; }
+.verdict.show { display: block; }
+.verdict.pass { background: var(--green-soft); border: 1px solid var(--green-border); }
+.verdict.fail { background: var(--rose-soft); border: 1px solid var(--rose-border); }
+.verdict b { font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero" id="hero"></header>
+  <div id="sections"></div>
+  <div class="verdict" id="verdict"></div>
+  <div class="actions">
+    <div class="progress-lbl" id="progress-lbl">未回答</div>
+    <button class="btn" id="reset">リセット</button>
+    <div class="score"><div class="num" id="score-num">—</div><div class="lbl">スコア</div></div>
+  </div>
+</div>
+
+<!-- ============================================================
+     DATA — このスクリプトだけをエージェントが実データで置き換える
+     ============================================================ -->
+<script>
+/*
+ * ============================================================================
+ *  spec-driven-dev のクイズ生成へ:
+ *  この QUIZ を、requirements.md / implementation-plan / hearing-notes を材料に
+ *  「設計の意図・理由」を問う実装前クイズの実データで丸ごと置き換えること。
+ *  HTMLは書かない — データだけ書けばよい。
+ * ----------------------------------------------------------------------------
+ *  QUIZ.meta:
+ *    title    : 機能名
+ *    intro    : このクイズが何を確認するか（1〜2文）。設計意図の自己確認である旨。
+ *    sources  : string[]  出題の材料（例: ["requirements.md","implementation-plan.md","hearing-notes.md"]）
+ *    passLine : 合格ライン（0〜1。既定 0.8）
+ *  QUIZ.sections[]: 出題ブロック
+ *    title    : ブロック名（例 "設計判断", "データモデル", "制約"）
+ *    brief    : 解説文（この設計判断の背景・前提。散文でHTML可: <b> のみ）
+ *    questions[]:
+ *      id      : "Q1" など
+ *      type    : "choice"(4択) | "boolean"(YES/NO) | "order"(並べ替え)
+ *      prompt  : 設問文
+ *      intent  : この設問が炙り出したい設計意図・unknown（1文）
+ *      explain : 正解の理由・誤答がなぜ違うか（散文）
+ *      -- type:"choice" の場合 --
+ *      options : string[]  4択（3〜5個）
+ *      answer  : number   正解の options インデックス（0始まり）
+ *      -- type:"boolean" の場合 --
+ *      answer  : boolean  正解（true=YES / false=NO）
+ *      -- type:"order" の場合 --
+ *      items   : string[]  「正しい順序」で列挙する（表示時は自動でシャッフルされる）
+ *
+ *  出題方針（quiz-design.md 準拠）:
+ *    - 「なぜこの設計にしたか」「このデータモデル/型にした理由」
+ *      「この制約が満たされないと何が壊れるか」「変わりやすい箇所の意図」を問う
+ *    - 誤答(distractor)は "もっともらしいが違う" 別設計・別解釈にする
+ *    - 各セクションの brief に、その設計判断の背景を先に解説してから問う
+ *    - 設問文・選択肢は挙動・役割の言葉で書く（関数名・変数名前提の設問にしない。
+ *      識別子は必要なときに括弧書きの補助として添えるに留める）
+ *    - 出題前に quiz-design.md の「設問セルフレビュー」で検査し、該当設問は修正または破棄する
+ * ============================================================================
+ */
+const QUIZ = {
+  meta: {
+    title: "{機能名}",
+    intro: "この実装計画の設計判断を、実装セッションに渡す前に自分の言葉で説明できるか確認するクイズです。落ちた設問は「設計がまだ固まっていない箇所」の候補です。",
+    sources: ["requirements.md", "implementation-plan.md", "hearing-notes.md"],
+    passLine: 0.8,
+  },
+  sections: [
+    {
+      title: "{設計判断のテーマ1}",
+      brief: "{この設計判断の背景・前提を解説。<b>強調</b>可}",
+      questions: [
+        {
+          id: "Q1",
+          type: "choice",
+          prompt: "{なぜこの設計/データモデルにしたかを問う設問}",
+          intent: "{炙り出したい設計意図}",
+          options: ["{もっともらしい誤答}", "{正解}", "{別解釈の誤答}", "{別設計の誤答}"],
+          answer: 1,
+          explain: "{正解の理由。誤答がなぜ違うか}",
+        },
+        {
+          id: "Q2",
+          type: "boolean",
+          prompt: "{この制約が満たされないと何が壊れるかを問う YES/NO 設問}",
+          intent: "{制約の意図}",
+          answer: true,
+          explain: "{理由}",
+        },
+      ],
+    },
+    {
+      title: "{設計判断のテーマ2}",
+      brief: "{背景解説}",
+      questions: [
+        {
+          id: "Q3",
+          type: "order",
+          prompt: "{データフロー/処理順序を正しい順に並べる設問}",
+          intent: "{フローの意図}",
+          items: ["{正しい順序1}", "{正しい順序2}", "{正しい順序3}"],
+          explain: "{なぜこの順序か}",
+        },
+      ],
+    },
+  ],
+};
+</script>
+
+<!-- ===== 以下 レンダラ / 採点ロジックは固定。編集しない ===== -->
+<script>
+(function () {
+  const esc = (s) => String(s == null ? "" : s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  const rich = (s) => esc(s).replace(/&lt;b&gt;/g, "<b>").replace(/&lt;\/b&gt;/g, "</b>");
+  const TYPE_LABEL = { choice: "4択", boolean: "YES / NO", order: "並べ替え" };
+
+  // order 設問のシャッフル: Fisher-Yates。固定パターンだと並びを機械的に復元できてしまうため
+  // 毎回ランダムにし、恒等順列（正解順のままの表示）は引き直す
+  function displayOrder(n) {
+    const arr = Array.from({ length: n }, (_, i) => i);
+    if (n < 2) return arr;
+    do {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+    } while (arr.every((v, i) => v === i));
+    return arr;
+  }
+
+  // question runtime state
+  const Q = [];
+  QUIZ.sections.forEach((sec) => sec.questions.forEach((q) => Q.push(q)));
+
+  // qid -> 初回回答の正誤。回答済みの設問はロックされ、答えの変更・再回答はできない
+  let results = {};
+
+  // ---- render hero ----
+  function renderHero() {
+    const m = QUIZ.meta;
+    const src = (m.sources || []).map((s) => `<span class="src">${esc(s)}</span>`).join("");
+    document.getElementById("hero").innerHTML = `
+      <span class="kind">実装前クイズ · Plan → Impl ゲート</span>
+      <h1>${esc(m.title)}</h1>
+      <p class="intro">${rich(m.intro)}</p>
+      <div class="sources">${src}</div>
+      <div class="advisory">
+        <div><b>これは advisory ゲートです。</b>合否は自己申告で、機械的なブロックはしません。
+        各設問は<b>回答した時点で正誤と解説が表示され、答えは変更できません</b>。
+        合否は初回の通し回答で判断してください（リセットは解説を読んだ後の再学習用です）。
+        落ちた設問がある＝設計がまだ自分の中で固まっていない箇所なので、<b>実装を始める前に</b>計画を見直してください。</div>
+      </div>`;
+  }
+
+  // ---- render questions ----
+  function renderSections() {
+    const root = document.getElementById("sections");
+    let html = "";
+    QUIZ.sections.forEach((sec, si) => {
+      html += `<div class="section">
+        <div class="section-head"><span class="sn">SECTION ${si + 1}</span><h2>${esc(sec.title)}</h2></div>
+        ${sec.brief ? `<div class="brief">${rich(sec.brief)}</div>` : ""}
+        ${sec.questions.map(renderQ).join("")}
+      </div>`;
+    });
+    root.innerHTML = html;
+    wireAnswers();
+  }
+
+  function renderQ(q) {
+    let body = "";
+    if (q.type === "choice") {
+      body = `<div class="opts">` + q.options.map((o, i) =>
+        `<label class="opt" data-i="${i}"><input type="radio" name="${q.id}" value="${i}"><span>${esc(o)}</span><span class="ok-mark">✓ 正解</span><span class="no-mark">✕</span></label>`
+      ).join("") + `</div>`;
+    } else if (q.type === "boolean") {
+      body = `<div class="bool">
+        <label data-v="true"><input type="radio" name="${q.id}" value="true"><span>YES</span></label>
+        <label data-v="false"><input type="radio" name="${q.id}" value="false"><span>NO</span></label>
+      </div>`;
+    } else if (q.type === "order") {
+      const ord = displayOrder(q.items.length);
+      body = `<div class="order-list" data-qid="${q.id}">` + ord.map((srcIdx, pos) =>
+        `<div class="order-item" data-src="${srcIdx}">
+           <span class="oi-idx">${pos + 1}</span>
+           <span class="oi-text">${esc(q.items[srcIdx])}</span>
+           <span class="oi-move"><button class="mv up" title="上へ">▲</button><button class="mv down" title="下へ">▼</button></span>
+         </div>`).join("") + `</div>
+      <div class="order-confirm-row"><button class="btn order-confirm" data-qid="${q.id}">この順で回答する</button></div>`;
+    }
+    return `<div class="q" id="q-${q.id}" data-type="${q.type}">
+      <div class="q-head"><span class="q-id">${esc(q.id)}</span><span class="q-type">${TYPE_LABEL[q.type]}</span></div>
+      <div class="q-prompt">${esc(q.prompt)}</div>
+      ${q.intent ? `<div class="q-intent">${esc(q.intent)}</div>` : ""}
+      ${body}
+      <div class="explain" id="ex-${q.id}"><div class="el">解説</div>${rich(q.explain)}</div>
+    </div>`;
+  }
+
+  // 回答イベントの配線: choice / boolean は選択した瞬間、order は「この順で回答する」で確定
+  function wireAnswers() {
+    Q.forEach((q) => {
+      if (q.type === "choice" || q.type === "boolean") {
+        document.querySelectorAll(`input[name="${q.id}"]`).forEach((inp) => {
+          inp.addEventListener("change", () => answer(q));
+        });
+      }
+    });
+    document.querySelectorAll(".order-confirm").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const q = Q.find((x) => x.id === btn.dataset.qid);
+        if (q) answer(q);
+      });
+    });
+    wireOrder();
+  }
+
+  function wireOrder() {
+    document.querySelectorAll(".order-list").forEach((list) => {
+      list.addEventListener("click", (e) => {
+        const btn = e.target.closest(".mv");
+        if (!btn) return;
+        const item = btn.closest(".order-item");
+        if (btn.classList.contains("up") && item.previousElementSibling) list.insertBefore(item, item.previousElementSibling);
+        if (btn.classList.contains("down") && item.nextElementSibling) list.insertBefore(item.nextElementSibling, item);
+        reindex(list);
+      });
+      reindex(list);
+    });
+  }
+  function reindex(list) {
+    [...list.children].forEach((el, i) => { el.querySelector(".oi-idx").textContent = i + 1; });
+  }
+
+  // ---- grading ----
+  function gradeChoice(q) {
+    const picked = document.querySelector(`input[name="${q.id}"]:checked`);
+    const card = document.getElementById(`q-${q.id}`);
+    card.querySelectorAll(".opt").forEach((o) => {
+      const i = +o.dataset.i;
+      if (i === q.answer) o.classList.add("is-answer");
+      if (picked && +picked.value === i && i !== q.answer) o.classList.add("is-picked-wrong");
+    });
+    return picked ? +picked.value === q.answer : false;
+  }
+  function gradeBool(q) {
+    const picked = document.querySelector(`input[name="${q.id}"]:checked`);
+    const card = document.getElementById(`q-${q.id}`);
+    card.querySelectorAll(".bool label").forEach((l) => {
+      const v = l.dataset.v === "true";
+      if (v === q.answer) l.classList.add("is-answer");
+      if (picked && (picked.value === "true") === v && v !== q.answer) l.classList.add("is-picked-wrong");
+    });
+    return picked ? (picked.value === "true") === q.answer : false;
+  }
+  function gradeOrder(q) {
+    const list = document.querySelector(`.order-list[data-qid="${q.id}"]`);
+    let ok = true;
+    [...list.children].forEach((el, pos) => {
+      const correct = +el.dataset.src === pos;
+      el.classList.add(correct ? "correct-pos" : "wrong-pos");
+      if (!correct) ok = false;
+    });
+    if (!ok) {
+      const ref = document.createElement("div");
+      ref.className = "order-ref";
+      ref.innerHTML = `<div class="or-head">✓ 正解の順序</div>` +
+        q.items.map((t, i) => `<div class="or-item"><span class="oi-idx">${i + 1}</span><span>${esc(t)}</span></div>`).join("");
+      list.after(ref);
+    }
+    return ok;
+  }
+
+  // 即時フィードバック: 回答した瞬間にその設問だけ採点・解説表示し、以降ロックする。
+  // スコアは常に初回の回答を反映する（正解が出るまで選び直す抜け道を作らない）
+  function answer(q) {
+    if (q.id in results) return;
+    let ok = false;
+    if (q.type === "choice") ok = gradeChoice(q);
+    else if (q.type === "boolean") ok = gradeBool(q);
+    else if (q.type === "order") ok = gradeOrder(q);
+    results[q.id] = ok;
+    const card = document.getElementById(`q-${q.id}`);
+    card.classList.add("done", ok ? "correct" : "wrong");
+    card.querySelectorAll("input").forEach((i) => { i.disabled = true; });
+    card.querySelectorAll(".mv").forEach((b) => { b.disabled = true; });
+    const row = card.querySelector(".order-confirm-row");
+    if (row) row.remove();
+    document.getElementById(`ex-${q.id}`).classList.add("show");
+    updateProgress();
+    if (Object.keys(results).length === Q.length) showVerdict();
+  }
+
+  function updateProgress() {
+    const answered = Object.keys(results).length;
+    const correct = Object.values(results).filter(Boolean).length;
+    document.getElementById("score-num").textContent = `${correct}/${Q.length}`;
+    document.getElementById("progress-lbl").textContent =
+      answered === Q.length ? "全問回答済み" : `残り ${Q.length - answered} 問`;
+  }
+
+  function showVerdict() {
+    const total = Q.length;
+    const correct = Object.values(results).filter(Boolean).length;
+    const ratio = total ? correct / total : 0;
+    const passLine = QUIZ.meta.passLine == null ? 0.8 : QUIZ.meta.passLine;
+    const pass = ratio >= passLine;
+    const numEl = document.getElementById("score-num");
+    numEl.textContent = `${correct}/${total}`;
+    numEl.className = "num " + (pass ? "pass" : "fail");
+    const v = document.getElementById("verdict");
+    v.className = "verdict show " + (pass ? "pass" : "fail");
+    v.innerHTML = pass
+      ? `<b>合格 (${Math.round(ratio * 100)}%)</b> — 設計の意図を自分の言葉で説明できています。実装セッションに進んでよいでしょう。間違えた設問があれば、その箇所だけ計画を読み直してください。`
+      : `<b>不合格 (${Math.round(ratio * 100)}% / 合格ライン ${Math.round(passLine * 100)}%)</b> — 赤い設問は設計がまだ固まっていない箇所です。実装を始める前に、その論点を計画・要件で詰め直すことをおすすめします。`;
+    v.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  // リセットは解説を読んだ後の再学習用。合否は初回の通し回答で判断する
+  function reset() {
+    results = {};
+    renderSections();
+    const numEl = document.getElementById("score-num");
+    numEl.textContent = "—"; numEl.className = "num";
+    document.getElementById("progress-lbl").textContent = `全 ${Q.length} 問 / 未回答`;
+    document.getElementById("verdict").className = "verdict";
+  }
+
+  renderHero();
+  renderSections();
+  document.getElementById("progress-lbl").textContent = `全 ${Q.length} 問 / 未回答`;
+  document.getElementById("reset").addEventListener("click", reset);
+})();
+</script>
+</body>
+</html>

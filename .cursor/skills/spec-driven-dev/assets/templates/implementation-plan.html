@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{目的を簡潔に記述}</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <h1>{目的を簡潔に記述}</h1>
+  <!-- Issue番号がある場合のみ -->
+  <p><strong>関連Issue</strong>: <a href="#">#{Issue番号}</a></p>
+  <p>{背景・なぜこの変更が必要か、1-2文}</p>
+</header>
+
+<nav class="toc">
+  <h2>目次</h2>
+  <ul>
+    <li><a href="#review-notes">ユーザーレビューが必要な点</a></li>
+    <li><a href="#system-diagrams">システム図</a></li>
+    <li><a href="#changes">変更案</a></li>
+    <li><a href="#verification">検証計画</a></li>
+    <li><a href="#dod">Definition of Done</a></li>
+  </ul>
+</nav>
+
+<section id="review-notes" class="section">
+  <h2>ユーザーレビューが必要な点</h2>
+  <div class="callout callout-warning">
+    <ul>
+      <li>{確認してほしい判断事項}</li>
+      <li>{破壊的変更の有無}</li>
+      <li>{設計上のトレードオフ}</li>
+    </ul>
+  </div>
+</section>
+
+<section id="system-diagrams" class="section">
+  <h2>システム図</h2>
+
+  <h3>状態マシン / フロー図</h3>
+  <div class="diagram">
+    <div class="diagram-label">State Machine / Flow</div>
+    <pre><code>{状態遷移やデータフローをASCII図で記述}
+{すべてのパス・分岐・エッジケースを可視化}
+
+例:
+    入力
+      │
+      ▼
+┌─────────────┐
+│  STATE_A    │─── 条件1 ───▶ STATE_B
+└─────────────┘                  │
+      │                          │
+   条件2                      条件3
+      │                          │
+      ▼                          ▼
+┌─────────────┐           ┌─────────────┐
+│  STATE_C    │           │  STATE_D    │
+│ (処理内容)  │           │ (処理内容)  │
+└─────────────┘           └─────────────┘</code></pre>
+  </div>
+
+  <h3>データフロー</h3>
+  <div class="diagram">
+    <div class="diagram-label">Data Flow</div>
+    <pre><code>{コンポーネント間のデータの流れを記述}
+
+例:
+User Input
+    ↓
+Component A
+    ↓
+├─ Service B (API呼び出し)
+│      ↓
+│  External API
+│      ↓
+└─ State Store
+    ↓
+UI Update</code></pre>
+  </div>
+</section>
+
+<section id="changes" class="section">
+  <h2>変更案</h2>
+
+  <h3>{カテゴリ1: プロジェクト構造 / UI / ロジック / etc.}</h3>
+
+  <!-- [NEW] ファイル -->
+  <div class="change-item">
+    <div class="change-item-header">
+      <span class="badge badge-new">NEW</span>
+      <code>{ファイルパス}</code>
+    </div>
+    <div class="change-item-body">
+      <p>{このファイルで何をするか}</p>
+      <ul>
+        <li><strong>Props</strong>: {該当する場合}</li>
+        <li><strong>スタイリング</strong>: {該当する場合}</li>
+        <li><strong>ロジック</strong>: {該当する場合}</li>
+      </ul>
+      <pre><code>// {ファイルパス}
+
+{export する型定義・インターフェース}
+
+{主要な関数シグネチャと処理概要コメント}</code></pre>
+    </div>
+  </div>
+
+  <!-- [MODIFY] ファイル -->
+  <div class="change-item">
+    <div class="change-item-header">
+      <span class="badge badge-modify">MODIFY</span>
+      <code>{ファイルパス}</code>
+    </div>
+    <div class="change-item-body">
+      <p>{変更内容}</p>
+      <ul>
+        <li>{変更点1}</li>
+        <li>{変更点2}</li>
+      </ul>
+      <pre><code>// before:
+{変更前の該当箇所}</code></pre>
+      <pre><code>// after:
+{変更後の該当箇所}</code></pre>
+    </div>
+  </div>
+
+  <!-- [DELETE] ファイル -->
+  <div class="change-item">
+    <div class="change-item-header">
+      <span class="badge badge-delete">DELETE</span>
+      <code>{ファイルパス}</code>
+    </div>
+    <div class="change-item-body">
+      <p>{削除理由}</p>
+    </div>
+  </div>
+</section>
+
+<section id="verification" class="section">
+  <h2>検証計画</h2>
+
+  <h3>テスト戦略</h3>
+  <dl class="metadata">
+    <div><dt>機能タイプ</dt><dd>{Pure Logic / API Integration / Data Transformation / State Management / UI Component / Async Operations / Security/Auth / Configuration / DOM Manipulation}</dd></div>
+    <div><dt>テスト方針</dt><dd>{TDD / テスト追加 / 手動検証のみ}</dd></div>
+    <div><dt>根拠</dt><dd>{なぜこのテスト方針を選択したか}</dd></div>
+  </dl>
+
+  <h3>自動テスト</h3>
+
+  <h4>テストTODOリスト</h4>
+  <!-- カテゴリ順: 正常系 → 境界値 → 異常系 → エッジケース -->
+  <table>
+    <thead>
+      <tr><th>カテゴリ</th><th>テストケース</th><th>ユースケース / 想定シナリオ</th><th>期待結果</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>正常系</td><td>{最もシンプルなケース}</td><td>{どういう状況で誰が何をしたとき}</td><td>{どうなるべきか}</td></tr>
+      <tr><td>正常系</td><td>{バリエーション}</td><td>{別の状況・入力パターン}</td><td>{期待される出力}</td></tr>
+      <tr><td>境界値</td><td>{境界条件のテスト}</td><td>{最小値/最大値/ゼロなどの状況}</td><td>{期待される振る舞い}</td></tr>
+      <tr><td>異常系</td><td>{エラーケース}</td><td>{不正入力・障害発生の状況}</td><td>{エラー応答/例外}</td></tr>
+      <tr><td>エッジケース</td><td>{特殊なケース}</td><td>{想定外だが起こりうる状況}</td><td>{期待される振る舞い}</td></tr>
+    </tbody>
+  </table>
+
+  <h4>テストファイル配置</h4>
+  <pre><code>{テストファイルのパスを記載}</code></pre>
+
+  <h4>テスト実行コマンド</h4>
+  <pre><code>{実行するコマンド}</code></pre>
+
+  <h3>手動検証</h3>
+  <ol>
+    <li>{具体的な確認手順1}</li>
+    <li>{具体的な確認手順2}</li>
+    <li>{具体的な確認手順3}</li>
+  </ol>
+</section>
+
+<section id="dod" class="section">
+  <h2>Definition of Done</h2>
+  <p>以下をすべて満たした時点で本機能の実装完了とする。</p>
+  <ul class="dod-list">
+    <li><span class="checkbox"></span>すべてのタスク（tasks.html）が完了している</li>
+    <li><span class="checkbox"></span>{機能固有の受入条件1}</li>
+    <li><span class="checkbox"></span>{機能固有の受入条件2}</li>
+    <li><span class="checkbox"></span>自動テストが通る（該当する場合）</li>
+    <li><span class="checkbox"></span>手動検証が完了している</li>
+    <li><span class="checkbox"></span>既存機能にリグレッションがない</li>
+  </ul>
+</section>
+
+</body>
+</html>
