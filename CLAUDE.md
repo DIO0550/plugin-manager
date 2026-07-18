@@ -4,7 +4,7 @@
 
 ## プロジェクト概要
 
-PLM (Plugin Manager CLI) は、複数のAI開発環境（OpenAI Codex、VSCode Copilot、Google Antigravity、Gemini CLI、Claude Code）のプラグインを統合管理するRust製CLIツールです。Skills、Agents、Prompts、Instructionsのダウンロード、インストール、同期を行います。
+PLM (Plugin Manager CLI) は、複数のAI開発環境（OpenAI Codex、VSCode Copilot、Google Antigravity、Gemini CLI、Cursor、Claude Code）のプラグインを統合管理するRust製CLIツールです。Skills、Agents、Prompts、Instructionsのダウンロード、インストール、同期を行います。
 
 ## ビルドコマンド
 
@@ -67,7 +67,7 @@ cargo deny check
 
 ### コマンドディスパッチパターン
 コマンドは `src/commands.rs` を経由して各ハンドラモジュールにルーティングされる：
-- `target.rs` - ターゲット環境管理（codex/copilot/antigravity/gemini）
+- `target.rs` - ターゲット環境管理（codex/copilot/antigravity/gemini/cursor）
 - `marketplace.rs` - マーケットプレイス管理
 - `install.rs` - GitHubからコンポーネントをインストール
 - `list.rs`, `info.rs` - インストール済みコンポーネントの照会
@@ -80,7 +80,7 @@ cargo deny check
 - `managed.rs` - TUI管理画面
 
 ### モジュール構成
-- `target/` - Target traitを実装する環境アダプター（codex, copilot, antigravity, gemini_cli）
+- `target/` - Target traitを実装する環境アダプター（codex, copilot, antigravity, gemini_cli, cursor）
 - `component/` - コンポーネント種別・配置・デプロイメント
 - `plugin/` - プラグインキャッシュ・マニフェスト・更新管理
 - `parser/` - ファイル形式パーサー・変換（詳細は `docs/architecture/file-formats.md` 参照）
@@ -98,10 +98,13 @@ cargo deny check
 **Target Trait** - 環境差異を抽象化：
 | 環境 | Skills | Agents | Commands | Instructions | Hooks |
 |------------|--------|--------|----------|--------------|-------|
-| OpenAI Codex | ○ | ○ | × | ○ | × |
+| OpenAI Codex | ○ | ○ | × | ○ | ○ |
 | VSCode Copilot | ○ | ○ | ○ | ○ | ○ |
 | Google Antigravity | ○ | × | × | × | × |
 | Gemini CLI | ○ | × | × | ○ | × |
+| Cursor | ○ | ○ | ○ | ○* | ○ |
+
+> \*Cursor の Instructions は Project スコープ（`AGENTS.md`）のみ。Personal（User Rules）は対象外。
 
 **Component** - コンポーネントタイプを抽象化（`ComponentKind` enum）：
 - Skills: YAMLフロントマター付き `SKILL.md`
@@ -110,7 +113,7 @@ cargo deny check
 - Instructions: `AGENTS.md` / `copilot-instructions.md` / `GEMINI.md`
 - Hooks: イベントハンドラ
 
-**スコープ** - Personal（`~/.codex/`, `~/.copilot/`, `~/.gemini/antigravity/`, `~/.gemini/skills/`）vs Project（`.codex/`, `.github/`, `.agent/`, `.gemini/skills/`）
+**スコープ** - Personal（`~/.codex/`, `~/.copilot/`, `~/.gemini/antigravity/`, `~/.gemini/skills/`, `~/.cursor/`）vs Project（`.codex/`, `.github/`, `.agent/`, `.gemini/skills/`, `.cursor/`）
 
 ## 主要依存関係
 - `clap` v4 - deriveマクロによるCLIパース
@@ -164,6 +167,7 @@ src/
 │   ├── copilot.rs    # Copilot ターゲット実装
 │   ├── antigravity.rs # Antigravity ターゲット実装
 │   ├── gemini_cli.rs  # Gemini CLI ターゲット実装
+│   ├── cursor.rs     # Cursor ターゲット実装
 │   └── effect.rs     # ターゲット操作の結果（値オブジェクト）
 ├── plugin/           # Plugin 関連の全て
 │   ├── cache.rs      # キャッシュ管理

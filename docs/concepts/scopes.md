@@ -41,6 +41,16 @@ PLMのインストールスコープについて説明します。
 | Skills | `~/.gemini/skills/` | `.gemini/skills/` |
 | Instructions | `~/.gemini/GEMINI.md` | `GEMINI.md` |
 
+### Cursor
+
+| 種別 | Personal | Project |
+|------|----------|---------|
+| Skills | `~/.cursor/skills/` | `.cursor/skills/` |
+| Agents | `~/.cursor/agents/` | `.cursor/agents/` |
+| Commands | `~/.cursor/commands/` | `.cursor/commands/` |
+| Instructions | - | `AGENTS.md` |
+| Hooks | `~/.cursor/hooks.json` | `.cursor/hooks.json` |
+
 ## スコープの選択
 
 ### コマンドラインでの指定
@@ -59,8 +69,8 @@ plm install owner/repo --scope project
 
 ```
 ? Select scope:
-> ( ) personal - ~/.codex/, ~/.copilot/
-  (x) project  - .codex/, .github/
+> ( ) personal - ~/.codex/, ~/.copilot/, ~/.cursor/
+  (x) project  - .codex/, .github/, .cursor/
 ```
 
 ## 使い分けガイド
