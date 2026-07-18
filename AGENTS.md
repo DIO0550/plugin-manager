@@ -63,3 +63,12 @@ src/
 ## 依存関係とライセンス確認
 - 依存関係変更時は `THIRD_PARTY_LICENSES.md` を同期させます。
 - `cargo-deny` を使う場合は `deny.toml` に対して `cargo deny check` を実行します。
+
+## Cursor Cloud specific instructions
+- 単一の Rust CLI (`plm`) のみのプロジェクト。常駐サービスや DB/Docker は不要。ビルド/リント/テスト/実行コマンドは README.md と Makefile を参照（`make build`/`make lint`/`make test`、`cargo run -- <args>`）。
+- **Rust ツールチェーン**: `ratatui 0.30` が edition2024 を要求するため **Rust 1.85 以上が必須**。update script で `rustup update stable` により最新 stable に更新済み。古い toolchain では `feature edition2024 is required` でビルドが失敗する。
+- CLI に `--version` フラグは無い（`--help` を使う）。サブコマンド省略時と `managed` は TUI で **TTY が必要**なため、非対話環境では動かない。
+- `install` / `import` はネットワーク（GitHub API）が必要。`install` は対象リポジトリのルートに `plugin.json`（または `.claude-plugin/plugin.json`）が必要。`import` は Claude Code Plugin 形式（ルートに `.claude-plugin/plugin.json`）が対象。動作確認用の実在リポジトリ例: `DIO0550/cc-plugin`。
+- 非対話で `install`/`import` を実行するときは TUI 選択を避けるため `--target` と `--scope` を必ず指定する。
+- `plm init` は現状 "not implemented"（テンプレート生成は未実装）。
+- 設定・キャッシュ・インポート履歴は `~/.plm/` 配下（`cache/`, `imports.json` 等）に保存される。
