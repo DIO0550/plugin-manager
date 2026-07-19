@@ -9,7 +9,7 @@ use crate::plugin::{
     PackageCacheAccess,
 };
 use crate::source::parse_source;
-use crate::target::{CodexTarget, CursorTarget, PluginOrigin, Target, TargetKind};
+use crate::target::{PluginOrigin, Target, TargetKind};
 
 pub mod format;
 pub use crate::hooks::converter::{ConversionWarning, SourceFormat};
@@ -191,23 +191,14 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
     let mut successes = Vec::new();
     let mut failures = Vec::new();
     let mut feature_flags = Vec::new();
-    // Codex の feature flag は per-call (1 scope につき) 1 回のみ適用する。
-    let mut codex_flag_applied = false;
+    let mut target_feature_flag_applied = false;
 
     let origin =
         PluginOrigin::from_cached_plugin(request.scanned.marketplace(), request.scanned.id());
 
     for target in request.targets {
         let failures_before = failures.len();
-        let hook_component_conflict = match target.kind() {
-            TargetKind::Codex => {
-                CodexTarget::hook_component_conflict_error(&request.scanned.components)
-            }
-            TargetKind::Cursor => {
-                CursorTarget::hook_component_conflict_error(&request.scanned.components)
-            }
-            _ => None,
-        };
+        let component_conflict = target.component_conflict_error(&request.scanned.components);
 
         for component in &request.scanned.components {
             if !target.supports(component.kind) {
@@ -215,15 +206,15 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
             }
 
             if component.kind == ComponentKind::Hook {
-                if let Some(error) = &hook_component_conflict {
-                    failures.push(PlaceFailure {
-                        target: target.name().to_string(),
-                        component_name: component.name.clone(),
-                        component_kind: component.kind,
-                        error: error.clone(),
-                        stage: PlaceFailureStage::Resolution,
-                    });
-                    continue;
+                if let Some(error) = &component_conflict {
+                failures.push(PlaceFailure {
+                    target: target.name().to_string(),
+                    component_name: component.name.clone(),
+                    component_kind: component.kind,
+                    error: error.clone(),
+                    stage: PlaceFailureStage::Resolution,
+                });
+                continue;
                 }
             }
 
@@ -239,43 +230,16 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
                 None => continue,
             };
 
-            if component.kind == ComponentKind::Hook {
-                let overwrite_error = match target.kind() {
-                    TargetKind::Codex => CodexTarget::hook_overwrite_error(
-                        &target_path,
-                        request.scanned.plugin_root(),
-                    ),
-                    TargetKind::Cursor => CursorTarget::hook_overwrite_error(
-                        &target_path,
-                        request.scanned.plugin_root(),
-                    ),
-                    _ => None,
-                };
-                if let Some(error) = overwrite_error {
-                    failures.push(PlaceFailure {
-                        target: target.name().to_string(),
-                        component_name: component.name.clone(),
-                        component_kind: component.kind,
-                        error,
-                        stage: PlaceFailureStage::Resolution,
-                    });
-                    continue;
-                }
-            }
-
-            if component.kind == ComponentKind::Skill && target.kind() == TargetKind::Cursor {
-                if let Some(error) =
-                    CursorTarget::skill_overwrite_error(&target_path, request.scanned.plugin_root())
-                {
-                    failures.push(PlaceFailure {
-                        target: target.name().to_string(),
-                        component_name: component.name.clone(),
-                        component_kind: component.kind,
-                        error,
-                        stage: PlaceFailureStage::Resolution,
-                    });
-                    continue;
-                }
+            if let Err(error) = target.pre_place_check(&ctx, &target_path, request.scanned.plugin_root())
+            {
+                failures.push(PlaceFailure {
+                    target: target.name().to_string(),
+                    component_name: component.name.clone(),
+                    component_kind: component.kind,
+                    error,
+                    stage: PlaceFailureStage::Resolution,
+                });
+                continue;
             }
 
             let conversion = match component.kind {
@@ -363,43 +327,15 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
                         hook_source_format,
                     });
 
-                    // Cursor Skill: 旧フラット化ディレクトリが残っていれば削除
-                    // （所有権ポリシーは `CursorTarget::remove_legacy_flattened_skill_dir`）
-                    if component.kind == ComponentKind::Skill && target.kind() == TargetKind::Cursor
-                    {
-                        if let Some(original) = component.original_name.as_deref() {
-                            if component.name != original {
-                                CursorTarget::remove_legacy_flattened_skill_dir(
-                                    request.scope,
-                                    request.project_root,
-                                    &component.name,
-                                    deployment.path(),
-                                );
-                            }
-                        }
-                    }
-
-                    // Codex Hook 配置成功時、scope につき 1 回だけ
-                    // `~/.codex/config.toml` の feature flag を自動追記する。
-                    if request.enable_codex_hooks_flag
-                        && !codex_flag_applied
-                        && component.kind == ComponentKind::Hook
-                        && target.kind() == TargetKind::Codex
-                    {
-                        let config_path =
-                            CodexTarget::config_toml_path(request.scope, request.project_root);
-                        match crate::target::apply_codex_hooks_flag(&config_path) {
-                            Ok(ffo) => feature_flags.push(ffo),
-                            Err(e) => {
-                                // best-effort: hook 配置は成功扱いとし、警告のみ
-                                eprintln!(
-                                    "Warning: failed to enable [features] codex_hooks in {}: {}",
-                                    config_path.display(),
-                                    e
-                                );
-                            }
-                        }
-                        codex_flag_applied = true;
+                    let post_place = target.post_place(
+                        &ctx,
+                        deployment.path(),
+                        request.scanned.plugin_root(),
+                        request.enable_codex_hooks_flag && !target_feature_flag_applied,
+                    );
+                    feature_flags.extend(post_place.feature_flags);
+                    if post_place.feature_flag_attempted {
+                        target_feature_flag_applied = true;
                     }
                 }
                 Err(e) => {
@@ -441,13 +377,6 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
 /// （例: Codex の `.codex/hooks.json`）もあるため、target 全体が成功した場合だけ
 /// `.plm-meta.json` の `statusByTarget` に記録して enabled 判定を安定させる。
 ///
-/// さらに、Codex / Cursor Hook のように複数プラグイン間で書き合いが起こりうる
-/// 共有 destination、および Cursor Skill の元名配置（プレフィックス衝突回避なし）
-/// については、絶対パスを `managedFiles[target]` に追記しておく。
-/// 所有権判定（`hook_overwrite_error` / `skill_overwrite_error`）がこの値を使う。
-/// `statusByTarget` の `enabled` を所有権チェックに流用すると scope/種別を
-/// 区別できないため、該当配置時のみ実パスを別フィールドへ記録する設計とする。
-///
 /// 実際にステータス更新が発生しなかった場合（全 target が失敗した、`successes`
 /// が空など）は `.plm-meta.json` を書き換えない。失敗 install で不要な
 /// メタデータ更新を避け、ファイル mtime の汚染も防ぐ。
@@ -466,21 +395,6 @@ pub fn update_meta_after_place(plugin_path: &Path, result: &PlaceOutcome) {
 
     let mut updated = false;
     for success in &result.successes {
-        // managedFiles は「実際にファイルが書かれた」事実そのものを記録する。
-        // 同一 target 内で別コンポーネントが失敗しても書き込み済みファイルは
-        // 残るため、所有権記録もそれと同期させなければ次回 install/import で
-        // hook_overwrite_error が「未管理」と判定して再配置を拒否してしまう。
-        // add_managed_file は重複時 false を返すので、内容変化なしの no-op
-        // 書き込み（mtime 汚染）を避けるため戻り値で updated を立てる。
-        if ((success.component_kind == ComponentKind::Hook
-            && matches!(success.target_kind, TargetKind::Codex | TargetKind::Cursor))
-            || (success.component_kind == ComponentKind::Skill
-                && success.target_kind == TargetKind::Cursor))
-            && plugin_meta.add_managed_file(&success.target, &success.target_path)
-        {
-            updated = true;
-        }
-
         // statusByTarget = "enabled" は「target 全体として成功した」状態を表す
         // ため、同じ target に failure があれば enabled に昇格させない。
         // 既に "enabled" の場合は内容変化なしの no-op 書き込みを避けるため

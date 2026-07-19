@@ -276,6 +276,7 @@ mod place_components_tests {
     use super::*;
     use crate::component::{Component, ComponentKind};
     use crate::import::ImportRegistry;
+    use std::fs;
     use std::path::PathBuf;
     use tempfile::TempDir;
 
@@ -285,6 +286,13 @@ mod place_components_tests {
             name.to_string(),
             PathBuf::from(format!("hooks/{}.json", name)),
         )
+    }
+
+    fn make_cursor_skill(temp: &TempDir) -> Component {
+        let skill_dir = temp.path().join("skills").join("review");
+        fs::create_dir_all(&skill_dir).unwrap();
+        fs::write(skill_dir.join("SKILL.md"), "---\nname: review\n---\n").unwrap();
+        Component::flattened(ComponentKind::Skill, "test-plugin", "review", &skill_dir)
     }
 
     #[test]
@@ -346,5 +354,46 @@ mod place_components_tests {
         // 既存ファイルは上書きされていない
         let after = std::fs::read(codex_dir.join("hooks.json")).unwrap();
         assert_eq!(after, original);
+    }
+
+    #[test]
+    fn cursor_skill_records_ownership_and_removes_legacy_dir() {
+        let source_dir = TempDir::new().unwrap();
+        let project_dir = TempDir::new().unwrap();
+        let plugin_dir = TempDir::new().unwrap();
+        let registry_dir = TempDir::new().unwrap();
+
+        let legacy = project_dir
+            .path()
+            .join(".cursor")
+            .join("skills")
+            .join("test-plugin_review");
+        fs::create_dir_all(&legacy).unwrap();
+        fs::write(legacy.join("SKILL.md"), "# legacy").unwrap();
+
+        let origin = PluginOrigin::from_marketplace("test-marketplace", "test-plugin");
+        let ctx = ImportContext {
+            origin: &origin,
+            scope: Scope::Project,
+            project_root: project_dir.path(),
+            plugin_root: plugin_dir.path(),
+            source_repo: "owner/repo",
+            git_ref: "main",
+            commit_sha: "abc123",
+            enable_codex_hooks_flag: false,
+            codex_flag_applied: std::cell::Cell::new(false),
+        };
+        let components = vec![make_cursor_skill(&source_dir)];
+        let mut registry = ImportRegistry::with_path(registry_dir.path().join("imports.json"));
+
+        let result = place_components(&["cursor".to_string()], &components, &ctx, &mut registry);
+
+        assert_eq!(result.unwrap(), (1, 0));
+        let placed = project_dir.path().join(".cursor/skills/review");
+        assert!(placed.join("SKILL.md").exists());
+        assert!(!legacy.exists());
+
+        let meta = crate::plugin::meta::load_meta(plugin_dir.path()).unwrap();
+        assert!(meta.manages_file("cursor", &placed));
     }
 }

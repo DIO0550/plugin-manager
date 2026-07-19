@@ -35,7 +35,7 @@ pub use placed::scanner;
 pub(crate) use placed::{list_all_placed, placed_common};
 // PluginOrigin はモジュール内で定義されているのでここでは再エクスポート不要
 
-use crate::component::{AgentFormat, CommandFormat, ComponentKind};
+use crate::component::{AgentFormat, CommandFormat, Component, ComponentKind, FileOperation};
 // componentモジュールから再エクスポート
 pub use crate::component::Scope;
 use crate::component::{
@@ -202,6 +202,12 @@ impl TargetKind {
     }
 }
 
+#[derive(Debug, Default)]
+pub struct PostPlaceOutcome {
+    pub feature_flags: Vec<FeatureFlagOutcome>,
+    pub feature_flag_attempted: bool,
+}
+
 /// ターゲット環境の抽象化trait
 ///
 /// 各ターゲット（Codex, Copilot）がこのtraitを実装する。
@@ -269,6 +275,40 @@ pub trait Target: Send + Sync {
     ///
     /// * `context` - Placement context describing the component, origin, scope and project.
     fn placement_location(&self, context: &PlacementContext) -> Option<PlacementLocation>;
+
+    /// 同一 install / import 呼び出し内の target 固有コンポーネント衝突検証。
+    fn component_conflict_error(&self, _components: &[Component]) -> Option<String> {
+        None
+    }
+
+    /// 配置直前の target 固有検証。
+    fn pre_place_check(
+        &self,
+        _context: &PlacementContext,
+        _target_path: &Path,
+        _plugin_root: &Path,
+    ) -> std::result::Result<(), String> {
+        Ok(())
+    }
+
+    /// 配置成功後の target 固有後処理。
+    fn post_place(
+        &self,
+        _context: &PlacementContext,
+        _deployed_path: &Path,
+        _plugin_root: &Path,
+        _enable_feature_flag: bool,
+    ) -> PostPlaceOutcome {
+        PostPlaceOutcome::default()
+    }
+
+    /// 同一プラグインの旧レイアウト掃除に必要な追加操作。
+    fn legacy_cleanup_operations(
+        &self,
+        _context: &PlacementContext,
+    ) -> std::result::Result<Vec<FileOperation>, String> {
+        Ok(vec![])
+    }
 
     /// コンポーネントを削除
     ///

@@ -246,18 +246,19 @@ fn update_status_after_install_marks_successful_targets_enabled() {
 
     let plugin_meta = crate::plugin::meta::load_meta(temp.path()).unwrap();
     assert_eq!(plugin_meta.get_status("codex"), Some(TargetStatus::Enabled));
-    // Hook + Codex は所有権としても記録される
-    assert!(plugin_meta.manages_file("codex", std::path::Path::new("/dest/codex/hooks.json")));
+    assert!(plugin_meta
+        .managed_files
+        .get("codex")
+        .is_none_or(|files| files.is_empty()));
 }
 
 #[test]
 fn update_meta_after_place_does_not_rewrite_when_meta_already_up_to_date() {
-    // 既に enabled かつ managedFiles 登録済みの状態で再実行した場合、
+    // 既に enabled の状態で再実行した場合、
     // .plm-meta.json の mtime を更新してはならない。
     let temp = TempDir::new().unwrap();
     let mut prepared = crate::plugin::meta::PluginMeta::default();
     prepared.set_status("codex", TargetStatus::Enabled);
-    prepared.add_managed_file("codex", std::path::Path::new("/dest/codex/hooks.json"));
     crate::plugin::meta::write_meta(temp.path(), &prepared).unwrap();
 
     let meta_path = temp.path().join(".plm-meta.json");
@@ -330,9 +331,8 @@ fn update_meta_after_place_skips_managed_file_for_non_hook_codex_success() {
 
 #[test]
 fn update_status_after_install_skips_status_when_target_has_failures() {
-    // 同 target 内に failure がある場合、Hook+Codex 成功のファイル所有権
-    // (managedFiles) は「実際に書かれた」事実として記録する一方、
-    // statusByTarget = "enabled" は target 全体成功時のみ昇格させる。
+    // 同 target 内に failure がある場合、statusByTarget = "enabled" は
+    // target 全体成功時のみ昇格させる。
     let temp = TempDir::new().unwrap();
     let result = PlaceOutcome {
         plugin_name: "test-plugin".to_string(),
@@ -361,11 +361,7 @@ fn update_status_after_install_skips_status_when_target_has_failures() {
     crate::install::update_meta_after_place(temp.path(), &result);
 
     let plugin_meta = crate::plugin::meta::load_meta(temp.path())
-        .expect("Hook+Codex 成功時は managedFiles 記録のため .plm-meta.json が書かれる");
-    assert!(
-        plugin_meta.manages_file("codex", std::path::Path::new("/dest/codex/hooks.json")),
-        "実配置済みファイルは failure ゲートとは独立に managedFiles に記録される"
-    );
+        .expect("成功がある場合は status 更新のため .plm-meta.json が書かれる");
     assert_ne!(
         plugin_meta.get_status("codex"),
         Some(TargetStatus::Enabled),

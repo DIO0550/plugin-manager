@@ -1,11 +1,13 @@
 //! Cursor ターゲット実装（Skills / Agents / Commands / Instructions / Hooks）
 
-use crate::component::{Component, ComponentKind, PlacementContext, PlacementLocation, Scope};
+use crate::component::{
+    Component, ComponentKind, FileOperation, PlacementContext, PlacementLocation, Scope, ScopedPath,
+};
 use crate::error::Result;
 use crate::target::paths::base_dir;
 use crate::target::placed_common;
 use crate::target::scanner::{scan_components, ScannedComponent};
-use crate::target::{Target, TargetKind};
+use crate::target::{PostPlaceOutcome, Target, TargetKind};
 use std::path::{Path, PathBuf};
 
 const CURSOR_SUBDIR: &str = ".cursor";
@@ -265,6 +267,79 @@ impl Target for CursorTarget {
             ComponentKind::Instruction => PlacementLocation::file(project_root.join("AGENTS.md")),
             ComponentKind::Hook => PlacementLocation::file(base.join("hooks.json")),
         })
+    }
+
+    fn component_conflict_error(&self, components: &[Component]) -> Option<String> {
+        Self::hook_component_conflict_error(components)
+    }
+
+    fn pre_place_check(
+        &self,
+        context: &PlacementContext,
+        target_path: &Path,
+        plugin_root: &Path,
+    ) -> std::result::Result<(), String> {
+        match context.kind() {
+            ComponentKind::Hook => {
+                if let Some(error) = Self::hook_overwrite_error(target_path, plugin_root) {
+                    return Err(error);
+                }
+            }
+            ComponentKind::Skill => {
+                if let Some(error) = Self::skill_overwrite_error(target_path, plugin_root) {
+                    return Err(error);
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn post_place(
+        &self,
+        context: &PlacementContext,
+        deployed_path: &Path,
+        plugin_root: &Path,
+        _enable_feature_flag: bool,
+    ) -> PostPlaceOutcome {
+        match context.kind() {
+            ComponentKind::Hook => {
+                crate::install::record_hook_file_ownership(plugin_root, deployed_path, "cursor");
+            }
+            ComponentKind::Skill => {
+                crate::install::record_cursor_skill_ownership(plugin_root, deployed_path);
+            }
+            _ => {}
+        }
+        PostPlaceOutcome::default()
+    }
+
+    fn legacy_cleanup_operations(
+        &self,
+        context: &PlacementContext,
+    ) -> std::result::Result<Vec<FileOperation>, String> {
+        if context.kind() != ComponentKind::Skill {
+            return Ok(vec![]);
+        }
+
+        let Some(original) = context.original_name() else {
+            return Ok(vec![]);
+        };
+
+        if context.name() == original {
+            return Ok(vec![]);
+        }
+
+        let legacy_path =
+            Self::legacy_flattened_skill_path(context.scope(), context.project_root(), context.name());
+        if !legacy_path.exists() {
+            return Ok(vec![]);
+        }
+
+        let scoped = ScopedPath::new(legacy_path, context.project_root())
+            .map_err(|e| format!("Path validation failed: {}", e))?;
+
+        Ok(vec![FileOperation::RemoveDir { path: scoped }])
     }
 
     fn list_placed(
