@@ -10,11 +10,11 @@ const TEST_CACHE_PATH: &str = "/home/user/.plm/cache/plugins/github/owner--repo"
 const TEST_ENABLED: bool = true;
 
 fn comp(kind: ComponentKind, name: &str) -> Component {
-    Component {
+    Component::new(
         kind,
-        name: name.to_string(),
-        path: PathBuf::from(format!("dummy/{}", name)),
-    }
+        name.to_string(),
+        PathBuf::from(format!("dummy/{}", name)),
+    )
 }
 
 fn create_test_info() -> PluginInfo {

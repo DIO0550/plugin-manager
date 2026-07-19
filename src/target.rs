@@ -250,8 +250,9 @@ pub trait Target: Send + Sync {
     /// * `scope` - Scope (`Personal` or `Project`) to check.
     fn supports_scope(&self, kind: ComponentKind, scope: Scope) -> bool {
         let dummy_origin = PluginOrigin::from_marketplace("test", "test");
+        // original_name 付きでプローブする（Cursor Skill は original_name 必須 — #377）
         let ctx = PlacementContext {
-            component: ComponentRef::new(kind, "test"),
+            component: ComponentRef::with_names(kind, "test", "test", "test"),
             origin: &dummy_origin,
             scope: PlacementScope::new(scope),
             project: ProjectContext::new(Path::new(".")),

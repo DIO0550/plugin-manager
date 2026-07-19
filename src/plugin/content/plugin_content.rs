@@ -13,18 +13,6 @@ use crate::target::PluginOrigin;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-/// プラグイン名と元名から平坦化済みの `Component.name` を組み立てる純粋関数。
-///
-/// 常に `"{plugin_name}_{original_name}"` 形式を返す。サニタイズは行わない。
-///
-/// # Arguments
-///
-/// * `plugin_name` - `PluginManifest.name`
-/// * `original_name` - スキャン層が返す元名（中間ディレクトリ名は含まない）
-pub(crate) fn flatten_name(plugin_name: &str, original_name: &str) -> String {
-    format!("{plugin_name}_{original_name}")
-}
-
 /// 平坦化に使う名前（plugin_name / original_name）が単一パスセグメントとして
 /// 安全に扱えることを検証する。`placement_location` が `base.join(name)` や
 /// `format!("{name}.agent.md")` を直接行うため、パス区切り・null 文字・親参照
@@ -181,22 +169,14 @@ impl Plugin {
 
             if instr_path.is_file() {
                 if let Some(name) = file_stem_name(&instr_path) {
-                    components.push(Component {
-                        kind: ComponentKind::Instruction,
-                        path: instr_path,
-                        name,
-                    });
+                    components.push(Component::new(ComponentKind::Instruction, name, instr_path));
                 }
                 return;
             }
 
             if instr_path.is_dir() {
                 for (name, p) in list_markdown_names(&instr_path) {
-                    components.push(Component {
-                        kind: ComponentKind::Instruction,
-                        path: p,
-                        name,
-                    });
+                    components.push(Component::new(ComponentKind::Instruction, name, p));
                 }
                 return;
             }
@@ -205,20 +185,16 @@ impl Plugin {
         }
 
         for (name, p) in list_markdown_names(&manifest.instructions_dir(path)) {
-            components.push(Component {
-                kind: ComponentKind::Instruction,
-                path: p,
-                name,
-            });
+            components.push(Component::new(ComponentKind::Instruction, name, p));
         }
 
         let agents_md = path.join("AGENTS.md");
         if agents_md.exists() {
-            components.push(Component {
-                kind: ComponentKind::Instruction,
-                path: agents_md,
-                name: "AGENTS".to_string(),
-            });
+            components.push(Component::new(
+                ComponentKind::Instruction,
+                "AGENTS",
+                agents_md,
+            ));
         }
     }
 
@@ -269,11 +245,7 @@ fn flatten_components(
         .into_iter()
         .map(|(original_name, path)| {
             validate_path_segment("component name", &original_name)?;
-            Ok(Component {
-                kind,
-                name: flatten_name(plugin_name, &original_name),
-                path,
-            })
+            Ok(Component::flattened(kind, plugin_name, original_name, path))
         })
         .collect()
 }

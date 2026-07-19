@@ -131,11 +131,11 @@ mod filter_components_tests {
     use std::path::PathBuf;
 
     fn make_component(kind: ComponentKind, name: &str) -> Component {
-        Component {
+        Component::new(
             kind,
-            name: name.to_string(),
-            path: PathBuf::from(format!("{}/{}", kind.plural(), name)),
-        }
+            name.to_string(),
+            PathBuf::from(format!("{}/{}", kind.plural(), name)),
+        )
     }
 
     fn make_test_components() -> Vec<Component> {
@@ -280,11 +280,11 @@ mod place_components_tests {
     use tempfile::TempDir;
 
     fn make_hook(name: &str) -> Component {
-        Component {
-            kind: ComponentKind::Hook,
-            name: name.to_string(),
-            path: PathBuf::from(format!("hooks/{}.json", name)),
-        }
+        Component::new(
+            ComponentKind::Hook,
+            name.to_string(),
+            PathBuf::from(format!("hooks/{}.json", name)),
+        )
     }
 
     #[test]

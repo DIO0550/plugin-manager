@@ -8,26 +8,68 @@ use std::path::{Path, PathBuf};
 
 /// コンポーネント参照
 ///
-/// 配置先決定に必要な最小の識別子（`kind` + `name`）。
+/// 配置先決定に必要な最小の識別子。
+/// `name` はフラット化済み識別子、`original_name` はスキャン時の元名。
 /// scope は `PlacementContext.scope` 側に保持する。
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ComponentRef {
     pub kind: ComponentKind,
     pub name: String,
+    /// フラット化前の元名。未設定時は `None`（危険な name フォールバックはしない）。
+    pub original_name: Option<String>,
+    pub plugin_name: String,
 }
 
 impl ComponentRef {
+    /// `original_name = None` で構築する。
+    ///
+    /// Skill の Cursor 配置には不十分（[`PlacementContext::original_name`] が
+    /// `None` になり配置スキップ）。フラット化情報付きは [`Self::with_names`]。
+    ///
+    /// # Arguments
+    ///
+    /// * `kind` - Component kind.
+    /// * `name` - Component identifier.
     pub fn new(kind: ComponentKind, name: impl Into<String>) -> Self {
         Self {
             kind,
             name: name.into(),
+            original_name: None,
+            plugin_name: String::new(),
+        }
+    }
+
+    /// フラット化情報付きで構築する。
+    ///
+    /// # Arguments
+    ///
+    /// * `kind` - Component kind.
+    /// * `name` - Flattened identifier (`{plugin}_{original}`).
+    /// * `original_name` - Pre-flatten name.
+    /// * `plugin_name` - Plugin manifest name.
+    pub fn with_names(
+        kind: ComponentKind,
+        name: impl Into<String>,
+        original_name: impl Into<String>,
+        plugin_name: impl Into<String>,
+    ) -> Self {
+        Self {
+            kind,
+            name: name.into(),
+            original_name: Some(original_name.into()),
+            plugin_name: plugin_name.into(),
         }
     }
 }
 
 impl From<&crate::component::Component> for ComponentRef {
     fn from(c: &crate::component::Component) -> Self {
-        Self::new(c.kind, c.name.clone())
+        Self {
+            kind: c.kind,
+            name: c.name.clone(),
+            original_name: c.original_name.clone(),
+            plugin_name: c.plugin_name.clone(),
+        }
     }
 }
 
@@ -83,9 +125,22 @@ impl<'a> PlacementContext<'a> {
         self.component.kind
     }
 
-    /// コンポーネント名を取得
+    /// フラット化済みコンポーネント名を取得
     pub fn name(&self) -> &str {
         &self.component.name
+    }
+
+    /// スキャン時の元名を取得。未設定なら `None`。
+    ///
+    /// Cursor Skill 配置はこれを必須とする。`name`（フラット化名）への
+    /// フォールバックは #377 の再発になるため行わない。
+    pub fn original_name(&self) -> Option<&str> {
+        self.component.original_name.as_deref()
+    }
+
+    /// プラグイン名を取得
+    pub fn plugin_name(&self) -> &str {
+        &self.component.plugin_name
     }
 
     /// スコープを取得

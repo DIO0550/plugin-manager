@@ -3,11 +3,11 @@ use crate::component::{Component, ComponentKind, Scope};
 use std::path::PathBuf;
 
 fn sample_component() -> Component {
-    Component {
-        kind: ComponentKind::Skill,
-        name: "demo".to_string(),
-        path: PathBuf::from("/src/demo"),
-    }
+    Component::new(
+        ComponentKind::Skill,
+        "demo".to_string(),
+        PathBuf::from("/src/demo"),
+    )
 }
 
 #[test]

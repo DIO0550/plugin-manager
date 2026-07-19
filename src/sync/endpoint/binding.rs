@@ -140,7 +140,10 @@ impl TargetBinding {
         let (origin, component_name) = parse_component_name(name)?;
 
         let ctx = PlacementContext {
-            component: ComponentRef::new(kind, component_name),
+            // list_placed が返す名前を name / original_name の両方に載せる。
+            // Cursor Skill は original_name をディレクトリ名に使うため、
+            // name のみだと placement が None になる（#377）。
+            component: ComponentRef::with_names(kind, component_name, component_name, ""),
             origin: &origin,
             scope: PlacementScope::new(scope),
             project: ProjectContext::new(&self.project_root),

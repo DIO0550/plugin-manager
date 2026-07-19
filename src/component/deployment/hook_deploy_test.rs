@@ -33,11 +33,11 @@ fn hook_deployment(
     plugin_root: Option<PathBuf>,
 ) -> ComponentDeployment {
     ComponentDeployment::builder()
-        .component(Component {
-            kind: ComponentKind::Hook,
-            name: name.to_string(),
-            path: source,
-        })
+        .component(Component::new(
+            ComponentKind::Hook,
+            name.to_string(),
+            source,
+        ))
         .scope(Scope::Project)
         .target_path(target)
         .conversion(ConversionConfig::Hook {
@@ -97,11 +97,11 @@ fn test_hook_convert_false_copies_file() {
 
     // 変換なし (ConversionConfig::None) → ファイルコピー
     let deployment = ComponentDeployment::builder()
-        .component(Component {
-            kind: ComponentKind::Hook,
-            name: "test-hook".to_string(),
-            path: source,
-        })
+        .component(Component::new(
+            ComponentKind::Hook,
+            "test-hook".to_string(),
+            source,
+        ))
         .scope(Scope::Project)
         .target_path(&target)
         .build()

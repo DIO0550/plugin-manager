@@ -107,14 +107,18 @@ fn test_cursor_supports_scope_instruction_personal_returns_false() {
 
 #[test]
 fn test_cursor_placement_location_skill_personal() {
-    // インストール経路では `Component.name` が `flatten_name(plugin, original)
-    // = "{plugin}_{original}"` に平坦化されるため、テストもその形を使う。
+    // Cursor Skill は frontmatter name 一致のため original_name で配置する (#377)。
     let target = CursorTarget::new();
     let project_root = Path::new("/project");
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Skill, "my-plugin_my-skill"),
+        component: ComponentRef::with_names(
+            ComponentKind::Skill,
+            "my-plugin_my-skill",
+            "my-skill",
+            "my-plugin",
+        ),
         origin: &origin,
         scope: PlacementScope::new(Scope::Personal),
         project: ProjectContext::new(project_root),
@@ -126,7 +130,7 @@ fn test_cursor_placement_location_skill_personal() {
     let expected = std::path::PathBuf::from(home)
         .join(".cursor")
         .join("skills")
-        .join("my-plugin_my-skill");
+        .join("my-skill");
     assert_eq!(location.as_path(), expected.as_path());
 }
 
@@ -137,7 +141,12 @@ fn test_cursor_placement_location_skill_project() {
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Skill, "my-plugin_my-skill"),
+        component: ComponentRef::with_names(
+            ComponentKind::Skill,
+            "my-plugin_my-skill",
+            "my-skill",
+            "my-plugin",
+        ),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -147,7 +156,7 @@ fn test_cursor_placement_location_skill_project() {
     assert!(location.is_dir());
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.cursor/skills/my-plugin_my-skill")
+        Path::new("/project/.cursor/skills/my-skill")
     );
 }
 
@@ -158,16 +167,18 @@ fn test_cursor_placement_location_skill_with_prefixed_name() {
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Skill, "myplugin_foo"),
+        component: ComponentRef::with_names(
+            ComponentKind::Skill,
+            "myplugin_foo",
+            "foo",
+            "myplugin",
+        ),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
     };
     let location = target.placement_location(&ctx).unwrap();
-    assert_eq!(
-        location.as_path(),
-        Path::new("/project/.cursor/skills/myplugin_foo")
-    );
+    assert_eq!(location.as_path(), Path::new("/project/.cursor/skills/foo"));
 }
 
 #[test]
@@ -368,16 +379,8 @@ fn hook_overwrite_error_returns_none_when_plugin_already_owns_target_path() {
 #[test]
 fn hook_component_conflict_error_rejects_multiple_hooks() {
     let components = vec![
-        Component {
-            name: "hook-a".into(),
-            kind: ComponentKind::Hook,
-            path: PathBuf::from("hooks/a.json"),
-        },
-        Component {
-            name: "hook-b".into(),
-            kind: ComponentKind::Hook,
-            path: PathBuf::from("hooks/b.json"),
-        },
+        Component::new(ComponentKind::Hook, "hook-a", PathBuf::from("hooks/a.json")),
+        Component::new(ComponentKind::Hook, "hook-b", PathBuf::from("hooks/b.json")),
     ];
     let err = CursorTarget::hook_component_conflict_error(&components);
     assert!(err.is_some());
@@ -391,7 +394,12 @@ fn test_cursor_placement_with_github_origin() {
     let origin = PluginOrigin::from_github("owner", "repo");
 
     let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Skill, "my-plugin_my-skill"),
+        component: ComponentRef::with_names(
+            ComponentKind::Skill,
+            "my-plugin_my-skill",
+            "my-skill",
+            "my-plugin",
+        ),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -401,7 +409,7 @@ fn test_cursor_placement_with_github_origin() {
     assert!(location.is_dir());
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.cursor/skills/my-plugin_my-skill")
+        Path::new("/project/.cursor/skills/my-skill")
     );
 }
 
@@ -423,11 +431,8 @@ fn test_cursor_list_placed_with_skills() {
     let temp_dir = TempDir::new().unwrap();
     let project_root = temp_dir.path();
 
-    // フラット 2 階層: .cursor/skills/<flattened_name>/SKILL.md
-    let skill_path = project_root
-        .join(".cursor")
-        .join("skills")
-        .join("plugin_skill-1");
+    // Skill は original_name で配置される（#377）
+    let skill_path = project_root.join(".cursor").join("skills").join("skill-1");
     std::fs::create_dir_all(&skill_path).unwrap();
     std::fs::write(skill_path.join("SKILL.md"), "# Skill 1").unwrap();
 
@@ -435,7 +440,7 @@ fn test_cursor_list_placed_with_skills() {
         .list_placed(ComponentKind::Skill, Scope::Project, project_root)
         .unwrap();
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0], "plugin_skill-1");
+    assert_eq!(result[0], "skill-1");
 }
 
 #[test]
@@ -557,4 +562,110 @@ fn test_cursor_command_and_agent_format_are_claude_code() {
         target.agent_format(),
         crate::component::AgentFormat::ClaudeCode
     );
+}
+
+#[test]
+fn skill_overwrite_error_returns_none_when_target_does_not_exist() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let target_path = temp.path().join("skills").join("my-skill");
+    let plugin_root = temp.path();
+
+    assert!(CursorTarget::skill_overwrite_error(&target_path, plugin_root).is_none());
+}
+
+#[test]
+fn skill_overwrite_error_returns_error_when_target_exists_and_not_managed() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let target_path = temp.path().join("skills").join("my-skill");
+    std::fs::create_dir_all(&target_path).unwrap();
+    std::fs::write(target_path.join("SKILL.md"), "---\nname: my-skill\n---\n").unwrap();
+
+    let plugin_root_dir = tempfile::TempDir::new().unwrap();
+    let result = CursorTarget::skill_overwrite_error(&target_path, plugin_root_dir.path());
+    assert!(result.is_some());
+    assert!(result.unwrap().contains("already exists"));
+}
+
+#[test]
+fn skill_overwrite_error_returns_none_when_plugin_already_owns_target_path() {
+    let temp = tempfile::TempDir::new().unwrap();
+    let target_path = temp.path().join("skills").join("my-skill");
+    std::fs::create_dir_all(&target_path).unwrap();
+
+    let plugin_root_dir = tempfile::TempDir::new().unwrap();
+    let mut meta = crate::plugin::meta::PluginMeta::default();
+    meta.add_managed_file("cursor", &target_path);
+    crate::plugin::meta::write_meta(plugin_root_dir.path(), &meta).unwrap();
+
+    assert!(
+        CursorTarget::skill_overwrite_error(&target_path, plugin_root_dir.path()).is_none(),
+        "re-install of the same plugin must be allowed for a managed skill path"
+    );
+}
+
+#[test]
+fn legacy_flattened_skill_path_uses_skills_subdir() {
+    let project_root = Path::new("/project");
+    let path =
+        CursorTarget::legacy_flattened_skill_path(Scope::Project, project_root, "plugin_skill");
+    assert_eq!(path, Path::new("/project/.cursor/skills/plugin_skill"));
+}
+
+#[test]
+fn test_cursor_placement_location_skill_without_original_name_returns_none() {
+    let target = CursorTarget::new();
+    let project_root = Path::new("/project");
+    let origin = PluginOrigin::from_marketplace("official", "my-plugin");
+
+    // ComponentRef::new は original_name = None。フラット化名へフォールバックしない。
+    let ctx = PlacementContext {
+        component: ComponentRef::new(ComponentKind::Skill, "my-plugin_my-skill"),
+        origin: &origin,
+        scope: PlacementScope::new(Scope::Project),
+        project: ProjectContext::new(project_root),
+    };
+    assert!(target.placement_location(&ctx).is_none());
+}
+
+#[test]
+fn remove_legacy_flattened_skill_dir_removes_only_legacy_path() {
+    let temp = TempDir::new().unwrap();
+    let project_root = temp.path();
+    let legacy = project_root
+        .join(".cursor")
+        .join("skills")
+        .join("plugin_skill");
+    let current = project_root.join(".cursor").join("skills").join("skill");
+    std::fs::create_dir_all(&legacy).unwrap();
+    std::fs::create_dir_all(&current).unwrap();
+    std::fs::write(legacy.join("SKILL.md"), "legacy").unwrap();
+    std::fs::write(current.join("SKILL.md"), "new").unwrap();
+
+    assert!(CursorTarget::remove_legacy_flattened_skill_dir(
+        Scope::Project,
+        project_root,
+        "plugin_skill",
+        &current,
+    ));
+    assert!(!legacy.exists());
+    assert!(current.exists());
+}
+
+#[test]
+fn remove_legacy_flattened_skill_dir_noop_when_same_as_current() {
+    let temp = TempDir::new().unwrap();
+    let project_root = temp.path();
+    let path = project_root
+        .join(".cursor")
+        .join("skills")
+        .join("plugin_skill");
+    std::fs::create_dir_all(&path).unwrap();
+
+    assert!(!CursorTarget::remove_legacy_flattened_skill_dir(
+        Scope::Project,
+        project_root,
+        "plugin_skill",
+        &path,
+    ));
+    assert!(path.exists());
 }

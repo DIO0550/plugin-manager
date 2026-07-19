@@ -229,7 +229,7 @@ fn build_deployment(
     }
 
     let placement_ctx = PlacementContext {
-        component: ComponentRef::new(component.kind, &component.name),
+        component: ComponentRef::from(component),
         origin: ctx.origin,
         scope: PlacementScope::new(ctx.scope),
         project: ProjectContext::new(ctx.project_root),
@@ -247,6 +247,12 @@ fn build_deployment(
             _ => None,
         };
         if let Some(error) = overwrite_error {
+            return Err(error);
+        }
+    }
+
+    if component.kind == ComponentKind::Skill && target.kind() == TargetKind::Cursor {
+        if let Some(error) = CursorTarget::skill_overwrite_error(&target_path, ctx.plugin_root) {
             return Err(error);
         }
     }
@@ -352,6 +358,21 @@ fn deploy_one(
                         );
                     }
                     _ => {}
+                }
+            }
+
+            if deployment.kind() == ComponentKind::Skill && target_kind == TargetKind::Cursor {
+                crate::install::record_cursor_skill_ownership(ctx.plugin_root, deployment.path());
+                if let Some(original) = deployment.original_name() {
+                    let flattened = deployment.name();
+                    if flattened != original {
+                        CursorTarget::remove_legacy_flattened_skill_dir(
+                            ctx.scope,
+                            ctx.project_root,
+                            flattened,
+                            deployment.path(),
+                        );
+                    }
                 }
             }
 

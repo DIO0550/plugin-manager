@@ -228,7 +228,7 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
             }
 
             let ctx = PlacementContext {
-                component: ComponentRef::new(component.kind, &component.name),
+                component: ComponentRef::from(component),
                 origin: &origin,
                 scope: PlacementScope::new(request.scope),
                 project: ProjectContext::new(request.project_root),
@@ -252,6 +252,21 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
                     _ => None,
                 };
                 if let Some(error) = overwrite_error {
+                    failures.push(PlaceFailure {
+                        target: target.name().to_string(),
+                        component_name: component.name.clone(),
+                        component_kind: component.kind,
+                        error,
+                        stage: PlaceFailureStage::Resolution,
+                    });
+                    continue;
+                }
+            }
+
+            if component.kind == ComponentKind::Skill && target.kind() == TargetKind::Cursor {
+                if let Some(error) =
+                    CursorTarget::skill_overwrite_error(&target_path, request.scanned.plugin_root())
+                {
                     failures.push(PlaceFailure {
                         target: target.name().to_string(),
                         component_name: component.name.clone(),
@@ -348,6 +363,22 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
                         hook_source_format,
                     });
 
+                    // Cursor Skill: 旧フラット化ディレクトリが残っていれば削除
+                    // （所有権ポリシーは `CursorTarget::remove_legacy_flattened_skill_dir`）
+                    if component.kind == ComponentKind::Skill && target.kind() == TargetKind::Cursor
+                    {
+                        if let Some(original) = component.original_name.as_deref() {
+                            if component.name != original {
+                                CursorTarget::remove_legacy_flattened_skill_dir(
+                                    request.scope,
+                                    request.project_root,
+                                    &component.name,
+                                    deployment.path(),
+                                );
+                            }
+                        }
+                    }
+
                     // Codex Hook 配置成功時、scope につき 1 回だけ
                     // `~/.codex/config.toml` の feature flag を自動追記する。
                     if request.enable_codex_hooks_flag
@@ -410,12 +441,12 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
 /// （例: Codex の `.codex/hooks.json`）もあるため、target 全体が成功した場合だけ
 /// `.plm-meta.json` の `statusByTarget` に記録して enabled 判定を安定させる。
 ///
-/// さらに、Codex Hook のように複数プラグイン間で書き合いが起こりうる
-/// 共有 destination ファイルについては、絶対パスを `managedFiles[target]`
-/// に追記しておく（`CodexTarget::hook_overwrite_error` がこの値で
-/// 所有権を判定する）。`statusByTarget` の `enabled` を所有権チェックに
-/// 流用すると scope/種別を区別できないため、Hook 配置時のみ実パスを
-/// 別フィールドへ記録する設計とする。
+/// さらに、Codex / Cursor Hook のように複数プラグイン間で書き合いが起こりうる
+/// 共有 destination、および Cursor Skill の元名配置（プレフィックス衝突回避なし）
+/// については、絶対パスを `managedFiles[target]` に追記しておく。
+/// 所有権判定（`hook_overwrite_error` / `skill_overwrite_error`）がこの値を使う。
+/// `statusByTarget` の `enabled` を所有権チェックに流用すると scope/種別を
+/// 区別できないため、該当配置時のみ実パスを別フィールドへ記録する設計とする。
 ///
 /// 実際にステータス更新が発生しなかった場合（全 target が失敗した、`successes`
 /// が空など）は `.plm-meta.json` を書き換えない。失敗 install で不要な
@@ -441,8 +472,10 @@ pub fn update_meta_after_place(plugin_path: &Path, result: &PlaceOutcome) {
         // hook_overwrite_error が「未管理」と判定して再配置を拒否してしまう。
         // add_managed_file は重複時 false を返すので、内容変化なしの no-op
         // 書き込み（mtime 汚染）を避けるため戻り値で updated を立てる。
-        if success.component_kind == ComponentKind::Hook
-            && matches!(success.target_kind, TargetKind::Codex | TargetKind::Cursor)
+        if ((success.component_kind == ComponentKind::Hook
+            && matches!(success.target_kind, TargetKind::Codex | TargetKind::Cursor))
+            || (success.component_kind == ComponentKind::Skill
+                && success.target_kind == TargetKind::Cursor))
             && plugin_meta.add_managed_file(&success.target, &success.target_path)
         {
             updated = true;
@@ -469,22 +502,24 @@ pub fn update_meta_after_place(plugin_path: &Path, result: &PlaceOutcome) {
     }
 }
 
-/// 単発の単一ファイル Hook 配置成功時に所有権を `.plm-meta.json` に記録する。
+/// 配置成功時に所有権を `.plm-meta.json` の `managedFiles[target]` へ記録する。
 ///
 /// `plm import` は `place_plugin` を経由しないため `update_meta_after_place`
 /// で所有権が記録されない。同じプラグインを再 import すると
-/// overwrite ガードが「未管理ファイル」と判定して拒否してしまうので、
-/// import の deploy 成功時に明示的に呼び出して `managedFiles[target]` に
-/// 絶対パスを追記する。
+/// overwrite ガードが「未管理」と判定して拒否してしまうので、
+/// import の deploy 成功時に明示的に呼び出す。
+///
+/// Hook（`hooks.json`）および Cursor Skill ディレクトリなど、共有・衝突しうる
+/// destination 全般に使える。
 ///
 /// # Arguments
 ///
 /// * `plugin_path` - Filesystem path of the cached plugin (`.plm-meta.json` のディレクトリ).
-/// * `hook_path` - 実際に書き込んだ `hooks.json` の絶対パス.
+/// * `path` - Absolute destination path that was written.
 /// * `target` - Target key recorded in `managedFiles` / `statusByTarget` (`codex` / `cursor`).
-pub fn record_hook_file_ownership(plugin_path: &Path, hook_path: &Path, target: &str) {
+pub fn record_managed_file_ownership(plugin_path: &Path, path: &Path, target: &str) {
     let mut plugin_meta = meta::load_meta(plugin_path).unwrap_or_default();
-    let was_managed = plugin_meta.manages_file(target, hook_path);
+    let was_managed = plugin_meta.manages_file(target, path);
     let was_enabled = plugin_meta.get_status(target) == Some(TargetStatus::Enabled);
 
     if was_managed && was_enabled {
@@ -492,11 +527,32 @@ pub fn record_hook_file_ownership(plugin_path: &Path, hook_path: &Path, target: 
     }
 
     plugin_meta.set_status(target, TargetStatus::Enabled);
-    plugin_meta.add_managed_file(target, hook_path);
+    plugin_meta.add_managed_file(target, path);
 
     if let Err(e) = meta::write_meta(plugin_path, &plugin_meta) {
         eprintln!("Warning: Failed to update .plm-meta.json: {}", e);
     }
+}
+
+/// Hook 配置成功時の所有権記録（後方互換ラッパー）。
+///
+/// # Arguments
+///
+/// * `plugin_path` - Filesystem path of the cached plugin (`.plm-meta.json` のディレクトリ).
+/// * `hook_path` - 実際に書き込んだ `hooks.json` の絶対パス.
+/// * `target` - Target key (`codex` / `cursor`).
+pub fn record_hook_file_ownership(plugin_path: &Path, hook_path: &Path, target: &str) {
+    record_managed_file_ownership(plugin_path, hook_path, target);
+}
+
+/// Cursor Skill 配置成功時の所有権記録。
+///
+/// # Arguments
+///
+/// * `plugin_path` - Filesystem path of the cached plugin (`.plm-meta.json` のディレクトリ).
+/// * `skill_path` - 実際に書き込んだ Skill ディレクトリの絶対パス.
+pub fn record_cursor_skill_ownership(plugin_path: &Path, skill_path: &Path) {
+    record_managed_file_ownership(plugin_path, skill_path, "cursor");
 }
 
 /// Codex Hook 配置成功時の所有権記録（後方互換ラッパー）。
@@ -506,7 +562,7 @@ pub fn record_hook_file_ownership(plugin_path: &Path, hook_path: &Path, target: 
 /// * `plugin_path` - Filesystem path of the cached plugin (`.plm-meta.json` のディレクトリ).
 /// * `hook_path` - 実際に書き込んだ `hooks.json` の絶対パス.
 pub fn record_codex_hook_ownership(plugin_path: &Path, hook_path: &Path) {
-    record_hook_file_ownership(plugin_path, hook_path, "codex");
+    record_managed_file_ownership(plugin_path, hook_path, "codex");
 }
 
 #[cfg(test)]
