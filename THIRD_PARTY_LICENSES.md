@@ -9052,7 +9052,7 @@ SOFTWARE.
 
 ### Used by
 
-- plm 0.7.0 (https://crates.io/crates/plm)
+- plm 0.7.1 (https://crates.io/crates/plm)
 
 ### License text
 
