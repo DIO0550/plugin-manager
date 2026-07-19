@@ -332,7 +332,8 @@ fn update_meta_after_place_skips_managed_file_for_non_hook_codex_success() {
 #[test]
 fn update_status_after_install_skips_status_when_target_has_failures() {
     // 同 target 内に failure がある場合、statusByTarget = "enabled" は
-    // target 全体成功時のみ昇格させる。
+    // target 全体成功時のみ昇格させる。所有権記録は place_plugin/import の
+    // post_place 側で行うため、この関数単体では meta 更新が不要なら書き込まない。
     let temp = TempDir::new().unwrap();
     let result = PlaceOutcome {
         plugin_name: "test-plugin".to_string(),
@@ -360,12 +361,9 @@ fn update_status_after_install_skips_status_when_target_has_failures() {
 
     crate::install::update_meta_after_place(temp.path(), &result);
 
-    let plugin_meta = crate::plugin::meta::load_meta(temp.path())
-        .expect("成功がある場合は status 更新のため .plm-meta.json が書かれる");
-    assert_ne!(
-        plugin_meta.get_status("codex"),
-        Some(TargetStatus::Enabled),
-        "target に failure があれば statusByTarget は enabled 昇格しない"
+    assert!(
+        crate::plugin::meta::load_meta(temp.path()).is_none(),
+        "target に failure があり status 昇格も不要なら .plm-meta.json は書かない"
     );
 }
 
