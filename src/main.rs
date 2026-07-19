@@ -28,14 +28,18 @@ mod target;
 mod tui;
 
 use crate::cli::Cli;
+use crate::error::{ErrorFormatter, RichError};
 use clap::Parser;
 
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
+    let verbose = cli.verbose;
 
-    if let Err(err) = commands::dispatch(cli).await {
-        eprintln!("{err}");
+    if let Err(plm_err) = commands::dispatch(cli).await {
+        let rich: RichError = plm_err.into();
+        let formatted = ErrorFormatter::new(verbose).format(&rich);
+        eprintln!("{formatted}");
         std::process::exit(1);
     }
 }

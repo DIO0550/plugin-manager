@@ -282,9 +282,7 @@ impl ErrorFormatter {
                 result.push_str(&line.yellow().to_string());
             } else if line.starts_with("  | Remediation:") {
                 result.push_str(&line.green().to_string());
-            } else if line.starts_with("  = note:") {
-                result.push_str(&line.dimmed().to_string());
-            } else if line.starts_with("  |   -") {
+            } else if line.starts_with("  = note:") || line.starts_with("  |   -") {
                 result.push_str(&line.dimmed().to_string());
             } else {
                 result.push_str(line);

@@ -1,7 +1,9 @@
 mod code;
+mod formatter;
 mod rich;
 
 pub use code::ErrorCode;
+pub use formatter::ErrorFormatter;
 pub use rich::{ErrorContext, RichError};
 
 use thiserror::Error;
@@ -117,6 +119,10 @@ pub enum PlmError {
 
     #[error("Hook conversion error: {0}")]
     HookConversion(String),
+
+    /// コマンドハンドラの String エラーを PlmError として伝搬するためのバリアント
+    #[error("{0}")]
+    General(String),
 }
 
 pub type Result<T> = std::result::Result<T, PlmError>;
@@ -137,19 +143,26 @@ impl PlmError {
 
 impl From<PlmError> for RichError {
     fn from(err: PlmError) -> Self {
-        let (code, message, context) = match &err {
-            PlmError::Network(e) => {
-                let mut ctx = ErrorContext::default();
-                if let Some(url) = e.url() {
-                    ctx.url = Some(url.to_string());
-                }
-                let code = if e.is_timeout() {
-                    ErrorCode::Net002
-                } else {
-                    ErrorCode::Net001
-                };
-                (code, e.to_string(), ctx)
+        // Network は所有権を取って source chain を保持する
+        if let PlmError::Network(e) = err {
+            let mut ctx = ErrorContext::default();
+            if let Some(url) = e.url() {
+                ctx.url = Some(url.to_string());
             }
+            let code = if e.is_timeout() {
+                ErrorCode::Net002
+            } else {
+                ErrorCode::Net001
+            };
+            let message = e.to_string();
+            return RichError::new(code, message)
+                .with_context(ctx)
+                .with_source(e);
+        }
+
+        let (code, message, context) = match &err {
+            PlmError::Network(_) => unreachable!("Network handled above"),
+            PlmError::General(s) => (ErrorCode::Int001, s.clone(), ErrorContext::default()),
             PlmError::RepoApi {
                 url,
                 status,
@@ -453,6 +466,7 @@ mod tests {
                 to: "Codex".to_string(),
             },
             PlmError::HookConversion("test".to_string()),
+            PlmError::General("test".to_string()),
         ];
 
         for error in test_cases {
@@ -460,5 +474,13 @@ mod tests {
             // Ensure each error maps to a valid code (not just panicking)
             let _ = rich.code().as_str();
         }
+    }
+
+    #[test]
+    fn plm_error_general_maps_to_int001() {
+        let error = PlmError::General("handler failed".to_string());
+        let rich: RichError = error.into();
+        assert_eq!(rich.code(), ErrorCode::Int001);
+        assert_eq!(rich.message(), "handler failed");
     }
 }
