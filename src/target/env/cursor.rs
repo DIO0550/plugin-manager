@@ -83,7 +83,14 @@ impl CursorTarget {
     /// * `target_path` - Resolved destination path (e.g. `.cursor/hooks.json`).
     /// * `plugin_root` - Cached plugin directory; `.plm-meta.json` lives here.
     pub fn hook_overwrite_error(target_path: &Path, plugin_root: &Path) -> Option<String> {
-        Self::owned_path_conflict_error(target_path, plugin_root, "file")
+        if !Self::path_conflicts_with_unowned(target_path, plugin_root) {
+            return None;
+        }
+        Some(format!(
+            "{} already exists and is not managed by this plugin. \
+             Refusing to overwrite; remove the file or merge it manually before re-installing.",
+            target_path.display()
+        ))
     }
 
     /// Skill 配置先ディレクトリが既存で、現在のプラグイン管理下に無い場合に
@@ -94,32 +101,24 @@ impl CursorTarget {
     /// * `target_path` - Resolved skill directory (e.g. `.cursor/skills/my-skill`).
     /// * `plugin_root` - Cached plugin directory; `.plm-meta.json` lives here.
     pub fn skill_overwrite_error(target_path: &Path, plugin_root: &Path) -> Option<String> {
-        Self::owned_path_conflict_error(target_path, plugin_root, "directory")
-    }
-
-    fn owned_path_conflict_error(
-        target_path: &Path,
-        plugin_root: &Path,
-        kind_label: &str,
-    ) -> Option<String> {
-        if !target_path.exists() {
+        if !Self::path_conflicts_with_unowned(target_path, plugin_root) {
             return None;
         }
+        Some(format!(
+            "{} already exists and is not managed by this plugin. \
+             Refusing to overwrite; remove it or uninstall the owning plugin first.",
+            target_path.display()
+        ))
+    }
 
+    fn path_conflicts_with_unowned(target_path: &Path, plugin_root: &Path) -> bool {
+        if !target_path.exists() {
+            return false;
+        }
         let already_owned = crate::plugin::meta::load_meta(plugin_root)
             .map(|meta| meta.manages_file("cursor", target_path))
             .unwrap_or(false);
-
-        if already_owned {
-            return None;
-        }
-
-        Some(format!(
-            "{} already exists and is not managed by this plugin. \
-             Refusing to overwrite the existing {}; remove it or uninstall the owning plugin first.",
-            target_path.display(),
-            kind_label
-        ))
+        !already_owned
     }
 
     /// 旧フラット化名 `{plugin}_{skill}` の Skill ディレクトリパスを返す。
@@ -137,6 +136,49 @@ impl CursorTarget {
         Self::base_dir(scope, project_root)
             .join("skills")
             .join(flattened_name)
+    }
+
+    /// 旧 `{plugin}_{original}` Skill ディレクトリを best-effort 削除する。
+    ///
+    /// # Ownership policy
+    ///
+    /// 削除対象は常にこのコンポーネントの `flattened_name`
+    /// （`flatten_name(plugin, original)`）から導出したパスのみ。
+    /// 他プラグインの元名ディレクトリや別プレフィックスは対象にならない。
+    /// 旧レイアウトでは当該パスはこのプラグイン（または同名の手動作成）由来に
+    /// 限られるため、`managedFiles` 未記録でも削除してよい。
+    /// `current_path`（新レイアウトの元名パス）と同一なら no-op。
+    ///
+    /// # Arguments
+    ///
+    /// * `scope` - Placement scope.
+    /// * `project_root` - Project root for project scope.
+    /// * `flattened_name` - Legacy `{plugin}_{original}` directory name.
+    /// * `current_path` - Newly placed skill directory (original-name path).
+    ///
+    /// # Returns
+    /// `true` if a legacy directory was removed.
+    pub fn remove_legacy_flattened_skill_dir(
+        scope: Scope,
+        project_root: &Path,
+        flattened_name: &str,
+        current_path: &Path,
+    ) -> bool {
+        let legacy = Self::legacy_flattened_skill_path(scope, project_root, flattened_name);
+        if !legacy.exists() || legacy == current_path {
+            return false;
+        }
+        match std::fs::remove_dir_all(&legacy) {
+            Ok(()) => true,
+            Err(e) => {
+                eprintln!(
+                    "Warning: failed to remove legacy Cursor skill path {}: {}",
+                    legacy.display(),
+                    e
+                );
+                false
+            }
+        }
     }
 
     /// コンポーネント種別に応じたフィルタリング
@@ -205,9 +247,10 @@ impl Target for CursorTarget {
 
         Some(match kind {
             // Cursor は frontmatter `name` と親フォルダ名の一致を要求するため、
-            // Skill のみ元名で配置する（Issue #377）。他種別は当面フラット化名。
+            // Skill のみ元名で配置する（Issue #377）。`original_name` 未設定なら
+            // フラット化名へフォールバックせず配置不可とする。
             ComponentKind::Skill => {
-                let dir_name = context.original_name();
+                let dir_name = context.original_name().filter(|n| !n.is_empty())?;
                 PlacementLocation::dir(base.join("skills").join(dir_name))
             }
             // フラット構造: agents/<flattened_name>.md (ファイル)

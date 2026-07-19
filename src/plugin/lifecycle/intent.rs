@@ -198,8 +198,15 @@ impl PluginIntent {
     /// Cursor Skill の旧 `{plugin}_{original}` ディレクトリを削除する操作を生成する。
     ///
     /// 新パス（元名）と同一、またはパスが存在しない場合は `None`。
+    ///
+    /// # Ownership policy
+    ///
+    /// 削除対象は `component.name`（= `flatten_name(plugin, original)`）から
+    /// 導出したレガシーパスのみ。他プラグインの元名ディレクトリは対象外。
+    /// 詳細は [`CursorTarget::remove_legacy_flattened_skill_dir`]。
     fn legacy_cursor_skill_remove(&self, component: &Component) -> Option<CreateOperationResult> {
-        if component.name == component.original_name || component.original_name.is_empty() {
+        let original = component.original_name.as_deref()?;
+        if component.name == original {
             return None;
         }
 

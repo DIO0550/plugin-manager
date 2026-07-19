@@ -362,11 +362,18 @@ fn deploy_one(
             }
 
             if deployment.kind() == ComponentKind::Skill && target_kind == TargetKind::Cursor {
-                crate::install::record_hook_file_ownership(
-                    ctx.plugin_root,
-                    deployment.path(),
-                    "cursor",
-                );
+                crate::install::record_cursor_skill_ownership(ctx.plugin_root, deployment.path());
+                if let Some(original) = deployment.original_name() {
+                    let flattened = deployment.name();
+                    if flattened != original {
+                        CursorTarget::remove_legacy_flattened_skill_dir(
+                            ctx.scope,
+                            ctx.project_root,
+                            flattened,
+                            deployment.path(),
+                        );
+                    }
+                }
             }
 
             if target_kind == TargetKind::GeminiCli {

@@ -610,3 +610,62 @@ fn legacy_flattened_skill_path_uses_skills_subdir() {
         CursorTarget::legacy_flattened_skill_path(Scope::Project, project_root, "plugin_skill");
     assert_eq!(path, Path::new("/project/.cursor/skills/plugin_skill"));
 }
+
+#[test]
+fn test_cursor_placement_location_skill_without_original_name_returns_none() {
+    let target = CursorTarget::new();
+    let project_root = Path::new("/project");
+    let origin = PluginOrigin::from_marketplace("official", "my-plugin");
+
+    // ComponentRef::new は original_name = None。フラット化名へフォールバックしない。
+    let ctx = PlacementContext {
+        component: ComponentRef::new(ComponentKind::Skill, "my-plugin_my-skill"),
+        origin: &origin,
+        scope: PlacementScope::new(Scope::Project),
+        project: ProjectContext::new(project_root),
+    };
+    assert!(target.placement_location(&ctx).is_none());
+}
+
+#[test]
+fn remove_legacy_flattened_skill_dir_removes_only_legacy_path() {
+    let temp = TempDir::new().unwrap();
+    let project_root = temp.path();
+    let legacy = project_root
+        .join(".cursor")
+        .join("skills")
+        .join("plugin_skill");
+    let current = project_root.join(".cursor").join("skills").join("skill");
+    std::fs::create_dir_all(&legacy).unwrap();
+    std::fs::create_dir_all(&current).unwrap();
+    std::fs::write(legacy.join("SKILL.md"), "legacy").unwrap();
+    std::fs::write(current.join("SKILL.md"), "new").unwrap();
+
+    assert!(CursorTarget::remove_legacy_flattened_skill_dir(
+        Scope::Project,
+        project_root,
+        "plugin_skill",
+        &current,
+    ));
+    assert!(!legacy.exists());
+    assert!(current.exists());
+}
+
+#[test]
+fn remove_legacy_flattened_skill_dir_noop_when_same_as_current() {
+    let temp = TempDir::new().unwrap();
+    let project_root = temp.path();
+    let path = project_root
+        .join(".cursor")
+        .join("skills")
+        .join("plugin_skill");
+    std::fs::create_dir_all(&path).unwrap();
+
+    assert!(!CursorTarget::remove_legacy_flattened_skill_dir(
+        Scope::Project,
+        project_root,
+        "plugin_skill",
+        &path,
+    ));
+    assert!(path.exists());
+}

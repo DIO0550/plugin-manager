@@ -47,6 +47,11 @@ impl ComponentDeployment {
         &self.component.name
     }
 
+    /// スキャン時の元名を取得
+    pub fn original_name(&self) -> Option<&str> {
+        self.component.original_name.as_deref()
+    }
+
     /// ソースパスを取得（同モジュール内のみ）
     pub(super) fn source_path(&self) -> &Path {
         &self.component.path

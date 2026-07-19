@@ -363,23 +363,17 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
                         hook_source_format,
                     });
 
-                    // Cursor Skill: 旧フラット化ディレクトリが残っていれば best-effort で削除
-                    if component.kind == ComponentKind::Skill
-                        && target.kind() == TargetKind::Cursor
-                        && component.name != component.original_name
-                        && !component.original_name.is_empty()
+                    // Cursor Skill: 旧フラット化ディレクトリが残っていれば削除
+                    // （所有権ポリシーは `CursorTarget::remove_legacy_flattened_skill_dir`）
+                    if component.kind == ComponentKind::Skill && target.kind() == TargetKind::Cursor
                     {
-                        let legacy = CursorTarget::legacy_flattened_skill_path(
-                            request.scope,
-                            request.project_root,
-                            &component.name,
-                        );
-                        if legacy.exists() && legacy != deployment.path() {
-                            if let Err(e) = std::fs::remove_dir_all(&legacy) {
-                                eprintln!(
-                                    "Warning: failed to remove legacy Cursor skill path {}: {}",
-                                    legacy.display(),
-                                    e
+                        if let Some(original) = component.original_name.as_deref() {
+                            if component.name != original {
+                                CursorTarget::remove_legacy_flattened_skill_dir(
+                                    request.scope,
+                                    request.project_root,
+                                    &component.name,
+                                    deployment.path(),
                                 );
                             }
                         }
@@ -508,22 +502,24 @@ pub fn update_meta_after_place(plugin_path: &Path, result: &PlaceOutcome) {
     }
 }
 
-/// 単発の単一ファイル Hook 配置成功時に所有権を `.plm-meta.json` に記録する。
+/// 配置成功時に所有権を `.plm-meta.json` の `managedFiles[target]` へ記録する。
 ///
 /// `plm import` は `place_plugin` を経由しないため `update_meta_after_place`
 /// で所有権が記録されない。同じプラグインを再 import すると
-/// overwrite ガードが「未管理ファイル」と判定して拒否してしまうので、
-/// import の deploy 成功時に明示的に呼び出して `managedFiles[target]` に
-/// 絶対パスを追記する。
+/// overwrite ガードが「未管理」と判定して拒否してしまうので、
+/// import の deploy 成功時に明示的に呼び出す。
+///
+/// Hook（`hooks.json`）および Cursor Skill ディレクトリなど、共有・衝突しうる
+/// destination 全般に使える。
 ///
 /// # Arguments
 ///
 /// * `plugin_path` - Filesystem path of the cached plugin (`.plm-meta.json` のディレクトリ).
-/// * `hook_path` - 実際に書き込んだ `hooks.json` の絶対パス.
+/// * `path` - Absolute destination path that was written.
 /// * `target` - Target key recorded in `managedFiles` / `statusByTarget` (`codex` / `cursor`).
-pub fn record_hook_file_ownership(plugin_path: &Path, hook_path: &Path, target: &str) {
+pub fn record_managed_file_ownership(plugin_path: &Path, path: &Path, target: &str) {
     let mut plugin_meta = meta::load_meta(plugin_path).unwrap_or_default();
-    let was_managed = plugin_meta.manages_file(target, hook_path);
+    let was_managed = plugin_meta.manages_file(target, path);
     let was_enabled = plugin_meta.get_status(target) == Some(TargetStatus::Enabled);
 
     if was_managed && was_enabled {
@@ -531,11 +527,32 @@ pub fn record_hook_file_ownership(plugin_path: &Path, hook_path: &Path, target: 
     }
 
     plugin_meta.set_status(target, TargetStatus::Enabled);
-    plugin_meta.add_managed_file(target, hook_path);
+    plugin_meta.add_managed_file(target, path);
 
     if let Err(e) = meta::write_meta(plugin_path, &plugin_meta) {
         eprintln!("Warning: Failed to update .plm-meta.json: {}", e);
     }
+}
+
+/// Hook 配置成功時の所有権記録（後方互換ラッパー）。
+///
+/// # Arguments
+///
+/// * `plugin_path` - Filesystem path of the cached plugin (`.plm-meta.json` のディレクトリ).
+/// * `hook_path` - 実際に書き込んだ `hooks.json` の絶対パス.
+/// * `target` - Target key (`codex` / `cursor`).
+pub fn record_hook_file_ownership(plugin_path: &Path, hook_path: &Path, target: &str) {
+    record_managed_file_ownership(plugin_path, hook_path, target);
+}
+
+/// Cursor Skill 配置成功時の所有権記録。
+///
+/// # Arguments
+///
+/// * `plugin_path` - Filesystem path of the cached plugin (`.plm-meta.json` のディレクトリ).
+/// * `skill_path` - 実際に書き込んだ Skill ディレクトリの絶対パス.
+pub fn record_cursor_skill_ownership(plugin_path: &Path, skill_path: &Path) {
+    record_managed_file_ownership(plugin_path, skill_path, "cursor");
 }
 
 /// Codex Hook 配置成功時の所有権記録（後方互換ラッパー）。
@@ -545,7 +562,7 @@ pub fn record_hook_file_ownership(plugin_path: &Path, hook_path: &Path, target: 
 /// * `plugin_path` - Filesystem path of the cached plugin (`.plm-meta.json` のディレクトリ).
 /// * `hook_path` - 実際に書き込んだ `hooks.json` の絶対パス.
 pub fn record_codex_hook_ownership(plugin_path: &Path, hook_path: &Path) {
-    record_hook_file_ownership(plugin_path, hook_path, "codex");
+    record_managed_file_ownership(plugin_path, hook_path, "codex");
 }
 
 #[cfg(test)]

@@ -74,6 +74,18 @@ impl std::fmt::Display for ComponentKind {
     }
 }
 
+/// プラグイン名と元名から平坦化済み識別子を組み立てる。
+///
+/// 常に `"{plugin_name}_{original_name}"` 形式を返す。サニタイズは行わない。
+///
+/// # Arguments
+///
+/// * `plugin_name` - `PluginManifest.name`
+/// * `original_name` - スキャン層が返す元名（中間ディレクトリ名は含まない）
+pub fn flatten_name(plugin_name: &str, original_name: &str) -> String {
+    format!("{plugin_name}_{original_name}")
+}
+
 /// プラグイン内のコンポーネント
 ///
 /// `name` は他ターゲット互換のフラット化識別子（`{plugin}_{original}`）。
@@ -84,28 +96,34 @@ pub struct Component {
     pub kind: ComponentKind,
     /// フラット化済み識別子（他ターゲット・カタログ用の正）
     pub name: String,
-    /// スキャン時の元名（ディレクトリ名 / ファイル stem）
-    pub original_name: String,
-    /// `PluginManifest.name`。Instruction など非フラット化では空文字
+    /// スキャン時の元名（ディレクトリ名 / ファイル stem）。
+    /// フラット化経路（[`Component::flattened`]）でのみ `Some`。
+    /// [`Component::new`] では `None`（Instruction 等の非フラット化専用）。
+    pub original_name: Option<String>,
+    /// `PluginManifest.name`。非フラット化では空文字
     pub plugin_name: String,
     pub path: PathBuf,
 }
 
 impl Component {
-    /// 簡易コンストラクタ。`original_name = name`、`plugin_name` は空。
+    /// 非フラット化コンポーネント用コンストラクタ。
+    ///
+    /// `original_name` は `None`。Instruction 等、フラット化しない種別向け。
+    /// Skill / Agent / Command / Hook は [`Component::flattened`] を使うこと。
+    /// `original_name` 未設定の Skill を Cursor に流すと配置がスキップされる
+    /// （フラット化名への危険なフォールバックはしない — #377）。
     ///
     /// # Arguments
     ///
     /// * `kind` - Component kind.
-    /// * `name` - Component identifier (also used as `original_name`).
+    /// * `name` - Component identifier.
     /// * `path` - Filesystem path of the component source.
     pub fn new(kind: ComponentKind, name: impl Into<String>, path: impl Into<PathBuf>) -> Self {
-        let name = name.into();
         Self {
             kind,
-            original_name: name.clone(),
+            name: name.into(),
+            original_name: None,
             plugin_name: String::new(),
-            name,
             path: path.into(),
         }
     }
@@ -128,8 +146,8 @@ impl Component {
         let original_name = original_name.into();
         Self {
             kind,
-            name: format!("{plugin_name}_{original_name}"),
-            original_name,
+            name: flatten_name(&plugin_name, &original_name),
+            original_name: Some(original_name),
             plugin_name,
             path: path.into(),
         }

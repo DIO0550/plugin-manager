@@ -8,7 +8,7 @@ use crate::component::ComponentKind;
 use crate::hooks::converter::{ConversionWarning, SourceFormat};
 use crate::plugin::meta::TargetStatus;
 use crate::plugin::{CachedPackage, MarketplaceContent, PluginManifest};
-use crate::target::{CodexTarget, CopilotTarget};
+use crate::target::{CodexTarget, CopilotTarget, CursorTarget};
 
 /// テスト用 CachedPackage を構築するヘルパー
 fn create_test_cached_package(
@@ -241,6 +241,48 @@ fn test_place_plugin_multiple_targets() {
     let target_names: Vec<&str> = result.successes.iter().map(|s| s.target.as_str()).collect();
     assert!(target_names.contains(&"codex"));
     assert!(target_names.contains(&"copilot"));
+}
+
+#[test]
+fn test_place_plugin_cursor_skill_uses_original_name_and_removes_legacy() {
+    let temp = TempDir::new().unwrap();
+    let project_dir = TempDir::new().unwrap();
+    let cached = create_test_cached_package(temp.path(), &["my-skill"], &[], &[]);
+    let package = MarketplaceContent::try_from(cached).unwrap();
+    let scanned = scan_plugin(&package, None).unwrap();
+
+    // 旧レイアウトの残留ディレクトリ
+    let legacy = project_dir
+        .path()
+        .join(".cursor")
+        .join("skills")
+        .join("test-plugin_my-skill");
+    fs::create_dir_all(&legacy).unwrap();
+    fs::write(legacy.join("SKILL.md"), "# legacy").unwrap();
+
+    let targets: Vec<Box<dyn crate::target::Target>> = vec![Box::new(CursorTarget::new())];
+    let result = place_plugin(&PlaceRequest {
+        scanned: &scanned,
+        targets: &targets,
+        scope: crate::component::Scope::Project,
+        project_root: project_dir.path(),
+        enable_codex_hooks_flag: false,
+    });
+
+    assert!(result.failures.is_empty(), "{:?}", result.failures);
+    assert_eq!(result.successes.len(), 1);
+    let placed = &result.successes[0].target_path;
+    assert_eq!(placed, &project_dir.path().join(".cursor/skills/my-skill"));
+    assert!(placed.join("SKILL.md").exists());
+    assert!(
+        !legacy.exists(),
+        "legacy flattened skill directory should be removed"
+    );
+
+    // 再 install 用に managedFiles が記録されていること
+    update_meta_after_place(scanned.plugin_root(), &result);
+    let meta = crate::plugin::meta::load_meta(scanned.plugin_root()).unwrap();
+    assert!(meta.manages_file("cursor", placed));
 }
 
 // =============================================================================

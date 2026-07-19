@@ -101,3 +101,47 @@ fn test_scope_description_not_empty() {
     assert!(!Scope::Personal.description().is_empty());
     assert!(!Scope::Project.description().is_empty());
 }
+
+#[test]
+fn test_flatten_name_basic() {
+    assert_eq!(flatten_name("myplugin", "foo"), "myplugin_foo");
+}
+
+#[test]
+fn test_flatten_name_original_with_underscore() {
+    assert_eq!(flatten_name("myplugin", "foo_bar"), "myplugin_foo_bar");
+}
+
+#[test]
+fn test_flatten_name_plugin_with_underscore() {
+    assert_eq!(flatten_name("my_plugin", "foo"), "my_plugin_foo");
+}
+
+#[test]
+fn test_flatten_name_empty_plugin_name() {
+    assert_eq!(flatten_name("", "foo"), "_foo");
+}
+
+#[test]
+fn test_component_flattened_uses_flatten_name() {
+    let c = Component::flattened(
+        ComponentKind::Skill,
+        "myplugin",
+        "foo",
+        std::path::PathBuf::from("/skills/foo"),
+    );
+    assert_eq!(c.name, "myplugin_foo");
+    assert_eq!(c.original_name.as_deref(), Some("foo"));
+    assert_eq!(c.plugin_name, "myplugin");
+}
+
+#[test]
+fn test_component_new_leaves_original_name_unset() {
+    let c = Component::new(
+        ComponentKind::Instruction,
+        "AGENTS",
+        std::path::PathBuf::from("/AGENTS.md"),
+    );
+    assert!(c.original_name.is_none());
+    assert!(c.plugin_name.is_empty());
+}

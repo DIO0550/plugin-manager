@@ -363,7 +363,8 @@ Agents / Commands / Hooks は他ターゲットと同様に `flatten_name(plugin
 - **`AGENTS.md` は Codex ターゲットと同一ファイルを共有**: 両ターゲット有効時は同一パスを参照する
 - **Hooks は単一設定ファイル**: ディレクトリ配置ではなく `hooks.json` へ書き込む。フルマージ未実装のため、非管理ファイルの上書きと複数 Hook の同時配置は拒否する
 - **Skills は元名配置**: プラグイン接頭辞が無いため、同名スキルを持つ別プラグインとの衝突時はエラーになる
-- **sync と Cursor Skills**: Cursor の Skill 名キーは元名、他ターゲットはフラット化名のため、現状 Cursor を含む Skill sync は名前不一致になりうる（既知制限）
+- **sync と Cursor Skills**: Cursor の Skill 名キーは元名、他ターゲットはフラット化名のため、現状 Cursor を含む Skill sync は名前不一致になりうる（既知制限・追跡: [#384](https://github.com/DIO0550/plugin-manager/issues/384)）
+- **Cursor 固有ロジックの集約**: install / import / intent への `TargetKind::Cursor` 分岐散在は [#385](https://github.com/DIO0550/plugin-manager/issues/385) で Target trait フックへ寄せる予定
 
 ### 検証結果
 

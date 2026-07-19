@@ -13,18 +13,6 @@ use crate::target::PluginOrigin;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-/// プラグイン名と元名から平坦化済みの `Component.name` を組み立てる純粋関数。
-///
-/// 常に `"{plugin_name}_{original_name}"` 形式を返す。サニタイズは行わない。
-///
-/// # Arguments
-///
-/// * `plugin_name` - `PluginManifest.name`
-/// * `original_name` - スキャン層が返す元名（中間ディレクトリ名は含まない）
-pub(crate) fn flatten_name(plugin_name: &str, original_name: &str) -> String {
-    format!("{plugin_name}_{original_name}")
-}
-
 /// 平坦化に使う名前（plugin_name / original_name）が単一パスセグメントとして
 /// 安全に扱えることを検証する。`placement_location` が `base.join(name)` や
 /// `format!("{name}.agent.md")` を直接行うため、パス区切り・null 文字・親参照

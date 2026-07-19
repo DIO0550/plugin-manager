@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>技術リファレンス: {機能名}</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!--
+  ライブラリドキュメント風のテンプレート。
+  MDN や React 公式ドキュメントのように、流れる散文で各技術を解説する。
+  テンプレ的な箇条書き（What/Why/Concepts/Code）ではなく、
+  「実装で詰まった部分をその都度引ける辞書」として書くこと。
+
+  使用する CSS クラス:
+  - レイアウト: lib-doc, lib-sidebar, lib-main
+  - 見出し: lib-h1, lib-h2 (.kicker, .hash), lib-h3
+  - テキスト: lib-p, lib-intro, lib-inline
+  - コード: lib-code-block (.lib-code-lang + pre)
+  - シグネチャ: lib-signature (.sig-key, .sig-str, .sig-type)
+  - パラメータ: lib-param-table (.param-name, .param-tag, .param-type)
+  - 注釈: lib-note (lib-note-info / lib-note-warn), lib-note-label, lib-note-body
+  - 図: lib-figure, lib-figure-inner, svg-diagram
+  - 関連: lib-related (.lib-related-title, .lib-related-desc)
+  - その他: lib-breadcrumb, lib-meta-bar, lib-footer
+-->
+
+<div class="lib-doc">
+
+  <!-- ===== Sidebar TOC ===== -->
+  <aside class="lib-sidebar">
+    <div class="lib-sidebar-label">implementation-plan</div>
+    <div class="lib-sidebar-title">{機能名} · コンパニオン</div>
+
+    <nav class="lib-toc">
+      <a href="#overview">概要</a>
+      <!-- 以下、技術ごとにリンクを追加する -->
+      <a href="#sec-{技術名1}">{技術名1}</a>
+      <a class="indent" href="#sec-{サブトピック}">↳ {サブトピック}</a>
+      <a href="#sec-{技術名2}">{技術名2}</a>
+      <a href="#glossary">用語集</a>
+    </nav>
+
+    <div style="margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--border);">
+      <div class="lib-sidebar-label">On this page</div>
+      <p style="font-size: 12px; color: var(--text-muted); line-height: 1.7; margin: 8px 0 0;">
+        読みながら詰まった概念を辞書として引ける。<br>
+        必要な節だけ拾い読みでも OK。
+      </p>
+    </div>
+  </aside>
+
+  <!-- ===== Main Content ===== -->
+  <main class="lib-main">
+
+    <!-- Breadcrumb -->
+    <div class="lib-breadcrumb">
+      <span>tech-reference</span>
+      <span class="sep">/</span>
+      <span>{spec-番号}</span>
+      <span class="sep">/</span>
+      <span class="current">companion</span>
+    </div>
+
+    <!-- Title -->
+    <h1 class="lib-h1">{機能名} · 実装の手引き</h1>
+    <p class="lib-intro">
+      このページは implementation-plan を読んで実装に取りかかったときに
+      「ここがよく分からない」となりがちな箇所を、
+      ライブラリドキュメントの体裁でまとめたものです。
+      順番に読む必要はなく、詰まったセクションだけ拾い読みできます。
+    </p>
+
+    <!-- Meta bar -->
+    <div class="lib-meta-bar">
+      <span>最終更新 {日付}</span>
+    </div>
+
+    <!-- ===== Overview ===== -->
+    <h2 class="lib-h2" id="overview">
+      <span class="kicker">overview</span>
+      <span class="hash">#</span>概要
+    </h2>
+
+    <p class="lib-p">
+      {この機能が何をするか、なぜ必要か、全体像を2-3段落の散文で説明する。
+       MDNの冒頭説明のように、初学者が読んで「何の話をしているか」把握できるレベルで書く。}
+    </p>
+
+    <!-- Overview Diagram -->
+    <figure class="lib-figure">
+      <div class="lib-figure-inner">
+        <div class="svg-diagram">
+          <svg width="100%" viewBox="0 0 760 180" xmlns="http://www.w3.org/2000/svg">
+            <!--
+              この機能の全体的なデータフロー / アーキテクチャをSVGで描画する。
+              implementation-plan の状態マシン図・データフロー図に対応する技術マッピングを示す。
+            -->
+            {全体フロー図のSVG}
+          </svg>
+        </div>
+      </div>
+      <figcaption>{図の説明キャプション}</figcaption>
+    </figure>
+
+    <!-- ===== 技術セクション（各技術ごとに繰り返す） ===== -->
+
+    <!--
+      各技術セクションの書き方:
+      - h2 に kicker（カテゴリ: language / framework / library / concept 等）を付ける
+      - 散文で「何か」「なぜ使うか」「どう動くか」を自然な文章で説明する
+      - コード例は lib-code-block で言語ラベル付き
+      - 重要な関数/API は lib-signature + lib-param-table で詳細に記述
+      - 注意点は lib-note (info / warn) で囲む
+      - 動作の仕組みは lib-figure 内に SVG で図示する
+    -->
+
+    <h2 class="lib-h2" id="sec-{技術名}">
+      <span class="kicker">{カテゴリ: language / framework / library / tool / concept}</span>
+      <span class="hash">#</span>{技術名}
+    </h2>
+
+    <p class="lib-p">
+      {この技術が何か、なぜこの機能で使うかを散文で説明する。
+       「◯◯は△△のためのライブラリです」のような定義から始め、
+       「この機能では□□のために使います」と具体的な利用箇所に繋げる。}
+    </p>
+
+    <p class="lib-p">
+      {技術の仕組みをもう少し掘り下げる。
+       内部でどう動くか、どんなメンタルモデルで捉えるとよいかを説明する。
+       専門用語が出たら、その場で噛み砕いて説明を添える。}
+    </p>
+
+    <!-- Concept diagram -->
+    <figure class="lib-figure">
+      <div class="lib-figure-inner">
+        <div class="svg-diagram">
+          <svg width="100%" viewBox="0 0 500 180" xmlns="http://www.w3.org/2000/svg">
+            {この技術の動作モデルをSVGで描画}
+          </svg>
+        </div>
+      </div>
+      <figcaption>{図の説明}</figcaption>
+    </figure>
+
+    <p class="lib-p">
+      {図の補足説明。「上の図で◯◯が△△に渡され…」のように図と文を連携させる。}
+    </p>
+
+    <!-- Code example -->
+    <div class="lib-code-block">
+      <div class="lib-code-lang">{lang}</div>
+      <pre>{コード例: implementation-plan の変更案に沿った実践的なコード}</pre>
+    </div>
+
+    <div class="lib-note lib-note-info">
+      <div class="lib-note-label">メモ</div>
+      <div class="lib-note-body">
+        {知っておくと便利なヒント、よくある勘違い、ベストプラクティスなど}
+      </div>
+    </div>
+
+    <!-- API / 関数の詳細（該当する場合） -->
+    <h3 class="lib-h3" id="sec-{サブトピック}">{関数名 / API名}</h3>
+
+    <div class="lib-signature">
+      <span class="sig-key">{関数名}</span>(<span class="sig-str">{引数名}</span>: <span class="sig-type">{型}</span>): <span class="sig-type">{戻り値型}</span>
+    </div>
+
+    <p class="lib-p">
+      {この関数/APIが何をするか、どういう場面で使うかを説明する。}
+    </p>
+
+    <table class="lib-param-table">
+      <thead>
+        <tr>
+          <th style="width: 160px;">パラメータ</th>
+          <th style="width: 200px;">型</th>
+          <th>説明</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="param-name">{引数名}</span> <span class="param-tag">required</span></td>
+          <td class="param-type">{型}</td>
+          <td>{説明}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="lib-note lib-note-warn">
+      <div class="lib-note-label">注意</div>
+      <div class="lib-note-body">
+        {この API を使う上での注意点、ハマりポイント}
+      </div>
+    </div>
+
+    <!-- ===== 用語集 ===== -->
+    <h2 class="lib-h2" id="glossary">
+      <span class="kicker">reference</span>
+      <span class="hash">#</span>用語集
+    </h2>
+
+    <table>
+      <thead>
+        <tr><th>用語</th><th>意味</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="lib-inline">{用語}</code></td><td>{平易な定義}</td></tr>
+      </tbody>
+    </table>
+
+    <!-- ===== Footer ===== -->
+    <div class="lib-footer">
+      <span>← implementation-plan</span>
+      <span>tasks →</span>
+    </div>
+
+  </main>
+</div>
+
+</body>
+</html>

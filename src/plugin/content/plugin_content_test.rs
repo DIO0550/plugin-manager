@@ -1,6 +1,6 @@
 //! Plugin のユニットテスト
 
-use super::{flatten_name, Plugin};
+use super::Plugin;
 use crate::component::{Component, ComponentKind};
 use crate::error::PlmError;
 use crate::plugin::PluginManifest;
@@ -53,7 +53,7 @@ fn test_plugin_new_with_skills() {
     assert_eq!(components.len(), 1);
     assert_eq!(components[0].kind, ComponentKind::Skill);
     assert_eq!(components[0].name, "test_my-skill");
-    assert_eq!(components[0].original_name, "my-skill");
+    assert_eq!(components[0].original_name.as_deref(), Some("my-skill"));
     assert_eq!(components[0].plugin_name, "test");
     assert_eq!(components[0].path, path.join("skills").join("my-skill"));
 }
@@ -364,28 +364,8 @@ fn test_plugin_clone_preserves_components() {
 }
 
 // =========================================================================
-// flatten_name 純粋関数
+// flatten_name 純粋関数 — 実装は component::flatten_name に移動
 // =========================================================================
-
-#[test]
-fn test_flatten_name_basic() {
-    assert_eq!(flatten_name("myplugin", "foo"), "myplugin_foo");
-}
-
-#[test]
-fn test_flatten_name_original_with_underscore() {
-    assert_eq!(flatten_name("myplugin", "foo_bar"), "myplugin_foo_bar");
-}
-
-#[test]
-fn test_flatten_name_plugin_with_underscore() {
-    assert_eq!(flatten_name("my_plugin", "foo"), "my_plugin_foo");
-}
-
-#[test]
-fn test_flatten_name_empty_plugin_name() {
-    assert_eq!(flatten_name("", "foo"), "_foo");
-}
 
 // =========================================================================
 // build_components: ネスト + 平坦化

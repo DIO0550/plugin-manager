@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{目的を簡潔に記述}</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <h1>{目的を簡潔に記述}</h1>
+  <!-- Issue番号がある場合のみ -->
+  <p><strong>関連Issue</strong>: <a href="#">#{Issue番号}</a></p>
+  <p>{背景・なぜこの変更が必要か、1-2文}</p>
+</header>
+
+<section id="system-diagrams" class="section">
+  <h2>システム図</h2>
+
+  <h3>状態マシン / フロー図</h3>
+  <div class="diagram">
+    <div class="diagram-label">State Machine / Flow</div>
+    <pre><code>{状態遷移やフローをASCII罫線図で記述}
+{すべてのパス・分岐・エッジケースを可視化}</code></pre>
+  </div>
+
+  <h3>データフロー</h3>
+  <div class="diagram">
+    <div class="diagram-label">Data Flow</div>
+    <pre><code>{コンポーネント間のデータの流れをASCII罫線図で記述}</code></pre>
+  </div>
+</section>
+
+<section id="changes" class="section">
+  <h2>変更案</h2>
+
+  <h3>{カテゴリ名}</h3>
+
+  <div class="change-item">
+    <div class="change-item-header">
+      <span class="badge badge-new">NEW</span>
+      <code>{ファイルパス}</code>
+    </div>
+    <div class="change-item-body">
+      <p>{このファイルで何をするか}</p>
+      <pre><code>{型定義・関数シグネチャ・import文}</code></pre>
+    </div>
+  </div>
+
+  <div class="change-item">
+    <div class="change-item-header">
+      <span class="badge badge-modify">MODIFY</span>
+      <code>{ファイルパス}</code>
+    </div>
+    <div class="change-item-body">
+      <p>{変更内容}</p>
+      <pre><code>// before:
+{変更前}</code></pre>
+      <pre><code>// after:
+{変更後}</code></pre>
+    </div>
+  </div>
+
+  <div class="change-item">
+    <div class="change-item-header">
+      <span class="badge badge-delete">DELETE</span>
+      <code>{ファイルパス}</code>
+    </div>
+    <div class="change-item-body">
+      <p>{削除理由}</p>
+    </div>
+  </div>
+</section>
+
+<section id="verification" class="section">
+  <h2>検証計画</h2>
+
+  <dl class="metadata">
+    <div><dt>テスト方針</dt><dd>{TDD / テスト追加 / 手動検証のみ}</dd></div>
+  </dl>
+
+  <h3>自動テスト</h3>
+  <table>
+    <thead>
+      <tr><th>カテゴリ</th><th>テストケース</th><th>ユースケース / 想定シナリオ</th><th>期待結果</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>正常系</td><td>{テストケース1}</td><td>{想定シナリオ}</td><td>{期待結果}</td></tr>
+      <tr><td>異常系</td><td>{テストケース2}</td><td>{想定シナリオ}</td><td>{期待結果}</td></tr>
+    </tbody>
+  </table>
+  <p><strong>テスト実行コマンド</strong>: <code>{コマンド}</code></p>
+
+  <h3>手動検証</h3>
+  <ol>
+    <li>{確認手順1}</li>
+    <li>{確認手順2}</li>
+  </ol>
+</section>
+
+<section id="dod" class="section">
+  <h2>Definition of Done</h2>
+  <ul class="dod-list">
+    <li><span class="checkbox"></span>すべてのタスク（tasks）が完了</li>
+    <li><span class="checkbox"></span>{機能固有の受入条件1}</li>
+    <li><span class="checkbox"></span>{機能固有の受入条件2}</li>
+    <li><span class="checkbox"></span>既存機能にリグレッションがない</li>
+  </ul>
+</section>
+
+</body>
+</html>

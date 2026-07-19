@@ -15,24 +15,27 @@ use std::path::{Path, PathBuf};
 pub struct ComponentRef {
     pub kind: ComponentKind,
     pub name: String,
-    pub original_name: String,
+    /// フラット化前の元名。未設定時は `None`（危険な name フォールバックはしない）。
+    pub original_name: Option<String>,
     pub plugin_name: String,
 }
 
 impl ComponentRef {
-    /// `original_name = name`、`plugin_name` 空で構築する（後方互換ヘルパー）。
+    /// `original_name = None` で構築する。
+    ///
+    /// Skill の Cursor 配置には不十分（[`PlacementContext::original_name`] が
+    /// `None` になり配置スキップ）。フラット化情報付きは [`Self::with_names`]。
     ///
     /// # Arguments
     ///
     /// * `kind` - Component kind.
-    /// * `name` - Component identifier used as both `name` and `original_name`.
+    /// * `name` - Component identifier.
     pub fn new(kind: ComponentKind, name: impl Into<String>) -> Self {
-        let name = name.into();
         Self {
             kind,
-            original_name: name.clone(),
+            name: name.into(),
+            original_name: None,
             plugin_name: String::new(),
-            name,
         }
     }
 
@@ -53,7 +56,7 @@ impl ComponentRef {
         Self {
             kind,
             name: name.into(),
-            original_name: original_name.into(),
+            original_name: Some(original_name.into()),
             plugin_name: plugin_name.into(),
         }
     }
@@ -61,12 +64,12 @@ impl ComponentRef {
 
 impl From<&crate::component::Component> for ComponentRef {
     fn from(c: &crate::component::Component) -> Self {
-        Self::with_names(
-            c.kind,
-            c.name.clone(),
-            c.original_name.clone(),
-            c.plugin_name.clone(),
-        )
+        Self {
+            kind: c.kind,
+            name: c.name.clone(),
+            original_name: c.original_name.clone(),
+            plugin_name: c.plugin_name.clone(),
+        }
     }
 }
 
@@ -127,13 +130,12 @@ impl<'a> PlacementContext<'a> {
         &self.component.name
     }
 
-    /// スキャン時の元名を取得（空なら `name` にフォールバック）
-    pub fn original_name(&self) -> &str {
-        if self.component.original_name.is_empty() {
-            &self.component.name
-        } else {
-            &self.component.original_name
-        }
+    /// スキャン時の元名を取得。未設定なら `None`。
+    ///
+    /// Cursor Skill 配置はこれを必須とする。`name`（フラット化名）への
+    /// フォールバックは #377 の再発になるため行わない。
+    pub fn original_name(&self) -> Option<&str> {
+        self.component.original_name.as_deref()
     }
 
     /// プラグイン名を取得
