@@ -9,7 +9,7 @@ use crate::error::Result;
 use crate::target::paths::base_dir;
 use crate::target::placed_common;
 use crate::target::scanner::{scan_components, ScannedComponent};
-use crate::target::{Target, TargetKind};
+use crate::target::{PostPlaceOutcome, Target, TargetKind};
 use std::path::{Path, PathBuf};
 
 const CODEX_SUBDIR: &str = ".codex";
@@ -184,6 +184,57 @@ impl Target for CodexTarget {
             ComponentKind::Hook => PlacementLocation::file(base.join("hooks.json")),
             ComponentKind::Command => return None,
         })
+    }
+
+    fn component_conflict_error(&self, components: &[Component]) -> Option<String> {
+        Self::hook_component_conflict_error(components)
+    }
+
+    fn pre_place_check(
+        &self,
+        context: &PlacementContext,
+        target_path: &Path,
+        plugin_root: &Path,
+    ) -> std::result::Result<(), String> {
+        if context.kind() == ComponentKind::Hook {
+            if let Some(error) = Self::hook_overwrite_error(target_path, plugin_root) {
+                return Err(error);
+            }
+        }
+        Ok(())
+    }
+
+    fn post_place(
+        &self,
+        context: &PlacementContext,
+        deployed_path: &Path,
+        plugin_root: &Path,
+        enable_feature_flag: bool,
+    ) -> PostPlaceOutcome {
+        let mut outcome = PostPlaceOutcome::default();
+
+        if context.kind() != ComponentKind::Hook {
+            return outcome;
+        }
+
+        crate::install::record_codex_hook_ownership(plugin_root, deployed_path);
+
+        if enable_feature_flag {
+            let config_path = Self::config_toml_path(context.scope(), context.project_root());
+            match apply_codex_hooks_flag(&config_path) {
+                Ok(ffo) => outcome.feature_flags.push(ffo),
+                Err(e) => {
+                    eprintln!(
+                        "Warning: failed to enable [features] codex_hooks in {}: {}",
+                        config_path.display(),
+                        e
+                    );
+                }
+            }
+            outcome.feature_flag_attempted = true;
+        }
+
+        outcome
     }
 
     fn list_placed(

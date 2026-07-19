@@ -28,14 +28,14 @@ pub(crate) use core::paths;
 pub use core::{AddOutcome, RemoveOutcome, TargetRegistry};
 pub use effect::{AffectedTargets, OperationOutcome};
 pub use env::{
-    apply_codex_hooks_flag, AntigravityTarget, CodexTarget, CopilotTarget, CursorTarget,
-    FeatureFlagOutcome, GeminiCliTarget,
+    AntigravityTarget, CodexTarget, CopilotTarget, CursorTarget, FeatureFlagOutcome,
+    GeminiCliTarget,
 };
 pub use placed::scanner;
 pub(crate) use placed::{list_all_placed, placed_common};
 // PluginOrigin はモジュール内で定義されているのでここでは再エクスポート不要
 
-use crate::component::{AgentFormat, CommandFormat, ComponentKind};
+use crate::component::{AgentFormat, CommandFormat, Component, ComponentKind, FileOperation};
 // componentモジュールから再エクスポート
 pub use crate::component::Scope;
 use crate::component::{
@@ -202,6 +202,12 @@ impl TargetKind {
     }
 }
 
+#[derive(Debug, Default)]
+pub struct PostPlaceOutcome {
+    pub feature_flags: Vec<FeatureFlagOutcome>,
+    pub feature_flag_attempted: bool,
+}
+
 /// ターゲット環境の抽象化trait
 ///
 /// 各ターゲット（Codex, Copilot）がこのtraitを実装する。
@@ -269,6 +275,40 @@ pub trait Target: Send + Sync {
     ///
     /// * `context` - Placement context describing the component, origin, scope and project.
     fn placement_location(&self, context: &PlacementContext) -> Option<PlacementLocation>;
+
+    /// Validates target-specific component conflicts within a single install/import call.
+    fn component_conflict_error(&self, _components: &[Component]) -> Option<String> {
+        None
+    }
+
+    /// Target-specific validation performed immediately before placement.
+    fn pre_place_check(
+        &self,
+        _context: &PlacementContext,
+        _target_path: &Path,
+        _plugin_root: &Path,
+    ) -> std::result::Result<(), String> {
+        Ok(())
+    }
+
+    /// Target-specific post-processing after successful placement.
+    fn post_place(
+        &self,
+        _context: &PlacementContext,
+        _deployed_path: &Path,
+        _plugin_root: &Path,
+        _enable_feature_flag: bool,
+    ) -> PostPlaceOutcome {
+        PostPlaceOutcome::default()
+    }
+
+    /// Additional operations needed to clean up the same plugin's legacy layout.
+    fn legacy_cleanup_operations(
+        &self,
+        _context: &PlacementContext,
+    ) -> std::result::Result<Vec<FileOperation>, String> {
+        Ok(vec![])
+    }
 
     /// コンポーネントを削除
     ///

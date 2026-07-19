@@ -13,7 +13,7 @@ use crate::component::{
     ProjectContext, Scope, ScopedPath,
 };
 use crate::target::{
-    all_targets, AffectedTargets, CursorTarget, OperationOutcome, PluginOrigin, Target, TargetKind,
+    all_targets, AffectedTargets, OperationOutcome, PluginOrigin, Target, TargetKind,
 };
 use std::path::{Path, PathBuf};
 
@@ -114,15 +114,19 @@ impl PluginIntent {
                     Err((target_id, msg)) => validation_errors.push((target_id, msg)),
                 }
 
-                // Cursor Skill: 旧 `{plugin}_{original}` パスを deploy/remove 双方で掃除する
-                if component.kind == ComponentKind::Skill && target.kind() == TargetKind::Cursor {
-                    if let Some(legacy_op) = self.legacy_cursor_skill_remove(component) {
-                        match legacy_op {
-                            Ok(Some(op)) => operations.push(op),
-                            Ok(None) => {}
-                            Err((target_id, msg)) => validation_errors.push((target_id, msg)),
+                let legacy_ctx = PlacementContext {
+                    component: ComponentRef::from(component),
+                    origin: &origin,
+                    scope: PlacementScope::new(Scope::Project),
+                    project: ProjectContext::new(&self.project_root),
+                };
+                match target.legacy_cleanup_operations(&legacy_ctx) {
+                    Ok(extra_ops) => {
+                        for op in extra_ops {
+                            operations.push((target.kind(), op));
                         }
                     }
+                    Err(msg) => validation_errors.push((target.kind(), msg)),
                 }
             }
         }
@@ -194,48 +198,6 @@ impl PluginIntent {
         let op = self.build_file_operation(component, scoped);
         Ok(Some((target.kind(), op)))
     }
-
-    /// Cursor Skill の旧 `{plugin}_{original}` ディレクトリを削除する操作を生成する。
-    ///
-    /// 新パス（元名）と同一、またはパスが存在しない場合は `None`。
-    ///
-    /// # Ownership policy
-    ///
-    /// 削除対象は `component.name`（= `flatten_name(plugin, original)`）から
-    /// 導出したレガシーパスのみ。他プラグインの元名ディレクトリは対象外。
-    /// 詳細は [`CursorTarget::remove_legacy_flattened_skill_dir`]。
-    fn legacy_cursor_skill_remove(&self, component: &Component) -> Option<CreateOperationResult> {
-        let original = component.original_name.as_deref()?;
-        if component.name == original {
-            return None;
-        }
-
-        let legacy_path = CursorTarget::legacy_flattened_skill_path(
-            Scope::Project,
-            &self.project_root,
-            &component.name,
-        );
-
-        if !legacy_path.exists() {
-            return None;
-        }
-
-        let scoped = match ScopedPath::new(legacy_path, &self.project_root) {
-            Ok(s) => s,
-            Err(e) => {
-                return Some(Err((
-                    TargetKind::Cursor,
-                    format!("Path validation failed: {}", e),
-                )))
-            }
-        };
-
-        Some(Ok(Some((
-            TargetKind::Cursor,
-            FileOperation::RemoveDir { path: scoped },
-        ))))
-    }
-
     /// Imperative Shell: 実行（副作用）
     pub fn apply(self) -> OperationOutcome {
         let result = self.expand();

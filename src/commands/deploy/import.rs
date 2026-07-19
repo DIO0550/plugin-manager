@@ -12,10 +12,7 @@ use crate::import::{ImportRecord, ImportRegistry};
 use crate::output::CommandSummary;
 use crate::plugin::PackageCache;
 use crate::source::parse_source;
-use crate::target::{
-    all_targets, apply_codex_hooks_flag, parse_target, CodexTarget, CursorTarget, PluginOrigin,
-    Scope, Target, TargetKind,
-};
+use crate::target::{all_targets, parse_target, PluginOrigin, Scope, Target, TargetKind};
 use crate::tui;
 use chrono::Utc;
 use clap::Parser;
@@ -240,22 +237,7 @@ fn build_deployment(
         None => return Ok(None),
     };
 
-    if component.kind == ComponentKind::Hook {
-        let overwrite_error = match target.kind() {
-            TargetKind::Codex => CodexTarget::hook_overwrite_error(&target_path, ctx.plugin_root),
-            TargetKind::Cursor => CursorTarget::hook_overwrite_error(&target_path, ctx.plugin_root),
-            _ => None,
-        };
-        if let Some(error) = overwrite_error {
-            return Err(error);
-        }
-    }
-
-    if component.kind == ComponentKind::Skill && target.kind() == TargetKind::Cursor {
-        if let Some(error) = CursorTarget::skill_overwrite_error(&target_path, ctx.plugin_root) {
-            return Err(error);
-        }
-    }
+    target.pre_place_check(&placement_ctx, &target_path, ctx.plugin_root)?;
 
     let conversion = match component.kind {
         ComponentKind::Agent => ConversionConfig::Agent {
@@ -297,6 +279,7 @@ fn build_deployment(
 /// * `import_registry` - Registry that records successful imports.
 fn deploy_one(
     deployment: &ComponentDeployment,
+    component: &Component,
     target: &dyn Target,
     ctx: &ImportContext,
     import_registry: &mut ImportRegistry,
@@ -312,68 +295,36 @@ fn deploy_one(
             );
 
             let target_kind = target.kind();
-            if deployment.kind() == ComponentKind::Hook {
-                match target_kind {
-                    TargetKind::Codex => {
-                        crate::install::record_hook_file_ownership(
-                            ctx.plugin_root,
-                            deployment.path(),
-                            "codex",
-                        );
-
-                        if ctx.enable_codex_hooks_flag && !ctx.codex_flag_applied.get() {
-                            let config_path =
-                                CodexTarget::config_toml_path(ctx.scope, ctx.project_root);
-                            match apply_codex_hooks_flag(&config_path) {
-                                Ok(ffo) => {
-                                    if ffo.applied {
-                                        println!(
-                                            "  + codex: Enabled [features] codex_hooks = true in {}",
-                                            ffo.target_path.display()
-                                        );
-                                    } else if let Some(reason) = &ffo.skipped_reason {
-                                        println!(
-                                            "  - codex: Skipped feature flag in {}: {}",
-                                            ffo.target_path.display(),
-                                            reason
-                                        );
-                                    }
-                                }
-                                Err(e) => {
-                                    eprintln!(
-                                        "  ! codex: Failed to enable feature flag in {}: {}",
-                                        config_path.display(),
-                                        e
-                                    );
-                                }
-                            }
-                            ctx.codex_flag_applied.set(true);
-                        }
-                    }
-                    TargetKind::Cursor => {
-                        crate::install::record_hook_file_ownership(
-                            ctx.plugin_root,
-                            deployment.path(),
-                            "cursor",
-                        );
-                    }
-                    _ => {}
+            let placement_ctx = PlacementContext {
+                component: ComponentRef::from(component),
+                origin: ctx.origin,
+                scope: PlacementScope::new(ctx.scope),
+                project: ProjectContext::new(ctx.project_root),
+            };
+            let post_place = target.post_place(
+                &placement_ctx,
+                deployment.path(),
+                ctx.plugin_root,
+                ctx.enable_codex_hooks_flag && !ctx.codex_flag_applied.get(),
+            );
+            for ffo in &post_place.feature_flags {
+                if ffo.applied {
+                    println!(
+                        "  + {}: Enabled [features] codex_hooks = true in {}",
+                        target.name(),
+                        ffo.target_path.display()
+                    );
+                } else if let Some(reason) = &ffo.skipped_reason {
+                    println!(
+                        "  - {}: Skipped feature flag in {}: {}",
+                        target.name(),
+                        ffo.target_path.display(),
+                        reason
+                    );
                 }
             }
-
-            if deployment.kind() == ComponentKind::Skill && target_kind == TargetKind::Cursor {
-                crate::install::record_cursor_skill_ownership(ctx.plugin_root, deployment.path());
-                if let Some(original) = deployment.original_name() {
-                    let flattened = deployment.name();
-                    if flattened != original {
-                        CursorTarget::remove_legacy_flattened_skill_dir(
-                            ctx.scope,
-                            ctx.project_root,
-                            flattened,
-                            deployment.path(),
-                        );
-                    }
-                }
+            if post_place.feature_flag_attempted {
+                ctx.codex_flag_applied.set(true);
             }
 
             if target_kind == TargetKind::GeminiCli {
@@ -427,15 +378,11 @@ fn place_components(
 
     for target_name in target_names {
         let target = parse_target(target_name).map_err(|e| e.to_string())?;
-        let hook_component_conflict = match target.kind() {
-            TargetKind::Codex => CodexTarget::hook_component_conflict_error(components),
-            TargetKind::Cursor => CursorTarget::hook_component_conflict_error(components),
-            _ => None,
-        };
+        let component_conflict = target.component_conflict_error(components);
 
         for component in components {
             if component.kind == ComponentKind::Hook {
-                if let Some(error) = &hook_component_conflict {
+                if let Some(error) = &component_conflict {
                     println!(
                         "  x {} {}: {} - {}",
                         target.name(),
@@ -464,7 +411,13 @@ fn place_components(
                 }
             };
 
-            match deploy_one(&deployment, target.as_ref(), ctx, import_registry) {
+            match deploy_one(
+                &deployment,
+                component,
+                target.as_ref(),
+                ctx,
+                import_registry,
+            ) {
                 DeployOutcome::Success => total_success += 1,
                 DeployOutcome::Failure => total_failure += 1,
                 DeployOutcome::Skipped => {}
