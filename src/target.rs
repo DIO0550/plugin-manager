@@ -28,8 +28,8 @@ pub(crate) use core::paths;
 pub use core::{AddOutcome, RemoveOutcome, TargetRegistry};
 pub use effect::{AffectedTargets, OperationOutcome};
 pub use env::{
-    apply_codex_hooks_flag, AntigravityTarget, CodexTarget, CopilotTarget, CursorTarget,
-    FeatureFlagOutcome, GeminiCliTarget,
+    AntigravityTarget, CodexTarget, CopilotTarget, CursorTarget, FeatureFlagOutcome,
+    GeminiCliTarget,
 };
 pub use placed::scanner;
 pub(crate) use placed::{list_all_placed, placed_common};

@@ -12,7 +12,9 @@ use crate::component::{
     Component, ComponentKind, ComponentRef, FileOperation, PlacementContext, PlacementScope,
     ProjectContext, Scope, ScopedPath,
 };
-use crate::target::{all_targets, AffectedTargets, OperationOutcome, PluginOrigin, Target, TargetKind};
+use crate::target::{
+    all_targets, AffectedTargets, OperationOutcome, PluginOrigin, Target, TargetKind,
+};
 use std::path::{Path, PathBuf};
 
 /// 単一コンポーネントの操作生成結果

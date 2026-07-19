@@ -9,7 +9,7 @@ mod cursor;
 mod gemini_cli;
 
 pub use antigravity::AntigravityTarget;
-pub use codex::{apply_codex_hooks_flag, CodexTarget, FeatureFlagOutcome};
+pub use codex::{CodexTarget, FeatureFlagOutcome};
 pub use copilot::CopilotTarget;
 pub use cursor::CursorTarget;
 pub use gemini_cli::GeminiCliTarget;

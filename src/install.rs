@@ -207,14 +207,14 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
 
             if component.kind == ComponentKind::Hook {
                 if let Some(error) = &component_conflict {
-                failures.push(PlaceFailure {
-                    target: target.name().to_string(),
-                    component_name: component.name.clone(),
-                    component_kind: component.kind,
-                    error: error.clone(),
-                    stage: PlaceFailureStage::Resolution,
-                });
-                continue;
+                    failures.push(PlaceFailure {
+                        target: target.name().to_string(),
+                        component_name: component.name.clone(),
+                        component_kind: component.kind,
+                        error: error.clone(),
+                        stage: PlaceFailureStage::Resolution,
+                    });
+                    continue;
                 }
             }
 
@@ -230,7 +230,8 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
                 None => continue,
             };
 
-            if let Err(error) = target.pre_place_check(&ctx, &target_path, request.scanned.plugin_root())
+            if let Err(error) =
+                target.pre_place_check(&ctx, &target_path, request.scanned.plugin_root())
             {
                 failures.push(PlaceFailure {
                     target: target.name().to_string(),

@@ -411,7 +411,13 @@ fn place_components(
                 }
             };
 
-            match deploy_one(&deployment, component, target.as_ref(), ctx, import_registry) {
+            match deploy_one(
+                &deployment,
+                component,
+                target.as_ref(),
+                ctx,
+                import_registry,
+            ) {
                 DeployOutcome::Success => total_success += 1,
                 DeployOutcome::Failure => total_failure += 1,
                 DeployOutcome::Skipped => {}

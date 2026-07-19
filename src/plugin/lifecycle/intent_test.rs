@@ -51,7 +51,11 @@ fn test_plugin_intent_expand_adds_cursor_legacy_cleanup_operation() {
 
     let result = intent.expand();
 
-    assert!(result.validation_errors.is_empty(), "{:?}", result.validation_errors);
+    assert!(
+        result.validation_errors.is_empty(),
+        "{:?}",
+        result.validation_errors
+    );
     assert_eq!(result.operations.len(), 2);
     assert!(result.operations.iter().any(|(kind, op)| {
         *kind == crate::target::TargetKind::Cursor

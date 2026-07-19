@@ -308,6 +308,16 @@ impl Target for CursorTarget {
             }
             ComponentKind::Skill => {
                 crate::install::record_cursor_skill_ownership(plugin_root, deployed_path);
+                if let Some(original) = context.original_name() {
+                    if context.name() != original {
+                        Self::remove_legacy_flattened_skill_dir(
+                            context.scope(),
+                            context.project_root(),
+                            context.name(),
+                            deployed_path,
+                        );
+                    }
+                }
             }
             _ => {}
         }
@@ -330,8 +340,11 @@ impl Target for CursorTarget {
             return Ok(vec![]);
         }
 
-        let legacy_path =
-            Self::legacy_flattened_skill_path(context.scope(), context.project_root(), context.name());
+        let legacy_path = Self::legacy_flattened_skill_path(
+            context.scope(),
+            context.project_root(),
+            context.name(),
+        );
         if !legacy_path.exists() {
             return Ok(vec![]);
         }
