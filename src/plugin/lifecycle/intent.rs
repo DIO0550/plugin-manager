@@ -13,7 +13,7 @@ use crate::component::{
     ProjectContext, Scope, ScopedPath,
 };
 use crate::target::{
-    all_targets, AffectedTargets, OperationOutcome, PluginOrigin, Target, TargetKind,
+    all_targets, AffectedTargets, CursorTarget, OperationOutcome, PluginOrigin, Target, TargetKind,
 };
 use std::path::{Path, PathBuf};
 
@@ -113,6 +113,17 @@ impl PluginIntent {
                     Ok(None) => {} // placement not applicable
                     Err((target_id, msg)) => validation_errors.push((target_id, msg)),
                 }
+
+                // Cursor Skill: 旧 `{plugin}_{original}` パスを deploy/remove 双方で掃除する
+                if component.kind == ComponentKind::Skill && target.kind() == TargetKind::Cursor {
+                    if let Some(legacy_op) = self.legacy_cursor_skill_remove(component) {
+                        match legacy_op {
+                            Ok(Some(op)) => operations.push(op),
+                            Ok(None) => {}
+                            Err((target_id, msg)) => validation_errors.push((target_id, msg)),
+                        }
+                    }
+                }
             }
         }
 
@@ -166,7 +177,7 @@ impl PluginIntent {
         origin: &PluginOrigin,
     ) -> CreateOperationResult {
         let context = PlacementContext {
-            component: ComponentRef::new(component.kind, &component.name),
+            component: ComponentRef::from(component),
             origin,
             scope: PlacementScope::new(Scope::Project),
             project: ProjectContext::new(&self.project_root),
@@ -182,6 +193,40 @@ impl PluginIntent {
 
         let op = self.build_file_operation(component, scoped);
         Ok(Some((target.kind(), op)))
+    }
+
+    /// Cursor Skill の旧 `{plugin}_{original}` ディレクトリを削除する操作を生成する。
+    ///
+    /// 新パス（元名）と同一、またはパスが存在しない場合は `None`。
+    fn legacy_cursor_skill_remove(&self, component: &Component) -> Option<CreateOperationResult> {
+        if component.name == component.original_name || component.original_name.is_empty() {
+            return None;
+        }
+
+        let legacy_path = CursorTarget::legacy_flattened_skill_path(
+            Scope::Project,
+            &self.project_root,
+            &component.name,
+        );
+
+        if !legacy_path.exists() {
+            return None;
+        }
+
+        let scoped = match ScopedPath::new(legacy_path, &self.project_root) {
+            Ok(s) => s,
+            Err(e) => {
+                return Some(Err((
+                    TargetKind::Cursor,
+                    format!("Path validation failed: {}", e),
+                )))
+            }
+        };
+
+        Some(Ok(Some((
+            TargetKind::Cursor,
+            FileOperation::RemoveDir { path: scoped },
+        ))))
     }
 
     /// Imperative Shell: 実行（副作用）

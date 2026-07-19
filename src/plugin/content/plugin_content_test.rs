@@ -53,6 +53,8 @@ fn test_plugin_new_with_skills() {
     assert_eq!(components.len(), 1);
     assert_eq!(components[0].kind, ComponentKind::Skill);
     assert_eq!(components[0].name, "test_my-skill");
+    assert_eq!(components[0].original_name, "my-skill");
+    assert_eq!(components[0].plugin_name, "test");
     assert_eq!(components[0].path, path.join("skills").join("my-skill"));
 }
 

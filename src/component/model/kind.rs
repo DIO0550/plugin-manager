@@ -75,11 +75,65 @@ impl std::fmt::Display for ComponentKind {
 }
 
 /// プラグイン内のコンポーネント
+///
+/// `name` は他ターゲット互換のフラット化識別子（`{plugin}_{original}`）。
+/// Cursor Skill 配置では `original_name` をディレクトリ名に使い、frontmatter
+/// の `name` と一致させる（Issue #377）。
 #[derive(Debug, Clone)]
 pub struct Component {
     pub kind: ComponentKind,
+    /// フラット化済み識別子（他ターゲット・カタログ用の正）
     pub name: String,
+    /// スキャン時の元名（ディレクトリ名 / ファイル stem）
+    pub original_name: String,
+    /// `PluginManifest.name`。Instruction など非フラット化では空文字
+    pub plugin_name: String,
     pub path: PathBuf,
+}
+
+impl Component {
+    /// 簡易コンストラクタ。`original_name = name`、`plugin_name` は空。
+    ///
+    /// # Arguments
+    ///
+    /// * `kind` - Component kind.
+    /// * `name` - Component identifier (also used as `original_name`).
+    /// * `path` - Filesystem path of the component source.
+    pub fn new(kind: ComponentKind, name: impl Into<String>, path: impl Into<PathBuf>) -> Self {
+        let name = name.into();
+        Self {
+            kind,
+            original_name: name.clone(),
+            plugin_name: String::new(),
+            name,
+            path: path.into(),
+        }
+    }
+
+    /// フラット化済みコンポーネントを構築する。
+    ///
+    /// # Arguments
+    ///
+    /// * `kind` - Component kind.
+    /// * `plugin_name` - Plugin manifest name used as flatten prefix.
+    /// * `original_name` - Pre-flatten directory / file stem name.
+    /// * `path` - Filesystem path of the component source.
+    pub fn flattened(
+        kind: ComponentKind,
+        plugin_name: impl Into<String>,
+        original_name: impl Into<String>,
+        path: impl Into<PathBuf>,
+    ) -> Self {
+        let plugin_name = plugin_name.into();
+        let original_name = original_name.into();
+        Self {
+            kind,
+            name: format!("{plugin_name}_{original_name}"),
+            original_name,
+            plugin_name,
+            path: path.into(),
+        }
+    }
 }
 
 /// デプロイスコープ

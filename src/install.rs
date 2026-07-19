@@ -228,7 +228,7 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
             }
 
             let ctx = PlacementContext {
-                component: ComponentRef::new(component.kind, &component.name),
+                component: ComponentRef::from(component),
                 origin: &origin,
                 scope: PlacementScope::new(request.scope),
                 project: ProjectContext::new(request.project_root),
@@ -252,6 +252,21 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
                     _ => None,
                 };
                 if let Some(error) = overwrite_error {
+                    failures.push(PlaceFailure {
+                        target: target.name().to_string(),
+                        component_name: component.name.clone(),
+                        component_kind: component.kind,
+                        error,
+                        stage: PlaceFailureStage::Resolution,
+                    });
+                    continue;
+                }
+            }
+
+            if component.kind == ComponentKind::Skill && target.kind() == TargetKind::Cursor {
+                if let Some(error) =
+                    CursorTarget::skill_overwrite_error(&target_path, request.scanned.plugin_root())
+                {
                     failures.push(PlaceFailure {
                         target: target.name().to_string(),
                         component_name: component.name.clone(),
@@ -348,6 +363,28 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
                         hook_source_format,
                     });
 
+                    // Cursor Skill: 旧フラット化ディレクトリが残っていれば best-effort で削除
+                    if component.kind == ComponentKind::Skill
+                        && target.kind() == TargetKind::Cursor
+                        && component.name != component.original_name
+                        && !component.original_name.is_empty()
+                    {
+                        let legacy = CursorTarget::legacy_flattened_skill_path(
+                            request.scope,
+                            request.project_root,
+                            &component.name,
+                        );
+                        if legacy.exists() && legacy != deployment.path() {
+                            if let Err(e) = std::fs::remove_dir_all(&legacy) {
+                                eprintln!(
+                                    "Warning: failed to remove legacy Cursor skill path {}: {}",
+                                    legacy.display(),
+                                    e
+                                );
+                            }
+                        }
+                    }
+
                     // Codex Hook 配置成功時、scope につき 1 回だけ
                     // `~/.codex/config.toml` の feature flag を自動追記する。
                     if request.enable_codex_hooks_flag
@@ -410,12 +447,12 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
 /// （例: Codex の `.codex/hooks.json`）もあるため、target 全体が成功した場合だけ
 /// `.plm-meta.json` の `statusByTarget` に記録して enabled 判定を安定させる。
 ///
-/// さらに、Codex Hook のように複数プラグイン間で書き合いが起こりうる
-/// 共有 destination ファイルについては、絶対パスを `managedFiles[target]`
-/// に追記しておく（`CodexTarget::hook_overwrite_error` がこの値で
-/// 所有権を判定する）。`statusByTarget` の `enabled` を所有権チェックに
-/// 流用すると scope/種別を区別できないため、Hook 配置時のみ実パスを
-/// 別フィールドへ記録する設計とする。
+/// さらに、Codex / Cursor Hook のように複数プラグイン間で書き合いが起こりうる
+/// 共有 destination、および Cursor Skill の元名配置（プレフィックス衝突回避なし）
+/// については、絶対パスを `managedFiles[target]` に追記しておく。
+/// 所有権判定（`hook_overwrite_error` / `skill_overwrite_error`）がこの値を使う。
+/// `statusByTarget` の `enabled` を所有権チェックに流用すると scope/種別を
+/// 区別できないため、該当配置時のみ実パスを別フィールドへ記録する設計とする。
 ///
 /// 実際にステータス更新が発生しなかった場合（全 target が失敗した、`successes`
 /// が空など）は `.plm-meta.json` を書き換えない。失敗 install で不要な
@@ -441,8 +478,10 @@ pub fn update_meta_after_place(plugin_path: &Path, result: &PlaceOutcome) {
         // hook_overwrite_error が「未管理」と判定して再配置を拒否してしまう。
         // add_managed_file は重複時 false を返すので、内容変化なしの no-op
         // 書き込み（mtime 汚染）を避けるため戻り値で updated を立てる。
-        if success.component_kind == ComponentKind::Hook
-            && matches!(success.target_kind, TargetKind::Codex | TargetKind::Cursor)
+        if ((success.component_kind == ComponentKind::Hook
+            && matches!(success.target_kind, TargetKind::Codex | TargetKind::Cursor))
+            || (success.component_kind == ComponentKind::Skill
+                && success.target_kind == TargetKind::Cursor))
             && plugin_meta.add_managed_file(&success.target, &success.target_path)
         {
             updated = true;

@@ -181,22 +181,14 @@ impl Plugin {
 
             if instr_path.is_file() {
                 if let Some(name) = file_stem_name(&instr_path) {
-                    components.push(Component {
-                        kind: ComponentKind::Instruction,
-                        path: instr_path,
-                        name,
-                    });
+                    components.push(Component::new(ComponentKind::Instruction, name, instr_path));
                 }
                 return;
             }
 
             if instr_path.is_dir() {
                 for (name, p) in list_markdown_names(&instr_path) {
-                    components.push(Component {
-                        kind: ComponentKind::Instruction,
-                        path: p,
-                        name,
-                    });
+                    components.push(Component::new(ComponentKind::Instruction, name, p));
                 }
                 return;
             }
@@ -205,20 +197,16 @@ impl Plugin {
         }
 
         for (name, p) in list_markdown_names(&manifest.instructions_dir(path)) {
-            components.push(Component {
-                kind: ComponentKind::Instruction,
-                path: p,
-                name,
-            });
+            components.push(Component::new(ComponentKind::Instruction, name, p));
         }
 
         let agents_md = path.join("AGENTS.md");
         if agents_md.exists() {
-            components.push(Component {
-                kind: ComponentKind::Instruction,
-                path: agents_md,
-                name: "AGENTS".to_string(),
-            });
+            components.push(Component::new(
+                ComponentKind::Instruction,
+                "AGENTS",
+                agents_md,
+            ));
         }
     }
 
@@ -269,11 +257,7 @@ fn flatten_components(
         .into_iter()
         .map(|(original_name, path)| {
             validate_path_segment("component name", &original_name)?;
-            Ok(Component {
-                kind,
-                name: flatten_name(plugin_name, &original_name),
-                path,
-            })
+            Ok(Component::flattened(kind, plugin_name, original_name, path))
         })
         .collect()
 }

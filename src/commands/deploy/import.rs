@@ -229,7 +229,7 @@ fn build_deployment(
     }
 
     let placement_ctx = PlacementContext {
-        component: ComponentRef::new(component.kind, &component.name),
+        component: ComponentRef::from(component),
         origin: ctx.origin,
         scope: PlacementScope::new(ctx.scope),
         project: ProjectContext::new(ctx.project_root),
@@ -247,6 +247,12 @@ fn build_deployment(
             _ => None,
         };
         if let Some(error) = overwrite_error {
+            return Err(error);
+        }
+    }
+
+    if component.kind == ComponentKind::Skill && target.kind() == TargetKind::Cursor {
+        if let Some(error) = CursorTarget::skill_overwrite_error(&target_path, ctx.plugin_root) {
             return Err(error);
         }
     }
@@ -353,6 +359,14 @@ fn deploy_one(
                     }
                     _ => {}
                 }
+            }
+
+            if deployment.kind() == ComponentKind::Skill && target_kind == TargetKind::Cursor {
+                crate::install::record_hook_file_ownership(
+                    ctx.plugin_root,
+                    deployment.path(),
+                    "cursor",
+                );
             }
 
             if target_kind == TargetKind::GeminiCli {

@@ -4,11 +4,11 @@ use crate::plugin::{InstalledPlugin, UpgradeState};
 use std::path::PathBuf;
 
 fn comp(kind: ComponentKind, name: &str) -> Component {
-    Component {
+    Component::new(
         kind,
-        name: name.to_string(),
-        path: PathBuf::from(format!("dummy/{}", name)),
-    }
+        name.to_string(),
+        PathBuf::from(format!("dummy/{}", name)),
+    )
 }
 
 fn snapshot_plugin_full() -> InstalledPlugin {

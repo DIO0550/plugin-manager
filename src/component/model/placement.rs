@@ -8,26 +8,65 @@ use std::path::{Path, PathBuf};
 
 /// コンポーネント参照
 ///
-/// 配置先決定に必要な最小の識別子（`kind` + `name`）。
+/// 配置先決定に必要な最小の識別子。
+/// `name` はフラット化済み識別子、`original_name` はスキャン時の元名。
 /// scope は `PlacementContext.scope` 側に保持する。
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ComponentRef {
     pub kind: ComponentKind,
     pub name: String,
+    pub original_name: String,
+    pub plugin_name: String,
 }
 
 impl ComponentRef {
+    /// `original_name = name`、`plugin_name` 空で構築する（後方互換ヘルパー）。
+    ///
+    /// # Arguments
+    ///
+    /// * `kind` - Component kind.
+    /// * `name` - Component identifier used as both `name` and `original_name`.
     pub fn new(kind: ComponentKind, name: impl Into<String>) -> Self {
+        let name = name.into();
+        Self {
+            kind,
+            original_name: name.clone(),
+            plugin_name: String::new(),
+            name,
+        }
+    }
+
+    /// フラット化情報付きで構築する。
+    ///
+    /// # Arguments
+    ///
+    /// * `kind` - Component kind.
+    /// * `name` - Flattened identifier (`{plugin}_{original}`).
+    /// * `original_name` - Pre-flatten name.
+    /// * `plugin_name` - Plugin manifest name.
+    pub fn with_names(
+        kind: ComponentKind,
+        name: impl Into<String>,
+        original_name: impl Into<String>,
+        plugin_name: impl Into<String>,
+    ) -> Self {
         Self {
             kind,
             name: name.into(),
+            original_name: original_name.into(),
+            plugin_name: plugin_name.into(),
         }
     }
 }
 
 impl From<&crate::component::Component> for ComponentRef {
     fn from(c: &crate::component::Component) -> Self {
-        Self::new(c.kind, c.name.clone())
+        Self::with_names(
+            c.kind,
+            c.name.clone(),
+            c.original_name.clone(),
+            c.plugin_name.clone(),
+        )
     }
 }
 
@@ -83,9 +122,23 @@ impl<'a> PlacementContext<'a> {
         self.component.kind
     }
 
-    /// コンポーネント名を取得
+    /// フラット化済みコンポーネント名を取得
     pub fn name(&self) -> &str {
         &self.component.name
+    }
+
+    /// スキャン時の元名を取得（空なら `name` にフォールバック）
+    pub fn original_name(&self) -> &str {
+        if self.component.original_name.is_empty() {
+            &self.component.name
+        } else {
+            &self.component.original_name
+        }
+    }
+
+    /// プラグイン名を取得
+    pub fn plugin_name(&self) -> &str {
+        &self.component.plugin_name
     }
 
     /// スコープを取得
