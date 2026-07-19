@@ -357,7 +357,7 @@ mod place_components_tests {
     }
 
     #[test]
-    fn cursor_skill_records_ownership_and_removes_legacy_dir() {
+    fn test_cursor_skill_records_ownership_and_removes_legacy_dir() {
         let source_dir = TempDir::new().unwrap();
         let project_dir = TempDir::new().unwrap();
         let plugin_dir = TempDir::new().unwrap();
@@ -383,7 +383,12 @@ mod place_components_tests {
             enable_codex_hooks_flag: false,
             codex_flag_applied: std::cell::Cell::new(false),
         };
-        let components = vec![make_skill_component(&source_dir)];
+        let skill = make_skill_component(&source_dir);
+        assert_eq!(skill.name, "test-plugin_review");
+        assert_eq!(skill.original_name.as_deref(), Some("review"));
+        assert!(skill.path.join("SKILL.md").exists());
+
+        let components = vec![skill];
         let mut registry = ImportRegistry::with_path(registry_dir.path().join("imports.json"));
 
         let result = place_components(&["cursor".to_string()], &components, &ctx, &mut registry);
