@@ -288,7 +288,7 @@ mod place_components_tests {
         )
     }
 
-    fn make_cursor_skill(temp: &TempDir) -> Component {
+    fn make_skill_component(temp: &TempDir) -> Component {
         let skill_dir = temp.path().join("skills").join("review");
         fs::create_dir_all(&skill_dir).unwrap();
         fs::write(skill_dir.join("SKILL.md"), "---\nname: review\n---\n").unwrap();
@@ -383,7 +383,7 @@ mod place_components_tests {
             enable_codex_hooks_flag: false,
             codex_flag_applied: std::cell::Cell::new(false),
         };
-        let components = vec![make_cursor_skill(&source_dir)];
+        let components = vec![make_skill_component(&source_dir)];
         let mut registry = ImportRegistry::with_path(registry_dir.path().join("imports.json"));
 
         let result = place_components(&["cursor".to_string()], &components, &ctx, &mut registry);

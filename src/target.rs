@@ -276,12 +276,12 @@ pub trait Target: Send + Sync {
     /// * `context` - Placement context describing the component, origin, scope and project.
     fn placement_location(&self, context: &PlacementContext) -> Option<PlacementLocation>;
 
-    /// 同一 install / import 呼び出し内の target 固有コンポーネント衝突検証。
+    /// Validates target-specific component conflicts within a single install/import call.
     fn component_conflict_error(&self, _components: &[Component]) -> Option<String> {
         None
     }
 
-    /// 配置直前の target 固有検証。
+    /// Target-specific validation performed immediately before placement.
     fn pre_place_check(
         &self,
         _context: &PlacementContext,
@@ -291,7 +291,7 @@ pub trait Target: Send + Sync {
         Ok(())
     }
 
-    /// 配置成功後の target 固有後処理。
+    /// Target-specific post-processing after successful placement.
     fn post_place(
         &self,
         _context: &PlacementContext,
@@ -302,7 +302,7 @@ pub trait Target: Send + Sync {
         PostPlaceOutcome::default()
     }
 
-    /// 同一プラグインの旧レイアウト掃除に必要な追加操作。
+    /// Additional operations needed to clean up the same plugin's legacy layout.
     fn legacy_cleanup_operations(
         &self,
         _context: &PlacementContext,
