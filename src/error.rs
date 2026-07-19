@@ -1,7 +1,9 @@
 mod code;
+mod formatter;
 mod rich;
 
 pub use code::ErrorCode;
+pub use formatter::ErrorFormatter;
 pub use rich::{ErrorContext, RichError};
 
 use thiserror::Error;
@@ -24,10 +26,29 @@ fn format_ambiguous_plugin(name: &str, candidates: &[String]) -> String {
     msg
 }
 
+/// `std::error::Error::source()` チェーンを辿ってメッセージに連結する。
+///
+/// ハンドラ層で `PlmError` が `to_string()` されると source 情報が失われるため、
+/// Network の Display 時点で cause をメッセージへ埋め込む。
+fn format_error_with_sources(err: &dyn std::error::Error) -> String {
+    let mut parts = vec![err.to_string()];
+    let mut current = err.source();
+    let mut depth = 0usize;
+    while let Some(source) = current {
+        if depth >= 16 {
+            break;
+        }
+        parts.push(source.to_string());
+        current = source.source();
+        depth += 1;
+    }
+    parts.join(": ")
+}
+
 /// PLM統一エラー型
 #[derive(Debug, Error)]
 pub enum PlmError {
-    #[error("Network error: {0}")]
+    #[error("Network error: {}", format_error_with_sources(.0))]
     Network(#[from] reqwest::Error),
 
     #[error("{url} API error: {message} (status: {status})")]
@@ -117,6 +138,10 @@ pub enum PlmError {
 
     #[error("Hook conversion error: {0}")]
     HookConversion(String),
+
+    /// コマンドハンドラの String エラーを PlmError として伝搬するためのバリアント
+    #[error("{0}")]
+    General(String),
 }
 
 pub type Result<T> = std::result::Result<T, PlmError>;
@@ -137,19 +162,26 @@ impl PlmError {
 
 impl From<PlmError> for RichError {
     fn from(err: PlmError) -> Self {
-        let (code, message, context) = match &err {
-            PlmError::Network(e) => {
-                let mut ctx = ErrorContext::default();
-                if let Some(url) = e.url() {
-                    ctx.url = Some(url.to_string());
-                }
-                let code = if e.is_timeout() {
-                    ErrorCode::Net002
-                } else {
-                    ErrorCode::Net001
-                };
-                (code, e.to_string(), ctx)
+        // Network は所有権を取って source chain を保持する
+        if let PlmError::Network(e) = err {
+            let mut ctx = ErrorContext::default();
+            if let Some(url) = e.url() {
+                ctx.url = Some(url.to_string());
             }
+            let code = if e.is_timeout() {
+                ErrorCode::Net002
+            } else {
+                ErrorCode::Net001
+            };
+            let message = format!("Network error: {}", format_error_with_sources(&e));
+            return RichError::new(code, message)
+                .with_context(ctx)
+                .with_source(e);
+        }
+
+        let (code, message, context) = match &err {
+            PlmError::Network(_) => unreachable!("Network handled above"),
+            PlmError::General(s) => (ErrorCode::Cli001, s.clone(), ErrorContext::default()),
             PlmError::RepoApi {
                 url,
                 status,
@@ -453,6 +485,7 @@ mod tests {
                 to: "Codex".to_string(),
             },
             PlmError::HookConversion("test".to_string()),
+            PlmError::General("test".to_string()),
         ];
 
         for error in test_cases {
@@ -460,5 +493,47 @@ mod tests {
             // Ensure each error maps to a valid code (not just panicking)
             let _ = rich.code().as_str();
         }
+    }
+
+    #[test]
+    fn plm_error_general_maps_to_cli001() {
+        let error = PlmError::General("handler failed".to_string());
+        let rich: RichError = error.into();
+        assert_eq!(rich.code(), ErrorCode::Cli001);
+        assert_eq!(rich.message(), "handler failed");
+    }
+
+    #[test]
+    fn format_error_with_sources_joins_cause_chain() {
+        #[derive(Debug)]
+        struct Outer {
+            inner: Inner,
+        }
+        #[derive(Debug)]
+        struct Inner;
+
+        impl std::fmt::Display for Outer {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "error sending request")
+            }
+        }
+        impl std::fmt::Display for Inner {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "certificate verify failed")
+            }
+        }
+        impl std::error::Error for Outer {
+            fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+                Some(&self.inner)
+            }
+        }
+        impl std::error::Error for Inner {}
+
+        let err = Outer { inner: Inner };
+        let formatted = format_error_with_sources(&err);
+        assert_eq!(
+            formatted,
+            "error sending request: certificate verify failed"
+        );
     }
 }

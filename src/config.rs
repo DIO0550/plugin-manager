@@ -1,5 +1,6 @@
 //! HTTP設定と認証プロバイダー
 
+use crate::env::EnvVar;
 use reqwest::Client;
 use std::time::Duration;
 
@@ -30,7 +31,59 @@ impl HttpConfig {
             builder = builder.timeout(timeout);
         }
 
-        builder.build().unwrap_or_else(|_| Client::new())
+        // 保険: 環境変数から CA を明示追加する。
+        // SSL_CERT_FILE は rustls-native-certs でも読まれるが、CODEX_PROXY_CERT 単独設定の
+        // ケースと、ロード失敗時の警告可視化のために明示追加する。
+        let ssl_cert_path = EnvVar::get("SSL_CERT_FILE");
+        let codex_cert_path = EnvVar::get("CODEX_PROXY_CERT");
+
+        let mut added_paths: Vec<String> = Vec::new();
+
+        if let Some(ref path) = ssl_cert_path {
+            builder = Self::add_cert_from_path(builder, path);
+            added_paths.push(path.clone());
+        }
+
+        if let Some(ref path) = codex_cert_path {
+            if !added_paths.contains(path) {
+                builder = Self::add_cert_from_path(builder, path);
+            }
+        }
+
+        builder.build().unwrap_or_else(|e| {
+            eprintln!(
+                "[plm warn] failed to build HTTP client with custom settings: {}; falling back to defaults",
+                e
+            );
+            Client::new()
+        })
+    }
+
+    /// PEM ファイル（単一またはバンドル）から証明書を読み込んで ClientBuilder に追加する。
+    /// 読み込み失敗・パース失敗は eprintln! で警告してそのまま builder を返す。
+    fn add_cert_from_path(builder: reqwest::ClientBuilder, path: &str) -> reqwest::ClientBuilder {
+        match std::fs::read(path) {
+            Err(e) => {
+                eprintln!(
+                    "[plm warn] cannot read CA certificate file '{}': {}",
+                    path, e
+                );
+                builder
+            }
+            Ok(pem_bytes) => match reqwest::Certificate::from_pem_bundle(&pem_bytes) {
+                Err(e) => {
+                    eprintln!("[plm warn] invalid PEM in '{}': {}", path, e);
+                    builder
+                }
+                Ok(certs) => {
+                    let mut builder = builder;
+                    for cert in certs {
+                        builder = builder.add_root_certificate(cert);
+                    }
+                    builder
+                }
+            },
+        }
     }
 }
 

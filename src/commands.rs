@@ -1,4 +1,5 @@
 use crate::cli::Command;
+use crate::error::PlmError;
 use clap::CommandFactory;
 use std::io::IsTerminal;
 
@@ -31,8 +32,8 @@ pub(crate) fn decide_default_action(stdout_is_tty: bool) -> DefaultAction {
 /// # Arguments
 ///
 /// * `cli` - Parsed top-level CLI invocation containing the selected subcommand.
-pub async fn dispatch(cli: crate::cli::Cli) -> Result<(), String> {
-    match cli.command {
+pub async fn dispatch(cli: crate::cli::Cli) -> Result<(), PlmError> {
+    let result: Result<(), String> = match cli.command {
         Some(Command::Target(args)) => manage::target::run(args).await,
         Some(Command::Install(args)) => deploy::install::run(args).await,
         Some(Command::List(args)) => list::run(args).await,
@@ -52,7 +53,8 @@ pub async fn dispatch(cli: crate::cli::Cli) -> Result<(), String> {
         Some(Command::Managed) => manage::managed::run().await,
         // サブコマンド省略時のみ TTY 判定でフォールバック
         None => run_default(std::io::stdout().is_terminal()).await,
-    }
+    };
+    result.map_err(PlmError::General)
 }
 
 async fn run_default(stdout_is_tty: bool) -> Result<(), String> {
