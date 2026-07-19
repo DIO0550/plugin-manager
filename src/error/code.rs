@@ -10,6 +10,7 @@
 /// - TUI: Terminal UI errors
 /// - VAL: Input validation errors
 /// - HOK: Hooks conversion errors
+/// - CLI: Unclassified CLI/handler string errors
 /// - INT: Unexpected internal errors
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ErrorCode {
@@ -69,6 +70,10 @@ pub enum ErrorCode {
     /// Hook configuration conversion failed
     Hok001,
 
+    // CLI errors (CLI001-CLI099)
+    /// Unclassified command-handler error (string-propagated)
+    Cli001,
+
     // Internal errors (INT001-INT099)
     /// Unexpected internal error
     Int001,
@@ -106,6 +111,8 @@ impl ErrorCode {
             ErrorCode::Val002 => "VAL002",
             // Hooks
             ErrorCode::Hok001 => "HOK001",
+            // CLI
+            ErrorCode::Cli001 => "CLI001",
             // Internal
             ErrorCode::Int001 => "INT001",
         }
@@ -142,6 +149,8 @@ impl ErrorCode {
             ErrorCode::Val002 => "Invalid repository format",
             // Hooks
             ErrorCode::Hok001 => "Hook configuration conversion failed",
+            // CLI
+            ErrorCode::Cli001 => "The command failed",
             // Internal
             ErrorCode::Int001 => "An unexpected internal error occurred",
         }
@@ -178,6 +187,8 @@ impl ErrorCode {
             ErrorCode::Val002 => "1. Use the format 'owner/repo' or 'owner/repo@ref'\n2. Check for typos in the repository name\n3. Verify the repository exists",
             // Hooks
             ErrorCode::Hok001 => "1. Check the hooks JSON format\n2. Ensure event names are valid\n3. Verify hook definitions have required fields",
+            // CLI
+            ErrorCode::Cli001 => "1. Read the error message above\n2. Use 'plm --verbose' for more details\n3. Use 'plm --help' for usage information",
             // Internal
             ErrorCode::Int001 => "1. Try the operation again\n2. Check for updates to plm\n3. Report the issue with debug logs",
         }
@@ -210,6 +221,7 @@ mod tests {
             ErrorCode::Val001,
             ErrorCode::Val002,
             ErrorCode::Hok001,
+            ErrorCode::Cli001,
             ErrorCode::Int001,
         ];
 
@@ -246,6 +258,7 @@ mod tests {
             ErrorCode::Val001,
             ErrorCode::Val002,
             ErrorCode::Hok001,
+            ErrorCode::Cli001,
             ErrorCode::Int001,
         ];
 
@@ -281,6 +294,7 @@ mod tests {
             ErrorCode::Val001,
             ErrorCode::Val002,
             ErrorCode::Hok001,
+            ErrorCode::Cli001,
             ErrorCode::Int001,
         ];
 
@@ -316,6 +330,7 @@ mod tests {
             (ErrorCode::Val001, "VAL"),
             (ErrorCode::Val002, "VAL"),
             (ErrorCode::Hok001, "HOK"),
+            (ErrorCode::Cli001, "CLI"),
             (ErrorCode::Int001, "INT"),
         ];
 

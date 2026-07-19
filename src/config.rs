@@ -31,8 +31,9 @@ impl HttpConfig {
             builder = builder.timeout(timeout);
         }
 
-        // 保険: 環境変数から CA 証明書を明示追加
-        // rustls-tls-native-roots でも SSL_CERT_FILE / CODEX_PROXY_CERT は自動参照されないため
+        // 保険: 環境変数から CA を明示追加する。
+        // SSL_CERT_FILE は rustls-native-certs でも読まれるが、CODEX_PROXY_CERT 単独設定の
+        // ケースと、ロード失敗時の警告可視化のために明示追加する。
         let ssl_cert_path = EnvVar::get("SSL_CERT_FILE");
         let codex_cert_path = EnvVar::get("CODEX_PROXY_CERT");
 
@@ -49,10 +50,16 @@ impl HttpConfig {
             }
         }
 
-        builder.build().unwrap_or_else(|_| Client::new())
+        builder.build().unwrap_or_else(|e| {
+            eprintln!(
+                "[plm warn] failed to build HTTP client with custom settings: {}; falling back to defaults",
+                e
+            );
+            Client::new()
+        })
     }
 
-    /// PEM ファイルから証明書を読み込んで ClientBuilder に追加する。
+    /// PEM ファイル（単一またはバンドル）から証明書を読み込んで ClientBuilder に追加する。
     /// 読み込み失敗・パース失敗は eprintln! で警告してそのまま builder を返す。
     fn add_cert_from_path(builder: reqwest::ClientBuilder, path: &str) -> reqwest::ClientBuilder {
         match std::fs::read(path) {
@@ -63,12 +70,18 @@ impl HttpConfig {
                 );
                 builder
             }
-            Ok(pem_bytes) => match reqwest::Certificate::from_pem(&pem_bytes) {
+            Ok(pem_bytes) => match reqwest::Certificate::from_pem_bundle(&pem_bytes) {
                 Err(e) => {
                     eprintln!("[plm warn] invalid PEM in '{}': {}", path, e);
                     builder
                 }
-                Ok(cert) => builder.add_root_certificate(cert),
+                Ok(certs) => {
+                    let mut builder = builder;
+                    for cert in certs {
+                        builder = builder.add_root_certificate(cert);
+                    }
+                    builder
+                }
             },
         }
     }

@@ -66,6 +66,11 @@ impl ErrorFormatter {
     ///
     /// * `error` - Rich error to render.
     fn format_simple_plain(&self, error: &RichError) -> String {
+        // CLI001 (handler string errors) keeps the pre-formatter plain message UX.
+        if error.code() == ErrorCode::Cli001 {
+            return error.message().to_string();
+        }
+
         let mut output = format!("error[{}]: {}", error.code().as_str(), error.message());
 
         let context_lines = self.format_context(error);
@@ -83,6 +88,19 @@ impl ErrorFormatter {
     ///
     /// * `error` - Rich error to render.
     fn format_verbose_plain(&self, error: &RichError) -> String {
+        // CLI001: no code prefix / Cause / Remediation (avoids INT001-like misdirection).
+        // Source chain is still shown when present; Network causes are usually already
+        // embedded in the message via format_error_with_sources.
+        if error.code() == ErrorCode::Cli001 {
+            let mut output = error.message().to_string();
+            let source_chain = self.format_source_chain(error);
+            if !source_chain.is_empty() {
+                output.push_str("\n  |");
+                output.push_str(&format!("\n  | Source chain:\n{}", source_chain));
+            }
+            return output;
+        }
+
         let mut output = format!("error[{}]: {}", error.code().as_str(), error.message());
 
         let context_lines = self.format_context(error);
@@ -400,6 +418,38 @@ mod tests {
             plugin_pos < extra_pos,
             "plugin_name should come before additional"
         );
+    }
+
+    #[test]
+    fn format_cli001_simple_is_plain_message() {
+        let formatter = ErrorFormatter::with_color_detection(false, no_color);
+        let error = RichError::new(
+            ErrorCode::Cli001,
+            "Network error: error sending request: certificate verify failed",
+        );
+
+        let output = formatter.format(&error);
+        assert_eq!(
+            output,
+            "Network error: error sending request: certificate verify failed"
+        );
+        assert!(!output.contains("error["));
+        assert!(!output.contains("Cause:"));
+    }
+
+    #[test]
+    fn format_cli001_verbose_skips_cause_and_remediation() {
+        let formatter = ErrorFormatter::with_color_detection(true, no_color);
+        let error = RichError::new(
+            ErrorCode::Cli001,
+            "Network error: error sending request: certificate verify failed",
+        );
+
+        let output = formatter.format(&error);
+        assert!(output.contains("certificate verify failed"));
+        assert!(!output.contains("error[CLI001]"));
+        assert!(!output.contains("Cause:"));
+        assert!(!output.contains("Remediation:"));
     }
 
     #[test]

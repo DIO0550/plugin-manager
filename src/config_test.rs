@@ -189,3 +189,16 @@ fn build_client_keeps_valid_ssl_when_codex_cert_is_invalid() {
     let client = HttpConfig::default().build_client();
     let _ = format!("{:?}", client);
 }
+
+#[test]
+fn build_client_with_pem_bundle() {
+    let _lock = env_lock().lock().unwrap();
+    let _guard = EnvGuard::clear(&["SSL_CERT_FILE", "CODEX_PROXY_CERT"]);
+    // 同一証明書を2回並べたバンドルでも from_pem_bundle 経由で構築できる
+    let bundle = format!("{VALID_CA_PEM}{VALID_CA_PEM}");
+    let pem = write_temp_pem(&bundle);
+    _guard.set("SSL_CERT_FILE", pem.path().to_str().unwrap());
+
+    let client = HttpConfig::default().build_client();
+    let _ = format!("{:?}", client);
+}
