@@ -304,4 +304,89 @@ mod tests {
         let list = config.list();
         assert_eq!(list.len(), 2);
     }
+
+    // ---- PLM_HOME path resolution (#344) ----
+
+    use std::sync::{Mutex, OnceLock};
+
+    fn env_lock() -> &'static Mutex<()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+    }
+
+    struct EnvGuard {
+        saved: Vec<(&'static str, Option<std::ffi::OsString>)>,
+    }
+
+    impl EnvGuard {
+        fn clear(keys: &[&'static str]) -> Self {
+            let saved = keys
+                .iter()
+                .map(|&key| {
+                    let prev = std::env::var_os(key);
+                    std::env::remove_var(key);
+                    (key, prev)
+                })
+                .collect();
+            Self { saved }
+        }
+
+        fn set(&self, key: &'static str, value: impl AsRef<std::ffi::OsStr>) {
+            std::env::set_var(key, value);
+        }
+    }
+
+    impl Drop for EnvGuard {
+        fn drop(&mut self) {
+            for (key, prev) in self.saved.drain(..) {
+                match prev {
+                    Some(v) => std::env::set_var(key, v),
+                    None => std::env::remove_var(key),
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn load_uses_plm_home_for_marketplaces_json() {
+        let _lock = env_lock().lock().unwrap();
+        let plm_home = TempDir::new().unwrap();
+        let home = TempDir::new().unwrap();
+        let guard = EnvGuard::clear(&["PLM_HOME", "HOME"]);
+        guard.set("PLM_HOME", plm_home.path());
+        guard.set("HOME", home.path());
+
+        let config = MarketplaceConfig::load().unwrap();
+        assert_eq!(
+            config.path(),
+            plm_home.path().join(".plm").join("marketplaces.json")
+        );
+    }
+
+    #[test]
+    fn load_falls_back_to_home() {
+        let _lock = env_lock().lock().unwrap();
+        let home = TempDir::new().unwrap();
+        let guard = EnvGuard::clear(&["PLM_HOME", "HOME"]);
+        guard.set("HOME", home.path());
+
+        let config = MarketplaceConfig::load().unwrap();
+        assert_eq!(
+            config.path(),
+            home.path().join(".plm").join("marketplaces.json")
+        );
+    }
+
+    #[test]
+    fn load_errors_when_both_unset() {
+        let _lock = env_lock().lock().unwrap();
+        let _guard = EnvGuard::clear(&["PLM_HOME", "HOME"]);
+
+        let err = MarketplaceConfig::load().unwrap_err();
+        assert!(
+            err.contains("not set or empty") || err.contains("absolute"),
+            "unexpected error: {}",
+            err
+        );
+    }
 }

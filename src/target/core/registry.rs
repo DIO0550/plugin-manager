@@ -92,8 +92,9 @@ enum State {
 ///
 /// 永続化ファイル `~/.plm/targets.json` を管理する。
 /// 状態遷移を追跡し、不整合な操作を防ぐ。
+#[derive(Debug)]
 pub struct TargetRegistry {
-    config_path: PathBuf,
+    pub(crate) config_path: PathBuf,
     state: State,
     config: Option<TargetsConfig>,
 }
@@ -101,12 +102,10 @@ pub struct TargetRegistry {
 impl TargetRegistry {
     /// 新しいレジストリを作成（デフォルトパス）
     pub fn new() -> Result<Self> {
-        let home = std::env::var("HOME").map_err(|_| {
-            PlmError::TargetRegistry("HOME environment variable not set".to_string())
-        })?;
-        let config_path = PathBuf::from(home).join(".plm").join("targets.json");
+        let paths =
+            crate::env::PlmPaths::new().map_err(|e| PlmError::TargetRegistry(e.to_string()))?;
         Ok(Self {
-            config_path,
+            config_path: paths.targets_json(),
             state: State::Idle,
             config: None,
         })

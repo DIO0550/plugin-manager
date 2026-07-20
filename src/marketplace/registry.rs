@@ -126,6 +126,7 @@ impl MarketplaceCache {
 }
 
 /// マーケットプレイスレジストリ
+#[derive(Debug)]
 pub struct MarketplaceRegistry {
     /// キャッシュディレクトリ: ~/.plm/cache/marketplaces/
     cache_dir: PathBuf,
@@ -136,21 +137,15 @@ impl MarketplaceRegistry {
     ///
     /// `PLM_HOME` が設定されている場合はそちらを優先し、なければ `HOME` にフォールバックする。
     pub fn new() -> Result<Self> {
-        let home = crate::env::EnvVar::get("PLM_HOME")
-            .or_else(|| crate::env::EnvVar::get("HOME"))
-            .ok_or_else(|| {
-                PlmError::Cache(
-                    "PLM_HOME and HOME environment variables not set or empty".to_string(),
-                )
-            })?;
-        let cache_dir = PathBuf::from(home)
-            .join(".plm")
-            .join("cache")
-            .join("marketplaces");
-
+        let paths = crate::env::PlmPaths::new().map_err(|e| PlmError::Cache(e.to_string()))?;
+        let cache_dir = paths.marketplaces_cache_dir();
         fs::create_dir_all(&cache_dir)?;
-
         Ok(Self { cache_dir })
+    }
+
+    /// キャッシュディレクトリを返す（テスト・診断用）
+    pub(crate) fn cache_dir(&self) -> &std::path::Path {
+        &self.cache_dir
     }
 
     /// カスタムキャッシュディレクトリで初期化（テスト用）
