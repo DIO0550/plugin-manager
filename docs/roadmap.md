@@ -129,7 +129,7 @@ Epic: [#356](https://github.com/DIO0550/plugin-manager/issues/356)（仕様: `do
 
 | 項目 | 説明 | 状態 |
 |------|------|------|
-| Target Layout 集約 | `target/env/` の配置骨格コピペを宣言的ケイパビリティへ集約（[#338](https://github.com/DIO0550/plugin-manager/issues/338)） | 計画: [docs/target-layout-refactor](./target-layout-refactor/index.md) |
+| Target Layout 集約 | `target/env/` の配置骨格コピペを宣言的ケイパビリティへ集約（[#338](https://github.com/DIO0550/plugin-manager/issues/338)） | 計画: [docs/target-layout-refactor](./target-layout-refactor/README.md) |
 
 ### 追加ターゲット候補
 
