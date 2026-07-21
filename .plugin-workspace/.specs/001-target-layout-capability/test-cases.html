@@ -198,874 +198,351 @@ main.detail { flex: 1 1 auto; overflow-y: auto; min-width: 0; background: var(--
 .cov-grid { display: flex; gap: 28px; margin-top: 18px; padding-top: 18px; border-top: 1px dashed var(--border-strong); flex-wrap: wrap; align-items: flex-end; }
 .cov-block { display: flex; flex-direction: column; gap: 7px; min-width: 150px; }
 .cov-block .ctitle { font-size: 11px; color: var(--text-3); font-weight: 500; display: flex; justify-content: space-between; }
-.cov-block .ctitle b { font-family: var(--mono); color: var(--text); }
-.cov-block .ctrack { height: 7px; border-radius: 4px; background: var(--surface-3); overflow: hidden; }
-.cov-block .cfill { height: 100%; border-radius: 4px; }
-.cov-fns .cfill { background: linear-gradient(90deg, var(--accent), oklch(0.62 0.14 264)); }
-.cov-br .cfill { background: linear-gradient(90deg, var(--green), oklch(0.6 0.12 156)); }
-.cov-gap {
-  margin-left: auto; align-self: stretch; display: flex; flex-direction: column; gap: 5px;
-  background: var(--amber-soft); border: 1px solid var(--amber-border);
-  border-radius: var(--r-md); padding: 9px 13px; min-width: 210px;
-}
-.cov-gap .gtitle { font-size: 11px; font-weight: 700; color: var(--amber); display: flex; align-items: center; gap: 6px; }
-.cov-gap .gtitle::before { content: "▲"; font-size: 9px; }
-.cov-gap .gitems { font-size: 12px; color: var(--text-2); line-height: 1.5; }
-.cov-gap code { font-family: var(--mono); font-size: 11.5px; color: var(--text); background: oklch(1 0 0 / 0.6); padding: 1px 5px; border-radius: 4px; }
-
-/* ---- Toolbar above cases ---- */
-.cases-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
-.cases-bar h3 { font-size: 15px; font-weight: 700; letter-spacing: 0.01em; }
-.cases-bar h3 .n { color: var(--text-3); font-weight: 500; font-family: var(--mono); }
-.filters { display: flex; gap: 6px; }
-.chip {
-  font-family: inherit; font-size: 12px; cursor: pointer;
-  border: 1px solid var(--border-strong); background: var(--surface);
-  color: var(--text-2); padding: 4px 11px; border-radius: 20px; white-space: nowrap;
-  display: inline-flex; align-items: center; gap: 6px; transition: all .1s;
-}
-.chip:hover { border-color: var(--text-3); color: var(--text); }
-.chip.active { background: var(--text); border-color: var(--text); color: #fff; }
-.chip .dot { width: 7px; height: 7px; border-radius: 50%; }
-.chip .dot.normal { background: var(--green); }
-.chip .dot.error { background: var(--rose); }
-.chip .dot.boundary { background: var(--amber); }
-.cases-bar .right { margin-left: auto; display: flex; gap: 8px; }
-
-/* ---- Case list / cards ---- */
-.cases { display: flex; flex-direction: column; gap: 14px; }
-
-.case {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--r-lg); box-shadow: var(--shadow-sm);
-  overflow: hidden; transition: box-shadow .14s, border-color .14s;
-}
-.case:hover { box-shadow: var(--shadow-md); border-color: var(--border-strong); }
-
-.case-head { display: flex; align-items: center; gap: 11px; padding: 15px 18px; flex-wrap: wrap; }
-.case-id { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--text-3); }
-.case-title { font-size: 14.5px; font-weight: 700; color: var(--text); flex: 1 1 auto; min-width: 160px; }
-.badge {
-  font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 20px;
-  display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
-  border: 1px solid transparent;
-}
-.badge.normal { color: var(--green); background: var(--green-soft); border-color: var(--green-border); }
-.badge.error { color: var(--rose); background: var(--rose-soft); border-color: var(--rose-border); }
-.badge.boundary { color: var(--amber); background: var(--amber-soft); border-color: var(--amber-border); }
-.prio { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 5px; display: inline-flex; align-items: center; gap: 4px; }
-.prio::before { content: ""; width: 6px; height: 6px; border-radius: 50%; }
-.prio.high { color: var(--rose); background: var(--rose-soft); }
-.prio.high::before { background: var(--rose); }
-.prio.med { color: var(--amber); background: var(--amber-soft); }
-.prio.med::before { background: var(--amber); }
-.prio.low { color: var(--text-2); background: var(--surface-3); }
-.prio.low::before { background: var(--text-3); }
-.case-status { font-size: 11px; color: var(--text-3); display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); }
-.case-status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 0 3px var(--amber-soft); }
-
-.case-body { padding: 0 18px 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-.field { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
-.field.full { grid-column: 1 / -1; }
-.field-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-3); font-weight: 700; display: flex; align-items: center; gap: 6px; }
-.field-label::before { content: ""; width: 3px; height: 11px; border-radius: 2px; background: var(--border-strong); }
-
-ol.steps { list-style: none; display: flex; flex-direction: column; gap: 6px; counter-reset: s; }
-ol.steps li { font-size: 13px; color: var(--text); padding-left: 26px; position: relative; line-height: 1.5; }
-ol.steps li::before {
-  counter-increment: s; content: counter(s);
-  position: absolute; left: 0; top: 1px;
-  width: 18px; height: 18px; border-radius: 50%;
-  background: var(--surface-3); border: 1px solid var(--border);
-  font-family: var(--mono); font-size: 10.5px; font-weight: 700; color: var(--text-2);
-  display: grid; place-items: center;
-}
-.precond { font-size: 12.5px; color: var(--text-2); background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 8px 11px; line-height: 1.5; }
-.precond b { color: var(--text); font-weight: 500; }
-
-.io { display: flex; flex-direction: column; gap: 8px; }
-.io-block { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-sm); overflow: hidden; }
-.io-block .io-tag { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 5px 11px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 6px; }
-.io-block.in .io-tag { color: var(--accent-2); background: var(--accent-soft); }
-.io-block.out .io-tag { color: var(--green); background: var(--green-soft); }
-.io-block pre { font-family: var(--mono); font-size: 12px; color: var(--text); padding: 9px 11px; white-space: pre-wrap; word-break: break-word; line-height: 1.55; }
-.io-block.out.throws pre { color: var(--rose); }
-.io-arrow { align-self: center; color: var(--text-3); font-size: 13px; font-family: var(--mono); }
-
-.cov-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.cov-chip { font-family: var(--mono); font-size: 11.5px; padding: 3px 9px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
-.cov-chip .ck { font-size: 9.5px; color: var(--text-3); font-family: "Noto Sans JP"; white-space: nowrap; }
-.cov-chip.branch { background: var(--accent-soft); border-color: var(--accent-border); color: var(--accent-2); }
-
-.ai {
-  grid-column: 1 / -1; display: flex; gap: 12px;
-  background: linear-gradient(180deg, var(--accent-soft), oklch(0.975 0.012 264));
-  border: 1px solid var(--accent-border); border-radius: var(--r-md);
-  padding: 12px 15px;
-}
-.ai-mark { flex: 0 0 auto; width: 24px; height: 24px; border-radius: 7px; background: linear-gradient(150deg, var(--accent), var(--accent-2)); display: grid; place-items: center; box-shadow: var(--shadow-sm); }
-.ai-mark::before { content: ""; width: 9px; height: 9px; background: #fff; clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%); }
-.ai-body { min-width: 0; }
-.ai-body .ai-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent-2); margin-bottom: 3px; }
-.ai-body p { font-size: 13px; color: var(--text); line-height: 1.55; }
-
-.case-foot {
-  display: flex; align-items: center; gap: 8px;
-  padding: 11px 18px; border-top: 1px solid var(--border); background: var(--surface-2);
-}
-.case-foot .hint { font-size: 11.5px; color: var(--text-3); }
-.case-foot .actions { margin-left: auto; display: flex; gap: 8px; }
-.btn.sm { padding: 5px 11px; font-size: 12px; }
-.btn.ok { color: var(--green); border-color: var(--green-border); }
-.btn.ok:hover { background: var(--green-soft); }
-.btn.warn { color: var(--amber); border-color: var(--amber-border); }
-.btn.warn:hover { background: var(--amber-soft); }
-
-/* ============ LIST layout tweak ============ */
-#app[data-layout="list"] .cases { gap: 0; border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-sm); }
-#app[data-layout="list"] .case { border-radius: 0; border: none; border-bottom: 1px solid var(--border); box-shadow: none; }
-#app[data-layout="list"] .case:last-child { border-bottom: none; }
-#app[data-layout="list"] .case:hover { box-shadow: none; background: var(--surface-2); }
-#app[data-layout="list"] .case-head { padding: 12px 16px; }
-#app[data-layout="list"] .case-body { grid-template-columns: 1.1fr 1fr; gap: 14px 22px; padding: 0 16px 14px; }
-#app[data-layout="list"] .field.steps-field { display: none; }
-#app[data-layout="list"] .precond { background: transparent; border: none; padding: 0; }
-#app[data-layout="list"] .ai { background: transparent; border: none; border-top: 1px dashed var(--accent-border); border-radius: 0; padding: 10px 0 0; }
-#app[data-layout="list"] .ai-mark { width: 20px; height: 20px; }
-#app[data-layout="list"] .case-foot { padding: 9px 16px; }
-
-/* ============ DENSITY tweak ============ */
-#app[data-density="compact"] { font-size: 13px; }
-#app[data-density="compact"] .detail-inner { padding: 18px 24px 60px; }
-#app[data-density="compact"] .file-header { padding: 16px 18px; margin-bottom: 16px; }
-#app[data-density="compact"] .case-head { padding: 11px 14px; }
-#app[data-density="compact"] .case-body { padding: 0 14px 12px; gap: 13px; }
-#app[data-density="compact"] .cases { gap: 10px; }
-#app[data-density="compact"] .ai { padding: 9px 12px; }
-
-/* ============ Header legend ============ */
-.legend { display: flex; gap: 14px; align-items: center; padding-left: 4px; }
-.legend .lg { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-2); white-space: nowrap; }
-.legend .dot { width: 8px; height: 8px; border-radius: 50%; }
-.legend .dot.normal { background: var(--green); }
-.legend .dot.error { background: var(--rose); }
-.legend .dot.boundary { background: var(--amber); }
-
-/* ============ Master nav groups ============ */
-.master-scroll { overflow-y: auto; padding: 12px 10px 20px; display: flex; flex-direction: column; }
-.nav-group + .nav-group { margin-top: 8px; }
-.nav-grouphead { display: flex; align-items: center; justify-content: space-between; padding: 8px 8px 7px; }
-.nav-grouphead h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); font-weight: 700; }
-.nav-grouphead .count { font-size: 11px; color: var(--text-3); font-family: var(--mono); background: var(--surface-3); padding: 1px 8px; border-radius: 20px; }
-.nav-items { display: flex; flex-direction: column; gap: 2px; }
-
-.nav-item {
-  position: relative; text-align: left; width: 100%;
-  background: transparent; border: 1px solid transparent; border-radius: var(--r-md);
-  padding: 9px 11px; cursor: pointer; font-family: inherit; color: var(--text);
-  transition: background .1s, border-color .1s; display: flex; align-items: center; gap: 10px;
-}
-.nav-item:hover { background: var(--surface-2); }
-.nav-item.active { background: var(--accent-soft); border-color: var(--accent-border); }
-.nav-item.active::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; background: var(--accent); border-radius: 0 3px 3px 0; }
-.nav-ico { flex: 0 0 auto; width: 26px; height: 26px; border-radius: 7px; background: var(--surface-3); border: 1px solid var(--border); display: grid; place-items: center; color: var(--text-2); }
-.nav-item.active .nav-ico { background: #fff; border-color: var(--accent-border); color: var(--accent); }
-.nav-ico svg { width: 15px; height: 15px; }
-.nav-label { font-size: 13.5px; font-weight: 500; line-height: 1.25; }
-.nav-item .nav-tag { margin-left: auto; font-size: 10px; font-family: var(--mono); color: var(--amber); background: var(--amber-soft); border: 1px solid var(--amber-border); padding: 1px 6px; border-radius: 20px; }
-
-/* ============ Detail: section heading ============ */
-.view-head { margin-bottom: 20px; }
-.view-kicker { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent-2); font-weight: 700; margin-bottom: 6px; }
-.view-title { font-size: 22px; font-weight: 700; letter-spacing: 0.01em; }
-.view-lead { font-size: 13.5px; color: var(--text-2); margin-top: 8px; max-width: 720px; line-height: 1.65; }
-
-.panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); padding: 20px 22px; margin-bottom: 16px; }
-.panel-title { font-size: 13px; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
-.panel-title .pn { font-family: var(--mono); font-size: 11px; color: #fff; background: var(--accent); width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; flex: 0 0 auto; }
-.panel-title .pn svg { width: 13px; height: 13px; }
-.panel-title .ptsub { font-size: 11.5px; font-weight: 400; color: var(--text-3); display: inline-flex; align-items: center; gap: 5px; }
-.panel-title .ptsub .mx-empty { display: inline-block; }
-.approach { font-size: 13.5px; color: var(--text); line-height: 1.7; max-width: 760px; }
-.bullets { list-style: none; display: flex; flex-direction: column; gap: 7px; }
-.bullets li { position: relative; padding-left: 17px; font-size: 13.5px; color: var(--text); line-height: 1.6; }
-.bullets li::before { content: ""; position: absolute; left: 2px; top: 9px; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
-.muted-note { font-size: 12.5px; color: var(--text-3); padding: 4px 0; }
-
-/* doc: label + content rows */
-.doc-row { display: grid; grid-template-columns: 150px 1fr; gap: 18px; padding: 13px 0; border-top: 1px solid var(--border); }
-.doc-row:first-child { border-top: none; padding-top: 0; }
-.doc-row .dl { font-size: 12px; font-weight: 700; color: var(--text-3); padding-top: 2px; }
-.doc-row .dc { font-size: 13.5px; color: var(--text); line-height: 1.65; }
-.doc-row .dc ul { list-style: none; display: flex; flex-direction: column; gap: 6px; }
-.doc-row .dc ul li { position: relative; padding-left: 16px; }
-.doc-row .dc ul li::before { content: ""; position: absolute; left: 2px; top: 9px; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
-.scope-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.scope-box { border: 1px solid var(--border); border-radius: var(--r-md); padding: 11px 13px; }
-.scope-box .sb-h { font-size: 11px; font-weight: 700; margin-bottom: 7px; display: flex; align-items: center; gap: 6px; }
-.scope-box.in .sb-h { color: var(--green); }
-.scope-box.out .sb-h { color: var(--text-3); }
-.scope-box code { font-family: var(--mono); font-size: 11.5px; }
-.scope-box ul { list-style: none; display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: var(--text-2); }
-
-.levelbars { display: flex; flex-direction: column; gap: 9px; max-width: 420px; }
-.levelbar { display: grid; grid-template-columns: 70px 1fr 48px; gap: 10px; align-items: center; font-size: 12.5px; }
-.levelbar .lv-track { height: 8px; border-radius: 4px; background: var(--surface-3); overflow: hidden; }
-.levelbar .lv-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--accent), oklch(0.62 0.14 264)); }
-.levelbar .lv-val { font-family: var(--mono); font-size: 12px; color: var(--text-2); text-align: right; }
-.levelbar .lv-note { font-size: 11px; color: var(--text-3); }
-
-/* generic data table */
-table.dtable { width: 100%; border-collapse: collapse; font-size: 13px; }
-table.dtable th { text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); font-weight: 700; padding: 0 12px 9px; border-bottom: 1px solid var(--border-strong); }
-table.dtable td { padding: 11px 12px; border-bottom: 1px solid var(--border); vertical-align: top; line-height: 1.55; }
-table.dtable tr:last-child td { border-bottom: none; }
-table.dtable tr:hover td { background: var(--surface-2); }
-table.dtable code, .mono { font-family: var(--mono); font-size: 12px; }
-.reqid { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--accent-2); }
-.tc-ref { font-family: var(--mono); font-size: 11px; color: var(--text-2); background: var(--surface-3); border: 1px solid var(--border); padding: 1px 7px; border-radius: 5px; display: inline-block; margin: 2px 4px 2px 0; }
-.pill { font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 20px; border: 1px solid transparent; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
-.pill.ok { color: var(--green); background: var(--green-soft); border-color: var(--green-border); }
-.pill.gap { color: var(--amber); background: var(--amber-soft); border-color: var(--amber-border); }
-.pill.real { color: var(--green); background: var(--green-soft); border-color: var(--green-border); }
-.pill.fake { color: var(--accent-2); background: var(--accent-soft); border-color: var(--accent-border); }
-.pill.stub { color: var(--amber); background: var(--amber-soft); border-color: var(--amber-border); }
-.pill.mock { color: var(--rose); background: var(--rose-soft); border-color: var(--rose-border); }
-
-/* matrix */
-table.matrix td.cell { text-align: center; min-width: 110px; }
-table.matrix th.coltype { text-align: center; }
-table.matrix .grouprow td { background: var(--surface-3); font-family: var(--mono); font-size: 11.5px; font-weight: 700; color: var(--text-2); padding: 7px 12px; }
-table.matrix .fn { font-family: var(--mono); font-size: 12.5px; font-weight: 500; }
-.mx-empty { display: inline-block; width: 22px; height: 3px; border-radius: 2px; background: var(--border-strong); opacity: 0.7; }
-.mx-cell-ids { display: inline-flex; flex-direction: column; gap: 3px; align-items: center; }
-.mx-id { font-family: var(--mono); font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 5px; white-space: nowrap; }
-.mx-id.normal { color: var(--green); background: var(--green-soft); }
-.mx-id.error { color: var(--rose); background: var(--rose-soft); }
-.mx-id.boundary { color: var(--amber); background: var(--amber-soft); }
-
-/* test data cards */
-.data-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-.data-card { border: 1px solid var(--border); border-radius: var(--r-md); padding: 13px 15px; background: var(--surface); }
-.data-card .dh { display: flex; align-items: baseline; gap: 9px; margin-bottom: 7px; flex-wrap: wrap; }
-.data-card .dh .dname { font-size: 13.5px; font-weight: 700; }
-.data-card .dh .did { font-family: var(--mono); font-size: 11px; color: var(--text-3); }
-.data-card .ddesc { font-size: 12.5px; color: var(--text-2); line-height: 1.55; margin-bottom: 9px; }
-.data-card pre.code { font-family: var(--mono); font-size: 11.5px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 8px 10px; white-space: pre-wrap; word-break: break-word; color: var(--text); margin-bottom: 9px; line-height: 1.5; }
-.data-card .usedby { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
-.data-card .usedby .ub-lb { font-size: 10px; color: var(--text-3); margin-right: 2px; }
-
-.callout { display: flex; gap: 12px; background: linear-gradient(180deg, var(--accent-soft), oklch(0.975 0.012 264)); border: 1px solid var(--accent-border); border-radius: var(--r-md); padding: 14px 16px; margin-bottom: 16px; }
-.callout .ci { flex: 0 0 auto; width: 24px; height: 24px; border-radius: 7px; background: linear-gradient(150deg, var(--accent), var(--accent-2)); display: grid; place-items: center; }
-.callout .ci::before { content: ""; width: 9px; height: 9px; background: #fff; clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%); }
-.callout .ct { font-size: 13px; color: var(--text); line-height: 1.6; }
-.callout .ct b { font-weight: 700; }
-
-@media (max-width: 1000px) {
-  .data-grid, .scope-grid { grid-template-columns: 1fr; }
-  .doc-row { grid-template-columns: 1fr; gap: 6px; }
-}
-
-/* scrollbars */
-.master-scroll::-webkit-scrollbar, main.detail::-webkit-scrollbar { width: 11px; }
-.master-scroll::-webkit-scrollbar-thumb, main.detail::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 20px; border: 3px solid var(--surface); }
-main.detail::-webkit-scrollbar-thumb { border-color: var(--bg); }
-
-@media (max-width: 900px) {
-  .case-body, #app[data-layout="list"] .case-body { grid-template-columns: 1fr; }
-  .stats .stat:nth-child(n+3) { display: none; }
-}
-
-/* ===== 4th category: edge (エッジケース) ===== */
-:root {
-  --purple: oklch(0.5 0.16 300);
-  --purple-soft: oklch(0.955 0.04 300);
-  --purple-border: oklch(0.85 0.07 300);
-}
-.legend .dot.edge { background: var(--purple); }
-.chip .dot.edge { background: var(--purple); }
-.seg.edge { background: var(--purple); }
-.badge.edge { color: var(--purple); background: var(--purple-soft); border-color: var(--purple-border); }
-.mx-id.edge { color: var(--purple); background: var(--purple-soft); }
-
-</style>
-</head>
-<body>
-
-<div id="app" data-layout="card" data-density="regular">
-  <header class="topbar">
-    <div class="brand">
-      <div class="brand-mark"></div>
-      <div class="brand-title">
-        <b>テストケース仕様</b>
-      </div>
-    </div>
-    <div class="stats">
-      <div class="stat"><span class="num" id="stat-files">0</span><span class="lbl">ファイル</span></div>
-      <div class="stat"><span class="num" id="stat-cases">0</span><span class="lbl">ケース</span></div>
-      <div class="stat"><span class="num warn" id="stat-pending">0</span><span class="lbl">要確認</span></div>
-      <div class="cov-meter">
-        <span class="lbl">想定カバレッジ</span>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <div class="track"><div class="fill" id="cov-fill" style="width:0%"></div></div>
-          <span class="pct" id="cov-pct">0%</span>
-        </div>
-      </div>
-    </div>
-    <div class="legend">
-      <span class="lg"><span class="dot normal"></span>正常系</span>
-      <span class="lg"><span class="dot boundary"></span>境界値</span>
-      <span class="lg"><span class="dot error"></span>異常系</span>
-      <span class="lg"><span class="dot edge"></span>エッジケース</span>
-    </div>
-  </header>
-
-  <div class="body">
-    <aside class="master">
-      <div class="master-scroll" id="master-scroll"></div>
-    </aside>
-    <main class="detail" id="detail"></main>
-  </div>
-</div>
-
-<!-- ============================================================
-     DATA — このスクリプトだけをエージェントが実データで置き換える
-     ============================================================ -->
 <script>
 const FILES = [
   // ============================================================
-  // FILE 1: src/target/layout/model_test.rs
+  // FILE 1: src/target/placed/filter_test.rs（新規・Phase C）
   // ============================================================
   {
-    name: "model_test.rs",
-    dir: "src/target/layout/",
+    name: "filter_test.rs",
+    dir: "src/target/placed/",
     lang: "Rust",
-    purpose: "ScopeSet / BasePathSpec などの値型メソッドの単体テスト。型の正しい動作を保証する。",
-    approach: "TDD — Red(テスト先行) → Green(型実装) → Refactor。cargo test で全ケースを実行。",
+    purpose: "filter_skill_dir 関数の単体テスト。SKILL.md の存在チェックが正しく動作するか確認。全5実装で同一だった Skill アームを共通化した際の振る舞い保証テスト。",
+    approach: "TDD — Red（テスト先行）→ Green（filter_skill_dir 実装）→ Refactor。TempDir でファイルシステムをモック。",
     viewpoints: [
-      "ScopeSet::contains が 3 変種（Both / PersonalOnly / ProjectOnly）× 2 スコープで正しく動作するか",
-      "型の実装が requirements FR-001 のデータモデル要件を満たすか",
+      "SKILL.md ありのディレクトリが Some(name) を返すか",
+      "SKILL.md なしのディレクトリが None を返すか（中間ディレクトリ誤認防止の二重防御）",
+      "ファイルエントリ（非ディレクトリ）が None を返すか",
     ],
     status: "pending",
-    coverage: { fns: [3, 3], branches: [6, 6] },
+    coverage: { fns: [1, 1], branches: [3, 3] },
     gaps: [],
     cases: [
       {
         id: "TC-01",
-        title: "ScopeSet::Both は Personal を含む",
+        title: "SKILL.md あり → Some(name)",
         cat: "normal",
         prio: "high",
-        precond: "ScopeSet::Both が定義済み",
-        steps: ["ScopeSet::Both.contains(Scope::Personal) を呼ぶ"],
-        input: "ScopeSet::Both, Scope::Personal",
-        expected: "true",
+        precond: "TempDir に skills/my_skill/SKILL.md が存在",
+        steps: [
+          "TempDir を作成",
+          "my_skill/ ディレクトリと SKILL.md を作成",
+          "ScannedComponent { name: 'my_skill', path, is_dir: true } を作成",
+          "filter_skill_dir(&c) を呼ぶ",
+        ],
+        input: "c.is_dir=true, c.path.join('SKILL.md').exists()=true",
+        expected: "Some(\"my_skill\")",
         throws: false,
-        coverage: [{ k: "関数", v: "ScopeSet::contains" }, { k: "分岐", v: "Both 分岐", branch: true }],
-        ai: "Both は全スコープをカバーするため最も基本的なケース。",
+        coverage: [{ k: "関数", v: "filter_skill_dir" }, { k: "分岐", v: "is_dir && SKILL.md.exists", branch: true }],
+        ai: "Skill フィルタの最基本ケース。全5実装で同一だったロジックを1か所に集約した後の回帰確認。",
       },
       {
         id: "TC-02",
-        title: "ScopeSet::Both は Project を含む",
-        cat: "normal",
+        title: "SKILL.md なしのディレクトリ → None（中間ディレクトリ誤認防止）",
+        cat: "boundary",
         prio: "high",
-        precond: "ScopeSet::Both が定義済み",
-        steps: ["ScopeSet::Both.contains(Scope::Project) を呼ぶ"],
-        input: "ScopeSet::Both, Scope::Project",
-        expected: "true",
+        precond: "TempDir に skills/empty_dir/ が存在するが SKILL.md はない",
+        steps: [
+          "TempDir を作成",
+          "empty_dir/ ディレクトリのみを作成（SKILL.md なし）",
+          "filter_skill_dir(&c) を呼ぶ",
+        ],
+        input: "c.is_dir=true, c.path.join('SKILL.md').exists()=false",
+        expected: "None",
         throws: false,
-        coverage: [{ k: "関数", v: "ScopeSet::contains" }, { k: "分岐", v: "Both 分岐", branch: true }],
-        ai: "Both は Project も含む。Both の全スコープカバーを確認。",
+        coverage: [{ k: "関数", v: "filter_skill_dir" }, { k: "分岐", v: "SKILL.md not exists", branch: true }],
+        ai: "旧実装コメント「旧 3 階層の中間段を Skill と誤認しないための二重防御」の確認。",
       },
       {
         id: "TC-03",
-        title: "ScopeSet::PersonalOnly は Personal を含む",
-        cat: "normal",
-        prio: "high",
-        precond: "ScopeSet::PersonalOnly が定義済み",
-        steps: ["ScopeSet::PersonalOnly.contains(Scope::Personal) を呼ぶ"],
-        input: "ScopeSet::PersonalOnly, Scope::Personal",
-        expected: "true",
-        throws: false,
-        coverage: [{ k: "関数", v: "ScopeSet::contains" }, { k: "分岐", v: "PersonalOnly + Personal", branch: true }],
-        ai: "PersonalOnly の正常動作確認。",
-      },
-      {
-        id: "TC-04",
-        title: "ScopeSet::PersonalOnly は Project を含まない（境界）",
+        title: "ファイルエントリ（非ディレクトリ）→ None",
         cat: "boundary",
-        prio: "high",
-        precond: "ScopeSet::PersonalOnly が定義済み",
-        steps: ["ScopeSet::PersonalOnly.contains(Scope::Project) を呼ぶ"],
-        input: "ScopeSet::PersonalOnly, Scope::Project",
-        expected: "false",
+        prio: "med",
+        precond: "ScannedComponent の is_dir が false",
+        steps: [
+          "ScannedComponent { is_dir: false } を作成",
+          "filter_skill_dir(&c) を呼ぶ",
+        ],
+        input: "c.is_dir=false",
+        expected: "None",
         throws: false,
-        coverage: [{ k: "関数", v: "ScopeSet::contains" }, { k: "分岐", v: "PersonalOnly + Project", branch: true }],
-        ai: "Copilot Skill の ProjectOnly 制約と鏡像の関係。PersonalOnly が Project を除外することを明示。",
-      },
-      {
-        id: "TC-05",
-        title: "ScopeSet::ProjectOnly は Project を含む",
-        cat: "normal",
-        prio: "high",
-        precond: "ScopeSet::ProjectOnly が定義済み",
-        steps: ["ScopeSet::ProjectOnly.contains(Scope::Project) を呼ぶ"],
-        input: "ScopeSet::ProjectOnly, Scope::Project",
-        expected: "true",
-        throws: false,
-        coverage: [{ k: "関数", v: "ScopeSet::contains" }, { k: "分岐", v: "ProjectOnly + Project", branch: true }],
-        ai: "Copilot / Cursor Instruction の ProjectOnly 動作確認。",
-      },
-      {
-        id: "TC-06",
-        title: "ScopeSet::ProjectOnly は Personal を含まない（境界）",
-        cat: "boundary",
-        prio: "high",
-        precond: "ScopeSet::ProjectOnly が定義済み",
-        steps: ["ScopeSet::ProjectOnly.contains(Scope::Personal) を呼ぶ"],
-        input: "ScopeSet::ProjectOnly, Scope::Personal",
-        expected: "false",
-        throws: false,
-        coverage: [{ k: "関数", v: "ScopeSet::contains" }, { k: "分岐", v: "ProjectOnly + Personal", branch: true }],
-        ai: "Cursor Instruction Personal 非サポートの制約を型レベルで確認する重要ケース。",
+        coverage: [{ k: "関数", v: "filter_skill_dir" }, { k: "分岐", v: "!is_dir", branch: true }],
+        ai: "Skill はディレクトリのみ。ファイルエントリが誤ってマッチしないことを確認。",
       },
     ],
   },
 
   // ============================================================
-  // FILE 2: src/target/layout/derive_test.rs
+  // FILE 2: src/target/placed/list_helpers_test.rs（新規・Phase B）
   // ============================================================
   {
-    name: "derive_test.rs",
-    dir: "src/target/layout/",
+    name: "list_helpers_test.rs",
+    dir: "src/target/placed/",
     lang: "Rust",
-    purpose: "derive_supports_scope / derive_placement_location / derive_list_placed の導出ヘルパを架空の最小 TargetLayout でテーブル駆動テスト。振る舞い不変の骨幹テスト。",
-    approach: "TDD — 架空の TEST_LAYOUT 定数を定義し、正常系・境界値・エッジケース・InstructionExists を順に Red→Green で実装。tempfile::TempDir でファイルシステムをモック。",
+    purpose: "scan_and_filter ヘルパの単体テスト。list_placed の共通骨格（scan → filter）を抽出したヘルパが正しく動作するか確認。",
+    approach: "TDD — Red → Green → Refactor。TempDir 使用。scan_and_filter に filter_skill_dir を組み合わせて実環境に近い形でテスト。",
     viewpoints: [
-      "derive_supports_scope が capabilities 表を正しく参照するか（ダミープロービング不使用）",
-      "derive_placement_location が ScopeSet 外スコープ・OriginalNameRequired=None を正しく None にするか",
-      "derive_list_placed の SkillManifestDir / InstructionExists / scope 外 が正しく動作するか",
+      "ディレクトリが存在しない場合に空配列を返すか（scan_components の既存動作確認）",
+      "SKILL.md ありのエントリのみを返すか",
+      "フィルタが複数エントリを正しく処理するか",
     ],
     status: "pending",
-    coverage: { fns: [3, 3], branches: [12, 14] },
-    gaps: ["PlainMarkdownFile (.agent.md/.prompt.md 除外ロジック) の詳細テストはderive_test では架空レイアウトに依存するため cursor_test.rs での確認に委ねる"],
+    coverage: { fns: [1, 1], branches: [3, 3] },
+    gaps: ["Instruction / Agent / Hook など非 Skill フィルタとの組み合わせは各 env テストで確認"],
+    cases: [
+      {
+        id: "TC-04",
+        title: "ディレクトリ不在 → Ok([])",
+        cat: "normal",
+        prio: "high",
+        precond: "TempDir に skills/ ディレクトリなし",
+        steps: [
+          "TempDir を作成",
+          "scan_and_filter(tmp.path(), 'skills', filter_skill_dir) を呼ぶ",
+        ],
+        input: "base/skills/ 不在",
+        expected: "Ok([])",
+        throws: false,
+        coverage: [{ k: "関数", v: "scan_and_filter" }, { k: "関数", v: "scan_components（空ディレクトリ分岐）" }],
+        ai: "scan_components は存在しないディレクトリで Ok([]) を返す既存動作の確認。",
+      },
+      {
+        id: "TC-05",
+        title: "SKILL.md ありエントリのみ返す",
+        cat: "normal",
+        prio: "high",
+        precond: "TempDir/skills/ に plugin_a/SKILL.md あり、plugin_b/ のみ（SKILL.md なし）",
+        steps: [
+          "TempDir に skills/plugin_a/SKILL.md を作成",
+          "TempDir に skills/plugin_b/ を作成（SKILL.md なし）",
+          "scan_and_filter(tmp.path(), 'skills', filter_skill_dir) を呼ぶ",
+        ],
+        input: "skills/ に plugin_a(SKILL.md あり) + plugin_b(なし) が存在",
+        expected: "Ok([\"plugin_a\"])",
+        throws: false,
+        coverage: [{ k: "関数", v: "scan_and_filter" }, { k: "関数", v: "filter_skill_dir" }],
+        ai: "共通骨格ヘルパが filter_skill_dir と正しく連携することを確認。最重要ケース。",
+      },
+      {
+        id: "TC-06",
+        title: "複数エントリ → 全 SKILL.md あり分を返す",
+        cat: "normal",
+        prio: "med",
+        precond: "TempDir/skills/ に plugin_a/SKILL.md と plugin_b/SKILL.md が存在",
+        steps: [
+          "TempDir に skills/plugin_a/SKILL.md と skills/plugin_b/SKILL.md を作成",
+          "scan_and_filter(tmp.path(), 'skills', filter_skill_dir) を呼ぶ",
+        ],
+        input: "skills/ に plugin_a と plugin_b の両方が存在（両方 SKILL.md あり）",
+        expected: "Ok([\"plugin_a\", \"plugin_b\"]) (順不定)",
+        throws: false,
+        coverage: [{ k: "関数", v: "scan_and_filter" }],
+        ai: "複数 Skill を正しく列挙することを確認。",
+      },
+    ],
+  },
+
+  // ============================================================
+  // FILE 3: src/target/placed/placement_helpers_test.rs（新規・Phase E）
+  // ============================================================
+  {
+    name: "placement_helpers_test.rs",
+    dir: "src/target/placed/",
+    lang: "Rust",
+    purpose: "skill_dir / agent_file / instruction_file ヘルパの単体テスト。placement_location の共通パターンを抽出したヘルパが正しいパスを生成するか確認。",
+    approach: "TDD — Red → Green → Refactor。パス文字列の比較のみ。TempDir 不要（純粋なパス計算）。",
+    viewpoints: [
+      "skill_dir が base/skills/<name> ディレクトリを返すか",
+      "agent_file が base/agents/<name>.agent.md ファイルを返すか",
+      "instruction_file が scope に応じて project_root/<file> または base/<file> を返すか",
+    ],
+    status: "pending",
+    coverage: { fns: [3, 3], branches: [2, 2] },
+    gaps: [],
     cases: [
       {
         id: "TC-07",
-        title: "derive_supports_scope: 登録済み kind+Both スコープ → true",
+        title: "skill_dir: base/skills/<name> ディレクトリ",
         cat: "normal",
         prio: "high",
-        precond: "TEST_LAYOUT に Skill(ScopeSet::Both) が登録されている",
-        steps: ["derive_supports_scope(&TEST_LAYOUT, ComponentKind::Skill, Scope::Personal) を呼ぶ"],
-        input: "layout=TEST_LAYOUT, kind=Skill, scope=Personal",
-        expected: "true",
+        precond: "base=/home/test/.codex, name=plugin_skill",
+        steps: ["skill_dir(Path::new('/home/test/.codex'), 'plugin_skill') を呼ぶ"],
+        input: "base=/home/test/.codex, name=plugin_skill",
+        expected: "PlacementLocation::Dir(/home/test/.codex/skills/plugin_skill)",
         throws: false,
-        coverage: [{ k: "関数", v: "derive_supports_scope" }, { k: "分岐", v: "kind 一致 + scopes.contains", branch: true }],
-        ai: "ダミープロービングを使わない新しい実装の最基本確認。",
+        coverage: [{ k: "関数", v: "skill_dir" }],
+        ai: "全5実装で同一だった Skill パターンを抽出したヘルパの最基本確認。",
       },
       {
         id: "TC-08",
-        title: "derive_supports_scope: 未登録 kind → false",
-        cat: "boundary",
+        title: "agent_file: base/agents/<name>.agent.md ファイル",
+        cat: "normal",
         prio: "high",
-        precond: "TEST_LAYOUT に Agent が登録されていない",
-        steps: ["derive_supports_scope(&TEST_LAYOUT, ComponentKind::Agent, Scope::Personal) を呼ぶ"],
-        input: "layout=TEST_LAYOUT, kind=Agent, scope=Personal",
-        expected: "false",
+        precond: "base=/home/test/.codex, name=plugin_agent",
+        steps: ["agent_file(Path::new('/home/test/.codex'), 'plugin_agent') を呼ぶ"],
+        input: "base=/home/test/.codex, name=plugin_agent",
+        expected: "PlacementLocation::File(/home/test/.codex/agents/plugin_agent.agent.md)",
         throws: false,
-        coverage: [{ k: "関数", v: "derive_supports_scope" }, { k: "分岐", v: "kind 不一致", branch: true }],
-        ai: "capabilities に存在しない kind を安全に false 返還することを確認。",
+        coverage: [{ k: "関数", v: "agent_file" }],
+        ai: "Codex/Copilot/Cursor で同一だった Agent パターンの確認。",
       },
       {
         id: "TC-09",
-        title: "derive_supports_scope: ProjectOnly に Personal → false",
-        cat: "boundary",
+        title: "instruction_file: Project scope → project_root/<filename>",
+        cat: "normal",
         prio: "high",
-        precond: "TEST_LAYOUT に Command(ScopeSet::ProjectOnly) が登録されている",
-        steps: ["derive_supports_scope(&TEST_LAYOUT, ComponentKind::Command, Scope::Personal) を呼ぶ"],
-        input: "layout=TEST_LAYOUT_COPILOT, kind=Command, scope=Personal",
-        expected: "false",
+        precond: "scope=Project, project_root=/project, base=/project/.codex, filename=AGENTS.md",
+        steps: ["instruction_file(Scope::Project, Path::new('/project'), Path::new('/project/.codex'), 'AGENTS.md') を呼ぶ"],
+        input: "scope=Project, filename=AGENTS.md",
+        expected: "PlacementLocation::File(/project/AGENTS.md)",
         throws: false,
-        coverage: [{ k: "関数", v: "derive_supports_scope" }, { k: "分岐", v: "ProjectOnly + Personal", branch: true }],
-        ai: "Copilot Command の Personal 不可制約の核心ケース。",
+        coverage: [{ k: "関数", v: "instruction_file" }, { k: "分岐", v: "Project scope", branch: true }],
+        ai: "Codex/Cursor の AGENTS.md が project_root 直下に配置されることを確認。",
       },
       {
         id: "TC-10",
-        title: "derive_placement_location: ComponentDir Skill / Project scope",
+        title: "instruction_file: Personal scope → base/<filename>",
         cat: "normal",
         prio: "high",
-        precond: "TEST_LAYOUT に Skill(ScopeSet::Both, ComponentDir{skills, FlattenedName}) が定義されている",
-        steps: [
-          "PlacementContext を生成（kind=Skill, scope=Project, project_root=/project）",
-          "derive_placement_location(&TEST_LAYOUT, &ctx) を呼ぶ"
-        ],
-        input: "kind=Skill, scope=Project, name=plugin_skill, project_root=/project",
-        expected: "Some(Dir(/project/.test/skills/plugin_skill))",
+        precond: "scope=Personal, base=~/.codex, filename=AGENTS.md",
+        steps: ["instruction_file(Scope::Personal, Path::new('/project'), Path::new('/home/test/.codex'), 'AGENTS.md') を呼ぶ"],
+        input: "scope=Personal, filename=AGENTS.md",
+        expected: "PlacementLocation::File(/home/test/.codex/AGENTS.md)",
         throws: false,
-        coverage: [
-          { k: "関数", v: "derive_placement_location" },
-          { k: "関数", v: "resolve_base" },
-          { k: "関数", v: "resolve_placement" },
-          { k: "分岐", v: "ComponentDir 分岐", branch: true }
-        ],
-        ai: "配置パス計算の主経路テスト。Antigravity/Gemini など多くのターゲットのパスがこの経路を通る。",
+        coverage: [{ k: "関数", v: "instruction_file" }, { k: "分岐", v: "Personal scope", branch: true }],
+        ai: "Personal スコープの Instruction が base ディレクトリ下に配置されることを確認。",
       },
+    ],
+  },
+
+  // ============================================================
+  // FILE 4: src/target/placed/placed_common_test.rs（新規・Phase D）
+  // ============================================================
+  {
+    name: "placed_common_test.rs",
+    dir: "src/target/placed/",
+    lang: "Rust",
+    purpose: "list_instruction_at の単体テスト。ダミー PlacementContext を廃止して直接パスを受け取るシンプルな新実装の振る舞い確認。",
+    approach: "TDD — Red → Green → Refactor。TempDir 使用。",
+    viewpoints: [
+      "ファイルが存在する場合に [filename] を返すか",
+      "ファイルが存在しない場合に [] を返すか",
+    ],
+    status: "pending",
+    coverage: { fns: [1, 1], branches: [2, 2] },
+    gaps: [],
+    cases: [
       {
         id: "TC-11",
-        title: "derive_placement_location: scope 外 → None",
-        cat: "boundary",
-        prio: "high",
-        precond: "TEST_LAYOUT に Skill(ScopeSet::ProjectOnly) が定義されている",
-        steps: [
-          "PlacementContext を生成（kind=Skill, scope=Personal）",
-          "derive_placement_location を呼ぶ"
-        ],
-        input: "kind=Skill, scope=Personal (ProjectOnly layout)",
-        expected: "None",
-        throws: false,
-        coverage: [{ k: "関数", v: "derive_placement_location" }, { k: "分岐", v: "scopes.contains false", branch: true }],
-        ai: "scope 外で None を返す分岐確認。Copilot Skill Personal のシナリオ。",
-      },
-      {
-        id: "TC-12",
-        title: "derive_placement_location: OriginalNameRequired + original_name=None → None",
-        cat: "edge",
-        prio: "high",
-        precond: "TEST_LAYOUT に Skill(OriginalNameRequired) が定義されている",
-        steps: [
-          "ComponentRef::new(Skill, 'plugin_skill') で original_name=None の context 生成",
-          "derive_placement_location を呼ぶ"
-        ],
-        input: "kind=Skill, naming=OriginalNameRequired, original_name=None",
-        expected: "None",
-        throws: false,
-        coverage: [{ k: "関数", v: "derive_placement_location" }, { k: "関数", v: "resolve_name" }, { k: "分岐", v: "OriginalNameRequired + None", branch: true }],
-        ai: "Cursor Skill の核心エッジケース。original_name 欠落時に配置不可になることを明示的に保証する。",
-      },
-      {
-        id: "TC-13",
-        title: "derive_placement_location: OriginalNameRequired + original_name=空文字 → None",
-        cat: "edge",
-        prio: "high",
-        precond: "TEST_LAYOUT に Skill(OriginalNameRequired) が定義されている",
-        steps: [
-          "ComponentRef::with_names(Skill, 'plugin_skill', '', '') で original_name='' の context 生成",
-          "derive_placement_location を呼ぶ"
-        ],
-        input: "kind=Skill, naming=OriginalNameRequired, original_name=''",
-        expected: "None",
-        throws: false,
-        coverage: [{ k: "関数", v: "resolve_name" }, { k: "分岐", v: "OriginalNameRequired + 空文字", branch: true }],
-        ai: "original_name が Some('') の場合も安全に None になることを確認。",
-      },
-      {
-        id: "TC-14",
-        title: "derive_placement_location: InstructionFile ProjectRoot scope=Project",
-        cat: "normal",
-        prio: "high",
-        precond: "TEST_LAYOUT に Instruction(ProjectRoot) が定義されている",
-        steps: [
-          "PlacementContext を生成（kind=Instruction, scope=Project, project_root=/project）",
-          "derive_placement_location を呼ぶ"
-        ],
-        input: "kind=Instruction, scope=Project, project_root=/project, filename=AGENTS.md",
-        expected: "Some(File(/project/AGENTS.md))",
-        throws: false,
-        coverage: [{ k: "関数", v: "derive_placement_location" }, { k: "分岐", v: "InstructionFile + Project + ProjectRoot", branch: true }],
-        ai: "Codex/Cursor の AGENTS.md 配置経路確認。ダミー origin が不要であることを実証。",
-      },
-      {
-        id: "TC-15",
-        title: "derive_placement_location: InstructionFile ProjectRoot scope=Personal",
-        cat: "normal",
-        prio: "med",
-        precond: "TEST_LAYOUT に Instruction(ProjectRoot, ScopeSet::Both) が定義されている",
-        steps: [
-          "PlacementContext を生成（kind=Instruction, scope=Personal）",
-          "derive_placement_location を呼ぶ"
-        ],
-        input: "kind=Instruction, scope=Personal, base=~/.test, filename=AGENTS.md",
-        expected: "Some(File(~/.test/AGENTS.md))",
-        throws: false,
-        coverage: [{ k: "関数", v: "derive_placement_location" }, { k: "分岐", v: "InstructionFile + Personal", branch: true }],
-        ai: "Personal スコープの Instruction（Codex Personal AGENTS.md）経路確認。",
-      },
-      {
-        id: "TC-16",
-        title: "derive_list_placed: 空ディレクトリ → Ok([])",
-        cat: "normal",
-        prio: "high",
-        precond: "TempDir に .test/skills/ ディレクトリなし",
-        steps: [
-          "TempDir::new() で一時ディレクトリ作成",
-          "derive_list_placed(&TEST_LAYOUT, Skill, Project, tmp) を呼ぶ"
-        ],
-        input: "kind=Skill, scope=Project, .test/skills/ 不在",
-        expected: "Ok([])",
-        throws: false,
-        coverage: [{ k: "関数", v: "derive_list_placed" }, { k: "関数", v: "scan_components" }],
-        ai: "scan_components の空ディレクトリ(exist=false)を正しく空配列で返す確認。",
-      },
-      {
-        id: "TC-17",
-        title: "derive_list_placed: SkillManifestDir — SKILL.md ありのディレクトリを検出",
-        cat: "normal",
-        prio: "high",
-        precond: "TempDir/.test/skills/plugin_skill/SKILL.md が存在",
-        steps: [
-          "TempDir に .test/skills/plugin_skill/SKILL.md を作成",
-          "derive_list_placed(&TEST_LAYOUT, Skill, Project, tmp) を呼ぶ"
-        ],
-        input: "kind=Skill, scope=Project, .test/skills/plugin_skill/SKILL.md 存在",
-        expected: "Ok([\"plugin_skill\"])",
-        throws: false,
-        coverage: [{ k: "関数", v: "derive_list_placed" }, { k: "関数", v: "apply_discover" }, { k: "分岐", v: "SkillManifestDir 一致", branch: true }],
-        ai: "SKILL.md あり Skill ディレクトリの正常検出。全ターゲットに共通する最も重要なケース。",
-      },
-      {
-        id: "TC-18",
-        title: "derive_list_placed: SkillManifestDir — SKILL.md なし → 除外",
-        cat: "boundary",
-        prio: "high",
-        precond: "TempDir/.test/skills/empty_dir/ が存在するが SKILL.md なし",
-        steps: [
-          "TempDir に .test/skills/empty_dir/ を作成（SKILL.md なし）",
-          "derive_list_placed(&TEST_LAYOUT, Skill, Project, tmp) を呼ぶ"
-        ],
-        input: "kind=Skill, scope=Project, .test/skills/empty_dir/ 存在（SKILL.md なし）",
-        expected: "Ok([])",
-        throws: false,
-        coverage: [{ k: "関数", v: "apply_discover" }, { k: "分岐", v: "SkillManifestDir + SKILL.md なし", branch: true }],
-        ai: "中間ディレクトリを Skill と誤認しない二重防御の確認。",
-      },
-      {
-        id: "TC-19",
-        title: "derive_list_placed: scope 外 → Ok([])",
-        cat: "boundary",
-        prio: "high",
-        precond: "TEST_LAYOUT に Skill(ScopeSet::ProjectOnly) が定義されている",
-        steps: ["derive_list_placed(&TEST_LAYOUT, Skill, Personal, tmp) を呼ぶ（ProjectOnly layout）"],
-        input: "kind=Skill, scope=Personal (ProjectOnly layout)",
-        expected: "Ok([])",
-        throws: false,
-        coverage: [{ k: "関数", v: "derive_list_placed" }, { k: "分岐", v: "supports_scope false → 早期 return", branch: true }],
-        ai: "サポート外スコープで scan を実行しないことを確認。",
-      },
-      {
-        id: "TC-20",
-        title: "derive_list_placed: InstructionExists — ファイルあり",
+        title: "ファイルあり → [filename]",
         cat: "normal",
         prio: "high",
         precond: "TempDir に AGENTS.md が存在",
         steps: [
           "TempDir に AGENTS.md を作成",
-          "TEST_LAYOUT_INSTRUCTION で derive_list_placed(Instruction, Project, tmp) を呼ぶ"
+          "list_instruction_at(&tmp.path().join('AGENTS.md'), 'AGENTS.md') を呼ぶ",
         ],
-        input: "kind=Instruction, scope=Project, project_root/AGENTS.md 存在",
-        expected: "Ok([\"AGENTS.md\"])",
+        input: "path=TempDir/AGENTS.md (存在), filename='AGENTS.md'",
+        expected: "vec![\"AGENTS.md\"]",
         throws: false,
-        coverage: [{ k: "関数", v: "derive_list_placed" }, { k: "関数", v: "list_instruction_exists" }, { k: "分岐", v: "InstructionExists + exists=true", branch: true }],
-        ai: "ダミー origin 廃止後の新しい Instruction 検出経路。パスが直接計算されることを確認。",
+        coverage: [{ k: "関数", v: "list_instruction_at" }, { k: "分岐", v: "path.exists()=true", branch: true }],
+        ai: "ダミー廃止後の新実装の最基本確認。パスを直接受け取ることで複雑なダミー生成が不要になる。",
       },
       {
-        id: "TC-21",
-        title: "derive_list_placed: InstructionExists — ファイルなし → Ok([])",
+        id: "TC-12",
+        title: "ファイルなし → []",
         cat: "boundary",
         prio: "high",
         precond: "TempDir に AGENTS.md が存在しない",
         steps: [
           "TempDir を作成（AGENTS.md なし）",
-          "TEST_LAYOUT_INSTRUCTION で derive_list_placed(Instruction, Project, tmp) を呼ぶ"
+          "list_instruction_at(&tmp.path().join('AGENTS.md'), 'AGENTS.md') を呼ぶ",
         ],
-        input: "kind=Instruction, scope=Project, AGENTS.md 不在",
-        expected: "Ok([])",
+        input: "path=TempDir/AGENTS.md (不在), filename='AGENTS.md'",
+        expected: "vec![]",
         throws: false,
-        coverage: [{ k: "関数", v: "list_instruction_exists" }, { k: "分岐", v: "InstructionExists + exists=false", branch: true }],
-        ai: "Instruction ファイルが存在しない場合の正常動作確認。",
+        coverage: [{ k: "関数", v: "list_instruction_at" }, { k: "分岐", v: "path.exists()=false", branch: true }],
+        ai: "Instruction が配置されていない場合に空を返すことを確認。",
       },
     ],
   },
 
   // ============================================================
-  // FILE 3: src/target/env/antigravity_test.rs（移行後リグレッション）
+  // FILE 5: src/target/env/antigravity_test.rs（既存・移行後リグレッション）
   // ============================================================
   {
     name: "antigravity_test.rs",
     dir: "src/target/env/",
     lang: "Rust",
-    purpose: "Phase 2 移行後の AntigravityTarget 振る舞い不変を確認するリグレッションテスト。LAYOUT 定数が BL-005 マトリクスと一致するかを検証。",
-    approach: "既存テストの期待値を維持しつつ、Phase 2 移行後も全ケースが green であることを確認。新規 supports_scope テストを追加。",
+    purpose: "Phase B〜E 移行後の AntigravityTarget 振る舞い不変確認。list_placed / placement_location / supports_scope の期待値が移行前後で変わらないことを検証。",
+    approach: "既存テストの期待値を維持したまま、Phase B/C/D/E の移行後も全テストが green であることを確認。新規テストとして supports_scope リグレッションを追加。",
     viewpoints: [
-      "supported_components が Skill のみを返すか",
-      "supports_scope が Both（PersonalOnly/ProjectOnly ではない）であるか",
-      "placement_location のパスが ~/.gemini/antigravity/skills/<name> (Personal) / {root}/.agent/skills/<name> (Project) か",
+      "list_placed(Skill, Personal/Project) が移行前後で同じ結果を返すか",
+      "placement_location のパスが移行前後で変わらないか",
+      "supports_scope(Skill, Personal) が true を返すか（ダミー廃止後も）",
     ],
     status: "pending",
-    coverage: { fns: [4, 4], branches: [8, 8] },
+    coverage: { fns: [4, 4], branches: [6, 6] },
     gaps: [],
     cases: [
       {
-        id: "TC-22",
-        title: "supported_components は Skill のみ",
+        id: "TC-13",
+        title: "supports_scope(Skill, Personal) → true（ダミー廃止後リグレッション）",
         cat: "normal",
         prio: "high",
         precond: "AntigravityTarget::new()",
-        steps: ["target.supported_components() を呼ぶ"],
-        input: "AntigravityTarget",
-        expected: "[ComponentKind::Skill]（長さ 1）",
+        steps: ["target.supports_scope(ComponentKind::Skill, Scope::Personal) を呼ぶ"],
+        input: "kind=Skill, scope=Personal",
+        expected: "true（ダミープロービング廃止後も同じ結果）",
         throws: false,
-        coverage: [{ k: "関数", v: "supported_components" }],
-        ai: "Phase 2 移行後も LAYOUT 由来の supported_components が Skill のみになることを確認。",
+        coverage: [{ k: "関数", v: "supports_scope" }, { k: "関数", v: "can_place_scope (または相当のヘルパ)" }],
+        ai: "Phase D 移行後のダミー廃止が Antigravity の判定結果を変えていないことを確認する重要なリグレッション。",
       },
       {
-        id: "TC-23",
-        title: "supports_scope(Skill, Personal) → true",
-        cat: "normal",
-        prio: "high",
-        precond: "AntigravityTarget::new()",
-        steps: ["target.supports_scope(Skill, Personal) を呼ぶ"],
-        input: "Skill, Personal",
-        expected: "true（ダミーではなく LAYOUT 参照）",
-        throws: false,
-        coverage: [{ k: "関数", v: "supports_scope" }, { k: "関数", v: "derive_supports_scope" }],
-        ai: "移行後に derives_supports_scope が呼ばれていることを実証するリグレッションテスト。",
-      },
-      {
-        id: "TC-24",
+        id: "TC-14",
         title: "supports_scope(Agent, Personal) → false",
         cat: "boundary",
         prio: "high",
         precond: "AntigravityTarget::new()",
-        steps: ["target.supports_scope(Agent, Personal) を呼ぶ"],
-        input: "Agent, Personal",
-        expected: "false",
+        steps: ["target.supports_scope(ComponentKind::Agent, Scope::Personal) を呼ぶ"],
+        input: "kind=Agent, scope=Personal",
+        expected: "false（Antigravity は Skill のみ）",
         throws: false,
         coverage: [{ k: "関数", v: "supports_scope" }],
-        ai: "Antigravity が Agent 非サポートであることを確認。",
+        ai: "Antigravity が Skill 以外をサポートしないことを確認。",
       },
       {
-        id: "TC-25",
-        title: "placement_location Skill Personal → ~/.gemini/antigravity/skills/<name>",
+        id: "TC-15",
+        title: "list_placed(Skill, Personal) が共通ヘルパ移行後も同じ結果",
+        cat: "normal",
+        prio: "high",
+        precond: "TempDir に .gemini/antigravity/skills/my_skill/SKILL.md が存在（HOME=/tmp/test_home）",
+        steps: [
+          "HOME 環境変数を一時変更",
+          "TempDir に .gemini/antigravity/skills/my_skill/SKILL.md を作成",
+          "target.list_placed(Skill, Personal, project_root) を呼ぶ",
+        ],
+        input: "Skill, Personal, my_skill/SKILL.md 存在",
+        expected: "Ok([\"my_skill\"])",
+        throws: false,
+        coverage: [{ k: "関数", v: "list_placed" }, { k: "関数", v: "scan_and_filter" }],
+        ai: "Phase B 移行後（scan_and_filter ヘルパ利用）でも同じ結果を返すリグレッション。",
+      },
+      {
+        id: "TC-16",
+        title: "placement_location(Skill, Personal) パスが変わらない",
         cat: "normal",
         prio: "high",
         precond: "AntigravityTarget::new(), HOME=/home/test",
-        steps: ["PlacementContext(Skill, 'plugin_skill', Personal, /project) を渡す"],
+        steps: [
+          "PlacementContext(kind=Skill, scope=Personal, name=plugin_skill) を作成",
+          "target.placement_location(&ctx) を呼ぶ",
+        ],
         input: "Skill, Personal, name=plugin_skill",
         expected: "Some(Dir(/home/test/.gemini/antigravity/skills/plugin_skill))",
         throws: false,
-        coverage: [{ k: "関数", v: "placement_location" }, { k: "関数", v: "derive_placement_location" }, { k: "分岐", v: "Nested BasePathSpec", branch: true }],
-        ai: "Antigravity 固有の Nested パス（.gemini/antigravity）が正しく組み立てられることを確認。",
-      },
-      {
-        id: "TC-26",
-        title: "placement_location Skill Project → {root}/.agent/skills/<name>",
-        cat: "normal",
-        prio: "high",
-        precond: "AntigravityTarget::new(), project_root=/project",
-        steps: ["PlacementContext(Skill, 'plugin_skill', Project, /project) を渡す"],
-        input: "Skill, Project, name=plugin_skill",
-        expected: "Some(Dir(/project/.agent/skills/plugin_skill))",
-        throws: false,
-        coverage: [{ k: "関数", v: "placement_location" }],
-        ai: "Project scope では .agent/ ディレクトリを使うことを確認。",
-      },
-    ],
-  },
-
-  // ============================================================
-  // FILE 4: src/target/env/cursor_test.rs（Cursor 固有エッジケース）
-  // ============================================================
-  {
-    name: "cursor_test.rs",
-    dir: "src/target/env/",
-    lang: "Rust",
-    purpose: "Phase 4 移行後の CursorTarget 振る舞い不変確認。特に OriginalNameRequired / PlainMarkdownFile / Instruction ProjectOnly の制約を検証。",
-    approach: "既存テストの期待値を維持。Phase 4 移行後も全ケースが green であることを確認。",
-    viewpoints: [
-      "Skill の original_name=None/空文字 で placement が None になるか",
-      "Agent/Command の list で .agent.md/.prompt.md が除外されるか（PlainMarkdownFile）",
-      "Instruction Personal が false になるか",
-    ],
-    status: "pending",
-    coverage: { fns: [5, 5], branches: [10, 10] },
-    gaps: ["PlainMarkdownFile の .agent.md 除外ロジックは実際のファイルシステムを使う統合テストで確認すること（list_placed テストに追加）"],
-    cases: [
-      {
-        id: "TC-27",
-        title: "Cursor Skill: original_name=None → placement_location = None",
-        cat: "edge",
-        prio: "high",
-        precond: "CursorTarget::new()",
-        steps: [
-          "ComponentRef::new(Skill, 'plugin_skill')（original_name=None）で context 生成",
-          "target.placement_location(&ctx) を呼ぶ"
-        ],
-        input: "kind=Skill, name=plugin_skill, original_name=None",
-        expected: "None",
-        throws: false,
-        coverage: [{ k: "関数", v: "placement_location" }, { k: "分岐", v: "OriginalNameRequired + None", branch: true }],
-        ai: "Cursor Skill は original_name が必須。欠落時に配置を拒否することを保証する重要エッジケース。",
-      },
-      {
-        id: "TC-28",
-        title: "Cursor Skill: original_name=空文字 → placement_location = None",
-        cat: "edge",
-        prio: "high",
-        precond: "CursorTarget::new()",
-        steps: [
-          "ComponentRef::with_names(Skill, 'p_s', '', '') で context 生成",
-          "target.placement_location(&ctx) を呼ぶ"
-        ],
-        input: "kind=Skill, original_name=''",
-        expected: "None",
-        throws: false,
-        coverage: [{ k: "関数", v: "placement_location" }, { k: "分岐", v: "OriginalNameRequired + 空文字", branch: true }],
-        ai: "空文字フォールバックによる誤配置を防ぐ確認。",
-      },
-      {
-        id: "TC-29",
-        title: "Cursor Skill: original_name=my-skill → 元名ディレクトリに配置",
-        cat: "normal",
-        prio: "high",
-        precond: "CursorTarget::new(), project_root=/project",
-        steps: [
-          "ComponentRef::with_names(Skill, 'plugin_my-skill', 'my-skill', 'plugin') で context 生成",
-          "target.placement_location(&ctx) を呼ぶ"
-        ],
-        input: "kind=Skill, name=plugin_my-skill, original_name=my-skill",
-        expected: "Some(Dir(/project/.cursor/skills/my-skill))",
-        throws: false,
-        coverage: [{ k: "関数", v: "placement_location" }, { k: "分岐", v: "OriginalNameRequired + Some 非空", branch: true }],
-        ai: "original_name がある場合は元名でディレクトリを作成することを確認。",
-      },
-      {
-        id: "TC-30",
-        title: "Cursor supports_scope(Instruction, Personal) → false",
-        cat: "boundary",
-        prio: "high",
-        precond: "CursorTarget::new()",
-        steps: ["target.supports_scope(Instruction, Personal) を呼ぶ"],
-        input: "Instruction, Personal",
-        expected: "false（User Rules は対象外）",
-        throws: false,
-        coverage: [{ k: "関数", v: "supports_scope" }, { k: "分岐", v: "Instruction + Personal", branch: true }],
-        ai: "Cursor の Personal User Rules 非対応を明示する重要制約テスト。",
-      },
-      {
-        id: "TC-31",
-        title: "Cursor list_placed(Agent, Project): .agent.md ファイルが結果に含まれない",
-        cat: "edge",
-        prio: "med",
-        precond: "TempDir に .cursor/agents/foo.md と .cursor/agents/bar.agent.md を作成",
-        steps: [
-          "TempDir/.cursor/agents/foo.md を作成",
-          "TempDir/.cursor/agents/bar.agent.md を作成",
-          "target.list_placed(Agent, Project, tmp) を呼ぶ"
-        ],
-        input: "kind=Agent, scope=Project, agents/foo.md + agents/bar.agent.md 存在",
-        expected: "Ok([\"foo\"])（bar.agent.md は除外）",
-        throws: false,
-        coverage: [{ k: "関数", v: "list_placed" }, { k: "関数", v: "apply_discover (PlainMarkdownFile)" }, { k: "分岐", v: "PlainMarkdownFile: .agent.md 除外", branch: true }],
-        ai: "PlainMarkdownFile ルールが .agent.md/.prompt.md を除外することを実ファイルシステムで確認。",
+        coverage: [{ k: "関数", v: "placement_location" }, { k: "関数", v: "skill_dir" }],
+        ai: "Phase E 移行後（skill_dir ヘルパ利用）でも同じパスを返すリグレッション。",
       },
     ],
   },
@@ -1073,66 +550,67 @@ const FILES = [
 
 const PLAN = {
   strategy: {
-    purpose: "target/env 5 実装の配置骨格コピペを TargetLayout 宣言的記述子に集約するリファクタリングにおいて、振る舞い不変（パス・サポート可否・list 結果）を Phase 0〜6 を通じて保証する。新規 layout モデルの正確性とすべての既存ターゲットのリグレッション防止を確認する。",
+    purpose: "target/env 5 実装の同型コピペ骨格を bottom-up でヘルパ関数に抽出し、サポート判定のダミープロービングを廃止するリファクタリングにおいて、振る舞い不変（パス・サポート可否・list 結果）を Phase A〜G を通じて保証する。",
     scopeIn: [
-      "src/target/layout/model.rs（ScopeSet / TargetLayout 等の型）",
-      "src/target/layout/derive.rs（derive_* ヘルパ）",
-      "src/target/env/antigravity.rs（Phase 2 移行）",
-      "src/target/env/gemini_cli.rs（Phase 2 移行）",
-      "src/target/env/codex.rs（Phase 3 移行）",
-      "src/target/env/copilot.rs（Phase 3 移行）",
-      "src/target/env/cursor.rs（Phase 4 移行）",
+      "src/target/placed/filter.rs（新規: filter_skill_dir）",
+      "src/target/placed/list_helpers.rs（新規: scan_and_filter）",
+      "src/target/placed/placement_helpers.rs（新規: skill_dir / agent_file / instruction_file）",
+      "src/target/placed/placed_common.rs（変更: list_instruction_at 追加、旧 list_instruction 廃止）",
+      "src/target/env/antigravity.rs（移行対象）",
+      "src/target/env/gemini_cli.rs（移行対象）",
+      "src/target/env/codex.rs（移行対象）",
+      "src/target/env/copilot.rs（移行対象）",
+      "src/target/env/cursor.rs（移行対象）",
+      "src/target.rs（supports_scope ダミー廃止）",
     ],
     scopeOut: [
       "PR #388 の振る舞いフック（pre_place_check / post_place / component_conflict_error / legacy_cleanup_operations）",
-      "パーサー / デプロイ本体",
-      "sync / TUI",
+      "TargetLayout / PlacementRule / DiscoverRule などの大規模 DSL（Phase F の薄い const のみ可能性あり）",
       "#339 文字列定数一元化（並行 Issue）",
+      "sync / TUI",
     ],
     levels: [
-      { label: "単体", pct: 90, note: "Pure Logic + Configuration — ファイルシステムは TempDir でモック" },
-      { label: "結合", pct: 10, note: "list_placed + scan_components の組み合わせ（TempDir 使用）" },
-      { label: "E2E", pct: 0, note: "CLI 動作確認は手動検証（cargo run -- list）に委ねる" },
+      { label: "単体", pct: 85, note: "純粋なヘルパ関数は TempDir モックで完全カバー可能" },
+      { label: "結合", pct: 15, note: "既存の env テスト（*_test.rs）が移行後リグレッションを担う" },
+      { label: "E2E", pct: 0, note: "CLI 動作確認は手動（cargo run -- list）" },
     ],
     viewpoints: [
-      "振る舞い不変: 移行前後で placement_location のパスが変わらないか",
-      "単一真実源: derive_supports_scope が capabilities 参照のみで判定し、ダミー PlacementContext を使わないか",
-      "OriginalNameRequired エッジケース: original_name=None/空文字 で None を返すか",
-      "scope 制約: ProjectOnly な kind が Personal scope で correctly false/None を返すか",
-      "InstructionExists: ダミー origin なしで Instruction 存在確認が動作するか",
+      "振る舞い不変: Phase A の差分表と全テスト期待値が一致したまま",
+      "ダミー廃止完全性: src/ に PlacementContext(\"test\")/dummy_origin(\"test\") が残らない",
+      "Skill フィルタ精度: SKILL.md なしディレクトリを除外する二重防御が維持されるか",
+      "Copilot Skill Personal 不可: supports_scope(Skill, Personal) が false を維持するか",
+      "Cursor original_name: None/空文字の場合に placement_location が None を返すか（Phase E、Cursor は override に残す）",
     ],
-    priority: "高: 振る舞い変更・OriginalNameRequired・scope 制約テスト → 中: 通常配置パス・InstructionExists → 低: リファクタリング副産物テスト",
+    priority: "高: ダミー廃止関連・Skill フィルタ・既存テストリグレッション → 中: placement_location ヘルパ精度 → 低: Phase F 薄い定数（省略可能）",
     exit: [
-      "cargo test で全テスト（既存 1888 行 + 新規 TC-01〜TC-31）が green",
-      "derive_supports_scope でダミー PlacementContext('test') を生成しているコードが src/ に残っていない（Grep 確認）",
+      "cargo test で全テスト（既存 + 新規 TC-01〜TC-16）が green",
+      "grep -r '\"test\"' src/target.rs src/target/placed/placed_common.rs がゼロ（ダミー廃止完全確認）",
       "cargo clippy で新規 warning なし",
     ],
   },
   trace: [
-    { id: "FR-001", req: "ComponentCapability で差分を宣言できる", tcs: ["model_test/TC-01", "model_test/TC-02", "model_test/TC-03", "model_test/TC-04", "model_test/TC-05", "model_test/TC-06"], status: "ok" },
-    { id: "FR-002", req: "placement_location を TargetLayout から導出できる", tcs: ["derive_test/TC-10", "derive_test/TC-11", "derive_test/TC-14", "derive_test/TC-15", "antigravity_test/TC-25", "antigravity_test/TC-26"], status: "ok" },
-    { id: "FR-003", req: "supported_components を capabilities から導出する", tcs: ["antigravity_test/TC-22"], status: "ok" },
-    { id: "FR-004", req: "supports_scope をダミーなし capabilities 参照で判定", tcs: ["derive_test/TC-07", "derive_test/TC-08", "derive_test/TC-09", "antigravity_test/TC-23", "antigravity_test/TC-24", "cursor_test/TC-30"], status: "ok" },
-    { id: "FR-005", req: "list_placed を DiscoverRule に従って動作させる", tcs: ["derive_test/TC-16", "derive_test/TC-17", "derive_test/TC-18", "derive_test/TC-19", "derive_test/TC-20", "derive_test/TC-21", "cursor_test/TC-31"], status: "ok" },
-    { id: "FR-006", req: "Cursor Skill OriginalNameRequired を明示する", tcs: ["derive_test/TC-12", "derive_test/TC-13", "cursor_test/TC-27", "cursor_test/TC-28", "cursor_test/TC-29"], status: "ok" },
-    { id: "FR-007", req: "Copilot scope 制約を ScopeSet::ProjectOnly で宣言する", tcs: ["derive_test/TC-09", "derive_test/TC-11", "derive_test/TC-19"], status: "ok" },
-    { id: "FR-008", req: "Instruction 配置が origin/name 非依存である", tcs: ["derive_test/TC-14", "derive_test/TC-15", "derive_test/TC-20", "derive_test/TC-21"], status: "ok" },
-    { id: "FR-009", req: "src/target/layout/ モジュールを Feature ベースで追加する", tcs: [], status: "gap" },
+    { id: "FR-001", req: "list_placed 共通骨格を scan_and_filter ヘルパに抽出する", tcs: ["list_helpers_test/TC-04", "list_helpers_test/TC-05", "list_helpers_test/TC-06", "antigravity_test/TC-15"], status: "ok" },
+    { id: "FR-002", req: "filter_component の Skill アームを filter_skill_dir として共通化する", tcs: ["filter_test/TC-01", "filter_test/TC-02", "filter_test/TC-03"], status: "ok" },
+    { id: "FR-003", req: "supports_scope のダミープロービングを廃止し can_place 系を直接参照する", tcs: ["antigravity_test/TC-13", "antigravity_test/TC-14"], status: "ok" },
+    { id: "FR-004", req: "supported_components と can_place の情報源を統一する", tcs: ["antigravity_test/TC-13"], status: "ok" },
+    { id: "FR-005", req: "placement_location の共通パターンをヘルパ化する", tcs: ["placement_helpers_test/TC-07", "placement_helpers_test/TC-08", "placement_helpers_test/TC-09", "placement_helpers_test/TC-10", "antigravity_test/TC-16"], status: "ok" },
+    { id: "FR-006", req: "Cursor Skill の original_name 必須制約は Cursor override に残す（例外は当面各 impl）", tcs: [], status: "gap" },
+    { id: "FR-007", req: "placed_common::list_instruction の dummy_origin 生成を廃止する", tcs: ["placed_common_test/TC-11", "placed_common_test/TC-12"], status: "ok" },
   ],
   testData: [
     {
       id: "TD-01",
-      name: "TEST_LAYOUT (Skill Both)",
-      desc: "ScopeSet::Both な Skill のみを持つ最小 TargetLayout 定数。derive_test.rs の基本ケースで使用。",
-      code: "const TEST_LAYOUT: TargetLayout = TargetLayout {\n  kind: TargetKind::Antigravity,\n  display_name: \"Test\",\n  base: BasePathLayout { personal: BasePathSpec::Subdir(\".test\"), project: BasePathSpec::Subdir(\".test\") },\n  components: &[ComponentCapability { kind: ComponentKind::Skill, scopes: ScopeSet::Both,\n    placement: PlacementRule::ComponentDir { subdir: \"skills\", naming: NamingPolicy::FlattenedName },\n    discover: DiscoverRule::SkillManifestDir }],\n};",
-      usedBy: ["derive_test/TC-07", "derive_test/TC-10", "derive_test/TC-16", "derive_test/TC-17", "derive_test/TC-18"],
+      name: "TempDir + SKILL.md 配置",
+      desc: "tempfile::TempDir を使ってファイルシステムをモックし、skills/<name>/SKILL.md を作成して Skill フィルタをテストする共通データ。",
+      code: "let dir = TempDir::new().unwrap();\nlet skill_dir = dir.path().join(\"skills\").join(\"my_skill\");\nstd::fs::create_dir_all(&skill_dir).unwrap();\nstd::fs::write(skill_dir.join(\"SKILL.md\"), \"\").unwrap();",
+      usedBy: ["filter_test/TC-01", "list_helpers_test/TC-05"],
     },
     {
       id: "TD-02",
-      name: "TEST_LAYOUT_INSTRUCTION",
-      desc: "InstructionFile(ProjectRoot) を持つ TargetLayout。derive_list_placed の InstructionExists パスをテストするために使用。",
-      code: "const TEST_LAYOUT_INSTRUCTION: TargetLayout = TargetLayout {\n  ...(Instruction capability with InstructionFile { filename: \"AGENTS.md\", project_location: ProjectRoot })\n};",
-      usedBy: ["derive_test/TC-14", "derive_test/TC-15", "derive_test/TC-20", "derive_test/TC-21"],
+      name: "固定パス（HOME=/home/test）",
+      desc: "placement_location の期待値検証用に HOME 環境変数を固定。",
+      code: "std::env::set_var(\"HOME\", \"/home/test\");",
+      usedBy: ["antigravity_test/TC-16"],
     },
   ],
 };

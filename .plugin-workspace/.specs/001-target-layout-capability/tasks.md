@@ -1,104 +1,134 @@
-# Task: target/env 宣言的ケイパビリティ集約
+# Task: target/env impl ベース共通骨格抽出
 
-## Research & Planning (Phase 0: 受け入れテスト棚卸し)
+> 方針: bottom-up impl 抽出（2026-07-21 方針転換済み）
+> 旧計画（top-down DSL 設計）のタスクリストは廃止。
 
-> **Note (WARN)**: Phase 0 は Phase 1 の前提。不足テストがあれば独立 PR で先に追加すること。
+---
 
-- □ BL-005 現状マトリクス（期待値）を確認し、5 ターゲットのテストカバレッジ棚卸し
-- □ 既存テストで `supports` / `supports_scope` / `placement_location` / `list_placed` が各組み合わせをカバーしているか確認（T-SUP / T-SCOPE / T-PATH / T-LIST）
-- □ Cursor の `original_name=None` ケース・Copilot Personal スコープ制約のテスト有無確認
-- □ `FakeTarget`（sync_test, endpoint_test）への影響範囲確認
+## Phase A: 5 impl 差分表確定（コード変更なし）
 
-## Phase 1: TargetLayout モデル + 導出ヘルパ（TDD）
+- □ `exploration-report.md §8` の差分表（BL-005 相当）が完成しているか確認
+- □ `antigravity_test.rs`, `gemini_cli_test.rs`, `codex_test.rs`, `copilot_test.rs`, `cursor_test.rs` の既存テストが全 green であることを `cargo test` で確認
+- □ 各 env の `supported_components` / `can_place` / `placement_location` の期待値を差分表と照合し、乖離がないか確認
+- □ `FakeTarget`（`src/sync_test.rs` / `src/sync/endpoint/endpoint_test.rs`）の実装内容を確認し、Phase D の影響範囲を把握
 
-### モデル定義
+---
 
-- □ RED: `ScopeSet::contains` の単体テストを `model_test.rs` に書く
-- □ GREEN: `src/target/layout/model.rs` に `TargetLayout` / `ComponentCapability` / `ScopeSet` / `PlacementRule` / `DiscoverRule` / `NamingPolicy` / `InstructionProjectLocation` を定義
-- □ REFACTOR: 型名・モジュール分割の整理
+## Phase B: `list_placed` 共通骨格抽出
 
-### 導出ヘルパ
+> **TDD**: Red（テスト先行）→ Green（実装）→ Refactor の順で進める
 
-- □ RED: 架空の `TargetLayout` で `derive_supports_scope` のテストを `derive_test.rs` に書く
-- □ GREEN: `derive_supports_scope` 実装
-- □ RED: `derive_placement_location` のテスト（ComponentDir / ComponentFile / FixedAtBase / InstructionFile / scope 外 / OriginalNameRequired）
-- □ GREEN: `derive_placement_location` 実装（`resolve_base` / `resolve_placement` / `resolve_name` ヘルパ含む）
-- □ RED: `derive_list_placed` のテスト（SkillManifestDir / SuffixFile / PlainMarkdownFile / ExactFile / JsonSuffixFile / InstructionExists / scope 外 / 空ディレクトリ）
-- □ GREEN: `derive_list_placed` 実装
-- □ REFACTOR: ヘルパ関数の整理・重複除去
-- □ `src/target/layout.rs` + `src/target.rs` の `mod layout;` 追加・モジュール接続
+### 共通ヘルパ追加
 
-### Phase 1 検証
+- □ RED: `scan_and_filter(base, subdir, filter)` ヘルパの単体テストを `src/target/placed/` に追加
+  - TempDir に `skills/plugin_skill/SKILL.md` を作成し、`scan_and_filter(&base, "skills", filter_skill_dir)` → `["plugin_skill"]` を確認
+  - TempDir に空ディレクトリのみで `scan_and_filter` → `[]` を確認
+- □ GREEN: `src/target/placed/list_helpers.rs`（または `scanner.rs` への追加）に `scan_and_filter` を実装
+- □ REFACTOR: 関数名・引数の型の整理
 
-- □ `cargo test target::layout` で Phase 1 の新規テストが green
-- □ `cargo test` で既存テスト全体も引き続き green
-- □ **統合確認**: `derive_list_placed` の `InstructionExists` ルールを実際のファイルシステム（TempDir）で検証するテストを `derive_test.rs` に追加（ファイルあり/なしの両ケース）
+### Antigravity 移行（Phase B の先頭）
 
-## Phase 2: Antigravity / Gemini CLI 移行
+- □ `antigravity.rs::list_placed` を `scan_and_filter` 利用に書き換え
+- □ `cargo test target::env::antigravity` で既存テスト全 green 確認
 
-### Antigravity
+### Gemini CLI 移行
 
-- □ `antigravity.rs` に `LAYOUT` 定数（`Nested { parent: ".gemini", child: "antigravity" }` + Skill capability）を追加
-- □ `impl Target for AntigravityTarget` の `supports_scope` を `derive_supports_scope(&LAYOUT, ...)` で置換
-- □ `placement_location` を `derive_placement_location(&LAYOUT, ...)` で置換
-- □ `list_placed` を `derive_list_placed(&LAYOUT, ...)` で置換
-- □ `can_place` / `base_dir` / `filter_component` プライベート関数を削除
-- □ `cargo test target::env::antigravity` で既存テスト全 green
+- □ `gemini_cli.rs::list_placed` の Skill 部分を `scan_and_filter` 利用に書き換え
+  - Instruction 分岐は Phase D で対応するため、`placed_common::list_instruction` の呼び出しはそのまま残す
+- □ `cargo test target::env::gemini_cli` で既存テスト全 green 確認
 
-### Gemini CLI
+### Codex / Copilot / Cursor も順次適用
 
-- □ `gemini_cli.rs` に `LAYOUT` 定数（`.gemini` + Skill + Instruction capability）を追加
-- □ 同様の置換（`supports_scope` / `placement_location` / `list_placed`）
-- □ `can_place` / `base_dir` / `filter_component` 削除
-- □ `cargo test target::env::gemini_cli` で既存テスト全 green
+- □ `codex.rs::list_placed` の Skill / Agent / Hook の各分岐を `scan_and_filter` 利用に書き換え（Instruction は Phase D）
+- □ `copilot.rs::list_placed` を `scan_and_filter` 利用に書き換え
+- □ `cursor.rs::list_placed` を `scan_and_filter` 利用に書き換え（Cursor は `is_plain_markdown` フィルタがあるため慎重に）
+- □ `cargo test` で全テスト green 確認
 
-## Phase 3: Codex / Copilot 移行
+---
 
-### Codex
+## Phase C: `filter_component` Skill アーム共通化
 
-- □ `codex.rs` に `LAYOUT` 定数（Skill / Agent / Instruction / Hook capability）を追加
-- □ `supports_scope` / `placement_location` / `list_placed` を置換（振る舞いフックはそのまま）
-- □ `placed_common::list_instruction` 呼び出しを `derive_list_placed` に統合
-- □ `can_place` / `base_dir` / `filter_component` 削除
-- □ `cargo test target::env::codex` で既存テスト全 green
+- □ RED: `filter_skill_dir` の単体テストを書く
+  - SKILL.md あり → `Some("plugin_skill")`
+  - SKILL.md なし → `None`
+  - ファイル（非ディレクトリ）エントリ → `None`
+- □ GREEN: `src/target/placed/filter.rs`（または `list_helpers.rs`）に `filter_skill_dir` 関数を追加
+- □ REFACTOR: 各 env の `filter_component` から Skill アームを削除し、`filter_skill_dir` 呼び出しに置換（antigravity → gemini → codex → copilot → cursor）
+- □ Skill アームを削除後も差分アーム（Agent `.agent.md` など）は各 env に残す
+- □ `cargo test` で全テスト green 確認
 
-### Copilot
+---
 
-- □ `copilot.rs` に `LAYOUT` 定数（Skill/Command/Instruction ProjectOnly + Agent/Hook Both capability）を追加
-- □ 同様の置換（`can_place(kind, scope)` の 2 引数 → `ScopeSet::ProjectOnly` に統一）
-- □ `can_place` / `base_dir` / `filter_component` 削除
-- □ `cargo test target::env::copilot` で既存テスト全 green（Skill Personal が `None` であることを確認）
+## Phase D: `supports_scope` ダミープロービング廃止
 
-## Phase 4: Cursor 移行
+### `supports_scope` デフォルト実装の書き換え
 
-- □ `cursor.rs` に `LAYOUT` 定数（Skill OriginalNameRequired / Agent+Command PlainMarkdownFile / Instruction ProjectOnly / Hook FixedAtBase）を追加
-- □ `supports_scope` / `placement_location` / `list_placed` を置換
-- □ `placed_common::list_instruction` 呼び出しを `derive_list_placed` に統合
-- □ `can_place` / `base_dir` / `filter_component` / `is_plain_markdown` 削除
-- □ 振る舞いフック（`pre_place_check` / `post_place` / `component_conflict_error` / `legacy_cleanup_operations`）はそのまま維持
-- □ `cargo test target::env::cursor` で既存テスト全 green（`original_name=None` の Skill が `None` を返すことを確認）
+- □ `src/target.rs::supports_scope` のダミー実装（行 258-266）の廃止方式を確定
+  - **方式1**: `Target` trait に `fn can_place_scope(kind, scope) -> bool` を追加（デフォルト: `supported_components().contains(&kind)`）し、`supports_scope` でそれを呼ぶ
+  - **方式2**: `supported_combinations() -> &[(ComponentKind, Scope)]` static スライスを返す関数を追加
+- □ 選択した方式で `supports_scope` を実装
+- □ Copilot / Cursor の scope 制約を `can_place_scope` override で表現
+- □ `grep -r 'dummy_origin\|PluginOrigin.*"test"\|PlacementContext.*"test"' src/target.rs` でダミーコードが消えているか確認
 
-## Phase 5: trait デフォルト接続・ダミー廃止
+### `placed_common::list_instruction` のダミー廃止
 
-- □ `Target::supports_scope` のダミー `PlacementContext("test")` プロービングを `derive_supports_scope` へ置換（各 env の override がある間は段階的）
-- □ `placed_common::list_instruction` の `dummy_origin("test")` 廃止（derive_list_placed が InstructionExists を直接計算するため不要になる）
-- □ `placed_common.rs` を縮小または削除
-- □ `src/sync_test.rs` / `src/sync/endpoint/endpoint_test.rs` の `FakeTarget` が影響を受けないか確認
-- □ `cargo test` で全テスト green
+- □ RED: `list_instruction_at(path: &Path, filename: &str)` の単体テスト
+  - ファイルあり → `vec!["AGENTS.md"]`
+  - ファイルなし → `vec![]`
+- □ GREEN: `src/target/placed/placed_common.rs`（または `list_helpers.rs`）に `list_instruction_at` を追加
+- □ REFACTOR: 各 env の `list_placed` の Instruction 分岐を `list_instruction_at` に置き換え
+  - Gemini: `list_instruction_at(&base.join("GEMINI.md"), "GEMINI.md")` または scope に応じた分岐
+  - Codex: scope に応じて `project_root.join("AGENTS.md")` または `base.join("AGENTS.md")`
+  - Copilot: `base.join("copilot-instructions.md")`
+  - Cursor: `project_root.join("AGENTS.md")`（Project のみ）
+- □ 旧 `list_instruction`（ダミー使用）がすべて `list_instruction_at` に置き換わったら旧関数を削除
+- □ `cargo test` で全テスト green 確認（Instruction list の期待値が変わっていないことを確認）
+- □ `grep -r '"test"' src/target/placed/placed_common.rs` でダミーが消えているか確認
 
-## Phase 6: ドキュメント同期・掃除
+---
 
-- □ `docs/architecture/core-design.md` または `docs/concepts/targets.md` に `TargetLayout` モデル概要を追記
-- □ `docs/target-layout-refactor/` の 3 ファイルを `docs/old/` へアーカイブ（正式採用済み）
-- □ 死コード（使われなくなった `const` / import 等）を削除
+## Phase E: `placement_location` 共通パターンをヘルパ化
+
+- □ RED: `skill_dir` / `agent_file` / `instruction_file` ヘルパの単体テスト
+- □ GREEN: `src/target/placed/placement_helpers.rs` に上記 3 関数を追加
+- □ REFACTOR: 各 env の `placement_location` で共通パターンを対応するヘルパ呼び出しに置き換え
+  - **Antigravity / Gemini / Codex / Copilot**: Skill → `skill_dir(&base, name)`
+  - **Cursor**: Skill → `original_name` 取得後 `skill_dir(&base, original_name)`（例外は override に残す）
+  - **Codex / Copilot / Cursor**: Agent → `agent_file(&base, name)`
+  - **Gemini / Codex / Cursor**: Instruction → `instruction_file(scope, project_root, &base, "<FILENAME>")`
+- □ `cargo test` で全テスト green 確認
+
+---
+
+## Phase F: 薄い定数まとめ（省略可能）
+
+> Phase B〜E 完了後に、各 env ファイルに残った純粋データ差分（文字列リテラル・static スライス）が多い場合のみ実施する。コードが十分に整理されていれば本 Phase はスキップしてよい。
+
+- □ Phase B〜E 完了後に各 env ファイルの残り差分を評価
+- □ （必要なら）各 env の差分を `struct EnvConfig` または薄い `TargetLayout` const に集約
+- □ （必要なら）定数からヘルパを呼ぶ形に `placement_location` / `list_placed` を再整理
+
+---
+
+## Phase G: ドキュメント同期・死コード削除
+
+- □ 各 env の `can_place` プライベート関数を削除（Phase D の `can_place_scope` に統一後）
+- □ 各 env の `base_dir` プライベート関数を削除（直接 `paths::base_dir` を呼ぶ形に変更）
+- □ 各 env の `filter_component` プライベート関数を削除（Phase C の共通ヘルパ + インライン差分アームに統一後）
+- □ `placed_common::list_instruction`（ダミー使用）を削除（Phase D 完了後）
+- □ `docs/target-layout-refactor/` を `docs/old/` にアーカイブ
+- □ `docs/architecture/` に共通ヘルパ関数（`scan_and_filter` / `filter_skill_dir` / `skill_dir` 等）の説明を追記
+
+---
 
 ## Verification
 
-- □ `cargo test` で全テスト（既存 1888 行 + 新規テーブル駆動テスト）が green
+- □ `cargo test` で全テスト（既存 + 新規追加分）が green
 - □ `cargo build` でコンパイルエラーなし
 - □ `cargo clippy` で新規 warning なし
 - □ `cargo fmt` でフォーマット適用済み
-- □ `supports_scope` のダミープロービング（`"test"` origin）が全コードから消えていることを Grep で確認
-- □ `can_place` / `filter_component` プライベート関数が各 env から消えていることを確認
-- □ `placed_common::list_instruction` の利用箇所がゼロになっていることを確認（または削除済み）
-- □ Definition of Done チェックリストを全項目確認
+- □ `grep -r '"test"' src/target.rs src/target/placed/placed_common.rs` でダミーコードがゼロ（G-001, G-002）
+- □ `list_placed` の骨格コピペが各 env ファイルから消えている（G-003）
+- □ `filter_component` の Skill アームが各 env ファイルから消えている（G-004）
+- □ `placement_location` の Skill/Agent/Instruction 共通パターンが共通ヘルパを呼んでいる（G-005）
+- □ Phase A の差分表（BL-005 相当）と全テストの期待値が一致している（G-006）
