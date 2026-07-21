@@ -168,3 +168,96 @@ mod import_registry_tests {
         assert!(nested_path.exists());
     }
 }
+
+// ---- PLM_HOME path resolution (#344) ----
+
+mod plm_home_path_tests {
+    use super::*;
+    use std::sync::{Mutex, OnceLock};
+
+    fn env_lock() -> &'static Mutex<()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+    }
+
+    struct EnvGuard {
+        saved: Vec<(&'static str, Option<std::ffi::OsString>)>,
+    }
+
+    impl EnvGuard {
+        fn clear(keys: &[&'static str]) -> Self {
+            let saved = keys
+                .iter()
+                .map(|&key| {
+                    let prev = std::env::var_os(key);
+                    std::env::remove_var(key);
+                    (key, prev)
+                })
+                .collect();
+            Self { saved }
+        }
+
+        fn set(&self, key: &'static str, value: impl AsRef<std::ffi::OsStr>) {
+            std::env::set_var(key, value);
+        }
+    }
+
+    impl Drop for EnvGuard {
+        fn drop(&mut self) {
+            for (key, prev) in self.saved.drain(..) {
+                match prev {
+                    Some(v) => std::env::set_var(key, v),
+                    None => std::env::remove_var(key),
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn new_uses_home_for_default_path() {
+        let _lock = env_lock().lock().unwrap();
+        let home = TempDir::new().unwrap();
+        let guard = EnvGuard::clear(&["PLM_HOME", "HOME"]);
+        guard.set("HOME", home.path());
+
+        let registry = ImportRegistry::new().unwrap();
+        assert_eq!(
+            registry.config_path,
+            home.path().join(".plm").join("imports.json")
+        );
+    }
+
+    #[test]
+    fn new_uses_plm_home_when_set() {
+        let _lock = env_lock().lock().unwrap();
+        let plm_home = TempDir::new().unwrap();
+        let home = TempDir::new().unwrap();
+        let guard = EnvGuard::clear(&["PLM_HOME", "HOME"]);
+        guard.set("PLM_HOME", plm_home.path());
+        guard.set("HOME", home.path());
+
+        let registry = ImportRegistry::new().unwrap();
+        assert_eq!(
+            registry.config_path,
+            plm_home.path().join(".plm").join("imports.json")
+        );
+    }
+
+    #[test]
+    fn new_errors_when_both_unset() {
+        let _lock = env_lock().lock().unwrap();
+        let _guard = EnvGuard::clear(&["PLM_HOME", "HOME"]);
+
+        let err = ImportRegistry::new().unwrap_err();
+        match err {
+            crate::error::PlmError::ImportRegistry(msg) => {
+                assert!(
+                    msg.contains("not set or empty") || msg.contains("absolute"),
+                    "unexpected message: {}",
+                    msg
+                );
+            }
+            other => panic!("expected ImportRegistry error, got {:?}", other),
+        }
+    }
+}

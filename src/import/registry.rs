@@ -81,6 +81,7 @@ enum State {
 ///
 /// 永続化ファイル `~/.plm/imports.json` を管理する。
 /// 状態遷移を追跡し、不整合な操作を防ぐ。
+#[derive(Debug)]
 pub struct ImportRegistry {
     pub(crate) config_path: PathBuf,
     state: State,
@@ -90,12 +91,10 @@ pub struct ImportRegistry {
 impl ImportRegistry {
     /// 新しいレジストリを作成（デフォルトパス: ~/.plm/imports.json）
     pub fn new() -> Result<Self> {
-        let home = std::env::var("HOME").map_err(|_| {
-            PlmError::ImportRegistry("HOME environment variable not set".to_string())
-        })?;
-        let config_path = PathBuf::from(home).join(".plm").join("imports.json");
+        let paths =
+            crate::env::PlmPaths::new().map_err(|e| PlmError::ImportRegistry(e.to_string()))?;
         Ok(Self {
-            config_path,
+            config_path: paths.imports_json(),
             state: State::Idle,
             config: None,
         })

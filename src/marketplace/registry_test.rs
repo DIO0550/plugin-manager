@@ -3,6 +3,7 @@ use crate::host::HostKind;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Mutex;
+use tempfile::TempDir;
 
 /// モック用のファイル取得結果
 enum MockFileResult {
@@ -333,4 +334,99 @@ fn parse_legacy_cache_with_original_manifest_ignores_unknown_field() {
     assert_eq!(cache.name, "legacy");
     assert_eq!(cache.source.to_string(), "github:o/n");
     assert!(cache.plugins.is_empty());
+}
+
+// ---- PLM_HOME path resolution (#344) ----
+
+use std::sync::OnceLock;
+
+fn plm_env_lock() -> &'static Mutex<()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(()))
+}
+
+struct PlmEnvGuard {
+    saved: Vec<(&'static str, Option<std::ffi::OsString>)>,
+}
+
+impl PlmEnvGuard {
+    fn clear(keys: &[&'static str]) -> Self {
+        let saved = keys
+            .iter()
+            .map(|&key| {
+                let prev = std::env::var_os(key);
+                std::env::remove_var(key);
+                (key, prev)
+            })
+            .collect();
+        Self { saved }
+    }
+
+    fn set(&self, key: &'static str, value: impl AsRef<std::ffi::OsStr>) {
+        std::env::set_var(key, value);
+    }
+}
+
+impl Drop for PlmEnvGuard {
+    fn drop(&mut self) {
+        for (key, prev) in self.saved.drain(..) {
+            match prev {
+                Some(v) => std::env::set_var(key, v),
+                None => std::env::remove_var(key),
+            }
+        }
+    }
+}
+
+#[test]
+fn new_uses_plm_home_for_marketplaces_cache() {
+    let _lock = plm_env_lock().lock().unwrap();
+    let plm_home = TempDir::new().unwrap();
+    let home = TempDir::new().unwrap();
+    let guard = PlmEnvGuard::clear(&["PLM_HOME", "HOME"]);
+    guard.set("PLM_HOME", plm_home.path());
+    guard.set("HOME", home.path());
+
+    let registry = MarketplaceRegistry::new().unwrap();
+    assert_eq!(
+        registry.cache_dir(),
+        plm_home
+            .path()
+            .join(".plm")
+            .join("cache")
+            .join("marketplaces")
+    );
+    assert!(registry.cache_dir().exists());
+}
+
+#[test]
+fn new_falls_back_to_home_for_marketplaces_cache() {
+    let _lock = plm_env_lock().lock().unwrap();
+    let home = TempDir::new().unwrap();
+    let guard = PlmEnvGuard::clear(&["PLM_HOME", "HOME"]);
+    guard.set("HOME", home.path());
+
+    let registry = MarketplaceRegistry::new().unwrap();
+    assert_eq!(
+        registry.cache_dir(),
+        home.path().join(".plm").join("cache").join("marketplaces")
+    );
+}
+
+#[test]
+fn new_errors_when_both_unset_for_marketplaces_cache() {
+    let _lock = plm_env_lock().lock().unwrap();
+    let _guard = PlmEnvGuard::clear(&["PLM_HOME", "HOME"]);
+
+    let err = MarketplaceRegistry::new().unwrap_err();
+    match err {
+        crate::error::PlmError::Cache(msg) => {
+            assert!(
+                msg.contains("not set or empty") || msg.contains("absolute"),
+                "unexpected message: {}",
+                msg
+            );
+        }
+        other => panic!("expected Cache error, got {:?}", other),
+    }
 }

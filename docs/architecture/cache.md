@@ -162,7 +162,7 @@ PLMのキャッシュ設計について説明します。
 
 ## キャッシュ操作
 
-- **ルート解決**: キャッシュルートは `$PLM_HOME/.plm/cache/plugins/`（`PLM_HOME` 未設定時は `$HOME`）。
+- **ルート解決**: キャッシュルートは `{PLM_HOME|$HOME}/.plm/cache/plugins/`（`PLM_HOME` は `$HOME` の代替。未設定時は `$HOME/.plm/cache/plugins/`）。
 - **書き込み**: `.plm-meta.json` は一時ファイル + rename によるアトミック書き込み。破損時は警告を出して `None` 扱いし、次回インストール時に再生成する。
 - **更新**: `backup → download → アトミック差し替え → 再デプロイ → メタ更新` の順で行い、失敗時は `.backup/` から復元する。`--all` は全プラグインを prepare → commit の2段階で処理するバッチアトミック方式（詳細は `src/plugin/lifecycle/update.rs`）。
 

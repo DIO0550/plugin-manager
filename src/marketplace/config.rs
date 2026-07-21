@@ -21,6 +21,7 @@ struct MarketplacesFile {
 }
 
 /// マーケットプレイス設定（marketplaces.json）
+#[derive(Debug)]
 pub struct MarketplaceConfig {
     path: PathBuf,
     marketplaces: Vec<MarketplaceRegistration>,
@@ -29,9 +30,13 @@ pub struct MarketplaceConfig {
 impl MarketplaceConfig {
     /// Load from default path (~/.plm/marketplaces.json)
     pub fn load() -> Result<Self, String> {
-        let home = std::env::var("HOME").map_err(|_| "HOME environment variable not set")?;
-        let path = PathBuf::from(home).join(".plm").join("marketplaces.json");
-        Self::load_from(path)
+        let paths = crate::env::PlmPaths::new().map_err(|e| e.to_string())?;
+        Self::load_from(paths.marketplaces_json())
+    }
+
+    /// 設定ファイルパスを返す（テスト・診断用）
+    pub(crate) fn path(&self) -> &std::path::Path {
+        &self.path
     }
 
     /// Load marketplace config from the given path.

@@ -36,3 +36,7 @@ plugin-workspace
 
 # Local Cursor skill placements
 .cursor/
+
+# Spec / review artifacts (local planning only; not tracked)
+docs/reviews/
+docs/specs/
