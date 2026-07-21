@@ -6,14 +6,41 @@ pub use feature_flag::{apply_codex_hooks_flag, FeatureFlagOutcome};
 
 use crate::component::{Component, ComponentKind, PlacementContext, PlacementLocation, Scope};
 use crate::error::Result;
+use crate::target::filter::{filter_exact_file, filter_skill_dir, filter_suffix_file};
+use crate::target::list_helpers::{list_instruction_at, scan_and_filter, scan_and_filter_in};
 use crate::target::paths::base_dir;
-use crate::target::placed_common;
-use crate::target::scanner::{scan_components, ScannedComponent};
+use crate::target::placement_helpers::{agent_file, instruction_file, skill_dir};
+use crate::target::scope_support::{allows_scope, ScopeSupport};
 use crate::target::{PostPlaceOutcome, Target, TargetKind};
 use std::path::{Path, PathBuf};
 
-const CODEX_SUBDIR: &str = ".codex";
-const CODEX_CONFIG_FILE: &str = "config.toml";
+struct CodexLayout {
+    subdir: &'static str,
+    config_file: &'static str,
+    instruction_file: &'static str,
+    hooks_file: &'static str,
+}
+
+const LAYOUT: CodexLayout = CodexLayout {
+    subdir: ".codex",
+    config_file: "config.toml",
+    instruction_file: "AGENTS.md",
+    hooks_file: "hooks.json",
+};
+
+const SUPPORTED: &[ComponentKind] = &[
+    ComponentKind::Skill,
+    ComponentKind::Agent,
+    ComponentKind::Instruction,
+    ComponentKind::Hook,
+];
+
+const CAPABILITIES: &[(ComponentKind, ScopeSupport)] = &[
+    (ComponentKind::Skill, ScopeSupport::Both),
+    (ComponentKind::Agent, ScopeSupport::Both),
+    (ComponentKind::Instruction, ScopeSupport::Both),
+    (ComponentKind::Hook, ScopeSupport::Both),
+];
 
 /// OpenAI Codex ターゲット
 pub struct CodexTarget;
@@ -23,36 +50,24 @@ impl CodexTarget {
         Self
     }
 
-    /// スコープに応じたベースディレクトリを取得
-    ///
-    /// # Arguments
-    ///
-    /// * `scope` - Scope (`Personal` or `Project`) that selects the base directory.
-    /// * `project_root` - Project root directory used for project scope.
     fn base_dir(scope: Scope, project_root: &Path) -> PathBuf {
-        base_dir(scope, project_root, CODEX_SUBDIR, CODEX_SUBDIR)
+        base_dir(scope, project_root, LAYOUT.subdir, LAYOUT.subdir)
     }
 
     /// スコープに応じた `config.toml` のフルパスを返す。
-    ///
-    /// install/import 経路で `[features] codex_hooks = true` を自動追記する
-    /// 際の書き込み先計算に使う。
-    ///
-    /// # Arguments
-    ///
-    /// * `scope` - Scope (`Personal` or `Project`).
-    /// * `project_root` - Project root directory used for project scope.
     pub(crate) fn config_toml_path(scope: Scope, project_root: &Path) -> PathBuf {
-        Self::base_dir(scope, project_root).join(CODEX_CONFIG_FILE)
+        Self::base_dir(scope, project_root).join(LAYOUT.config_file)
     }
 
-    /// この組み合わせで配置できるか
-    ///
-    /// # Arguments
-    ///
-    /// * `kind` - Component kind to check.
-    fn can_place(kind: ComponentKind) -> bool {
-        kind != ComponentKind::Command
+    fn instruction_path(scope: Scope, project_root: &Path) -> PathBuf {
+        instruction_file(
+            scope,
+            project_root,
+            &Self::base_dir(scope, project_root),
+            LAYOUT.instruction_file,
+        )
+        .as_path()
+        .to_path_buf()
     }
 
     /// Codex は 1 スコープにつき単一の `hooks.json` を読むため、複数 Hook を
@@ -71,26 +86,7 @@ impl CodexTarget {
         })
     }
 
-    /// 配置先 `hooks.json` がすでに存在し、`target_path` が現在のプラグインの
-    /// 管理下に無い場合にエラー文字列を返す。
-    ///
-    /// 共有パス（`.codex/hooks.json` / `~/.codex/hooks.json`）を上書きして
-    /// しまうことで、ユーザーが手書きした hooks や別プラグインが配置した
-    /// hooks を黙って消してしまうのを防ぐ。再 install（同プラグイン）の場合は
-    /// `.plm-meta.json` の `managedFiles["codex"]` に `target_path` が
-    /// 含まれている場合のみ許可する。
-    ///
-    /// 旧実装は `statusByTarget["codex"] == "enabled"` を所有権の根拠に
-    /// していたが、この値は scope 非依存かつコンポーネント種別非依存で、
-    /// (a) personal で enable された状態が project 側 `.codex/hooks.json`
-    /// の上書きを許してしまう、(b) Skill のみ配置したプラグインでも
-    /// 上書きガードを通過してしまう、という不整合があった。
-    /// 絶対パス単位の `managedFiles` でこの両方を解消する。
-    ///
-    /// # Arguments
-    ///
-    /// * `target_path` - Resolved destination path (e.g. `.codex/hooks.json`).
-    /// * `plugin_root` - Cached plugin directory; `.plm-meta.json` lives here.
+    /// 配置先 `hooks.json` がすでに存在し、管理下に無い場合にエラーを返す。
     pub fn hook_overwrite_error(target_path: &Path, plugin_root: &Path) -> Option<String> {
         if !target_path.exists() {
             return None;
@@ -110,28 +106,6 @@ impl CodexTarget {
             target_path.display()
         ))
     }
-
-    /// コンポーネント種別に応じたフィルタリング
-    ///
-    /// # Arguments
-    ///
-    /// * `c` - Scanned component entry.
-    /// * `kind` - Component kind expected for the entry.
-    fn filter_component(c: &ScannedComponent, kind: ComponentKind) -> Option<String> {
-        match kind {
-            // Skill: 直下に SKILL.md が存在するディレクトリのみ採用する。
-            // 旧 3 階層 `<plural>/<mp>/<plg>/<skill>/SKILL.md` の中間段
-            // (`<mp>` ディレクトリ等) を Skill と誤認しないための二重防御。
-            ComponentKind::Skill if c.is_dir && c.path.join("SKILL.md").is_file() => {
-                Some(c.name.clone())
-            }
-            ComponentKind::Agent if !c.is_dir && c.name.ends_with(".agent.md") => {
-                Some(c.name.trim_end_matches(".agent.md").to_string())
-            }
-            ComponentKind::Hook if !c.is_dir && c.name == "hooks.json" => Some("hooks".to_string()),
-            _ => None,
-        }
-    }
 }
 
 impl Default for CodexTarget {
@@ -150,38 +124,31 @@ impl Target for CodexTarget {
     }
 
     fn supported_components(&self) -> &[ComponentKind] {
-        &[
-            ComponentKind::Skill,
-            ComponentKind::Agent,
-            ComponentKind::Instruction,
-            ComponentKind::Hook,
-        ]
+        SUPPORTED
+    }
+
+    fn can_place_scope(&self, kind: ComponentKind, scope: Scope) -> bool {
+        allows_scope(CAPABILITIES, kind, scope)
     }
 
     fn placement_location(&self, context: &PlacementContext) -> Option<PlacementLocation> {
         let kind = context.kind();
-        if !Self::can_place(kind) {
+        let scope = context.scope();
+        if !self.can_place_scope(kind, scope) {
             return None;
         }
 
-        let scope = context.scope();
         let project_root = context.project_root();
         let base = Self::base_dir(scope, project_root);
         let name = context.name();
 
         Some(match kind {
-            // フラット構造: skills/<flattened_name> (ディレクトリ)
-            ComponentKind::Skill => PlacementLocation::dir(base.join("skills").join(name)),
-            // フラット構造: agents/<flattened_name>.agent.md (ファイル)
-            ComponentKind::Agent => {
-                PlacementLocation::file(base.join("agents").join(format!("{}.agent.md", name)))
+            ComponentKind::Skill => skill_dir(&base, name),
+            ComponentKind::Agent => agent_file(&base, name),
+            ComponentKind::Instruction => {
+                instruction_file(scope, project_root, &base, LAYOUT.instruction_file)
             }
-            ComponentKind::Instruction => match scope {
-                // Project scope: AGENTS.md is at project root, not in .codex
-                Scope::Project => PlacementLocation::file(project_root.join("AGENTS.md")),
-                Scope::Personal => PlacementLocation::file(base.join("AGENTS.md")),
-            },
-            ComponentKind::Hook => PlacementLocation::file(base.join("hooks.json")),
+            ComponentKind::Hook => PlacementLocation::file(base.join(LAYOUT.hooks_file)),
             ComponentKind::Command => return None,
         })
     }
@@ -243,33 +210,28 @@ impl Target for CodexTarget {
         scope: Scope,
         project_root: &Path,
     ) -> Result<Vec<String>> {
-        if !Self::can_place(kind) {
+        if !self.can_place_scope(kind, scope) {
             return Ok(vec![]);
         }
 
         if kind == ComponentKind::Instruction {
-            return Ok(placed_common::list_instruction(
-                self,
-                scope,
-                project_root,
-                "AGENTS.md",
+            return Ok(list_instruction_at(
+                &Self::instruction_path(scope, project_root),
+                LAYOUT.instruction_file,
             ));
         }
 
         let base = Self::base_dir(scope, project_root);
-        let dir_path = match kind {
-            ComponentKind::Skill => base.join("skills"),
-            ComponentKind::Agent => base.join("agents"),
-            ComponentKind::Hook => base.clone(),
-            _ => return Ok(vec![]),
-        };
-
-        let names = scan_components(&dir_path)?
-            .into_iter()
-            .filter_map(|c| Self::filter_component(&c, kind))
-            .collect();
-
-        Ok(names)
+        match kind {
+            ComponentKind::Skill => scan_and_filter(&base, "skills", filter_skill_dir),
+            ComponentKind::Agent => {
+                scan_and_filter(&base, "agents", |c| filter_suffix_file(c, ".agent.md"))
+            }
+            ComponentKind::Hook => {
+                scan_and_filter_in(&base, |c| filter_exact_file(c, LAYOUT.hooks_file, "hooks"))
+            }
+            _ => Ok(vec![]),
+        }
     }
 }
 

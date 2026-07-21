@@ -2,14 +2,42 @@
 
 use crate::component::{ComponentKind, PlacementContext, PlacementLocation, Scope};
 use crate::error::Result;
+use crate::target::filter::{filter_json_suffix, filter_skill_dir, filter_suffix_file};
+use crate::target::list_helpers::{list_instruction_at, scan_and_filter};
 use crate::target::paths::base_dir;
-use crate::target::placed_common;
-use crate::target::scanner::{scan_components, ScannedComponent};
+use crate::target::placement_helpers::{agent_file, instruction_under_base, named_file, skill_dir};
+use crate::target::scope_support::{allows_scope, ScopeSupport};
 use crate::target::{Target, TargetKind};
 use std::path::{Path, PathBuf};
 
-const COPILOT_PERSONAL_SUBDIR: &str = ".copilot";
-const COPILOT_PROJECT_SUBDIR: &str = ".github";
+struct CopilotLayout {
+    personal_subdir: &'static str,
+    project_subdir: &'static str,
+    instruction_file: &'static str,
+}
+
+const LAYOUT: CopilotLayout = CopilotLayout {
+    personal_subdir: ".copilot",
+    project_subdir: ".github",
+    instruction_file: "copilot-instructions.md",
+};
+
+const SUPPORTED: &[ComponentKind] = &[
+    ComponentKind::Skill,
+    ComponentKind::Agent,
+    ComponentKind::Command,
+    ComponentKind::Instruction,
+    ComponentKind::Hook,
+];
+
+/// Agent / Hook は両スコープ、それ以外は Project のみ（現行 can_place と同等）。
+const CAPABILITIES: &[(ComponentKind, ScopeSupport)] = &[
+    (ComponentKind::Skill, ScopeSupport::ProjectOnly),
+    (ComponentKind::Agent, ScopeSupport::Both),
+    (ComponentKind::Command, ScopeSupport::ProjectOnly),
+    (ComponentKind::Instruction, ScopeSupport::ProjectOnly),
+    (ComponentKind::Hook, ScopeSupport::Both),
+];
 
 /// GitHub Copilot ターゲット
 pub struct CopilotTarget;
@@ -19,57 +47,13 @@ impl CopilotTarget {
         Self
     }
 
-    /// スコープに応じたベースディレクトリを取得
-    ///
-    /// # Arguments
-    ///
-    /// * `scope` - Scope (`Personal` or `Project`) that selects the base directory.
-    /// * `project_root` - Project root directory used for project scope.
     fn base_dir(scope: Scope, project_root: &Path) -> PathBuf {
         base_dir(
             scope,
             project_root,
-            COPILOT_PERSONAL_SUBDIR,
-            COPILOT_PROJECT_SUBDIR,
+            LAYOUT.personal_subdir,
+            LAYOUT.project_subdir,
         )
-    }
-
-    /// この組み合わせで配置できるか
-    ///
-    /// # Arguments
-    ///
-    /// * `kind` - Component kind to check.
-    /// * `scope` - Scope (`Personal` or `Project`) to check.
-    fn can_place(kind: ComponentKind, scope: Scope) -> bool {
-        matches!(
-            (kind, scope),
-            (ComponentKind::Agent, _) | (ComponentKind::Hook, _) | (_, Scope::Project)
-        )
-    }
-
-    /// コンポーネント種別に応じたフィルタリング（Command対応含む）
-    ///
-    /// # Arguments
-    ///
-    /// * `c` - Scanned component entry.
-    /// * `kind` - Component kind expected for the entry.
-    fn filter_component(c: &ScannedComponent, kind: ComponentKind) -> Option<String> {
-        match kind {
-            // Skill: SKILL.md が直下にあるディレクトリのみ採用（二重防御）。
-            ComponentKind::Skill if c.is_dir && c.path.join("SKILL.md").is_file() => {
-                Some(c.name.clone())
-            }
-            ComponentKind::Agent if !c.is_dir && c.name.ends_with(".agent.md") => {
-                Some(c.name.trim_end_matches(".agent.md").to_string())
-            }
-            ComponentKind::Command if !c.is_dir && c.name.ends_with(".prompt.md") => {
-                Some(c.name.trim_end_matches(".prompt.md").to_string())
-            }
-            ComponentKind::Hook if !c.is_dir && c.name.ends_with(".json") => {
-                Some(c.name.trim_end_matches(".json").to_string())
-            }
-            _ => None,
-        }
     }
 }
 
@@ -89,19 +73,17 @@ impl Target for CopilotTarget {
     }
 
     fn supported_components(&self) -> &[ComponentKind] {
-        &[
-            ComponentKind::Skill,
-            ComponentKind::Agent,
-            ComponentKind::Command,
-            ComponentKind::Instruction,
-            ComponentKind::Hook,
-        ]
+        SUPPORTED
+    }
+
+    fn can_place_scope(&self, kind: ComponentKind, scope: Scope) -> bool {
+        allows_scope(CAPABILITIES, kind, scope)
     }
 
     fn placement_location(&self, context: &PlacementContext) -> Option<PlacementLocation> {
         let kind = context.kind();
         let scope = context.scope();
-        if !Self::can_place(kind, scope) {
+        if !self.can_place_scope(kind, scope) {
             return None;
         }
 
@@ -110,23 +92,11 @@ impl Target for CopilotTarget {
         let name = context.name();
 
         Some(match kind {
-            // フラット構造: skills/<flattened_name> (ディレクトリ)
-            ComponentKind::Skill => PlacementLocation::dir(base.join("skills").join(name)),
-            // フラット構造: agents/<flattened_name>.agent.md (ファイル)
-            ComponentKind::Agent => {
-                PlacementLocation::file(base.join("agents").join(format!("{}.agent.md", name)))
-            }
-            // フラット構造: prompts/<flattened_name>.prompt.md (ファイル)
-            ComponentKind::Command => {
-                PlacementLocation::file(base.join("prompts").join(format!("{}.prompt.md", name)))
-            }
-            ComponentKind::Instruction => {
-                PlacementLocation::file(base.join("copilot-instructions.md"))
-            }
-            // フラット構造: hooks/<flattened_name>.json (ファイル)
-            ComponentKind::Hook => {
-                PlacementLocation::file(base.join("hooks").join(format!("{}.json", name)))
-            }
+            ComponentKind::Skill => skill_dir(&base, name),
+            ComponentKind::Agent => agent_file(&base, name),
+            ComponentKind::Command => named_file(&base, "prompts", name, ".prompt.md"),
+            ComponentKind::Instruction => instruction_under_base(&base, LAYOUT.instruction_file),
+            ComponentKind::Hook => named_file(&base, "hooks", name, ".json"),
         })
     }
 
@@ -136,34 +106,30 @@ impl Target for CopilotTarget {
         scope: Scope,
         project_root: &Path,
     ) -> Result<Vec<String>> {
-        if !Self::can_place(kind, scope) {
+        if !self.can_place_scope(kind, scope) {
             return Ok(vec![]);
         }
 
+        let base = Self::base_dir(scope, project_root);
+
         if kind == ComponentKind::Instruction {
-            return Ok(placed_common::list_instruction(
-                self,
-                scope,
-                project_root,
-                "copilot-instructions.md",
+            return Ok(list_instruction_at(
+                &base.join(LAYOUT.instruction_file),
+                LAYOUT.instruction_file,
             ));
         }
 
-        let base = Self::base_dir(scope, project_root);
-        let dir_path = match kind {
-            ComponentKind::Skill => base.join("skills"),
-            ComponentKind::Agent => base.join("agents"),
-            ComponentKind::Command => base.join("prompts"),
-            ComponentKind::Hook => base.join("hooks"),
-            _ => return Ok(vec![]),
-        };
-
-        let names = scan_components(&dir_path)?
-            .into_iter()
-            .filter_map(|c| Self::filter_component(&c, kind))
-            .collect();
-
-        Ok(names)
+        match kind {
+            ComponentKind::Skill => scan_and_filter(&base, "skills", filter_skill_dir),
+            ComponentKind::Agent => {
+                scan_and_filter(&base, "agents", |c| filter_suffix_file(c, ".agent.md"))
+            }
+            ComponentKind::Command => {
+                scan_and_filter(&base, "prompts", |c| filter_suffix_file(c, ".prompt.md"))
+            }
+            ComponentKind::Hook => scan_and_filter(&base, "hooks", filter_json_suffix),
+            _ => Ok(vec![]),
+        }
     }
 }
 
