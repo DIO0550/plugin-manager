@@ -36,6 +36,7 @@ GitHubからAI開発環境向けのプラグインをダウンロードし、複
 - [Architecture](./architecture/overview.md) - 内部アーキテクチャ
 - [Reference](./reference/config.md) - 技術リファレンス
 - [Roadmap](./roadmap.md) - 実装状況・ロードマップ
+- [Target Layout リファクタ計画](./target-layout-refactor/index.md) - #338 宣言的ケイパビリティ集約（計画）
 
 ## 対応規格
 
