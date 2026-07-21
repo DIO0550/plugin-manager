@@ -1,863 +1,459 @@
-# target/env 宣言的ケイパビリティ集約
+# target/env impl ベース共通骨格抽出
 
 **関連Issue**: #338
+**方針**: bottom-up impl 抽出（2026-07-21 方針転換済み。旧 top-down DSL 設計は廃止）
 
-`target/env/` の 5 実装（Antigravity / Gemini CLI / Codex / Copilot / Cursor）で `list_placed` / `filter_component` / `placement_location` / `base_dir` の制御フローがコピペされており、`supported_components` スライスと `can_place`（実配置ガード）の二重真実源が乖離リスクを生んでいる。差分を `TargetLayout` 宣言的記述子に集約し、サポート判定の単一真実源を確立する。
+`target/env/` 5 実装に同型コピペされている `list_placed` 骨格 / `filter_component` Skill アーム / `placement_location` 共通パターンを、**既存 impl から bottom-up で共通ヘルパとして抽出**する。`supports_scope` のダミープロービング hack も除去する。新規の宣言的 DSL（`PlacementRule`/`DiscoverRule` 等）は当面作成せず、必要に応じて Phase F で薄い定数として後付けする。
 
 ## ユーザーレビューが必要な点
 
 > **NOTE**
 > - 振る舞い不変（パス・サポート可否・list 結果を変えない）のリファクタリングです。CLI 仕様変更なし。
-> - Phase 0〜6 の段階移行（各 Phase が独立 PR）。ビッグバンなし。
-> - `Target` trait に `fn layout() -> &'static TargetLayout` を追加した場合、`FakeTarget`（sync テスト等）はデフォルト実装で動作します。既存テストへの影響なし。
-> - Cursor Skill の `original_name` 必須制約は `NamingPolicy::OriginalNameRequired` として明示され、現状の暗黙 None 返りが設計として文書化されます。
+> - Phase A〜G の段階移行（各 Phase が独立コミット/PR）。ビッグバンなし。
+> - 外向き API（`placement_location` / `list_placed` / `supported_components` / `supports_scope` のシグネチャ）は一切変えません。
+> - 旧計画にあった `TargetLayout` / `PlacementRule` / `DiscoverRule` 等の大規模 DSL は Phase F でのみ「必要ならデータ化」という方向性に格下げです。
+
+---
 
 ## システム図
 
-### 移行前後の構造フロー
+### 移行前後の `list_placed` 骨格フロー
 
 ```
-【移行前】
+【移行前: 5 ファイルにコピペ】
 
-supports_scope(kind, scope)
-         │
-         ▼ ダミー PlacementContext("test") 生成
-placement_location(dummy_ctx)
-         │
-         ▼ is_some() で判定 ← hack
-         結果
+antigravity.rs::list_placed()        gemini_cli.rs::list_placed()
+    │                                      │
+    ├── can_place(kind)                    ├── can_place(kind)
+    │       ↓ false → Ok([])              │       ↓ false → Ok([])
+    ├── base_dir(scope, root)             ├── base_dir(scope, root)
+    ├── dir_path = base.join("skills")    ├── dir_path = base.join("skills")
+    ├── scan_components(&dir_path)        ├── scan_components(&dir_path)   ← 同じ
+    └── filter_map(filter_component)      └── filter_map(filter_component) ← 同じ
 
-list_placed(kind, scope, root)
-         │
-         ├── can_place(kind [, scope]) // 各 env に手書き
-         │         │
-         │      false ─────────────▶ Ok([])
-         │         │ true
-         │         ▼
-         ├── base_dir(scope, root)   // 各 env に手書き
-         │         │
-         │         ▼
-         ├── scan_components(dir)
-         │         │
-         │         ▼
-         └── filter_component(c, kind)  // 各 env にコピペ
-                   │
-                   ▼ Ok(names)
+(+ codex.rs, copilot.rs, cursor.rs でも同じ骨格)
 
-supported_components() → &[ComponentKind]  // 手書きスライス（scope 非依存）
+【移行後: 共通ヘルパに集約】
+
+antigravity.rs::list_placed()
+    │
+    └── list_placed_skill(&SKILL_CONFIG, scope, root)
+              ↓
+         shared_helper::list_skill_placed(base, "skills")
+              │
+              ├── can_place チェック（config 参照）
+              ├── scan_components(&dir_path)    ← 既存再利用
+              └── filter_map(is_skill_dir)      ← 共通 Skill フィルタ
 ```
 
-```
-【移行後】
-
-supports_scope(kind, scope)
-         │
-         ▼ layout().capabilities 参照
-ScopeSet::contains(scope)  ← ダミー廃止
-         │
-         ▼ 結果
-
-list_placed(kind, scope, root)
-         │
-         ▼
-supports_scope(kind, scope)  // capabilities 参照
-         │
-      false ──────────────────▶ Ok([])
-         │ true
-         ▼
-capability.discover == InstructionExists?
-         │ yes
-         ├── path = 直接計算（origin 不要）
-         ├── path.exists() → [filename] or []
-         │ no
-         ▼
-dir = scan_root(capability) // PlacementRule から直接
-         │
-         ▼
-scan_components(dir)
-         │
-         ▼
-apply_discover(c, capability.discover)  // DiscoverRule で統一
-         │
-         ▼ Ok(names)
-
-supported_components()  // capabilities から導出（手書き不要）
-    capabilities
-      .iter()
-      .filter(|c| !c.scopes.is_empty())
-      .map(|c| c.kind)
-```
-
-### TargetLayout データモデル
+### `supports_scope` ダミープロービング廃止フロー
 
 ```
-TargetLayout
-├── kind: TargetKind
-├── display_name: &'static str
-├── base: BasePathLayout
-│   ├── personal: BasePathSpec
-│   │   ├── Subdir(&'static str)          // 例: ".codex", ".cursor"
-│   │   └── Nested { parent, child }       // 例: Antigravity ".gemini/antigravity"
-│   └── project: BasePathSpec              // 例: ".codex", ".github", ".agent"
-└── components: &'static [ComponentCapability]
-    └── ComponentCapability
-        ├── kind: ComponentKind
-        ├── scopes: ScopeSet               // PersonalOnly / ProjectOnly / Both
-        ├── placement: PlacementRule
-        │   ├── ComponentDir { subdir, naming }     // Skill 典型
-        │   ├── ComponentFile { subdir, suffix, naming }  // Agent/Command/Hook
-        │   ├── FixedAtBase { filename }             // Codex/Cursor hooks.json
-        │   └── InstructionFile { filename, project_location }
-        └── discover: DiscoverRule
-            ├── SkillManifestDir
-            ├── SuffixFile { suffix }
-            ├── PlainMarkdownFile
-            ├── ExactFile { filename, listed_as }
-            ├── JsonSuffixFile
-            └── InstructionExists
+【移行前: ダミープロービング hack】
 
-NamingPolicy
-├── FlattenedName               // context.name() (ほとんどの種別)
-└── OriginalNameRequired        // context.original_name() 必須 (Cursor Skill)
+Target::supports_scope(kind, scope)  [src/target.rs:258]
+    │
+    ▼ ダミー PlacementContext("test") 生成
+    ▼ placement_location(dummy_ctx)
+    ▼ is_some() → サポート判定 ← hack!
 
-InstructionProjectLocation
-├── ProjectRoot                 // Codex/Cursor AGENTS.md, Gemini GEMINI.md
-└── UnderBase                   // Copilot copilot-instructions.md
+placed_common::list_instruction()
+    │
+    ▼ dummy_origin("test") 生成
+    ▼ target.placement_location(dummy_ctx)
+    ▼ path.exists() → ファイル存在確認
+
+【移行後: can_place 直接参照】
+
+Target::supports_scope(kind, scope)
+    │
+    ▼ self.can_place(kind, scope)  ← env が実装 or デフォルト実装
+    ▼ 直接 bool 返却（ダミー廃止）
+
+list_instruction_direct(target_path: &Path, filename: &str) → Vec<String>
+    │
+    ▼ target_path.exists() → ファイル存在確認（パス計算は呼び出し元が行う）
+```
+
+### `filter_component` 共通アーム抽出図
+
+```
+【移行前: 5 ファイルに同一コード】
+
+antigravity: match kind { Skill if c.is_dir && SKILL.md.exists => name, _ => None }
+gemini:      match kind { Skill if c.is_dir && SKILL.md.exists => name, _ => None }  ← コピペ
+codex:       match kind { Skill if c.is_dir && SKILL.md.exists => name, ... }        ← コピペ
+copilot:     match kind { Skill if c.is_dir && SKILL.md.exists => name, ... }        ← コピペ
+cursor:      match kind { Skill if c.is_dir && SKILL.md.exists => name, ... }        ← コピペ
+
+【移行後: 共通 Skill フィルタを 1 か所に】
+
+// src/target/placed/scanner.rs または src/target/placed/filter.rs（新規）
+pub fn filter_skill_dir(c: &ScannedComponent) -> Option<String> {
+    if c.is_dir && c.path.join("SKILL.md").is_file() {
+        Some(c.name.clone())
+    } else {
+        None
+    }
+}
+
+// 各 env の filter_component から Skill アームを削除し、共通関数を呼ぶ
+match kind {
+    ComponentKind::Skill => filter_skill_dir(c),
+    // 差分アームは env ファイルに残す
+    ComponentKind::Agent if !c.is_dir && c.name.ends_with(".agent.md") => { ... }
+    ...
+}
+```
+
+### `placement_location` 共通パターン抽出図
+
+```
+【共通ヘルパ化対象パターン】
+
+Skill（全5実装で同一形式）:
+  PlacementLocation::dir(base.join("skills").join(name))
+  → skill_placement_dir(base, name) に抽出
+
+Agent（Codex/Copilot/Cursor で同一形式）:
+  PlacementLocation::file(base.join("agents").join(format!("{}.agent.md", name)))
+  → agent_placement_file(base, name) に抽出
+
+Instruction（Gemini/Codex/Cursor で類似、filename が異なるのみ）:
+  match scope {
+      Project => PlacementLocation::file(project_root.join(filename)),
+      Personal => PlacementLocation::file(base.join(filename)),
+  }
+  → instruction_placement_file(scope, project_root, base, filename) に抽出
 ```
 
 ### Phase 移行フロー（状態マシン）
 
 ```
-  Phase 0: 仕様凍結・受け入れテスト棚卸し
-        │ 現状テスト全 green 確認、不足テスト追加
+  Phase A: 5 impl の差分表確定（読み取りのみ）
+        │ exploration-report §8 を仕様凍結
         ▼
-  Phase 1: TargetLayout モデル + 導出ヘルパ（TDD）
-        │ src/target/layout/ 追加、既存 env 未変更
+  Phase B: list_placed 共通骨格をヘルパに抽出
+        │ Antigravity / Gemini から適用
         ▼
-  Phase 2: Antigravity / Gemini CLI 移行
-        │ 最小ターゲット2つ、フックなし
+  Phase C: filter_component Skill アーム共通化
+        │ filter_skill_dir 関数を 1 か所に
         ▼
-  Phase 3: Codex / Copilot 移行
-        │ Instruction/Hook 含む、placed_common 縮小
+  Phase D: supports_scope ダミープロービング廃止
+        │ can_place 直接参照 + list_instruction 直接計算
         ▼
-  Phase 4: Cursor 移行
-        │ OriginalNameRequired 含む最終ターゲット
+  Phase E: placement_location 共通パターンをヘルパ化
+        │ Skill/Agent/Instruction の共通形
         ▼
-  Phase 5: trait デフォルト接続・ダミー廃止
-        │ supports_scope デフォルト実装置換
-        │ placed_common::list_instruction 廃止
+  Phase F: 残った純粋データ差分を薄い定数にまとめる（省略可）
+        │ 必要なら struct Config / static LAYOUT を後付け
         ▼
-  Phase 6: ドキュメント同期・掃除
-        │ docs/concepts 更新、死コード削除
+  Phase G: ドキュメント同期・不変条件テスト・死コード削除
+        │
         ▼
-       完了（G-001 / G-002 / G-003 達成）
+       完了（FR-001〜FR-007 達成）
 ```
 
 ---
 
 ## 変更案
 
-### Phase 1: 新規モジュール追加（既存 env は変更しない）
+### Phase A: 5 impl 差分表確定（コード変更なし）
 
-#### [NEW] `src/target/layout.rs`
+**目的**: exploration-report §8 の差分表を仕様として凍結し、移行後の期待値を確定する。
 
-`target/layout` モジュールのルート。データ型・導出ヘルパを集約する。
+**成果物**: `exploration-report.md §8`（既に補強済み）
+
+**凍結する差分表（BL-005 相当）**:
+
+| kind | scope | Antigravity | Gemini | Codex | Copilot | Cursor |
+|------|-------|-------------|--------|-------|---------|--------|
+| Skill | Personal | ✓ `.gemini/antigravity/skills/<n>` | ✓ `.gemini/skills/<n>` | ✓ `.codex/skills/<n>` | ✗ | ✓ `.cursor/skills/<original>` |
+| Skill | Project | ✓ `.agent/skills/<n>` | ✓ `.gemini/skills/<n>` | ✓ `.codex/skills/<n>` | ✓ `.github/skills/<n>` | ✓ `.cursor/skills/<original>` |
+| Agent | Personal | ✗ | ✗ | ✓ `.codex/agents/<n>.agent.md` | ✓ `.copilot/agents/<n>.agent.md` | ✓ `.cursor/agents/<n>.agent.md` |
+| Agent | Project | ✗ | ✗ | ✓ `.codex/agents/<n>.agent.md` | ✓ `.github/agents/<n>.agent.md` | ✓ `.cursor/agents/<n>.agent.md` |
+| Command | Personal | ✗ | ✗ | ✗ | ✗ | ✓ `.cursor/rules/<n>.md` |
+| Command | Project | ✗ | ✗ | ✗ | ✓ `.github/prompts/<n>.prompt.md` | ✓ `.cursor/rules/<n>.md` |
+| Instruction | Personal | ✗ | ✓ `~/.gemini/GEMINI.md` | ✓ `~/.codex/AGENTS.md` | ✗ | ✗ |
+| Instruction | Project | ✗ | ✓ `GEMINI.md`(root) | ✓ `AGENTS.md`(root) | ✓ `.github/copilot-instructions.md` | ✓ `AGENTS.md`(root) |
+| Hook | Personal | ✗ | ✗ | ✓ `~/.codex/hooks.json` | ✓ `~/.copilot/hooks/*.json` | ✓ `~/.cursor/hooks.json` |
+| Hook | Project | ✗ | ✗ | ✓ `.codex/hooks.json` | ✓ `.github/hooks/*.json` | ✓ `.cursor/hooks.json` |
+
+---
+
+### Phase B: `list_placed` 共通骨格をヘルパに抽出
+
+**対象ファイル**: `src/target/env/antigravity.rs`, `src/target/env/gemini_cli.rs`（まず2ファイルで検証）
+
+**[NEW] `src/target/placed/list_helpers.rs`（または `src/target/placed/scanner.rs` に追加）**
 
 ```rust
-// src/target/layout.rs
-
-mod derive;
-mod model;
-
-pub use derive::{
-    derive_list_placed, derive_placement_location, derive_supported_components,
-    derive_supports_scope,
-};
-pub use model::{
-    BasePathLayout, BasePathSpec, ComponentCapability, DiscoverRule, InstructionProjectLocation,
-    NamingPolicy, PlacementRule, ScopeSet, TargetLayout,
-};
-```
-
-#### [NEW] `src/target/layout/model.rs`
-
-`TargetLayout` と関連型の定義。すべて `'static` 寿命を持つ定数として使える。
-
-```rust
-// src/target/layout/model.rs
+// src/target/placed/list_helpers.rs
 
 use crate::component::{ComponentKind, Scope};
-use crate::target::TargetKind;
+use crate::error::Result;
+use crate::target::scanner::{scan_components, ScannedComponent};
+use std::path::Path;
 
-pub struct TargetLayout {
-    pub kind: TargetKind,
-    pub display_name: &'static str,
-    pub base: BasePathLayout,
-    pub components: &'static [ComponentCapability],
-}
-
-pub struct BasePathLayout {
-    pub personal: BasePathSpec,
-    pub project: BasePathSpec,
-}
-
-pub enum BasePathSpec {
-    /// `~/.<subdir>` または `<root>/.<subdir>`
-    Subdir(&'static str),
-    /// Antigravity Personal のように `~/<parent>/<child>`
-    Nested { parent: &'static str, child: &'static str },
-}
-
-pub struct ComponentCapability {
-    pub kind: ComponentKind,
-    pub scopes: ScopeSet,
-    pub placement: PlacementRule,
-    pub discover: DiscoverRule,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum ScopeSet {
-    PersonalOnly,
-    ProjectOnly,
-    Both,
-}
-
-impl ScopeSet {
-    pub fn contains(self, scope: Scope) -> bool {
-        match (self, scope) {
-            (ScopeSet::Both, _) => true,
-            (ScopeSet::PersonalOnly, Scope::Personal) => true,
-            (ScopeSet::ProjectOnly, Scope::Project) => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_empty(self) -> bool { false }  // enum なので常に非空
-}
-
-pub enum PlacementRule {
-    ComponentDir { subdir: &'static str, naming: NamingPolicy },
-    ComponentFile { subdir: &'static str, suffix: &'static str, naming: NamingPolicy },
-    FixedAtBase { filename: &'static str },
-    InstructionFile { filename: &'static str, project_location: InstructionProjectLocation },
-}
-
-pub enum DiscoverRule {
-    SkillManifestDir,
-    SuffixFile { suffix: &'static str },
-    PlainMarkdownFile,
-    ExactFile { filename: &'static str, listed_as: &'static str },
-    JsonSuffixFile,
-    InstructionExists,
-}
-
-#[derive(Clone, Copy)]
-pub enum NamingPolicy {
-    FlattenedName,
-    OriginalNameRequired,
-}
-
-#[derive(Clone, Copy)]
-pub enum InstructionProjectLocation {
-    ProjectRoot,
-    UnderBase,
+/// Skill / Agent / Hook などのディレクトリスキャン共通骨格
+///
+/// 各 env は subdir・filter クロージャだけ渡すだけになる。
+pub(crate) fn scan_and_filter(
+    base: &Path,
+    subdir: &str,
+    filter: impl Fn(&ScannedComponent) -> Option<String>,
+) -> Result<Vec<String>> {
+    let dir_path = base.join(subdir);
+    let names = scan_components(&dir_path)?
+        .into_iter()
+        .filter_map(|c| filter(&c))
+        .collect();
+    Ok(names)
 }
 ```
 
-#### [NEW] `src/target/layout/derive.rs`
-
-`TargetLayout` から `placement_location` / `list_placed` / `supported_components` / `supports_scope` を導出する共通ヘルパ関数。
+**[MODIFY] `src/target/env/antigravity.rs` — `list_placed` をヘルパ利用に変更**
 
 ```rust
-// src/target/layout/derive.rs
-
-use crate::component::{ComponentKind, PlacementContext, PlacementLocation, Scope};
-use crate::error::Result;
-use crate::target::core::paths::{base_dir, home_dir};
-use crate::target::placed::scanner::scan_components;
-use crate::target::layout::model::*;
-use std::path::Path;
-
-/// TargetLayout から PlacementLocation を導出する
-pub fn derive_placement_location(
-    layout: &TargetLayout,
-    context: &PlacementContext,
-) -> Option<PlacementLocation> {
-    let kind = context.kind();
-    let scope = context.scope();
-    let cap = layout.components.iter().find(|c| c.kind == kind)?;
-    if !cap.scopes.contains(scope) {
-        return None;
-    }
-    let base = resolve_base(&layout.base, scope, context.project_root());
-    resolve_placement(&cap.placement, context, &base, scope, context.project_root())
-}
-
-/// TargetLayout から supports_scope を導出する（ダミーコンテキスト不要）
-pub fn derive_supports_scope(
-    layout: &TargetLayout,
-    kind: ComponentKind,
-    scope: Scope,
-) -> bool {
-    layout.components.iter()
-        .any(|c| c.kind == kind && c.scopes.contains(scope))
-}
-
-/// TargetLayout から supported_components を導出する
-pub fn derive_supported_components(layout: &'static TargetLayout) -> Vec<ComponentKind> {
-    let mut kinds: Vec<ComponentKind> = layout.components.iter()
-        .map(|c| c.kind)
-        .collect();
-    kinds.dedup();
-    kinds
-}
-
-/// TargetLayout から list_placed を導出する
-pub fn derive_list_placed(
-    layout: &TargetLayout,
-    kind: ComponentKind,
-    scope: Scope,
-    project_root: &Path,
-) -> Result<Vec<String>> {
-    if !derive_supports_scope(layout, kind, scope) {
+// 変更前
+fn list_placed(&self, kind: ComponentKind, scope: Scope, project_root: &Path) -> Result<Vec<String>> {
+    if !Self::can_place(kind) {
         return Ok(vec![]);
     }
-    let cap = layout.components.iter().find(|c| c.kind == kind).unwrap();
-    // Instruction は直接パス計算（scan 不要）
-    if matches!(cap.discover, DiscoverRule::InstructionExists) {
-        return list_instruction_exists(layout, kind, scope, project_root);
-    }
-    let base = resolve_base(&layout.base, scope, project_root);
-    let dir = scan_dir_for_capability(&cap.placement, &base);
-    let names = scan_components(&dir)?
+    let base = Self::base_dir(scope, project_root);
+    let dir_path = base.join("skills");
+    let names = scan_components(&dir_path)?
         .into_iter()
-        .filter_map(|c| apply_discover(&c, &cap.discover))
+        .filter_map(|c| Self::filter_component(&c, kind))
         .collect();
     Ok(names)
 }
 
-// ... 内部ヘルパ: resolve_base / resolve_placement / resolve_name / scan_dir / apply_discover
-```
-
-#### [NEW] `src/target/layout/model_test.rs`
-
-`TargetLayout` 型定義の単体テスト（Phase 1 Red-Green）。
-
-```rust
-// src/target/layout/model_test.rs
-
-use super::*;
-
-#[test]
-fn test_scope_set_both_contains_all() {
-    assert!(ScopeSet::Both.contains(Scope::Personal));
-    assert!(ScopeSet::Both.contains(Scope::Project));
-}
-
-#[test]
-fn test_scope_set_personal_only() {
-    assert!(ScopeSet::PersonalOnly.contains(Scope::Personal));
-    assert!(!ScopeSet::PersonalOnly.contains(Scope::Project));
-}
-
-#[test]
-fn test_scope_set_project_only() {
-    assert!(ScopeSet::ProjectOnly.contains(Scope::Project));
-    assert!(!ScopeSet::ProjectOnly.contains(Scope::Personal));
-}
-```
-
-#### [NEW] `src/target/layout/derive_test.rs`
-
-架空の `TargetLayout` でヘルパ関数をテーブル駆動テスト（Phase 1 Red-Green 核心）。
-
-```rust
-// src/target/layout/derive_test.rs
-
-// テスト用の最小 TargetLayout を定義し、derive_supports_scope /
-// derive_placement_location / derive_list_placed の導出が
-// 既存ターゲットと同等であることを検証する。
-
-use super::*;
-use crate::component::{ComponentKind, Scope};
-
-const TEST_LAYOUT: TargetLayout = TargetLayout {
-    kind: crate::target::TargetKind::Antigravity,
-    display_name: "Test",
-    base: BasePathLayout {
-        personal: BasePathSpec::Subdir(".test"),
-        project: BasePathSpec::Subdir(".test"),
-    },
-    components: &[
-        ComponentCapability {
-            kind: ComponentKind::Skill,
-            scopes: ScopeSet::Both,
-            placement: PlacementRule::ComponentDir {
-                subdir: "skills",
-                naming: NamingPolicy::FlattenedName,
-            },
-            discover: DiscoverRule::SkillManifestDir,
-        },
-    ],
-};
-
-#[test]
-fn test_derive_supports_scope_skill_both() {
-    assert!(derive_supports_scope(&TEST_LAYOUT, ComponentKind::Skill, Scope::Personal));
-    assert!(derive_supports_scope(&TEST_LAYOUT, ComponentKind::Skill, Scope::Project));
-}
-
-#[test]
-fn test_derive_supports_scope_agent_not_in_layout() {
-    assert!(!derive_supports_scope(&TEST_LAYOUT, ComponentKind::Agent, Scope::Personal));
-}
-
-#[test]
-fn test_derive_list_placed_unsupported_returns_empty() {
-    use tempfile::TempDir;
-    let tmp = TempDir::new().unwrap();
-    let result = derive_list_placed(&TEST_LAYOUT, ComponentKind::Agent, Scope::Project, tmp.path());
-    assert!(result.unwrap().is_empty());
+// 変更後
+fn list_placed(&self, kind: ComponentKind, scope: Scope, project_root: &Path) -> Result<Vec<String>> {
+    if !Self::can_place(kind) {
+        return Ok(vec![]);
+    }
+    let base = Self::base_dir(scope, project_root);
+    match kind {
+        ComponentKind::Skill => scan_and_filter(&base, "skills", filter_skill_dir),
+        _ => Ok(vec![]),
+    }
 }
 ```
 
 ---
 
-### Phase 2: Antigravity / Gemini CLI 移行
+### Phase C: `filter_component` Skill アーム共通化
 
-#### [MODIFY] `src/target/env/antigravity.rs`
-
-`can_place` / `base_dir` / `filter_component` を削除し、`LAYOUT` 定数 + 共通ヘルパに置換。
+**[NEW] `src/target/placed/filter.rs`（または list_helpers.rs に追加）**
 
 ```rust
-// before: (現状)
-impl AntigravityTarget {
-    fn base_dir(scope: Scope, project_root: &Path) -> PathBuf {
-        match scope {
-            Scope::Personal => home_dir().join(ANTIGRAVITY_PERSONAL_PARENT).join(ANTIGRAVITY_PERSONAL_CHILD),
-            Scope::Project => project_root.join(ANTIGRAVITY_PROJECT_SUBDIR),
+// src/target/placed/filter.rs
+
+use crate::target::scanner::ScannedComponent;
+
+/// SKILL.md を含むディレクトリを Skill として認識する共通フィルタ
+/// （全 5 実装で同一だったロジックを 1 か所に集約）
+pub(crate) fn filter_skill_dir(c: &ScannedComponent) -> Option<String> {
+    if c.is_dir && c.path.join("SKILL.md").is_file() {
+        Some(c.name.clone())
+    } else {
+        None
+    }
+}
+```
+
+**[MODIFY] 各 env の `filter_component` — Skill アームを削除してヘルパ呼び出しに**
+
+```rust
+// 各 env で Skill アームを filter_skill_dir に置き換える
+fn filter_component(c: &ScannedComponent, kind: ComponentKind) -> Option<String> {
+    match kind {
+        ComponentKind::Skill => filter_skill_dir(c),  // ← 共通ヘルパへ
+        ComponentKind::Agent if !c.is_dir && c.name.ends_with(".agent.md") => {
+            Some(c.name.trim_end_matches(".agent.md").to_string())
         }
-    }
-    fn can_place(kind: ComponentKind) -> bool { kind == ComponentKind::Skill }
-    fn filter_component(c: &ScannedComponent, kind: ComponentKind) -> Option<String> { ... }
-}
-
-impl Target for AntigravityTarget {
-    fn supported_components(&self) -> &[ComponentKind] { &[ComponentKind::Skill] }
-    fn placement_location(&self, context: &PlacementContext) -> Option<PlacementLocation> { ... }
-    fn list_placed(&self, kind: ComponentKind, scope: Scope, project_root: &Path) -> Result<Vec<String>> { ... }
-}
-```
-
-```rust
-// after: (LAYOUT 定数 + 共通ヘルパ)
-use crate::target::layout::{
-    BasePathLayout, BasePathSpec, ComponentCapability, DiscoverRule, NamingPolicy,
-    PlacementRule, ScopeSet, TargetLayout,
-    derive_placement_location, derive_list_placed, derive_supported_components, derive_supports_scope,
-};
-
-const LAYOUT: TargetLayout = TargetLayout {
-    kind: TargetKind::Antigravity,
-    display_name: "Google Antigravity",
-    base: BasePathLayout {
-        personal: BasePathSpec::Nested { parent: ".gemini", child: "antigravity" },
-        project: BasePathSpec::Subdir(".agent"),
-    },
-    components: &[
-        ComponentCapability {
-            kind: ComponentKind::Skill,
-            scopes: ScopeSet::Both,
-            placement: PlacementRule::ComponentDir { subdir: "skills", naming: NamingPolicy::FlattenedName },
-            discover: DiscoverRule::SkillManifestDir,
-        },
-    ],
-};
-
-impl Target for AntigravityTarget {
-    fn display_name(&self) -> &'static str { LAYOUT.display_name }
-    fn kind(&self) -> TargetKind { TargetKind::Antigravity }
-    fn supported_components(&self) -> &[ComponentKind] {
-        // Phase 5 で trait デフォルト実装へ移行。それまでは静的スライスのまま
-        &[ComponentKind::Skill]
-    }
-    fn supports_scope(&self, kind: ComponentKind, scope: Scope) -> bool {
-        derive_supports_scope(&LAYOUT, kind, scope)
-    }
-    fn placement_location(&self, context: &PlacementContext) -> Option<PlacementLocation> {
-        derive_placement_location(&LAYOUT, context)
-    }
-    fn list_placed(&self, kind: ComponentKind, scope: Scope, project_root: &Path) -> Result<Vec<String>> {
-        derive_list_placed(&LAYOUT, kind, scope, project_root)
+        // 差分アームは各 env に残す
+        _ => None,
     }
 }
 ```
 
-#### [MODIFY] `src/target/env/gemini_cli.rs`
-
-Antigravity と同様の置換。`LAYOUT` 定数に Instruction を追加。
-
-```rust
-// after: LAYOUT 定数の主要部分
-const LAYOUT: TargetLayout = TargetLayout {
-    kind: TargetKind::GeminiCli,
-    display_name: "Gemini CLI",
-    base: BasePathLayout {
-        personal: BasePathSpec::Subdir(".gemini"),
-        project: BasePathSpec::Subdir(".gemini"),
-    },
-    components: &[
-        ComponentCapability {
-            kind: ComponentKind::Skill,
-            scopes: ScopeSet::Both,
-            placement: PlacementRule::ComponentDir { subdir: "skills", naming: NamingPolicy::FlattenedName },
-            discover: DiscoverRule::SkillManifestDir,
-        },
-        ComponentCapability {
-            kind: ComponentKind::Instruction,
-            scopes: ScopeSet::Both,
-            placement: PlacementRule::InstructionFile {
-                filename: "GEMINI.md",
-                project_location: InstructionProjectLocation::ProjectRoot,
-            },
-            discover: DiscoverRule::InstructionExists,
-        },
-    ],
-};
-```
-
 ---
 
-### Phase 3: Codex / Copilot 移行
+### Phase D: `supports_scope` ダミープロービング廃止
 
-#### [MODIFY] `src/target/env/codex.rs`
+**[MODIFY] `src/target.rs` — `supports_scope` デフォルト実装を書き換え**
 
-Hook / Agent / Instruction の `PlacementRule` を含む。振る舞いフック（`pre_place_check`, `post_place`, `component_conflict_error`）は残す。
+現行のダミー実装（`src/target.rs:258-266`）を廃止する。廃止後の実装は以下の 2 方式のうち実装時に選択する：
 
-```rust
-// after: LAYOUT 定数（フック override は別途 impl Target に残す）
-const LAYOUT: TargetLayout = TargetLayout {
-    kind: TargetKind::Codex,
-    display_name: "OpenAI Codex",
-    base: BasePathLayout {
-        personal: BasePathSpec::Subdir(".codex"),
-        project: BasePathSpec::Subdir(".codex"),
-    },
-    components: &[
-        ComponentCapability {
-            kind: ComponentKind::Skill,
-            scopes: ScopeSet::Both,
-            placement: PlacementRule::ComponentDir { subdir: "skills", naming: NamingPolicy::FlattenedName },
-            discover: DiscoverRule::SkillManifestDir,
-        },
-        ComponentCapability {
-            kind: ComponentKind::Agent,
-            scopes: ScopeSet::Both,
-            placement: PlacementRule::ComponentFile { subdir: "agents", suffix: ".agent.md", naming: NamingPolicy::FlattenedName },
-            discover: DiscoverRule::SuffixFile { suffix: ".agent.md" },
-        },
-        ComponentCapability {
-            kind: ComponentKind::Instruction,
-            scopes: ScopeSet::Both,
-            placement: PlacementRule::InstructionFile {
-                filename: "AGENTS.md",
-                project_location: InstructionProjectLocation::ProjectRoot,
-            },
-            discover: DiscoverRule::InstructionExists,
-        },
-        ComponentCapability {
-            kind: ComponentKind::Hook,
-            scopes: ScopeSet::Both,
-            placement: PlacementRule::FixedAtBase { filename: "hooks.json" },
-            discover: DiscoverRule::ExactFile { filename: "hooks.json", listed_as: "hooks" },
-        },
-    ],
-};
-```
-
-#### [MODIFY] `src/target/env/copilot.rs`
-
-`ScopeSet::ProjectOnly` で Skill/Command/Instruction の scope 制約を宣言。
+**方式1（最小変更）**: `Target` trait に `fn can_place_scope(&self, kind: ComponentKind, scope: Scope) -> bool` を追加し、各 env でそれを `can_place(kind, scope)` で実装する。`supports_scope` のデフォルトは `can_place_scope` 呼び出しに変更。
 
 ```rust
-// after: LAYOUT 定数（ScopeSet::ProjectOnly が scope 制約を一元管理）
-const LAYOUT: TargetLayout = TargetLayout {
-    kind: TargetKind::Copilot,
-    display_name: "GitHub Copilot",
-    base: BasePathLayout {
-        personal: BasePathSpec::Subdir(".copilot"),
-        project: BasePathSpec::Subdir(".github"),
-    },
-    components: &[
-        ComponentCapability {
-            kind: ComponentKind::Skill,
-            scopes: ScopeSet::ProjectOnly,      // Personal 不可
-            placement: PlacementRule::ComponentDir { subdir: "skills", naming: NamingPolicy::FlattenedName },
-            discover: DiscoverRule::SkillManifestDir,
-        },
-        ComponentCapability {
-            kind: ComponentKind::Agent,
-            scopes: ScopeSet::Both,
-            placement: PlacementRule::ComponentFile { subdir: "agents", suffix: ".agent.md", naming: NamingPolicy::FlattenedName },
-            discover: DiscoverRule::SuffixFile { suffix: ".agent.md" },
-        },
-        ComponentCapability {
-            kind: ComponentKind::Command,
-            scopes: ScopeSet::ProjectOnly,      // Personal 不可
-            placement: PlacementRule::ComponentFile { subdir: "prompts", suffix: ".prompt.md", naming: NamingPolicy::FlattenedName },
-            discover: DiscoverRule::SuffixFile { suffix: ".prompt.md" },
-        },
-        ComponentCapability {
-            kind: ComponentKind::Instruction,
-            scopes: ScopeSet::ProjectOnly,      // Personal 不可
-            placement: PlacementRule::InstructionFile {
-                filename: "copilot-instructions.md",
-                project_location: InstructionProjectLocation::UnderBase,
-            },
-            discover: DiscoverRule::InstructionExists,
-        },
-        ComponentCapability {
-            kind: ComponentKind::Hook,
-            scopes: ScopeSet::Both,
-            placement: PlacementRule::ComponentFile { subdir: "hooks", suffix: ".json", naming: NamingPolicy::FlattenedName },
-            discover: DiscoverRule::JsonSuffixFile,
-        },
-    ],
-};
-```
-
----
-
-### Phase 4: Cursor 移行
-
-#### [MODIFY] `src/target/env/cursor.rs`
-
-`OriginalNameRequired` / `PlainMarkdownFile` を含む。振る舞いフックは残す。
-
-```rust
-// after: LAYOUT 定数
-const LAYOUT: TargetLayout = TargetLayout {
-    kind: TargetKind::Cursor,
-    display_name: "Cursor",
-    base: BasePathLayout {
-        personal: BasePathSpec::Subdir(".cursor"),
-        project: BasePathSpec::Subdir(".cursor"),
-    },
-    components: &[
-        ComponentCapability {
-            kind: ComponentKind::Skill,
-            scopes: ScopeSet::Both,
-            placement: PlacementRule::ComponentDir { subdir: "skills", naming: NamingPolicy::OriginalNameRequired },
-            discover: DiscoverRule::SkillManifestDir,
-        },
-        ComponentCapability {
-            kind: ComponentKind::Agent,
-            scopes: ScopeSet::Both,
-            placement: PlacementRule::ComponentFile { subdir: "agents", suffix: ".md", naming: NamingPolicy::FlattenedName },
-            discover: DiscoverRule::PlainMarkdownFile,
-        },
-        ComponentCapability {
-            kind: ComponentKind::Command,
-            scopes: ScopeSet::Both,
-            placement: PlacementRule::ComponentFile { subdir: "commands", suffix: ".md", naming: NamingPolicy::FlattenedName },
-            discover: DiscoverRule::PlainMarkdownFile,
-        },
-        ComponentCapability {
-            kind: ComponentKind::Instruction,
-            scopes: ScopeSet::ProjectOnly,      // Personal User Rules は対象外
-            placement: PlacementRule::InstructionFile {
-                filename: "AGENTS.md",
-                project_location: InstructionProjectLocation::ProjectRoot,
-            },
-            discover: DiscoverRule::InstructionExists,
-        },
-        ComponentCapability {
-            kind: ComponentKind::Hook,
-            scopes: ScopeSet::Both,
-            placement: PlacementRule::FixedAtBase { filename: "hooks.json" },
-            discover: DiscoverRule::ExactFile { filename: "hooks.json", listed_as: "hooks" },
-        },
-    ],
-};
-```
-
----
-
-### Phase 5: trait デフォルト接続・ダミー廃止
-
-#### [MODIFY] `src/target.rs`（`supports_scope` デフォルト実装置換）
-
-```rust
-// before:
+// src/target.rs (方式1)
 fn supports_scope(&self, kind: ComponentKind, scope: Scope) -> bool {
+    // ダミープロービング廃止：各 env の can_place 系を直接呼ぶ
+    self.can_place_scope(kind, scope)
+}
+
+// デフォルト実装（supported_components に入っていれば Both 扱い）
+fn can_place_scope(&self, kind: ComponentKind, scope: Scope) -> bool {
+    self.supported_components().contains(&kind)  // scope 無関係ならデフォルト
+}
+// Copilot/Cursor などは override して scope チェックを追加
+```
+
+**方式2（より薄い Data 化）**: `can_place` を `static &[(ComponentKind, Scope)]` の許可ペアスライスで表現し、`supports_scope` がスライスを参照する。
+
+**[MODIFY] `src/target/placed/placed_common.rs` — `list_instruction` のダミー廃止**
+
+```rust
+// 変更前: ダミー PlacementContext を使って placement_location を呼ぶ
+pub(crate) fn list_instruction(target: &dyn Target, scope: Scope, project_root: &Path, filename: &str) -> Vec<String> {
     let dummy_origin = PluginOrigin::from_marketplace("test", "test");
-    let ctx = PlacementContext {
-        component: ComponentRef::with_names(kind, "test", "test", "test"),
-        origin: &dummy_origin,
-        scope: PlacementScope::new(scope),
-        project: ProjectContext::new(Path::new(".")),
-    };
-    self.placement_location(&ctx).is_some()
+    let ctx = PlacementContext { ... };
+    let Some(location) = target.placement_location(&ctx) else { return vec![]; };
+    if location.as_path().exists() { vec![filename.to_string()] } else { vec![] }
 }
-```
 
-```rust
-// after: (Phase 5 完了時)
-// 各 env が layout() を実装した後は trait デフォルトをこちらに差し替え
-// それまでは各 env で supports_scope を直接 override
-fn supports_scope(&self, kind: ComponentKind, scope: Scope) -> bool {
-    // Phase 5 で layout() のデフォルト実装を追加し、capabilities 参照に変更
-    // 移行期間は各 env の override に委ねる
-    self.placement_location(&PlacementContext::probe(kind, scope)).is_some()
+// 変更後: パスを直接計算（呼び出し元が base を渡す）
+pub(crate) fn list_instruction_at(path: &Path, filename: &str) -> Vec<String> {
+    if path.exists() {
+        vec![filename.to_string()]
+    } else {
+        vec![]
+    }
 }
-```
-
-#### [MODIFY] `src/target/placed/placed_common.rs`
-
-`list_instruction` のダミー廃止。`InstructionExists` 導出ロジックに統合後に `placed_common.rs` を縮小または削除。
-
-```rust
-// before:
-pub(crate) fn list_instruction(...) -> Vec<String> {
-    let dummy_origin = PluginOrigin::from_marketplace("test", "test");
-    let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Instruction, "test"),
-        ...
-    };
-    let Some(location) = target.placement_location(&ctx) else { ... };
-    ...
-}
-```
-
-```rust
-// after: (Phase 5 以降 — env の list_placed が layout 導出になれば不要)
-// derive_list_placed が InstructionExists を直接計算するため、
-// placed_common::list_instruction の呼び出し箇所が消える
-// → placed_common.rs は削除（または空のモジュールとして残す）
+// 呼び出し側で: list_instruction_at(&base.join(filename), filename)
+// または: list_instruction_at(&project_root.join(filename), filename)
 ```
 
 ---
 
-### Phase 6: ドキュメント同期（[MODIFY]）
+### Phase E: `placement_location` 共通パターンをヘルパ化
 
-- `docs/architecture/core-design.md` または `docs/concepts/targets.md` に `TargetLayout` モデル概要を追記
-- `docs/target-layout-refactor/` の 3 ファイルを `docs/old/` へアーカイブ（仕様を正式採用したため）
+**[NEW] `src/target/placed/placement_helpers.rs`（または既存ファイルに関数追加）**
+
+```rust
+// src/target/placed/placement_helpers.rs
+
+use crate::component::{PlacementLocation, Scope};
+use std::path::Path;
+
+/// Skill: base/skills/<name> ディレクトリ（全5実装で共通）
+pub(crate) fn skill_dir(base: &Path, name: &str) -> PlacementLocation {
+    PlacementLocation::dir(base.join("skills").join(name))
+}
+
+/// Agent: base/agents/<name>.agent.md ファイル（Codex/Copilot/Cursor で共通）
+pub(crate) fn agent_file(base: &Path, name: &str) -> PlacementLocation {
+    PlacementLocation::file(base.join("agents").join(format!("{}.agent.md", name)))
+}
+
+/// Instruction: Project → project_root/<filename>, Personal → base/<filename>
+/// （Gemini/Codex/Cursor で共通パターン、filename のみ違う）
+pub(crate) fn instruction_file(
+    scope: Scope,
+    project_root: &Path,
+    base: &Path,
+    filename: &str,
+) -> PlacementLocation {
+    match scope {
+        Scope::Project => PlacementLocation::file(project_root.join(filename)),
+        Scope::Personal => PlacementLocation::file(base.join(filename)),
+    }
+}
+```
+
+**[MODIFY] 各 env の `placement_location` — 共通パターンをヘルパ呼び出しに変更**
+
+```rust
+// 例: antigravity.rs
+fn placement_location(&self, context: &PlacementContext) -> Option<PlacementLocation> {
+    if !Self::can_place(context.kind()) { return None; }
+    let base = Self::base_dir(context.scope(), context.project_root());
+    Some(match context.kind() {
+        ComponentKind::Skill => skill_dir(&base, context.name()),  // ← ヘルパへ
+        _ => return None,
+    })
+}
+```
+
+**注意**: Cursor Skill の `original_name` 必須（OriginalNameRequired 相当）は Cursor の override に残す。
+
+---
+
+### Phase F: 残った純粋データ差分を薄い定数にまとめる（オプション）
+
+**判断基準**: Phase B〜E 完了後に、各 env ファイルに残った「pure data（文字列リテラルや bool）」の差分が多い場合のみ実施。
+
+```rust
+// 最終形候補（Phase F が必要な場合）
+// src/target/env/antigravity.rs
+struct AntigravityConfig {
+    personal_parent: &'static str,   // ".gemini"
+    personal_child: &'static str,    // "antigravity"
+    project_subdir: &'static str,    // ".agent"
+}
+const CONFIG: AntigravityConfig = AntigravityConfig {
+    personal_parent: ".gemini",
+    personal_child: "antigravity",
+    project_subdir: ".agent",
+};
+```
+
+この段階で十分なデータ集約ができていれば、薄い `TargetLayout` const（Phase F）はスキップしてよい。
+
+---
+
+### Phase G: ドキュメント同期・不変条件テスト・死コード削除
+
+- `can_place` プライベート関数の削除（`can_place_scope` に統一後）
+- `base_dir` プライベート関数の削除（直接 `paths::base_dir` を呼ぶ形に）
+- `filter_component` プライベート関数の削除（`filter_skill_dir` + 差分は `list_placed` 内にインライン化）
+- `placed_common::list_instruction` の削除（`list_instruction_at` に置換後）
+- `docs/target-layout-refactor/` を `docs/old/` にアーカイブ
+- `docs/architecture/` に新しい共通ヘルパ関数の説明を追記
 
 ---
 
 ## 検証計画
 
-### テスト戦略
+### フェーズ完了条件（全 Phase 共通）
 
-**機能タイプ**: Pure Logic（`TargetLayout` + 導出ヘルパ）+ Configuration（各ターゲットの `LAYOUT` 定数）
-**テスト方針**: TDD（Red → Green → Refactor）
-**根拠**: 配置パス計算・サポート可否判定は副作用なし Pure Logic であり、入力→出力のテーブル駆動テストが最適。Phase 1 で先にテストを書き（Red）、モデル実装（Green）→リファクタのサイクルで進める。既存 1888 行のテストがリグレッションガードとして機能する。
-
-### 自動テスト
-
-#### `src/target/layout/model_test.rs`
-
-**役割**: `ScopeSet` / `BasePathSpec` などの型メソッドの単体テスト
-
-| カテゴリ | テストケース | ユースケース / 想定シナリオ | 期待結果 |
-|----------|------------|--------------------------|---------|
-| 正常系 | `ScopeSet::Both.contains(Personal)` | Both スコープセットに Personal を問い合わせ | `true` |
-| 正常系 | `ScopeSet::Both.contains(Project)` | Both スコープセットに Project を問い合わせ | `true` |
-| 正常系 | `ScopeSet::PersonalOnly.contains(Personal)` | PersonalOnly に Personal | `true` |
-| 境界値 | `ScopeSet::PersonalOnly.contains(Project)` | PersonalOnly に Project | `false` |
-| 境界値 | `ScopeSet::ProjectOnly.contains(Personal)` | ProjectOnly に Personal | `false` |
-| 正常系 | `ScopeSet::ProjectOnly.contains(Project)` | ProjectOnly に Project | `true` |
-
-#### `src/target/layout/derive_test.rs`
-
-**役割**: 架空の最小 `TargetLayout` で `derive_supports_scope` / `derive_placement_location` / `derive_list_placed` の動作を検証
-
-| カテゴリ | テストケース | ユースケース / 想定シナリオ | 期待結果 |
-|----------|------------|--------------------------|---------|
-| 正常系 | `derive_supports_scope` 登録済み kind+scope | Both な Skill に Personal を問い合わせ | `true` |
-| 正常系 | `derive_supports_scope` ProjectOnly に Project | ProjectOnly Skill に Project | `true` |
-| 境界値 | `derive_supports_scope` ProjectOnly に Personal | ProjectOnly Skill に Personal | `false` |
-| 正常系 | `derive_supports_scope` 未登録 kind | Agent が layouts にない | `false` |
-| 正常系 | `derive_placement_location` ComponentDir Skill | Skill に project root を渡す | `Some(Dir(.test/skills/name))` |
-| 境界値 | `derive_placement_location` scope 外 | ProjectOnly Skill に Personal scope | `None` |
-| エッジケース | `derive_placement_location` OriginalNameRequired + None | original_name が None | `None` |
-| 正常系 | `derive_list_placed` 空ディレクトリ | dir が存在しない | `Ok([])` |
-| 正常系 | `derive_list_placed` SkillManifestDir | SKILL.md あり | `Ok(["plugin_skill"])` |
-| 境界値 | `derive_list_placed` SKILL.md なし | ディレクトリあるが SKILL.md なし | `Ok([])` |
-| 境界値 | `derive_list_placed` scope 外 | ProjectOnly に Personal | `Ok([])` |
-| 正常系 | `derive_list_placed` InstructionExists あり | AGENTS.md 存在する | `Ok(["AGENTS.md"])` |
-| 境界値 | `derive_list_placed` InstructionExists なし | AGENTS.md 存在しない | `Ok([])` |
-
-#### `src/target/env/antigravity_test.rs`（既存・移行後も期待値変更なし）
-
-**役割**: Antigravity 移行後の振る舞い不変を確認するリグレッションテスト
-
-| カテゴリ | テストケース | ユースケース / 想定シナリオ | 期待結果 |
-|----------|------------|--------------------------|---------|
-| 不変条件 | `supported_components` が Skill のみ | Phase 2 移行後 | `[Skill]` |
-| 不変条件 | `supports_scope(Skill, Both)` | Phase 2 移行後 | `true` |
-| 不変条件 | `supports_scope(Agent, Personal)` | Phase 2 移行後 | `false` |
-| 不変条件 | `placement_location` Skill Personal パス | Phase 2 移行後 | `~/.gemini/antigravity/skills/<name>` |
-| 不変条件 | `placement_location` Skill Project パス | Phase 2 移行後 | `{root}/.agent/skills/<name>` |
-| 不変条件 | `list_placed` 空ディレクトリ | Phase 2 移行後 | `Ok([])` |
-
-#### `src/target/env/copilot_test.rs`（既存・Phase 3 移行後）
-
-**役割**: Copilot の scope 制約（ProjectOnly）が移行後も維持されることを確認
-
-| カテゴリ | テストケース | ユースケース / 想定シナリオ | 期待結果 |
-|----------|------------|--------------------------|---------|
-| 不変条件 | `supports_scope(Skill, Personal)` | Phase 3 移行後 | `false` |
-| 不変条件 | `supports_scope(Skill, Project)` | Phase 3 移行後 | `true` |
-| 不変条件 | `supports_scope(Agent, Personal)` | Phase 3 移行後 | `true` |
-| 不変条件 | `placement_location(Skill, Personal)` | Phase 3 移行後 | `None` |
-| 不変条件 | `placement_location(Hook, Personal)` | Phase 3 移行後 | `Some(...)` |
-
-#### `src/target/env/cursor_test.rs`（既存・Phase 4 移行後）
-
-**役割**: Cursor の `OriginalNameRequired` / `PlainMarkdownFile` ポリシーが移行後も維持されることを確認
-
-| カテゴリ | テストケース | ユースケース / 想定シナリオ | 期待結果 |
-|----------|------------|--------------------------|---------|
-| エッジケース | `placement_location(Skill)` original_name=None | Phase 4 移行後 | `None` |
-| エッジケース | `placement_location(Skill)` original_name="" | Phase 4 移行後 | `None` |
-| 不変条件 | `list_placed(Agent)` が `.agent.md` を除外 | Phase 4 移行後 | `.agent.md` ファイルが結果に含まれない |
-| 不変条件 | `supports_scope(Instruction, Personal)` | Phase 4 移行後 | `false` |
-| 不変条件 | `supports_scope(Instruction, Project)` | Phase 4 移行後 | `true` |
-
-**テスト実行コマンド**
-
-```bash
-# 全テスト
-cargo test
-
-# layout モジュールのみ
-cargo test target::layout
-
-# 特定ターゲットのテスト
-cargo test target::env::antigravity
-cargo test target::env::cursor
-```
-
-### 手動検証
-
-1. `cargo build` でコンパイルエラーなし（各 Phase 終了時）
-2. `cargo test` で全テスト green（各 Phase 終了時）
+1. `cargo test` で全テスト（既存 1888 行 + 新規追加分）が green
+2. `cargo build` でコンパイルエラーなし
 3. `cargo clippy` で新規 warning なし
-4. Phase 2 完了後: `cargo run -- list` / `cargo run -- info <plugin>` で実際の出力に変化なし
+4. 振る舞い不変の確認: Phase A で確定した差分表と `cargo test` の期待値が一致
+
+### 重点テスト観点
+
+| 観点 | 検証方法 |
+|------|---------|
+| `list_placed` リグレッション | 既存 `*_test.rs` の期待値維持 |
+| Skill フィルタ精度 | SKILL.md なしディレクトリを除外するか |
+| `supports_scope` ダミー廃止 | `grep -r '"test"' src/target.rs` がゼロになるか |
+| Copilot Skill Personal 不可 | `supports_scope(Skill, Personal)` が false |
+| Cursor Skill original_name 欠落 | `placement_location` が None |
+| Instruction list_placed | ファイル存在確認のみで name 非依存 |
+| FakeTarget 非影響 | `src/sync_test.rs` / `endpoint_test.rs` が green 維持 |
+
+### 自動テスト追加方針
+
+- **Phase B**: `scan_and_filter` ヘルパの単体テスト（TempDir 使用）
+- **Phase C**: `filter_skill_dir` の単体テスト（SKILL.md あり/なし両ケース）
+- **Phase D**: `list_instruction_at` の単体テスト（ファイルあり/なし両ケース）
+- **Phase E**: `skill_dir` / `agent_file` / `instruction_file` ヘルパの単体テスト
+- **各 Phase**: 移行した env の既存テストが全 green であることを確認
 
 ---
 
-## Definition of Done
+## 定義 (Definition of Done)
 
-以下をすべて満たした時点で本機能の実装完了とする。
-
-- [ ] すべてのタスク（tasks.md）が ■ になっている
-- [ ] `src/target/layout/` モジュールが追加され、`derive_*` ヘルパが実装されている
-- [ ] 5 ターゲット（Antigravity / Gemini CLI / Codex / Copilot / Cursor）の `list_placed` / `placement_location` 骨格が共通ヘルパ経由になっている
-- [ ] 各 env ファイルに残るのは「`LAYOUT` 定数 + 振る舞いフック override」のみ（`can_place` / `base_dir` / `filter_component` が各 env から消えている）
-- [ ] `Target::supports_scope` のダミー `PlacementContext("test")` プロービングが廃止されている
-- [ ] `placed_common::list_instruction` のダミー `origin("test")` 使用が廃止されている
-- [ ] `cargo test` で全テスト（既存 1888 行 + 新規）が green
-- [ ] 既存の `placement_location` パス・`list_placed` 結果・`supports_scope` 判定に変化なし（振る舞い不変）
-- [ ] `cargo clippy` で新規 warning なし
+- **G-001**: `src/target.rs` に `PlacementContext("test")` / `PluginOrigin::from_marketplace("test",*)` を使ったサポート判定コードが残らない
+- **G-002**: `placed_common::list_instruction` の `dummy_origin` 生成が廃止されている（または関数自体が削除されている）
+- **G-003**: `list_placed` の骨格（scope チェック → base_dir → scan → filter）が各 env ファイルにコピペされていない（共通ヘルパを呼んでいる）
+- **G-004**: `filter_component` の Skill アームが各 env ファイルから除去されている（共通 `filter_skill_dir` を参照）
+- **G-005**: `placement_location` の Skill/Agent/Instruction 共通パターンが共通ヘルパを呼んでいる
+- **G-006**: 振る舞い不変——Phase A の差分表と全テストの期待値が一致したまま

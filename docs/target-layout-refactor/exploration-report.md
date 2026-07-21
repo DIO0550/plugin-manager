@@ -326,7 +326,133 @@ fn can_place(kind: ComponentKind, scope: Scope) -> bool {
 
 ---
 
-## 8. 探索メトリクス（自己検証用）
+## 8. 抽出候補（impl ベース方針の補強、2026-07-21 追記）
+
+> 方針転換フィードバックを受け、既存実装から bottom-up で抽出すべき共通骨格を関数・行番号で特定する。
+
+### 8.1 `list_placed` 共通骨格（Phase B 抽出対象）
+
+5 ファイル全てで以下の同型骨格が存在する：
+
+| 実装ファイル | `can_place` 行 | `base.join(subdir)` | `scan_components` |
+|------------|--------------|---------------------|------------------|
+| `antigravity.rs` | ~45行 (1引数 kind) | `"skills"` のみ | ~120行 |
+| `gemini_cli.rs` | ~38行 (1引数 kind) | `"skills"` / Instruction分岐 | ~115行 |
+| `codex.rs` | ~57行 (1引数 kind) | `"skills"/"agents"/"hooks"` | ~232行 |
+| `copilot.rs` | ~43行 (2引数 kind+scope) | `"skills"/"agents"/"commands"/"hooks"` | ~133行 |
+| `cursor.rs` | ~41行 (2引数 kind+scope) | `"skills"/"agents"/"rules"/"hooks"` | ~358行 |
+
+**共通抽出可能な骨格**:
+
+```rust
+// 抽出対象の共通パターン（全5実装で同一）
+fn list_placed_common<F>(
+    kind: ComponentKind,
+    scope: Scope,
+    project_root: &Path,
+    can_place: impl Fn(ComponentKind, Scope) -> bool,
+    subdir_for: impl Fn(ComponentKind) -> Option<&'static str>,
+    base: PathBuf,
+    filter: F,
+) -> Result<Vec<String>>
+where F: Fn(&ScannedComponent, ComponentKind) -> Option<String>
+{
+    if !can_place(kind, scope) { return Ok(vec![]); }
+    let Some(subdir) = subdir_for(kind) else { return Ok(vec![]); };
+    let dir_path = base.join(subdir);
+    let names = scan_components(&dir_path)?
+        .into_iter()
+        .filter_map(|c| filter(&c, kind))
+        .collect();
+    Ok(names)
+}
+```
+
+**差分として各環境が渡すだけのもの**:
+- `can_place` クロージャ（1〜2引数バリエーションを統一）
+- `subdir_for` クロージャ（kind → `"skills"`, `"agents"` 等）
+- `filter` クロージャ（filter_component の内容）
+- `base` PathBuf（base_dir の計算結果）
+
+### 8.2 `filter_component` の Skill アーム（Phase C 抽出対象）
+
+**全 5 実装で完全に同一のコード**（行番号は各ファイル）:
+
+```rust
+// antigravity.rs ~52, gemini_cli.rs ~47, codex.rs ~110, copilot.rs ~57, cursor.rs ~192
+ComponentKind::Skill if c.is_dir && c.path.join("SKILL.md").is_file() => {
+    Some(c.name.clone())
+}
+```
+
+→ `is_skill_dir(c: &ScannedComponent) -> Option<String>` として 1 行に抽出可能。
+
+**差分アーム（各 env に残す or 最小テーブル化）**:
+| 種別 | Agent | Command | Hook | Instruction |
+|------|-------|---------|------|-------------|
+| Antigravity | なし | なし | なし | なし |
+| Gemini | なし | なし | なし | placed_common |
+| Codex | `.agent.md` サフィックス | なし | `hooks.json` 完全一致 | placed_common |
+| Copilot | `.agent.md` | `.prompt.md` | `.json` サフィックス | placed_common |
+| Cursor | `.md`（`.agent.md/.prompt.md` 除外）| `.md`（除外）| `hooks.json` | placed_common |
+
+### 8.3 `supports_scope` ダミープロービング廃止（Phase D 対象）
+
+**廃止対象コード**: `src/target.rs:258-266`
+
+```rust
+// 現行: ダミーProbing hack
+fn supports_scope(&self, kind: ComponentKind, scope: Scope) -> bool {
+    let dummy_origin = PluginOrigin::from_marketplace("test", "test");
+    let ctx = PlacementContext {
+        component: ComponentRef::with_names(kind, "test", "test", "test"),
+        // ...
+    };
+    self.placement_location(&ctx).is_some()
+}
+```
+
+**廃止後の方針案（最小変更）**: 各 env で `can_place(kind, scope)` を公開し、`supports_scope` でそれを呼ぶ。または `can_place` ロジックを `supported_combinations` 的な static スライスに変換して trait メソッドから参照する。
+
+廃止対象コード2: `src/target/placed/placed_common.rs:16-34`（`list_instruction` 内の `dummy_origin("test")` 生成）
+
+### 8.4 `can_place` の variance まとめ
+
+| 実装 | シグネチャ | ロジック |
+|------|-----------|---------|
+| Antigravity | `can_place(kind: ComponentKind) -> bool` | `kind == Skill` |
+| Gemini | `can_place(kind) -> bool` | `kind == Skill \|\| kind == Instruction` |
+| Codex | `can_place(kind) -> bool` | `kind != Command` |
+| Copilot | `can_place(kind, scope: Scope) -> bool` | `matches!((kind,scope), (Agent,_)\|(Hook,_)\|(_, Project))` |
+| Cursor | `can_place(kind, scope) -> bool` | `matches!((kind,scope), (Skill,_)\|(Agent,_)\|(Command,_)\|(Instruction,Project)\|(Hook,_))` |
+
+**Copilot/Cursor は scope 依存**のため、単純な `kind → bool` に縮退できない。Phase D で `can_place(kind, scope) -> bool` に統一するか、`supported_pairs: &[(ComponentKind, Scope)]` の static スライスで符号化するかを判断する。
+
+### 8.5 `placement_location` の共通パターン（Phase E 対象）
+
+**Skill の共通パターン**（全 5 実装で同一形式、ただし base_dir が異なる）:
+```rust
+ComponentKind::Skill => PlacementLocation::dir(base.join("skills").join(name)),
+```
+→ `skill_placement(base: &Path, name: &str) -> PlacementLocation` に抽出可能
+
+**Agent の共通パターン**（Codex / Copilot / Cursor で同一形式）:
+```rust
+ComponentKind::Agent => PlacementLocation::file(base.join("agents").join(format!("{}.agent.md", name))),
+```
+
+**Instruction の共通パターン**（Gemini / Codex / Cursor で類似、ただし filename が異なる）:
+```rust
+ComponentKind::Instruction => match scope {
+    Scope::Project => PlacementLocation::file(project_root.join("<FILENAME>")),
+    Scope::Personal => PlacementLocation::file(base.join("<FILENAME>")),
+}
+```
+→ `instruction_placement(scope: Scope, project_root: &Path, base: &Path, filename: &str)` に抽出可能
+
+---
+
+## 9. 探索メトリクス（自己検証用）
 
 | 指標 | 基準 | 実績 |
 |------|------|------|
