@@ -15,12 +15,12 @@ impl EnvVar {
 use crate::error::{PlmError, Result};
 use std::path::PathBuf;
 
-/// PLM の状態ルートディレクトリを返す（案 A: HOME 代替セマンティクス）
+/// PLM の状態ルートディレクトリを返す。
 ///
-/// 解決順: `PLM_HOME`（有効時 = 非空・非空白・絶対パス）→ `HOME`
-/// - 空・空白のみは無効扱い（`EnvVar::get` 互換 + trim）
-/// - 相対パスはエラーとして返す
-/// - 両方無効なら明確なエラー
+/// `PLM_HOME` が有効ならそれを使い、なければ `HOME` を使う。
+/// - 空・空白のみは無効（`EnvVar::get` 互換に加え trim）
+/// - 相対パスはエラー
+/// - 両方とも無効ならエラー
 pub(crate) fn plm_root() -> Result<PathBuf> {
     let raw = EnvVar::get("PLM_HOME")
         .filter(|s| !s.trim().is_empty())
