@@ -506,6 +506,151 @@ fn test_execute_skill_keeps_frontmatter_for_non_codex_target() {
 }
 
 // ========================================
+// Skill bundled resources (#392)
+// ========================================
+
+fn write_skill_with_bundled_resources(source: &Path) {
+    fs::create_dir_all(source.join("references")).unwrap();
+    fs::create_dir_all(source.join("assets/templates")).unwrap();
+    fs::write(
+        source.join("SKILL.md"),
+        "---\nname: my-skill\ndescription: demo\nallowed-tools: Bash(ls *)\nmetadata:\n  short-description: short\n---\n\n# Body\nSee ./references/a.md\n",
+    )
+    .unwrap();
+    fs::write(source.join("notes.md"), "# Notes\n").unwrap();
+    fs::write(
+        source.join("references/a.md"),
+        "---\nname: should-not-strip\nallowed-tools: Bash(*)\n---\nref body\n",
+    )
+    .unwrap();
+    fs::write(
+        source.join("assets/templates/x.html"),
+        "<html>template</html>",
+    )
+    .unwrap();
+}
+
+fn assert_bundled_resources_copied(target: &Path) {
+    assert!(target.join("SKILL.md").is_file());
+    assert!(target.join("notes.md").is_file());
+    assert_eq!(
+        fs::read_to_string(target.join("notes.md")).unwrap(),
+        "# Notes\n"
+    );
+    assert_eq!(
+        fs::read_to_string(target.join("references/a.md")).unwrap(),
+        "---\nname: should-not-strip\nallowed-tools: Bash(*)\n---\nref body\n"
+    );
+    assert_eq!(
+        fs::read_to_string(target.join("assets/templates/x.html")).unwrap(),
+        "<html>template</html>"
+    );
+}
+
+#[test]
+fn test_execute_skill_copies_bundled_resources_same_structure() {
+    use crate::target::TargetKind;
+
+    let skill_targets = [
+        TargetKind::Codex,
+        TargetKind::Copilot,
+        TargetKind::Antigravity,
+        TargetKind::GeminiCli,
+        TargetKind::Cursor,
+    ];
+
+    for target_kind in skill_targets {
+        let temp = TempDir::new().unwrap();
+        let source = temp.path().join("my-skill");
+        let target = temp.path().join("dest/my-skill");
+        write_skill_with_bundled_resources(&source);
+
+        let deployment = make_deployment(
+            Component::new(ComponentKind::Skill, "my-skill".to_string(), source),
+            target.clone(),
+            ConversionConfig::Skill { target_kind },
+        );
+
+        deployment.execute().unwrap();
+        assert_bundled_resources_copied(&target);
+    }
+}
+
+#[test]
+fn test_execute_skill_strip_does_not_touch_bundled_markdown() {
+    use crate::target::TargetKind;
+
+    // Codex / Gemini CLI は frontmatter strip あり。付属 md は不変であること。
+    for target_kind in [TargetKind::Codex, TargetKind::GeminiCli] {
+        let temp = TempDir::new().unwrap();
+        let source = temp.path().join("my-skill");
+        let target = temp.path().join("dest/my-skill");
+        write_skill_with_bundled_resources(&source);
+
+        let bundled_before = fs::read_to_string(source.join("references/a.md")).unwrap();
+
+        let deployment = make_deployment(
+            Component::new(ComponentKind::Skill, "my-skill".to_string(), source),
+            target.clone(),
+            ConversionConfig::Skill { target_kind },
+        );
+
+        deployment.execute().unwrap();
+
+        let manifest = fs::read_to_string(target.join("SKILL.md")).unwrap();
+        assert!(
+            !manifest.contains("allowed-tools"),
+            "{target_kind:?} should strip unsupported fields from SKILL.md"
+        );
+        assert_eq!(
+            fs::read_to_string(target.join("references/a.md")).unwrap(),
+            bundled_before,
+            "{target_kind:?} must not rewrite bundled markdown"
+        );
+        // strip 対象は target_path/SKILL.md のみ（付属パスに SKILL.md は作られない）
+        assert!(target.join("SKILL.md").is_file());
+        assert!(!target.join("references/SKILL.md").exists());
+    }
+}
+
+#[test]
+fn test_execute_skill_replace_dir_removes_stale_bundled_resources() {
+    use crate::target::TargetKind;
+
+    let temp = TempDir::new().unwrap();
+    let source = temp.path().join("my-skill");
+    let target = temp.path().join("dest/my-skill");
+
+    fs::create_dir_all(&source).unwrap();
+    fs::write(source.join("SKILL.md"), "# Skill\n").unwrap();
+    fs::create_dir_all(source.join("references")).unwrap();
+    fs::write(source.join("references/keep.md"), "keep\n").unwrap();
+
+    // 前回デプロイの残骸
+    fs::create_dir_all(target.join("references")).unwrap();
+    fs::write(target.join("references/stale.md"), "stale\n").unwrap();
+    fs::create_dir_all(target.join("assets/old")).unwrap();
+    fs::write(target.join("assets/old/gone.html"), "gone\n").unwrap();
+    fs::write(target.join("obsolete.md"), "obsolete\n").unwrap();
+
+    let deployment = make_deployment(
+        Component::new(ComponentKind::Skill, "my-skill".to_string(), source),
+        target.clone(),
+        ConversionConfig::Skill {
+            target_kind: TargetKind::Copilot,
+        },
+    );
+
+    deployment.execute().unwrap();
+
+    assert!(target.join("SKILL.md").is_file());
+    assert!(target.join("references/keep.md").is_file());
+    assert!(!target.join("references/stale.md").exists());
+    assert!(!target.join("assets/old/gone.html").exists());
+    assert!(!target.join("obsolete.md").exists());
+}
+
+// ========================================
 // MockFs deployment tests
 // ========================================
 

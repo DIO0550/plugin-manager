@@ -594,6 +594,59 @@ fn test_list_skill_names_does_not_descend_into_skill() {
     assert_eq!(result[0].0, "skill1");
 }
 
+/// Skill 配下の任意名フォルダ内 `SKILL.md` は別 Skill として二重スキャンされない（#392）
+#[test]
+fn test_list_skill_names_does_not_descend_into_arbitrary_bundled_dirs() {
+    let folders = [
+        "assets",
+        "references",
+        "templates",
+        "docs",
+        "examples",
+        "foo-bar",
+    ];
+
+    for folder in folders {
+        let temp_dir = TempDir::new().unwrap();
+        let skills_dir = temp_dir.path();
+
+        let skill = skills_dir.join("my-skill");
+        fs::create_dir(&skill).unwrap();
+        fs::write(skill.join("SKILL.md"), "# Skill").unwrap();
+
+        let nested = skill.join(folder).join("inner");
+        fs::create_dir_all(&nested).unwrap();
+        fs::write(nested.join("SKILL.md"), "# Nested").unwrap();
+
+        let result = list_skill_names(skills_dir);
+        assert_eq!(
+            result.len(),
+            1,
+            "folder `{folder}` must not yield a second skill"
+        );
+        assert_eq!(result[0].0, "my-skill");
+    }
+}
+
+/// Skill 直下の任意 `.md` はディレクトリ＋`SKILL.md` 規約を満たさないため採用されない（#392）
+#[test]
+fn test_list_skill_names_ignores_loose_markdown_beside_skill() {
+    let temp_dir = TempDir::new().unwrap();
+    let skills_dir = temp_dir.path();
+
+    let skill = skills_dir.join("my-skill");
+    fs::create_dir(&skill).unwrap();
+    fs::write(skill.join("SKILL.md"), "# Skill").unwrap();
+    fs::write(skill.join("notes.md"), "# Notes").unwrap();
+
+    // skills 直下に単独の md を置いても Skill にはならない
+    fs::write(skills_dir.join("orphan.md"), "# Orphan").unwrap();
+
+    let result = list_skill_names(skills_dir);
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].0, "my-skill");
+}
+
 #[test]
 fn test_list_skill_names_mixed_flat_and_nested() {
     let temp_dir = TempDir::new().unwrap();
