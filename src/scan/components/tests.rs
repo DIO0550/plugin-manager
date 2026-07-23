@@ -594,7 +594,7 @@ fn test_list_skill_names_does_not_descend_into_skill() {
     assert_eq!(result[0].0, "skill1");
 }
 
-/// Skill 配下の任意名フォルダ内 `SKILL.md` は別 Skill として二重スキャンされない（#392）
+/// Skill 配下の任意名フォルダ内 `SKILL.md` は別 Skill として二重スキャンされない
 #[test]
 fn test_list_skill_names_does_not_descend_into_arbitrary_bundled_dirs() {
     let folders = [
@@ -628,7 +628,7 @@ fn test_list_skill_names_does_not_descend_into_arbitrary_bundled_dirs() {
     }
 }
 
-/// Skill 直下の任意 `.md` はディレクトリ＋`SKILL.md` 規約を満たさないため採用されない（#392）
+/// Skill 直下の任意 `.md` はディレクトリ＋`SKILL.md` 規約を満たさないため採用されない
 #[test]
 fn test_list_skill_names_ignores_loose_markdown_beside_skill() {
     let temp_dir = TempDir::new().unwrap();

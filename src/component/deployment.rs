@@ -83,7 +83,7 @@ impl ComponentDeployment {
     /// Skill ディレクトリを丸ごと配置する。
     ///
     /// `SKILL.md` 以外の直下ファイルや任意名サブフォルダ（`references/` / `assets/` 等）も
-    /// 付属リソースとして同相対構造でコピーする（#392）。`replace_dir` によりターゲット側の
+    /// 付属リソースとして同相対構造でコピーする。`replace_dir` によりターゲット側の
     /// 余剰ファイルは削除される。frontmatter 変換がある場合も触るのは `SKILL.md` のみ。
     fn deploy_skill(&self, fs: &dyn FileSystem) -> Result<DeploymentOutput> {
         // Skills are directories — replace target to avoid stale files.

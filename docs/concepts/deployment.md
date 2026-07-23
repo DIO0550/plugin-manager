@@ -37,8 +37,8 @@ Codex:   ~/.codex/skills/company-tools/code-formatter/formatter-skill/
 Copilot: .github/skills/company-tools/code-formatter/formatter-skill/
 ```
 
-> Skill 配下の未認識ファイル/フォルダは Skill の付属リソースとして同梱される（[#392](https://github.com/DIO0550/plugin-manager/issues/392)）。
-> Plugin 直下の補助フォルダは別 Issue（[#393](https://github.com/DIO0550/plugin-manager/issues/393)）。
+> Skill 配下の未認識ファイル/フォルダは Skill の付属リソースとして同梱される。
+> Plugin 直下の補助フォルダは別仕様として扱う。
 
 ### Agents
 

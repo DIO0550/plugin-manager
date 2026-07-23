@@ -543,7 +543,7 @@ skills/spec-driven-dev/
 
 ### 境界・既知制限
 
-- **Plugin 直下**（例: `plugins/<plugin>/references/`）の未認識ファイル/フォルダは本節の対象外（[#393](https://github.com/DIO0550/plugin-manager/issues/393)）。
+- **Plugin 直下**（例: `plugins/<plugin>/references/`）の未認識ファイル/フォルダは本節の対象外。
 - **symlink** のコピー挙動は保証外。
 - **Cursor** は skills ルートを再帰走査するため、Skill 配下にネストした `SKILL.md` があると実行時に別 Skill として見える可能性がある。PLM はこれを別 Component にせず、変換・除外もしない。
 
@@ -611,7 +611,6 @@ skills/spec-driven-dev/
 - [#10 .prompt.md パーサー実装](https://github.com/DIO0550/plugin-manager/issues/10)
 - [#11 SKILL.md パーサー実装](https://github.com/DIO0550/plugin-manager/issues/11)
 - [#12 plugin.json パーサー実装](https://github.com/DIO0550/plugin-manager/issues/12)
-- [#392 Skill 付属リソースの仕様化](https://github.com/DIO0550/plugin-manager/issues/392)
 
 ## 関連ドキュメント
 

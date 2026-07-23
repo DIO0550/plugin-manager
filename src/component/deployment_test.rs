@@ -506,7 +506,7 @@ fn test_execute_skill_keeps_frontmatter_for_non_codex_target() {
 }
 
 // ========================================
-// Skill bundled resources (#392)
+// Skill bundled resources
 // ========================================
 
 fn write_skill_with_bundled_resources(source: &Path) {
