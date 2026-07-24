@@ -71,6 +71,50 @@ fn test_name_is_derived_from_kind() {
     }
 }
 
+#[test]
+fn test_can_place_scope_matches_supports_and_supported_components() {
+    // can_place_scope がサポート判定の単一真実源。
+    // supports(kind) ⇔ supported_components 包含
+    // supports_scope ⇔ can_place_scope
+    // いずれかの scope で can_place_scope が true ⇔ supported_components に含まれる
+    for target in all_targets() {
+        for &kind in &[
+            ComponentKind::Skill,
+            ComponentKind::Agent,
+            ComponentKind::Command,
+            ComponentKind::Instruction,
+            ComponentKind::Hook,
+        ] {
+            assert_eq!(
+                target.supports(kind),
+                target.supported_components().contains(&kind),
+                "{} supports({}) vs supported_components",
+                target.name(),
+                kind
+            );
+            for &scope in &[Scope::Personal, Scope::Project] {
+                assert_eq!(
+                    target.supports_scope(kind, scope),
+                    target.can_place_scope(kind, scope),
+                    "{} supports_scope({:?}, {:?})",
+                    target.name(),
+                    kind,
+                    scope
+                );
+            }
+            let any_scope = target.can_place_scope(kind, Scope::Personal)
+                || target.can_place_scope(kind, Scope::Project);
+            assert_eq!(
+                any_scope,
+                target.supported_components().contains(&kind),
+                "{} kind {:?} any-scope vs supported_components",
+                target.name(),
+                kind
+            );
+        }
+    }
+}
+
 // ========================================
 // PluginOrigin tests
 // ========================================

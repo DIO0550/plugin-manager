@@ -125,13 +125,19 @@ Epic: [#356](https://github.com/DIO0550/plugin-manager/issues/356)（仕様: `do
 
 ## 将来の拡張
 
+### リファクタ（ドメイン整合）
+
+| 項目 | 説明 | 状態 |
+|------|------|------|
+| Target Layout 集約 | `target/env/` の配置骨格コピペを共通ヘルパへ抽出（[#338](https://github.com/DIO0550/plugin-manager/issues/338)） | ✅ 完了 |
+
 ### 追加ターゲット候補
 
 対応調査は [#363](https://github.com/DIO0550/plugin-manager/issues/363) で追跡。
 
 | ターゲット | 説明 | 状態 |
 |------------|------|------|
-| Claude Code | .claude/ ディレクトリ | 計画中（[#96](https://github.com/DIO0550/plugin-manager/issues/96)） |
+| Claude Code | .claude/ ディレクトリ | 計画中（[#96](https://github.com/DIO0550/plugin-manager/issues/96)）。**#338 完了後に着手推奨** |
 | Windsurf | Windsurf IDE | 調査対象 |
 | Aider | Aider CLI | 調査対象 |
 | その他 | SKILL.md対応ツール | 調査対象 |

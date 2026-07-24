@@ -32,15 +32,15 @@ pub use env::{
     GeminiCliTarget,
 };
 pub use placed::scanner;
-pub(crate) use placed::{list_all_placed, placed_common};
+pub(crate) use placed::{filter, list_all_placed, list_helpers, placement_helpers, scope_support};
 // PluginOrigin はモジュール内で定義されているのでここでは再エクスポート不要
 
-use crate::component::{AgentFormat, CommandFormat, Component, ComponentKind, FileOperation};
+use crate::component::{
+    AgentFormat, CommandFormat, Component, ComponentKind, FileOperation, PlacementContext,
+    PlacementLocation,
+};
 // componentモジュールから再エクスポート
 pub use crate::component::Scope;
-use crate::component::{
-    ComponentRef, PlacementContext, PlacementLocation, PlacementScope, ProjectContext,
-};
 use crate::error::{PlmError, Result};
 use crate::fs::{FileSystem, RealFs};
 use crate::marketplace::{MarketplaceRef, DEFAULT_MARKETPLACE};
@@ -248,6 +248,19 @@ pub trait Target: Send + Sync {
         self.supported_components().contains(&kind)
     }
 
+    /// kind × scope で配置可能か（サポート判定の単一真実源）。
+    ///
+    /// デフォルトは `supported_components` に含まれていれば両スコープ可。
+    /// Copilot / Cursor などスコープ制約があるターゲットは override する。
+    ///
+    /// # Arguments
+    ///
+    /// * `kind` - Component kind to check.
+    /// * `scope` - Scope (`Personal` or `Project`) to check.
+    fn can_place_scope(&self, kind: ComponentKind, _scope: Scope) -> bool {
+        self.supported_components().contains(&kind)
+    }
+
     /// 指定コンポーネント・スコープの組み合わせをサポートするか
     ///
     /// # Arguments
@@ -255,15 +268,7 @@ pub trait Target: Send + Sync {
     /// * `kind` - Component kind to check.
     /// * `scope` - Scope (`Personal` or `Project`) to check.
     fn supports_scope(&self, kind: ComponentKind, scope: Scope) -> bool {
-        let dummy_origin = PluginOrigin::from_marketplace("test", "test");
-        // original_name 付きでプローブする（Cursor Skill は original_name 必須 — #377）
-        let ctx = PlacementContext {
-            component: ComponentRef::with_names(kind, "test", "test", "test"),
-            origin: &dummy_origin,
-            scope: PlacementScope::new(scope),
-            project: ProjectContext::new(Path::new(".")),
-        };
-        self.placement_location(&ctx).is_some()
+        self.can_place_scope(kind, scope)
     }
 
     /// 配置先ロケーションを取得

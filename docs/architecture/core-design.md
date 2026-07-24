@@ -301,3 +301,16 @@ fn open_browser(url: &str) -> Result<()> {
 
 - [overview](./overview.md) - アーキテクチャ概要
 - [cache](./cache.md) - キャッシュアーキテクチャ
+
+## Target 配置ヘルパ（#338）
+
+`target/env/` の同型コピペを解消するため、配置・列挙の共通骨格を `src/target/placed/` に抽出している。
+
+| モジュール | 役割 |
+|------------|------|
+| `filter` | `filter_skill_dir` 等のスキャン結果フィルタ |
+| `list_helpers` | `scan_and_filter` / `list_instruction_at` |
+| `placement_helpers` | `skill_dir` / `agent_file` / `instruction_file` |
+| `scope_support` | kind × scope の薄い `ScopeSupport` 表 |
+
+サポート判定の単一真実源は `Target::can_place_scope`（`supports_scope` はこれを呼ぶ）。各 env は `CAPABILITIES` 定数とパス用 `LAYOUT` 定数を持ち、振る舞いフック（Hook 上書きガード等）は各 `impl` に残す。

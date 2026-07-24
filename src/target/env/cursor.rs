@@ -4,13 +4,42 @@ use crate::component::{
     Component, ComponentKind, FileOperation, PlacementContext, PlacementLocation, Scope, ScopedPath,
 };
 use crate::error::Result;
+use crate::target::filter::{filter_exact_file, filter_plain_markdown, filter_skill_dir};
+use crate::target::list_helpers::{list_instruction_at, scan_and_filter, scan_and_filter_in};
 use crate::target::paths::base_dir;
-use crate::target::placed_common;
-use crate::target::scanner::{scan_components, ScannedComponent};
+use crate::target::placement_helpers::{named_file, skill_dir};
+use crate::target::scope_support::{allows_scope, ScopeSupport};
 use crate::target::{PostPlaceOutcome, Target, TargetKind};
 use std::path::{Path, PathBuf};
 
-const CURSOR_SUBDIR: &str = ".cursor";
+struct CursorLayout {
+    subdir: &'static str,
+    instruction_file: &'static str,
+    hooks_file: &'static str,
+}
+
+const LAYOUT: CursorLayout = CursorLayout {
+    subdir: ".cursor",
+    instruction_file: "AGENTS.md",
+    hooks_file: "hooks.json",
+};
+
+const SUPPORTED: &[ComponentKind] = &[
+    ComponentKind::Skill,
+    ComponentKind::Agent,
+    ComponentKind::Command,
+    ComponentKind::Instruction,
+    ComponentKind::Hook,
+];
+
+/// Instructions は Project のみ。それ以外は両スコープ。
+const CAPABILITIES: &[(ComponentKind, ScopeSupport)] = &[
+    (ComponentKind::Skill, ScopeSupport::Both),
+    (ComponentKind::Agent, ScopeSupport::Both),
+    (ComponentKind::Command, ScopeSupport::Both),
+    (ComponentKind::Instruction, ScopeSupport::ProjectOnly),
+    (ComponentKind::Hook, ScopeSupport::Both),
+];
 
 /// Cursor ターゲット
 pub struct CursorTarget;
@@ -20,49 +49,11 @@ impl CursorTarget {
         Self
     }
 
-    /// スコープに応じたベースディレクトリを取得
-    ///
-    /// # Arguments
-    ///
-    /// * `scope` - Scope (`Personal` or `Project`) that selects the base directory.
-    /// * `project_root` - Project root directory used for project scope.
     fn base_dir(scope: Scope, project_root: &Path) -> PathBuf {
-        base_dir(scope, project_root, CURSOR_SUBDIR, CURSOR_SUBDIR)
+        base_dir(scope, project_root, LAYOUT.subdir, LAYOUT.subdir)
     }
 
-    /// この組み合わせで配置できるか
-    ///
-    /// Instructions は Project スコープのみ（Personal の User Rules は対象外）。
-    ///
-    /// # Arguments
-    ///
-    /// * `kind` - Component kind to check.
-    /// * `scope` - Scope (`Personal` or `Project`) to check.
-    fn can_place(kind: ComponentKind, scope: Scope) -> bool {
-        matches!(
-            (kind, scope),
-            (ComponentKind::Skill, _)
-                | (ComponentKind::Agent, _)
-                | (ComponentKind::Command, _)
-                | (ComponentKind::Instruction, Scope::Project)
-                | (ComponentKind::Hook, _)
-        )
-    }
-
-    /// Cursor が期待するプレーン `.md` ファイルか判定する。
-    ///
-    /// PLM 内部の `.agent.md` / `.prompt.md` サフィックスは Cursor では
-    /// 認識されないため除外する（#359 検証結果）。
-    fn is_plain_markdown(name: &str) -> bool {
-        name.ends_with(".md") && !name.ends_with(".agent.md") && !name.ends_with(".prompt.md")
-    }
-
-    /// Cursor は 1 スコープにつき単一の `hooks.json` を読むため、複数 Hook を
-    /// 個別配置すると同じファイルを上書きする。マージ未実装の間は拒否する。
-    ///
-    /// # Arguments
-    ///
-    /// * `components` - Components being placed in a single install/import call.
+    /// Cursor は 1 スコープにつき単一の `hooks.json` を読むため、複数 Hook を拒否する。
     pub fn hook_component_conflict_error(components: &[Component]) -> Option<String> {
         let hook_count = components
             .iter()
@@ -77,13 +68,6 @@ impl CursorTarget {
         })
     }
 
-    /// 配置先 `hooks.json` がすでに存在し、`target_path` が現在のプラグインの
-    /// 管理下に無い場合にエラー文字列を返す。
-    ///
-    /// # Arguments
-    ///
-    /// * `target_path` - Resolved destination path (e.g. `.cursor/hooks.json`).
-    /// * `plugin_root` - Cached plugin directory; `.plm-meta.json` lives here.
     pub fn hook_overwrite_error(target_path: &Path, plugin_root: &Path) -> Option<String> {
         if !Self::path_conflicts_with_unowned(target_path, plugin_root) {
             return None;
@@ -95,13 +79,6 @@ impl CursorTarget {
         ))
     }
 
-    /// Skill 配置先ディレクトリが既存で、現在のプラグイン管理下に無い場合に
-    /// エラー文字列を返す（元名配置ではプラグイン接頭辞による衝突回避がないため）。
-    ///
-    /// # Arguments
-    ///
-    /// * `target_path` - Resolved skill directory (e.g. `.cursor/skills/my-skill`).
-    /// * `plugin_root` - Cached plugin directory; `.plm-meta.json` lives here.
     pub fn skill_overwrite_error(target_path: &Path, plugin_root: &Path) -> Option<String> {
         if !Self::path_conflicts_with_unowned(target_path, plugin_root) {
             return None;
@@ -123,13 +100,6 @@ impl CursorTarget {
         !already_owned
     }
 
-    /// 旧フラット化名 `{plugin}_{skill}` の Skill ディレクトリパスを返す。
-    ///
-    /// # Arguments
-    ///
-    /// * `scope` - Placement scope.
-    /// * `project_root` - Project root for project scope.
-    /// * `flattened_name` - Legacy `{plugin}_{original}` directory name.
     pub fn legacy_flattened_skill_path(
         scope: Scope,
         project_root: &Path,
@@ -140,26 +110,6 @@ impl CursorTarget {
             .join(flattened_name)
     }
 
-    /// 旧 `{plugin}_{original}` Skill ディレクトリを best-effort 削除する。
-    ///
-    /// # Ownership policy
-    ///
-    /// 削除対象は常にこのコンポーネントの `flattened_name`
-    /// （`flatten_name(plugin, original)`）から導出したパスのみ。
-    /// 他プラグインの元名ディレクトリや別プレフィックスは対象にならない。
-    /// 旧レイアウトでは当該パスはこのプラグイン（または同名の手動作成）由来に
-    /// 限られるため、`managedFiles` 未記録でも削除してよい。
-    /// `current_path`（新レイアウトの元名パス）と同一なら no-op。
-    ///
-    /// # Arguments
-    ///
-    /// * `scope` - Placement scope.
-    /// * `project_root` - Project root for project scope.
-    /// * `flattened_name` - Legacy `{plugin}_{original}` directory name.
-    /// * `current_path` - Newly placed skill directory (original-name path).
-    ///
-    /// # Returns
-    /// `true` if a legacy directory was removed.
     pub fn remove_legacy_flattened_skill_dir(
         scope: Scope,
         project_root: &Path,
@@ -182,33 +132,6 @@ impl CursorTarget {
             }
         }
     }
-
-    /// コンポーネント種別に応じたフィルタリング
-    ///
-    /// # Arguments
-    ///
-    /// * `c` - Scanned component entry.
-    /// * `kind` - Component kind expected for the entry.
-    fn filter_component(c: &ScannedComponent, kind: ComponentKind) -> Option<String> {
-        match kind {
-            ComponentKind::Skill if c.is_dir => {
-                let skill_md = c.path.join("SKILL.md");
-                if skill_md.exists() {
-                    Some(c.name.clone())
-                } else {
-                    None
-                }
-            }
-            ComponentKind::Agent if !c.is_dir && Self::is_plain_markdown(&c.name) => {
-                Some(c.name.trim_end_matches(".md").to_string())
-            }
-            ComponentKind::Command if !c.is_dir && Self::is_plain_markdown(&c.name) => {
-                Some(c.name.trim_end_matches(".md").to_string())
-            }
-            ComponentKind::Hook if !c.is_dir && c.name == "hooks.json" => Some("hooks".to_string()),
-            _ => None,
-        }
-    }
 }
 
 impl Default for CursorTarget {
@@ -227,19 +150,17 @@ impl Target for CursorTarget {
     }
 
     fn supported_components(&self) -> &[ComponentKind] {
-        &[
-            ComponentKind::Skill,
-            ComponentKind::Agent,
-            ComponentKind::Command,
-            ComponentKind::Instruction,
-            ComponentKind::Hook,
-        ]
+        SUPPORTED
+    }
+
+    fn can_place_scope(&self, kind: ComponentKind, scope: Scope) -> bool {
+        allows_scope(CAPABILITIES, kind, scope)
     }
 
     fn placement_location(&self, context: &PlacementContext) -> Option<PlacementLocation> {
         let kind = context.kind();
         let scope = context.scope();
-        if !Self::can_place(kind, scope) {
+        if !self.can_place_scope(kind, scope) {
             return None;
         }
 
@@ -249,23 +170,17 @@ impl Target for CursorTarget {
 
         Some(match kind {
             // Cursor は frontmatter `name` と親フォルダ名の一致を要求するため、
-            // Skill のみ元名で配置する（Issue #377）。`original_name` 未設定なら
-            // フラット化名へフォールバックせず配置不可とする。
+            // Skill のみ元名で配置する（Issue #377）。`original_name` 未設定なら配置不可。
             ComponentKind::Skill => {
                 let dir_name = context.original_name().filter(|n| !n.is_empty())?;
-                PlacementLocation::dir(base.join("skills").join(dir_name))
+                skill_dir(&base, dir_name)
             }
-            // フラット構造: agents/<flattened_name>.md (ファイル)
-            ComponentKind::Agent => {
-                PlacementLocation::file(base.join("agents").join(format!("{name}.md")))
+            ComponentKind::Agent => named_file(&base, "agents", name, ".md"),
+            ComponentKind::Command => named_file(&base, "commands", name, ".md"),
+            ComponentKind::Instruction => {
+                PlacementLocation::file(project_root.join(LAYOUT.instruction_file))
             }
-            // フラット構造: commands/<flattened_name>.md (ファイル)
-            ComponentKind::Command => {
-                PlacementLocation::file(base.join("commands").join(format!("{name}.md")))
-            }
-            // Project scope: AGENTS.md at project root (shared with Codex)
-            ComponentKind::Instruction => PlacementLocation::file(project_root.join("AGENTS.md")),
-            ComponentKind::Hook => PlacementLocation::file(base.join("hooks.json")),
+            ComponentKind::Hook => PlacementLocation::file(base.join(LAYOUT.hooks_file)),
         })
     }
 
@@ -361,34 +276,27 @@ impl Target for CursorTarget {
         scope: Scope,
         project_root: &Path,
     ) -> Result<Vec<String>> {
-        if !Self::can_place(kind, scope) {
+        if !self.can_place_scope(kind, scope) {
             return Ok(vec![]);
         }
 
         if kind == ComponentKind::Instruction {
-            return Ok(placed_common::list_instruction(
-                self,
-                scope,
-                project_root,
-                "AGENTS.md",
+            return Ok(list_instruction_at(
+                &project_root.join(LAYOUT.instruction_file),
+                LAYOUT.instruction_file,
             ));
         }
 
         let base = Self::base_dir(scope, project_root);
-        let dir_path = match kind {
-            ComponentKind::Skill => base.join("skills"),
-            ComponentKind::Agent => base.join("agents"),
-            ComponentKind::Command => base.join("commands"),
-            ComponentKind::Hook => base.clone(),
-            _ => return Ok(vec![]),
-        };
-
-        let names = scan_components(&dir_path)?
-            .into_iter()
-            .filter_map(|c| Self::filter_component(&c, kind))
-            .collect();
-
-        Ok(names)
+        match kind {
+            ComponentKind::Skill => scan_and_filter(&base, "skills", filter_skill_dir),
+            ComponentKind::Agent => scan_and_filter(&base, "agents", filter_plain_markdown),
+            ComponentKind::Command => scan_and_filter(&base, "commands", filter_plain_markdown),
+            ComponentKind::Hook => {
+                scan_and_filter_in(&base, |c| filter_exact_file(c, LAYOUT.hooks_file, "hooks"))
+            }
+            _ => Ok(vec![]),
+        }
     }
 }
 

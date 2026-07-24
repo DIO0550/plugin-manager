@@ -2,14 +2,31 @@
 
 use crate::component::{ComponentKind, PlacementContext, PlacementLocation, Scope};
 use crate::error::Result;
+use crate::target::filter::filter_skill_dir;
+use crate::target::list_helpers::scan_and_filter;
 use crate::target::paths::home_dir;
-use crate::target::scanner::{scan_components, ScannedComponent};
+use crate::target::placement_helpers::skill_dir;
+use crate::target::scope_support::{allows_scope, ScopeSupport};
 use crate::target::{Target, TargetKind};
 use std::path::{Path, PathBuf};
 
-const ANTIGRAVITY_PERSONAL_PARENT: &str = ".gemini";
-const ANTIGRAVITY_PERSONAL_CHILD: &str = "antigravity";
-const ANTIGRAVITY_PROJECT_SUBDIR: &str = ".agent";
+/// Antigravity のパス定数（Phase F: 薄いレイアウト）。
+struct AntigravityLayout {
+    personal_parent: &'static str,
+    personal_child: &'static str,
+    project_subdir: &'static str,
+}
+
+const LAYOUT: AntigravityLayout = AntigravityLayout {
+    personal_parent: ".gemini",
+    personal_child: "antigravity",
+    project_subdir: ".agent",
+};
+
+const SUPPORTED: &[ComponentKind] = &[ComponentKind::Skill];
+
+const CAPABILITIES: &[(ComponentKind, ScopeSupport)] =
+    &[(ComponentKind::Skill, ScopeSupport::Both)];
 
 /// Google Antigravity ターゲット
 pub struct AntigravityTarget;
@@ -19,47 +36,12 @@ impl AntigravityTarget {
         Self
     }
 
-    /// スコープに応じたベースディレクトリを取得
-    ///
-    /// # Arguments
-    ///
-    /// * `scope` - Scope (`Personal` or `Project`) that selects the base directory.
-    /// * `project_root` - Project root directory used for project scope.
     fn base_dir(scope: Scope, project_root: &Path) -> PathBuf {
         match scope {
             Scope::Personal => home_dir()
-                .join(ANTIGRAVITY_PERSONAL_PARENT)
-                .join(ANTIGRAVITY_PERSONAL_CHILD),
-            Scope::Project => project_root.join(ANTIGRAVITY_PROJECT_SUBDIR),
-        }
-    }
-
-    /// この組み合わせで配置できるか（Skillのみサポート）
-    ///
-    /// # Arguments
-    ///
-    /// * `kind` - Component kind to check.
-    fn can_place(kind: ComponentKind) -> bool {
-        kind == ComponentKind::Skill
-    }
-
-    /// コンポーネント種別に応じたフィルタリング（SKILL.md存在チェック維持）
-    ///
-    /// # Arguments
-    ///
-    /// * `c` - Scanned component entry.
-    /// * `kind` - Component kind expected for the entry.
-    fn filter_component(c: &ScannedComponent, kind: ComponentKind) -> Option<String> {
-        match kind {
-            ComponentKind::Skill if c.is_dir => {
-                let skill_md = c.path.join("SKILL.md");
-                if skill_md.exists() {
-                    Some(c.name.clone())
-                } else {
-                    None
-                }
-            }
-            _ => None,
+                .join(LAYOUT.personal_parent)
+                .join(LAYOUT.personal_child),
+            Scope::Project => project_root.join(LAYOUT.project_subdir),
         }
     }
 }
@@ -80,23 +62,23 @@ impl Target for AntigravityTarget {
     }
 
     fn supported_components(&self) -> &[ComponentKind] {
-        &[ComponentKind::Skill]
+        SUPPORTED
+    }
+
+    fn can_place_scope(&self, kind: ComponentKind, scope: Scope) -> bool {
+        allows_scope(CAPABILITIES, kind, scope)
     }
 
     fn placement_location(&self, context: &PlacementContext) -> Option<PlacementLocation> {
         let kind = context.kind();
-        if !Self::can_place(kind) {
+        let scope = context.scope();
+        if !self.can_place_scope(kind, scope) {
             return None;
         }
 
-        let scope = context.scope();
-        let project_root = context.project_root();
-        let base = Self::base_dir(scope, project_root);
-        let name = context.name();
-
+        let base = Self::base_dir(scope, context.project_root());
         Some(match kind {
-            // フラット構造: skills/<flattened_name> (ディレクトリ)
-            ComponentKind::Skill => PlacementLocation::dir(base.join("skills").join(name)),
+            ComponentKind::Skill => skill_dir(&base, context.name()),
             _ => return None,
         })
     }
@@ -107,19 +89,15 @@ impl Target for AntigravityTarget {
         scope: Scope,
         project_root: &Path,
     ) -> Result<Vec<String>> {
-        if !Self::can_place(kind) {
+        if !self.can_place_scope(kind, scope) {
             return Ok(vec![]);
         }
 
         let base = Self::base_dir(scope, project_root);
-        let dir_path = base.join("skills");
-
-        let names = scan_components(&dir_path)?
-            .into_iter()
-            .filter_map(|c| Self::filter_component(&c, kind))
-            .collect();
-
-        Ok(names)
+        match kind {
+            ComponentKind::Skill => scan_and_filter(&base, "skills", filter_skill_dir),
+            _ => Ok(vec![]),
+        }
     }
 }
 
