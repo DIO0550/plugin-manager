@@ -1,7 +1,0 @@
-review-tool: none
-output-formats:
-  hearing-notes: md
-  exploration-report: md
-  implementation-plan: md
-  tasks: md
-  tech-reference: md
