@@ -21,6 +21,7 @@ PLMが管理するコンポーネントの種類について説明します。
 - YAML frontmatterでメタデータを定義
 - 専門的なタスクを実行するための詳細な指示を含む
 - Codex、Copilot、Gemini CLI、Cursorでサポート（Antigravityも対応）
+- Skill ディレクトリ内の `references/` / `assets/` など任意名の補助ファイル・フォルダは **付属リソース**として本体と一緒にターゲットへコピーされる
 
 ### ファイル形式
 
@@ -35,6 +36,17 @@ metadata:
 # Skill Name
 
 スキルの詳細な指示...
+
+詳細は ./references/guide.md を参照。
+```
+
+ディレクトリ例:
+
+```text
+skills/skill-name/
+├── SKILL.md
+├── references/guide.md
+└── assets/templates/form.html
 ```
 
 ### 配置場所
