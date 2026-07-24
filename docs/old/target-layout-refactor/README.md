@@ -1,7 +1,6 @@
-# Target Layout 集約（#338）— impl ベース計画
+# Target Layout 集約（#338）— impl ベース計画（アーカイブ）
 
-> **ステータス**: 計画フェーズ（未実装）  
-> **正規パス**: `.plugin-workspace/.specs/001-target-layout-capability/`  
+> **ステータス**: 実装済み（本ディレクトリは計画フェーズのアーカイブ）  
 > **方針**: 理想 DSL 先行ではなく、既存 `impl Target` から共通骨格を bottom-up 抽出する
 
 ## ファイル
@@ -21,15 +20,8 @@
 |-------|------|
 | A | 5 impl 差分確定 |
 | B | `list_placed` 骨格抽出 |
-| C | Skill `filter` 共通化 |
-| D | `supports_scope` ダミー廃止 |
+| C | Skill filter 共通化 |
+| D | `supports_scope` ダミー廃止（`can_place_scope`） |
 | E | `placement_location` 共通パターン抽出 |
-| F | 必要なら薄い定数化（省略可） |
+| F | 薄い定数化（`LAYOUT` / `CAPABILITIES`） |
 | G | docs / 掃除 |
-
-## 実装開始
-
-```bash
-rm .plugin-workspace/.specs/.guard/* \
-   .plugin-workspace/.specs/001-target-layout-capability/PLANNING
-```
