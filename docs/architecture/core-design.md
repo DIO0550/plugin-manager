@@ -321,7 +321,7 @@ fn open_browser(url: &str) -> Result<()> {
 
 | 層 | 役割 |
 |----|------|
-| `ComponentKind` | 表示用 `plural()`、`skill_manifest()`、`file_suffix()`（ターゲット非依存）。呼び出し側はここを直接使う |
+| `ComponentKind` | 表示用 `plural()`、`skill_manifest()`、`file_suffix()`、`default_subdir()`（ターゲット非依存）。呼び出し側はここを直接使う |
 | `placement_names` | 環境ルート・instruction ファイル名・Copilot `"prompts"` 等（葉モジュール） |
 | `TargetKind` | `instruction_filename` / `placement_subdir` / `cleanup_specs`（上記を消費する API） |
 

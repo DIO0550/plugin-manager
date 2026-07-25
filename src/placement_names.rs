@@ -4,8 +4,6 @@
 //! - 本モジュールはターゲット依存の文字列定数（環境ルート・instruction ファイル名）を保持する
 //! - `target` / `scan` / `cleanup` がここを消費し、`target` ↔ `scan` 循環を避ける
 
-use crate::component::ComponentKind;
-
 // ---------------------------------------------------------------------------
 // Instruction ファイル名
 // ---------------------------------------------------------------------------
@@ -35,14 +33,6 @@ pub const CURSOR_SUBDIR: &str = ".cursor";
 
 /// Copilot Command の実配置ディレクトリ（表示用 `plural()` の `"commands"` とは異なる）。
 pub const COPILOT_COMMAND_SUBDIR: &str = "prompts";
-
-/// デフォルト配置 subdir。Copilot Command など例外は呼び出し側で上書きする。
-pub fn default_placement_subdir(kind: ComponentKind) -> Option<&'static str> {
-    match kind {
-        ComponentKind::Instruction => None,
-        other => Some(other.plural()),
-    }
-}
 
 #[cfg(test)]
 #[path = "placement_names_test.rs"]

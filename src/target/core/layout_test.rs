@@ -33,11 +33,11 @@ fn placement_subdir_copilot_command_is_prompts() {
     );
     assert_eq!(
         TargetKind::Cursor.placement_subdir(ComponentKind::Command),
-        Some(ComponentKind::Command.plural())
+        ComponentKind::Command.default_subdir()
     );
     assert_eq!(
         TargetKind::Codex.placement_subdir(ComponentKind::Skill),
-        Some(ComponentKind::Skill.plural())
+        ComponentKind::Skill.default_subdir()
     );
     assert_eq!(
         TargetKind::Codex.placement_subdir(ComponentKind::Instruction),

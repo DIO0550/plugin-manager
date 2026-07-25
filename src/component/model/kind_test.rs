@@ -29,6 +29,19 @@ fn test_component_kind_skill_manifest_and_suffixes() {
 }
 
 #[test]
+fn test_component_kind_default_subdir() {
+    assert_eq!(ComponentKind::Skill.default_subdir(), Some("skills"));
+    assert_eq!(ComponentKind::Command.default_subdir(), Some("commands"));
+    assert_eq!(ComponentKind::Instruction.default_subdir(), None);
+    for kind in ComponentKind::all() {
+        match kind {
+            ComponentKind::Instruction => assert!(kind.default_subdir().is_none()),
+            other => assert_eq!(other.default_subdir(), Some(other.plural())),
+        }
+    }
+}
+
+#[test]
 fn test_component_kind_from_plural() {
     assert_eq!(
         ComponentKind::from_plural("skills"),

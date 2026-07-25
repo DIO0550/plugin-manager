@@ -37,7 +37,8 @@ impl ComponentKind {
     /// 複数形の文字列を取得（表示・シリアライズキー専用）。
     ///
     /// 配置パスのサブディレクトリ組み立てには使わないこと。
-    /// ターゲット依存の配置名は [`crate::target::TargetKind::placement_subdir`] を使う
+    /// デフォルト配置名は [`Self::default_subdir`]、ターゲット依存は
+    /// [`crate::target::TargetKind::placement_subdir`] を使う
     /// （例: Copilot Command は `"prompts"` であり、本メソッドの `"commands"` とは異なる）。
     pub const fn plural(self) -> &'static str {
         match self {
@@ -71,6 +72,18 @@ impl ComponentKind {
             ComponentKind::Agent => Some(".agent.md"),
             ComponentKind::Command => Some(".prompt.md"),
             _ => None,
+        }
+    }
+
+    /// ターゲット非依存のデフォルト配置サブディレクトリ。
+    ///
+    /// Instruction は固定ファイル配置のため `None`。それ以外は [`Self::plural`] と同じ。
+    /// ターゲット依存の上書き（Copilot Command → `"prompts"` 等）は
+    /// [`crate::target::TargetKind::placement_subdir`] を使うこと。
+    pub const fn default_subdir(self) -> Option<&'static str> {
+        match self {
+            ComponentKind::Instruction => None,
+            other => Some(other.plural()),
         }
     }
 

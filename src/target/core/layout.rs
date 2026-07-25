@@ -23,13 +23,11 @@ impl TargetKind {
 
     /// ターゲット上の配置サブディレクトリ。
     ///
-    /// デフォルトは [`ComponentKind::plural`]。Copilot Command のみ `"prompts"`。
-    /// Instruction は固定ファイルのため `None`。
+    /// デフォルトは [`ComponentKind::default_subdir`]。Copilot Command のみ `"prompts"`。
     pub fn placement_subdir(self, kind: ComponentKind) -> Option<&'static str> {
-        match kind {
-            ComponentKind::Instruction => None,
-            ComponentKind::Command if self == TargetKind::Copilot => Some(COPILOT_COMMAND_SUBDIR),
-            other => placement_names::default_placement_subdir(other),
+        match (self, kind) {
+            (TargetKind::Copilot, ComponentKind::Command) => Some(COPILOT_COMMAND_SUBDIR),
+            (_, kind) => kind.default_subdir(),
         }
     }
 
@@ -81,28 +79,26 @@ impl TargetKind {
     }
 
     fn cleanup_kind_subdirs(self, scope: Scope) -> Vec<&'static str> {
-        match (self, scope) {
-            (TargetKind::Codex, _) => {
-                vec![ComponentKind::Agent.plural(), ComponentKind::Skill.plural()]
-            }
-            (TargetKind::Copilot, Scope::Personal) => {
-                vec![ComponentKind::Agent.plural(), ComponentKind::Hook.plural()]
-            }
-            (TargetKind::Copilot, Scope::Project) => vec![
-                ComponentKind::Agent.plural(),
-                COPILOT_COMMAND_SUBDIR,
-                ComponentKind::Skill.plural(),
-                ComponentKind::Hook.plural(),
+        let kinds: &[ComponentKind] = match (self, scope) {
+            (TargetKind::Codex, _) => &[ComponentKind::Agent, ComponentKind::Skill],
+            (TargetKind::Copilot, Scope::Personal) => &[ComponentKind::Agent, ComponentKind::Hook],
+            (TargetKind::Copilot, Scope::Project) => &[
+                ComponentKind::Agent,
+                ComponentKind::Command,
+                ComponentKind::Skill,
+                ComponentKind::Hook,
             ],
-            (TargetKind::Antigravity, _) | (TargetKind::GeminiCli, _) => {
-                vec![ComponentKind::Skill.plural()]
-            }
-            (TargetKind::Cursor, _) => vec![
-                ComponentKind::Skill.plural(),
-                ComponentKind::Agent.plural(),
-                ComponentKind::Command.plural(),
+            (TargetKind::Antigravity, _) | (TargetKind::GeminiCli, _) => &[ComponentKind::Skill],
+            (TargetKind::Cursor, _) => &[
+                ComponentKind::Skill,
+                ComponentKind::Agent,
+                ComponentKind::Command,
             ],
-        }
+        };
+        kinds
+            .iter()
+            .filter_map(|&kind| self.placement_subdir(kind))
+            .collect()
     }
 }
 

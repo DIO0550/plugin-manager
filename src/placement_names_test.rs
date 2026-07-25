@@ -13,20 +13,6 @@ fn all_instruction_filenames_are_unique_and_non_empty() {
 }
 
 #[test]
-fn default_placement_subdir_matches_plural_except_instruction() {
-    for kind in ComponentKind::all() {
-        match kind {
-            ComponentKind::Instruction => {
-                assert_eq!(default_placement_subdir(*kind), None);
-            }
-            other => {
-                assert_eq!(default_placement_subdir(*other), Some(other.plural()));
-            }
-        }
-    }
-}
-
-#[test]
 fn copilot_command_subdir_differs_from_plural() {
     assert_ne!(COPILOT_COMMAND_SUBDIR, ComponentKind::Command.plural());
     assert_eq!(COPILOT_COMMAND_SUBDIR, "prompts");

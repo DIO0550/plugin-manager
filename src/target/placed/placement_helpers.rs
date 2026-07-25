@@ -5,7 +5,10 @@ use std::path::Path;
 
 /// Skill: `base/skills/<name>/`
 pub(crate) fn skill_dir(base: &Path, name: &str) -> PlacementLocation {
-    PlacementLocation::dir(base.join(ComponentKind::Skill.plural()).join(name))
+    let subdir = ComponentKind::Skill
+        .default_subdir()
+        .expect("Skill always has a default subdir");
+    PlacementLocation::dir(base.join(subdir).join(name))
 }
 
 /// `base/<subdir>/<name><suffix>` ファイル配置。
@@ -18,7 +21,10 @@ pub(crate) fn agent_file(base: &Path, name: &str) -> PlacementLocation {
     let suffix = ComponentKind::Agent
         .file_suffix()
         .expect("Agent always has a file suffix");
-    named_file(base, ComponentKind::Agent.plural(), name, suffix)
+    let subdir = ComponentKind::Agent
+        .default_subdir()
+        .expect("Agent always has a default subdir");
+    named_file(base, subdir, name, suffix)
 }
 
 /// Instruction: Project → `project_root/<filename>`, Personal → `base/<filename>`
