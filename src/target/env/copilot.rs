@@ -98,7 +98,9 @@ impl Target for CopilotTarget {
             ComponentKind::Skill => skill_dir(&base, name),
             ComponentKind::Agent => agent_file(&base, name),
             ComponentKind::Command => {
-                let suffix = ComponentKind::Command.file_suffix().unwrap_or(".prompt.md");
+                let suffix = ComponentKind::Command
+                    .file_suffix()
+                    .expect("Command always has a file suffix");
                 named_file(&base, COPILOT_COMMAND_SUBDIR, name, suffix)
             }
             ComponentKind::Instruction => instruction_under_base(&base, LAYOUT.instruction_file),
@@ -130,13 +132,17 @@ impl Target for CopilotTarget {
                 scan_and_filter(&base, ComponentKind::Skill.plural(), filter_skill_dir)
             }
             ComponentKind::Agent => {
-                let suffix = ComponentKind::Agent.file_suffix().unwrap_or(".agent.md");
+                let suffix = ComponentKind::Agent
+                    .file_suffix()
+                    .expect("Agent always has a file suffix");
                 scan_and_filter(&base, ComponentKind::Agent.plural(), |c| {
                     filter_suffix_file(c, suffix)
                 })
             }
             ComponentKind::Command => {
-                let suffix = ComponentKind::Command.file_suffix().unwrap_or(".prompt.md");
+                let suffix = ComponentKind::Command
+                    .file_suffix()
+                    .expect("Command always has a file suffix");
                 scan_and_filter(&base, COPILOT_COMMAND_SUBDIR, |c| {
                     filter_suffix_file(c, suffix)
                 })

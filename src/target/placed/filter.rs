@@ -51,8 +51,12 @@ pub(crate) fn filter_json_suffix(c: &ScannedComponent) -> Option<String> {
 }
 
 fn is_plain_markdown(name: &str) -> bool {
-    let agent = ComponentKind::Agent.file_suffix().unwrap_or(".agent.md");
-    let prompt = ComponentKind::Command.file_suffix().unwrap_or(".prompt.md");
+    let agent = ComponentKind::Agent
+        .file_suffix()
+        .expect("Agent always has a file suffix");
+    let prompt = ComponentKind::Command
+        .file_suffix()
+        .expect("Command always has a file suffix");
     name.ends_with(".md") && !name.ends_with(agent) && !name.ends_with(prompt)
 }
 

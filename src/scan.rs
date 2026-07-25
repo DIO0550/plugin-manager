@@ -13,15 +13,10 @@
 //! - [`list_skill_names`], [`list_agent_names`], etc.: 個別コンポーネントのスキャン
 
 mod components;
-mod constants;
 mod placement;
 
 pub use components::{
     file_stem_name, list_agent_names, list_command_names, list_hook_names, list_markdown_names,
     list_skill_names,
-};
-pub use constants::{
-    DEFAULT_AGENTS_DIR, DEFAULT_COMMANDS_DIR, DEFAULT_HOOKS_DIR, DEFAULT_INSTRUCTIONS_DIR,
-    DEFAULT_INSTRUCTIONS_FILE, DEFAULT_SKILLS_DIR,
 };
 pub use placement::{is_instruction_file, list_placed_components};

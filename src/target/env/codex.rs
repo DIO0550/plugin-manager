@@ -228,7 +228,9 @@ impl Target for CodexTarget {
                 scan_and_filter(&base, ComponentKind::Skill.plural(), filter_skill_dir)
             }
             ComponentKind::Agent => {
-                let suffix = ComponentKind::Agent.file_suffix().unwrap_or(".agent.md");
+                let suffix = ComponentKind::Agent
+                    .file_suffix()
+                    .expect("Agent always has a file suffix");
                 scan_and_filter(&base, ComponentKind::Agent.plural(), |c| {
                     filter_suffix_file(c, suffix)
                 })

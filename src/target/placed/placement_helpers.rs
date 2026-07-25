@@ -15,7 +15,9 @@ pub(crate) fn named_file(base: &Path, subdir: &str, name: &str, suffix: &str) ->
 
 /// Agent（Codex / Copilot）: `base/agents/<name>.agent.md`
 pub(crate) fn agent_file(base: &Path, name: &str) -> PlacementLocation {
-    let suffix = ComponentKind::Agent.file_suffix().unwrap_or(".agent.md");
+    let suffix = ComponentKind::Agent
+        .file_suffix()
+        .expect("Agent always has a file suffix");
     named_file(base, ComponentKind::Agent.plural(), name, suffix)
 }
 
