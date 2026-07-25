@@ -47,20 +47,14 @@ impl Serialize for ComponentsWire<'_> {
         S: Serializer,
     {
         let mut map = serializer.serialize_map(Some(5))?;
-        for (kind, key) in [
-            (ComponentKind::Skill, "skills"),
-            (ComponentKind::Agent, "agents"),
-            (ComponentKind::Command, "commands"),
-            (ComponentKind::Instruction, "instructions"),
-            (ComponentKind::Hook, "hooks"),
-        ] {
+        for kind in ComponentKind::all() {
             let names: Vec<&str> = self
                 .0
                 .iter()
-                .filter(|c| c.kind == kind)
+                .filter(|c| c.kind == *kind)
                 .map(|c| c.name.as_str())
                 .collect();
-            map.serialize_entry(key, &names)?;
+            map.serialize_entry(kind.plural(), &names)?;
         }
         map.end()
     }

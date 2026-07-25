@@ -13,6 +13,45 @@ fn test_component_kind_as_str() {
 fn test_component_kind_plural() {
     assert_eq!(ComponentKind::Skill.plural(), "skills");
     assert_eq!(ComponentKind::Agent.plural(), "agents");
+    assert_eq!(ComponentKind::Command.plural(), "commands");
+    assert_eq!(ComponentKind::Instruction.plural(), "instructions");
+    assert_eq!(ComponentKind::Hook.plural(), "hooks");
+}
+
+#[test]
+fn test_component_kind_skill_manifest_and_suffixes() {
+    assert_eq!(ComponentKind::skill_manifest(), "SKILL.md");
+    assert_eq!(ComponentKind::Agent.file_suffix(), Some(".agent.md"));
+    assert_eq!(ComponentKind::Command.file_suffix(), Some(".prompt.md"));
+    assert_eq!(ComponentKind::Skill.file_suffix(), None);
+    assert_eq!(ComponentKind::Instruction.file_suffix(), None);
+    assert_eq!(ComponentKind::Hook.file_suffix(), None);
+}
+
+#[test]
+fn test_component_kind_default_subdir() {
+    assert_eq!(ComponentKind::Skill.default_subdir(), Some("skills"));
+    assert_eq!(ComponentKind::Command.default_subdir(), Some("commands"));
+    assert_eq!(ComponentKind::Instruction.default_subdir(), None);
+    for kind in ComponentKind::all() {
+        match kind {
+            ComponentKind::Instruction => assert!(kind.default_subdir().is_none()),
+            other => assert_eq!(other.default_subdir(), Some(other.plural())),
+        }
+    }
+}
+
+#[test]
+fn test_component_kind_from_plural() {
+    assert_eq!(
+        ComponentKind::from_plural("skills"),
+        Some(ComponentKind::Skill)
+    );
+    assert_eq!(
+        ComponentKind::from_plural("COMMANDS"),
+        Some(ComponentKind::Command)
+    );
+    assert_eq!(ComponentKind::from_plural("unknown"), None);
 }
 
 #[test]

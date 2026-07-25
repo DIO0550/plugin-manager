@@ -6,6 +6,7 @@ pub use feature_flag::{apply_codex_hooks_flag, FeatureFlagOutcome};
 
 use crate::component::{Component, ComponentKind, PlacementContext, PlacementLocation, Scope};
 use crate::error::Result;
+use crate::placement_names::{CODEX_SUBDIR, INSTRUCTION_AGENTS};
 use crate::target::filter::{filter_exact_file, filter_skill_dir, filter_suffix_file};
 use crate::target::list_helpers::{list_instruction_at, scan_and_filter, scan_and_filter_in};
 use crate::target::paths::base_dir;
@@ -22,9 +23,9 @@ struct CodexLayout {
 }
 
 const LAYOUT: CodexLayout = CodexLayout {
-    subdir: ".codex",
+    subdir: CODEX_SUBDIR,
     config_file: "config.toml",
-    instruction_file: "AGENTS.md",
+    instruction_file: INSTRUCTION_AGENTS,
     hooks_file: "hooks.json",
 };
 
@@ -223,13 +224,20 @@ impl Target for CodexTarget {
 
         let base = Self::base_dir(scope, project_root);
         match kind {
-            ComponentKind::Skill => scan_and_filter(&base, "skills", filter_skill_dir),
+            ComponentKind::Skill => {
+                scan_and_filter(&base, ComponentKind::Skill.plural(), filter_skill_dir)
+            }
             ComponentKind::Agent => {
-                scan_and_filter(&base, "agents", |c| filter_suffix_file(c, ".agent.md"))
+                let suffix = ComponentKind::Agent
+                    .file_suffix()
+                    .expect("Agent always has a file suffix");
+                scan_and_filter(&base, ComponentKind::Agent.plural(), |c| {
+                    filter_suffix_file(c, suffix)
+                })
             }
-            ComponentKind::Hook => {
-                scan_and_filter_in(&base, |c| filter_exact_file(c, LAYOUT.hooks_file, "hooks"))
-            }
+            ComponentKind::Hook => scan_and_filter_in(&base, |c| {
+                filter_exact_file(c, LAYOUT.hooks_file, ComponentKind::Hook.plural())
+            }),
             _ => Ok(vec![]),
         }
     }

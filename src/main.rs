@@ -19,6 +19,7 @@ mod marketplace;
 mod output;
 mod parser;
 mod path_ext;
+mod placement_names;
 mod plugin;
 mod repo;
 mod scan;

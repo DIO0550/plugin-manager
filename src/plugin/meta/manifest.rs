@@ -1,11 +1,12 @@
+use crate::component::ComponentKind;
 use crate::error::{PlmError, Result};
 use crate::path_ext::PathExt;
-use crate::scan::{
-    DEFAULT_AGENTS_DIR, DEFAULT_COMMANDS_DIR, DEFAULT_HOOKS_DIR, DEFAULT_INSTRUCTIONS_DIR,
-    DEFAULT_INSTRUCTIONS_FILE, DEFAULT_SKILLS_DIR,
-};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+
+/// プラグインパッケージ内のデフォルト instruction ファイル名。
+/// ターゲット配置の `AGENTS.md` 等とは別概念。
+const DEFAULT_INSTRUCTIONS_FILE: &str = "instructions.md";
 
 /// プラグイン作者情報
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -79,7 +80,7 @@ impl PluginManifest {
     ///
     /// * `base` - Plugin root directory used as the base for resolution.
     pub fn skills_dir(&self, base: &Path) -> PathBuf {
-        base.join_or(self.skills.as_deref(), DEFAULT_SKILLS_DIR)
+        base.join_or(self.skills.as_deref(), ComponentKind::Skill.plural())
     }
 
     /// エージェントディレクトリのパスを解決
@@ -88,7 +89,7 @@ impl PluginManifest {
     ///
     /// * `base` - Plugin root directory used as the base for resolution.
     pub fn agents_dir(&self, base: &Path) -> PathBuf {
-        base.join_or(self.agents.as_deref(), DEFAULT_AGENTS_DIR)
+        base.join_or(self.agents.as_deref(), ComponentKind::Agent.plural())
     }
 
     /// コマンドディレクトリのパスを解決
@@ -97,7 +98,7 @@ impl PluginManifest {
     ///
     /// * `base` - Plugin root directory used as the base for resolution.
     pub fn commands_dir(&self, base: &Path) -> PathBuf {
-        base.join_or(self.commands.as_deref(), DEFAULT_COMMANDS_DIR)
+        base.join_or(self.commands.as_deref(), ComponentKind::Command.plural())
     }
 
     /// インストラクションパスを解決（ファイルまたはディレクトリ）
@@ -115,7 +116,10 @@ impl PluginManifest {
     ///
     /// * `base` - Plugin root directory used as the base for resolution.
     pub fn instructions_dir(&self, base: &Path) -> PathBuf {
-        base.join_or(self.instructions.as_deref(), DEFAULT_INSTRUCTIONS_DIR)
+        base.join_or(
+            self.instructions.as_deref(),
+            ComponentKind::Instruction.plural(),
+        )
     }
 
     /// フックディレクトリのパスを解決
@@ -124,7 +128,7 @@ impl PluginManifest {
     ///
     /// * `base` - Plugin root directory used as the base for resolution.
     pub fn hooks_dir(&self, base: &Path) -> PathBuf {
-        base.join_or(self.hooks.as_deref(), DEFAULT_HOOKS_DIR)
+        base.join_or(self.hooks.as_deref(), ComponentKind::Hook.plural())
     }
 }
 

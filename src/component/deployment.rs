@@ -92,7 +92,7 @@ impl ComponentDeployment {
         // ターゲットがサポートしない frontmatter フィールドを SKILL.md から除去する。
         if let ConversionConfig::Skill { target_kind } = &self.conversion {
             if let Some(allowed) = convert::skill_allowed_fields(*target_kind) {
-                let manifest = self.target_path.join("SKILL.md");
+                let manifest = self.target_path.join(ComponentKind::skill_manifest());
                 if fs.exists(&manifest) && !fs.is_dir(&manifest) {
                     let original = fs.read_to_string(&manifest)?;
                     let stripped = convert::strip_skill_frontmatter_fields(&original, allowed);

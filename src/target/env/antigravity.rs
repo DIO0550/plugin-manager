@@ -2,6 +2,9 @@
 
 use crate::component::{ComponentKind, PlacementContext, PlacementLocation, Scope};
 use crate::error::Result;
+use crate::placement_names::{
+    ANTIGRAVITY_PERSONAL_CHILD, ANTIGRAVITY_PERSONAL_PARENT, ANTIGRAVITY_PROJECT_SUBDIR,
+};
 use crate::target::filter::filter_skill_dir;
 use crate::target::list_helpers::scan_and_filter;
 use crate::target::paths::home_dir;
@@ -10,7 +13,7 @@ use crate::target::scope_support::{allows_scope, ScopeSupport};
 use crate::target::{Target, TargetKind};
 use std::path::{Path, PathBuf};
 
-/// Antigravity のパス定数（Phase F: 薄いレイアウト）。
+/// Antigravity のパス定数（#339: placement_names を正とする）。
 struct AntigravityLayout {
     personal_parent: &'static str,
     personal_child: &'static str,
@@ -18,9 +21,9 @@ struct AntigravityLayout {
 }
 
 const LAYOUT: AntigravityLayout = AntigravityLayout {
-    personal_parent: ".gemini",
-    personal_child: "antigravity",
-    project_subdir: ".agent",
+    personal_parent: ANTIGRAVITY_PERSONAL_PARENT,
+    personal_child: ANTIGRAVITY_PERSONAL_CHILD,
+    project_subdir: ANTIGRAVITY_PROJECT_SUBDIR,
 };
 
 const SUPPORTED: &[ComponentKind] = &[ComponentKind::Skill];
@@ -95,7 +98,9 @@ impl Target for AntigravityTarget {
 
         let base = Self::base_dir(scope, project_root);
         match kind {
-            ComponentKind::Skill => scan_and_filter(&base, "skills", filter_skill_dir),
+            ComponentKind::Skill => {
+                scan_and_filter(&base, ComponentKind::Skill.plural(), filter_skill_dir)
+            }
             _ => Ok(vec![]),
         }
     }

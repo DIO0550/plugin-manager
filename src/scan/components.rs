@@ -3,10 +3,12 @@
 //! 各コンポーネント種別ごとのスキャン実装。
 //! `scan_components` から内部的に呼び出される。
 
-use super::constants::{AGENT_SUFFIX, MARKDOWN_SUFFIX, PROMPT_SUFFIX, SKILL_MANIFEST};
+use crate::component::ComponentKind;
 use crate::path_ext::PathExt;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
+
+const MARKDOWN_SUFFIX: &str = ".md";
 
 /// スキル名一覧を取得（再帰）
 ///
@@ -71,7 +73,7 @@ fn is_symlink(path: &Path) -> bool {
 /// `read_dir` で実際のファイル名を取得し、`OsStr` レベルで厳密比較する。
 /// `read_dir` が失敗した場合（権限エラー等）は `false` を返す。
 fn has_exact_skill_manifest(dir: &Path) -> bool {
-    let expected = OsStr::new(SKILL_MANIFEST);
+    let expected = OsStr::new(ComponentKind::skill_manifest());
     std::fs::read_dir(dir)
         .into_iter()
         .flatten()
@@ -95,12 +97,16 @@ fn has_exact_skill_manifest(dir: &Path) -> bool {
 /// 単一ファイルで名前を導出できない場合や、`agents_path` がファイル/ディレクトリの
 /// いずれでもない場合は空配列を返す。
 pub fn list_agent_names(agents_path: &Path) -> Vec<(String, PathBuf)> {
+    let agent_suffix = ComponentKind::Agent
+        .file_suffix()
+        .expect("Agent always has a file suffix");
+
     if agents_path.is_file() {
         let Some(file_name) = agents_path.file_name().and_then(|n| n.to_str()) else {
             return Vec::new();
         };
         let Some(name) = file_name
-            .strip_suffix(AGENT_SUFFIX)
+            .strip_suffix(agent_suffix)
             .or_else(|| file_name.strip_suffix(MARKDOWN_SUFFIX))
             .map(String::from)
         else {
@@ -115,7 +121,7 @@ pub fn list_agent_names(agents_path: &Path) -> Vec<(String, PathBuf)> {
     }
 
     let mut out = Vec::new();
-    collect_component_files_recursive(agents_path, AGENT_SUFFIX, true, &mut out);
+    collect_component_files_recursive(agents_path, agent_suffix, true, &mut out);
     out
 }
 
@@ -176,8 +182,11 @@ pub fn list_command_names(commands_dir: &Path) -> Vec<(String, PathBuf)> {
         return Vec::new();
     }
 
+    let prompt_suffix = ComponentKind::Command
+        .file_suffix()
+        .expect("Command always has a file suffix");
     let mut out = Vec::new();
-    collect_component_files_recursive(commands_dir, PROMPT_SUFFIX, true, &mut out);
+    collect_component_files_recursive(commands_dir, prompt_suffix, true, &mut out);
     out
 }
 

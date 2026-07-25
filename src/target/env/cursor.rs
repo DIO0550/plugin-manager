@@ -4,6 +4,7 @@ use crate::component::{
     Component, ComponentKind, FileOperation, PlacementContext, PlacementLocation, Scope, ScopedPath,
 };
 use crate::error::Result;
+use crate::placement_names::{CURSOR_SUBDIR, INSTRUCTION_AGENTS};
 use crate::target::filter::{filter_exact_file, filter_plain_markdown, filter_skill_dir};
 use crate::target::list_helpers::{list_instruction_at, scan_and_filter, scan_and_filter_in};
 use crate::target::paths::base_dir;
@@ -19,8 +20,8 @@ struct CursorLayout {
 }
 
 const LAYOUT: CursorLayout = CursorLayout {
-    subdir: ".cursor",
-    instruction_file: "AGENTS.md",
+    subdir: CURSOR_SUBDIR,
+    instruction_file: INSTRUCTION_AGENTS,
     hooks_file: "hooks.json",
 };
 
@@ -106,7 +107,7 @@ impl CursorTarget {
         flattened_name: &str,
     ) -> PathBuf {
         Self::base_dir(scope, project_root)
-            .join("skills")
+            .join(ComponentKind::Skill.plural())
             .join(flattened_name)
     }
 
@@ -175,8 +176,10 @@ impl Target for CursorTarget {
                 let dir_name = context.original_name().filter(|n| !n.is_empty())?;
                 skill_dir(&base, dir_name)
             }
-            ComponentKind::Agent => named_file(&base, "agents", name, ".md"),
-            ComponentKind::Command => named_file(&base, "commands", name, ".md"),
+            ComponentKind::Agent => named_file(&base, ComponentKind::Agent.plural(), name, ".md"),
+            ComponentKind::Command => {
+                named_file(&base, ComponentKind::Command.plural(), name, ".md")
+            }
             ComponentKind::Instruction => {
                 PlacementLocation::file(project_root.join(LAYOUT.instruction_file))
             }
@@ -289,12 +292,20 @@ impl Target for CursorTarget {
 
         let base = Self::base_dir(scope, project_root);
         match kind {
-            ComponentKind::Skill => scan_and_filter(&base, "skills", filter_skill_dir),
-            ComponentKind::Agent => scan_and_filter(&base, "agents", filter_plain_markdown),
-            ComponentKind::Command => scan_and_filter(&base, "commands", filter_plain_markdown),
-            ComponentKind::Hook => {
-                scan_and_filter_in(&base, |c| filter_exact_file(c, LAYOUT.hooks_file, "hooks"))
+            ComponentKind::Skill => {
+                scan_and_filter(&base, ComponentKind::Skill.plural(), filter_skill_dir)
             }
+            ComponentKind::Agent => {
+                scan_and_filter(&base, ComponentKind::Agent.plural(), filter_plain_markdown)
+            }
+            ComponentKind::Command => scan_and_filter(
+                &base,
+                ComponentKind::Command.plural(),
+                filter_plain_markdown,
+            ),
+            ComponentKind::Hook => scan_and_filter_in(&base, |c| {
+                filter_exact_file(c, LAYOUT.hooks_file, ComponentKind::Hook.plural())
+            }),
             _ => Ok(vec![]),
         }
     }

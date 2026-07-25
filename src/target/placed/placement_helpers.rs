@@ -1,11 +1,14 @@
 //! `placement_location` 共通パターンヘルパ
 
-use crate::component::{PlacementLocation, Scope};
+use crate::component::{ComponentKind, PlacementLocation, Scope};
 use std::path::Path;
 
 /// Skill: `base/skills/<name>/`
 pub(crate) fn skill_dir(base: &Path, name: &str) -> PlacementLocation {
-    PlacementLocation::dir(base.join("skills").join(name))
+    let subdir = ComponentKind::Skill
+        .default_subdir()
+        .expect("Skill always has a default subdir");
+    PlacementLocation::dir(base.join(subdir).join(name))
 }
 
 /// `base/<subdir>/<name><suffix>` ファイル配置。
@@ -15,7 +18,13 @@ pub(crate) fn named_file(base: &Path, subdir: &str, name: &str, suffix: &str) ->
 
 /// Agent（Codex / Copilot）: `base/agents/<name>.agent.md`
 pub(crate) fn agent_file(base: &Path, name: &str) -> PlacementLocation {
-    named_file(base, "agents", name, ".agent.md")
+    let suffix = ComponentKind::Agent
+        .file_suffix()
+        .expect("Agent always has a file suffix");
+    let subdir = ComponentKind::Agent
+        .default_subdir()
+        .expect("Agent always has a default subdir");
+    named_file(base, subdir, name, suffix)
 }
 
 /// Instruction: Project → `project_root/<filename>`, Personal → `base/<filename>`

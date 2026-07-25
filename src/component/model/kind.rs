@@ -24,7 +24,7 @@ pub enum ComponentKind {
 
 impl ComponentKind {
     /// 識別子文字列を取得
-    pub fn as_str(&self) -> &'static str {
+    pub const fn as_str(self) -> &'static str {
         match self {
             ComponentKind::Skill => "skill",
             ComponentKind::Agent => "agent",
@@ -34,8 +34,13 @@ impl ComponentKind {
         }
     }
 
-    /// 複数形の文字列を取得
-    pub fn plural(&self) -> &'static str {
+    /// 複数形の文字列を取得（表示・シリアライズキー専用）。
+    ///
+    /// 配置パスのサブディレクトリ組み立てには使わないこと。
+    /// デフォルト配置名は [`Self::default_subdir`]、ターゲット依存は
+    /// [`crate::target::TargetKind::placement_subdir`] を使う
+    /// （例: Copilot Command は `"prompts"` であり、本メソッドの `"commands"` とは異なる）。
+    pub const fn plural(self) -> &'static str {
         match self {
             ComponentKind::Skill => "skills",
             ComponentKind::Agent => "agents",
@@ -46,7 +51,7 @@ impl ComponentKind {
     }
 
     /// 表示名を取得
-    pub fn display_name(&self) -> &'static str {
+    pub const fn display_name(self) -> &'static str {
         match self {
             ComponentKind::Skill => "Skill",
             ComponentKind::Agent => "Agent",
@@ -56,8 +61,42 @@ impl ComponentKind {
         }
     }
 
+    /// Skill マニフェストファイル名（`SKILL.md`）。
+    pub const fn skill_manifest() -> &'static str {
+        "SKILL.md"
+    }
+
+    /// ファイルサフィックス（Agent / Command）。該当しない種別は `None`。
+    pub const fn file_suffix(self) -> Option<&'static str> {
+        match self {
+            ComponentKind::Agent => Some(".agent.md"),
+            ComponentKind::Command => Some(".prompt.md"),
+            _ => None,
+        }
+    }
+
+    /// ターゲット非依存のデフォルト配置サブディレクトリ。
+    ///
+    /// Instruction は固定ファイル配置のため `None`。それ以外は [`Self::plural`] と同じ。
+    /// ターゲット依存の上書き（Copilot Command → `"prompts"` 等）は
+    /// [`crate::target::TargetKind::placement_subdir`] を使うこと。
+    pub const fn default_subdir(self) -> Option<&'static str> {
+        match self {
+            ComponentKind::Instruction => None,
+            other => Some(other.plural()),
+        }
+    }
+
+    /// 表示用複数形からの逆引き（import パス等）。
+    pub fn from_plural(s: &str) -> Option<Self> {
+        Self::all()
+            .iter()
+            .copied()
+            .find(|k| k.plural().eq_ignore_ascii_case(s))
+    }
+
     /// 全コンポーネント種別を取得
-    pub fn all() -> &'static [ComponentKind] {
+    pub const fn all() -> &'static [ComponentKind] {
         &[
             ComponentKind::Skill,
             ComponentKind::Agent,
@@ -184,8 +223,8 @@ impl Scope {
     /// 説明文を取得
     pub fn description(&self) -> &'static str {
         match self {
-            Scope::Personal => "~/.codex/, ~/.copilot/",
-            Scope::Project => ".codex/, .github/",
+            Scope::Personal => "~/.codex/, ~/.copilot/, ~/.gemini/, ~/.cursor/",
+            Scope::Project => ".codex/, .github/, .agent/, .gemini/, .cursor/",
         }
     }
 }
