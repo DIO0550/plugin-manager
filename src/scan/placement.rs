@@ -13,12 +13,11 @@
 
 use std::collections::HashSet;
 
-/// Instruction として扱う既知のファイル名集合。
-const INSTRUCTION_FILE_NAMES: &[&str] = &["AGENTS.md", "copilot-instructions.md", "GEMINI.md"];
+use crate::placement_names::ALL_INSTRUCTION_FILENAMES;
 
 /// 配置済みアイテム文字列の中に Instruction ファイル名が含まれているか。
 pub fn is_instruction_file(item: &str) -> bool {
-    INSTRUCTION_FILE_NAMES.contains(&item)
+    ALL_INSTRUCTION_FILENAMES.contains(&item)
 }
 
 /// 配置済みアイテム文字列のリストから `flattened_name` 集合を抽出する。

@@ -314,3 +314,15 @@ fn open_browser(url: &str) -> Result<()> {
 | `scope_support` | kind × scope の薄い `ScopeSupport` 表 |
 
 サポート判定の単一真実源は `Target::can_place_scope`（`supports_scope` はこれを呼ぶ）。各 env は `CAPABILITIES` 定数とパス用 `LAYOUT` 定数を持ち、振る舞いフック（Hook 上書きガード等）は各 `impl` に残す。
+
+### 配置リテラル（#339）
+
+配置に関する文字列定数は次のように分担する。
+
+| 層 | 役割 |
+|----|------|
+| `ComponentKind` | 表示用 `plural()`、`skill_manifest()`、`file_suffix()`（ターゲット非依存） |
+| `placement_names` | 環境ルート・instruction ファイル名・Copilot `"prompts"` 等（葉モジュール） |
+| `TargetKind` | `instruction_filename` / `placement_subdir` / `cleanup_specs`（上記を消費する API） |
+
+`ComponentKind::plural()` は表示・JSON キー専用。配置パス組み立てには `TargetKind::placement_subdir`（またはヘルパ）を使う。

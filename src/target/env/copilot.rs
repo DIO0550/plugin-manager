@@ -2,6 +2,9 @@
 
 use crate::component::{ComponentKind, PlacementContext, PlacementLocation, Scope};
 use crate::error::Result;
+use crate::placement_names::{
+    COPILOT_COMMAND_SUBDIR, COPILOT_PERSONAL_SUBDIR, COPILOT_PROJECT_SUBDIR, INSTRUCTION_COPILOT,
+};
 use crate::target::filter::{filter_json_suffix, filter_skill_dir, filter_suffix_file};
 use crate::target::list_helpers::{list_instruction_at, scan_and_filter};
 use crate::target::paths::base_dir;
@@ -17,9 +20,9 @@ struct CopilotLayout {
 }
 
 const LAYOUT: CopilotLayout = CopilotLayout {
-    personal_subdir: ".copilot",
-    project_subdir: ".github",
-    instruction_file: "copilot-instructions.md",
+    personal_subdir: COPILOT_PERSONAL_SUBDIR,
+    project_subdir: COPILOT_PROJECT_SUBDIR,
+    instruction_file: INSTRUCTION_COPILOT,
 };
 
 const SUPPORTED: &[ComponentKind] = &[
@@ -94,9 +97,12 @@ impl Target for CopilotTarget {
         Some(match kind {
             ComponentKind::Skill => skill_dir(&base, name),
             ComponentKind::Agent => agent_file(&base, name),
-            ComponentKind::Command => named_file(&base, "prompts", name, ".prompt.md"),
+            ComponentKind::Command => {
+                let suffix = ComponentKind::Command.file_suffix().unwrap_or(".prompt.md");
+                named_file(&base, COPILOT_COMMAND_SUBDIR, name, suffix)
+            }
             ComponentKind::Instruction => instruction_under_base(&base, LAYOUT.instruction_file),
-            ComponentKind::Hook => named_file(&base, "hooks", name, ".json"),
+            ComponentKind::Hook => named_file(&base, ComponentKind::Hook.plural(), name, ".json"),
         })
     }
 
@@ -120,14 +126,24 @@ impl Target for CopilotTarget {
         }
 
         match kind {
-            ComponentKind::Skill => scan_and_filter(&base, "skills", filter_skill_dir),
+            ComponentKind::Skill => {
+                scan_and_filter(&base, ComponentKind::Skill.plural(), filter_skill_dir)
+            }
             ComponentKind::Agent => {
-                scan_and_filter(&base, "agents", |c| filter_suffix_file(c, ".agent.md"))
+                let suffix = ComponentKind::Agent.file_suffix().unwrap_or(".agent.md");
+                scan_and_filter(&base, ComponentKind::Agent.plural(), |c| {
+                    filter_suffix_file(c, suffix)
+                })
             }
             ComponentKind::Command => {
-                scan_and_filter(&base, "prompts", |c| filter_suffix_file(c, ".prompt.md"))
+                let suffix = ComponentKind::Command.file_suffix().unwrap_or(".prompt.md");
+                scan_and_filter(&base, COPILOT_COMMAND_SUBDIR, |c| {
+                    filter_suffix_file(c, suffix)
+                })
             }
-            ComponentKind::Hook => scan_and_filter(&base, "hooks", filter_json_suffix),
+            ComponentKind::Hook => {
+                scan_and_filter(&base, ComponentKind::Hook.plural(), filter_json_suffix)
+            }
             _ => Ok(vec![]),
         }
     }

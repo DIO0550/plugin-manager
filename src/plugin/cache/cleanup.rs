@@ -93,54 +93,7 @@ fn cleanup_specs(
     home: Option<&Path>,
     project_root: &Path,
 ) -> Vec<(PathBuf, &'static str)> {
-    let mut specs: Vec<(PathBuf, &'static str)> = Vec::new();
-
-    match kind {
-        TargetKind::Codex => {
-            if let Some(h) = home {
-                specs.push((h.join(".codex"), "agents"));
-                specs.push((h.join(".codex"), "skills"));
-            }
-            specs.push((project_root.join(".codex"), "agents"));
-            specs.push((project_root.join(".codex"), "skills"));
-        }
-        TargetKind::Copilot => {
-            if let Some(h) = home {
-                // Personal scope: CopilotTarget::can_place は Agent / Hook のみサポート
-                specs.push((h.join(".copilot"), "agents"));
-                specs.push((h.join(".copilot"), "hooks"));
-            }
-            // Project scope: 全コンポーネント種別を受け付ける
-            specs.push((project_root.join(".github"), "agents"));
-            specs.push((project_root.join(".github"), "prompts"));
-            specs.push((project_root.join(".github"), "skills"));
-            specs.push((project_root.join(".github"), "hooks"));
-        }
-        TargetKind::Antigravity => {
-            if let Some(h) = home {
-                specs.push((h.join(".gemini").join("antigravity"), "skills"));
-            }
-            specs.push((project_root.join(".agent"), "skills"));
-        }
-        TargetKind::GeminiCli => {
-            if let Some(h) = home {
-                specs.push((h.join(".gemini"), "skills"));
-            }
-            specs.push((project_root.join(".gemini"), "skills"));
-        }
-        TargetKind::Cursor => {
-            if let Some(h) = home {
-                specs.push((h.join(".cursor"), "skills"));
-                specs.push((h.join(".cursor"), "agents"));
-                specs.push((h.join(".cursor"), "commands"));
-            }
-            specs.push((project_root.join(".cursor"), "skills"));
-            specs.push((project_root.join(".cursor"), "agents"));
-            specs.push((project_root.join(".cursor"), "commands"));
-        }
-    }
-
-    specs
+    kind.cleanup_specs(home, project_root)
 }
 
 fn cleanup_one(fs: &dyn FileSystem, base: &Path, kind_subdir: &str, origin: &PluginOrigin) {

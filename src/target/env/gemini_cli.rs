@@ -2,6 +2,7 @@
 
 use crate::component::{ComponentKind, PlacementContext, PlacementLocation, Scope};
 use crate::error::Result;
+use crate::placement_names::{GEMINI_SUBDIR, INSTRUCTION_GEMINI};
 use crate::target::filter::filter_skill_dir;
 use crate::target::list_helpers::{list_instruction_at, scan_and_filter};
 use crate::target::paths::base_dir;
@@ -16,8 +17,8 @@ struct GeminiLayout {
 }
 
 const LAYOUT: GeminiLayout = GeminiLayout {
-    subdir: ".gemini",
-    instruction_file: "GEMINI.md",
+    subdir: GEMINI_SUBDIR,
+    instruction_file: INSTRUCTION_GEMINI,
 };
 
 const SUPPORTED: &[ComponentKind] = &[ComponentKind::Skill, ComponentKind::Instruction];
@@ -111,7 +112,9 @@ impl Target for GeminiCliTarget {
 
         let base = Self::base_dir(scope, project_root);
         match kind {
-            ComponentKind::Skill => scan_and_filter(&base, "skills", filter_skill_dir),
+            ComponentKind::Skill => {
+                scan_and_filter(&base, ComponentKind::Skill.plural(), filter_skill_dir)
+            }
             _ => Ok(vec![]),
         }
     }

@@ -2,11 +2,12 @@
 //!
 //! 各 env の `filter_component` から抽出した同型アーム。
 
+use crate::component::ComponentKind;
 use crate::target::scanner::ScannedComponent;
 
 /// SKILL.md を含むディレクトリを Skill として認識する（全ターゲット共通）。
 pub(crate) fn filter_skill_dir(c: &ScannedComponent) -> Option<String> {
-    if c.is_dir && c.path.join("SKILL.md").is_file() {
+    if c.is_dir && c.path.join(ComponentKind::skill_manifest()).is_file() {
         Some(c.name.clone())
     } else {
         None
@@ -50,7 +51,9 @@ pub(crate) fn filter_json_suffix(c: &ScannedComponent) -> Option<String> {
 }
 
 fn is_plain_markdown(name: &str) -> bool {
-    name.ends_with(".md") && !name.ends_with(".agent.md") && !name.ends_with(".prompt.md")
+    let agent = ComponentKind::Agent.file_suffix().unwrap_or(".agent.md");
+    let prompt = ComponentKind::Command.file_suffix().unwrap_or(".prompt.md");
+    name.ends_with(".md") && !name.ends_with(agent) && !name.ends_with(prompt)
 }
 
 #[cfg(test)]

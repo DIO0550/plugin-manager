@@ -130,6 +130,7 @@ Epic: [#356](https://github.com/DIO0550/plugin-manager/issues/356)（仕様: `do
 | 項目 | 説明 | 状態 |
 |------|------|------|
 | Target Layout 集約 | `target/env/` の配置骨格コピペを共通ヘルパへ抽出（[#338](https://github.com/DIO0550/plugin-manager/issues/338)） | ✅ 完了 |
+| 配置リテラル集約 | `"skills"` / `"SKILL.md"` / instruction・環境ルート等を `ComponentKind` / `TargetKind` / `placement_names` に集約（[#339](https://github.com/DIO0550/plugin-manager/issues/339)） | ✅ 完了 |
 
 ### 追加ターゲット候補
 

@@ -99,19 +99,12 @@ pub fn parse_component_path(path: &str) -> Result<(ComponentKind, String), Strin
         ));
     }
 
-    let kind = match kind_str.to_lowercase().as_str() {
-        "skills" => ComponentKind::Skill,
-        "agents" => ComponentKind::Agent,
-        "commands" => ComponentKind::Command,
-        "instructions" => ComponentKind::Instruction,
-        "hooks" => ComponentKind::Hook,
-        _ => {
-            return Err(format!(
-                "Invalid component kind: '{}'. Valid kinds: skills, agents, commands, instructions, hooks",
-                kind_str
-            ))
-        }
-    };
+    let kind = ComponentKind::from_plural(kind_str).ok_or_else(|| {
+        format!(
+            "Invalid component kind: '{}'. Valid kinds: skills, agents, commands, instructions, hooks",
+            kind_str
+        )
+    })?;
 
     Ok((kind, name.to_string()))
 }
