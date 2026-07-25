@@ -314,3 +314,7 @@ fn open_browser(url: &str) -> Result<()> {
 | `scope_support` | kind × scope の薄い `ScopeSupport` 表 |
 
 サポート判定の単一真実源は `Target::can_place_scope`（`supports_scope` はこれを呼ぶ）。各 env は `CAPABILITIES` 定数とパス用 `LAYOUT` 定数を持ち、振る舞いフック（Hook 上書きガード等）は各 `impl` に残す。
+
+### 配置リテラル集約（#339・計画中）
+
+#338 は骨格抽出まで。`"skills"` / `"SKILL.md"` / instruction ファイル名 / 環境ルート（`".codex"` 等）はなお `ComponentKind::plural()`・`scan/constants`・ヘルパ/cleanup ベアリテラルに分散している。表示用 `plural()`（例: `"commands"`）と配置用 subdir（例: Copilot `"prompts"`）の分離を含む集約計画は [placement-literals-refactor](../placement-literals-refactor/README.md) を参照。

@@ -130,6 +130,7 @@ Epic: [#356](https://github.com/DIO0550/plugin-manager/issues/356)（仕様: `do
 | 項目 | 説明 | 状態 |
 |------|------|------|
 | Target Layout 集約 | `target/env/` の配置骨格コピペを共通ヘルパへ抽出（[#338](https://github.com/DIO0550/plugin-manager/issues/338)） | ✅ 完了 |
+| 配置リテラル集約 | `"skills"` / `"SKILL.md"` / instruction・環境ルート等の 3 系統並立を `ComponentKind` / Target に集約（[#339](https://github.com/DIO0550/plugin-manager/issues/339)） | 計画中（[docs/placement-literals-refactor/](./placement-literals-refactor/README.md)） |
 
 ### 追加ターゲット候補
 
@@ -137,7 +138,7 @@ Epic: [#356](https://github.com/DIO0550/plugin-manager/issues/356)（仕様: `do
 
 | ターゲット | 説明 | 状態 |
 |------------|------|------|
-| Claude Code | .claude/ ディレクトリ | 計画中（[#96](https://github.com/DIO0550/plugin-manager/issues/96)）。**#338 完了後に着手推奨** |
+| Claude Code | .claude/ ディレクトリ | 計画中（[#96](https://github.com/DIO0550/plugin-manager/issues/96)）。**#338 完了済み。#339（配置リテラル集約）完了後の着手が望ましい** |
 | Windsurf | Windsurf IDE | 調査対象 |
 | Aider | Aider CLI | 調査対象 |
 | その他 | SKILL.md対応ツール | 調査対象 |

@@ -3,7 +3,8 @@
 > **日付**: 2026-07-25  
 > **対象**: [#339](https://github.com/DIO0550/plugin-manager/issues/339)  
 > **関連**: [#338](https://github.com/DIO0550/plugin-manager/issues/338)（Target Layout 集約 — roadmap 上 ✅ 完了、GitHub Issue は OPEN のまま）  
-> **調査 HEAD**: `71f0803`（`docs: Issue #338 Target Layout 宣言的ケイパビリティ集約の計画 (#394)` — 実装抽出込み）
+> **調査 HEAD**: `71f0803`（`docs: Issue #338 Target Layout 宣言的ケイパビリティ集約の計画 (#394)` — 実装抽出込み）  
+> **計画セット**: 本ファイルは [README.md](./README.md) 配下の探索正本。要件・実装計画・タスクと合わせて読む。
 
 ## 要約
 

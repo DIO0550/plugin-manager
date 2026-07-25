@@ -36,6 +36,7 @@ GitHubからAI開発環境向けのプラグインをダウンロードし、複
 - [Architecture](./architecture/overview.md) - 内部アーキテクチャ
 - [Reference](./reference/config.md) - 技術リファレンス
 - [Roadmap](./roadmap.md) - 実装状況・ロードマップ
+- [配置リテラル集約計画 (#339)](./placement-literals-refactor/README.md) - ディレクトリ名・ファイル名の単一真実源化（計画）
 
 ## 対応規格
 
