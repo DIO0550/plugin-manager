@@ -212,7 +212,9 @@ plm init my-plugin --type skill
 |------|:------:|:------:|:-------:|:------------:|
 | OpenAI Codex | 対応 | - | - | 対応 |
 | VSCode Copilot | 対応 | 対応 | 対応 | 対応 |
-| Google Antigravity | 対応 | - | - | - |
+| Google Antigravity | 対応 | -\* | -\* | -\* |
+
+\* Antigravity 公式は Agents（`agent.md`）/ Workflows（スラッシュコマンド）/ Rules・`AGENTS.md`・`GEMINI.md` をサポート。PLM 実装は未着手（[#400](https://github.com/DIO0550/plugin-manager/issues/400)）。
 | Gemini CLI | 対応 | - | - | 対応 |
 
 ## 設定

@@ -201,6 +201,12 @@ impl GitRepo {
 
 ### Google Antigravity
 
+- [Skills](https://antigravity.google/docs/skills)
+- [Rules & Workflows](https://antigravity.google/docs/rules-workflows)
+- [Subagents](https://antigravity.google/docs/subagents)
+- [Hooks](https://antigravity.google/docs/hooks)
+- [CLI Best Practices](https://antigravity.google/docs/cli/best-practices)
 - [Getting Started with Google Antigravity](https://codelabs.developers.google.com/getting-started-google-antigravity)
 - [Authoring Google Antigravity Skills](https://codelabs.developers.google.com/getting-started-with-antigravity-skills)
 - [Build with Google Antigravity](https://developers.googleblog.com/build-with-google-antigravity-our-new-agentic-development-platform/)
+- 非 Skill コンポーネント調査: [#400](https://github.com/DIO0550/plugin-manager/issues/400)

@@ -235,7 +235,9 @@ plm init my-plugin --type skill
 |-------------|:------:|:------:|:-------:|:------------:|
 | OpenAI Codex | Yes | - | - | Yes |
 | VSCode Copilot | Yes | Yes | Yes | Yes |
-| Google Antigravity | Yes | - | - | - |
+| Google Antigravity | Yes | -* | -* | -* |
+
+\* Antigravity officially supports Agents (`agent.md`), Workflows (slash commands), and Rules / `AGENTS.md` / `GEMINI.md`. PLM support is not implemented yet ([#400](https://github.com/DIO0550/plugin-manager/issues/400)).
 | Gemini CLI | Yes | - | - | Yes |
 
 ## Configuration
