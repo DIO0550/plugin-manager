@@ -2,8 +2,8 @@
 //!
 //! EventMap is in `event/antigravity.rs`; ToolMap is in `tool/antigravity.rs`.
 //! Antigravity uses a top-level **named hook → event map** structure (unlike
-//! Claude Code / Copilot / Codex `hooks.<Event>`). ToolUse events keep matcher
-//! groups; PreInvocation / PostInvocation / Stop use flat handler arrays.
+//! Claude Code / Copilot / Codex `hooks.<Event>`). Matcher-group vs flat
+//! handler shape is decided by [`AntigravityEventMap::preserve_matcher_groups`].
 
 use serde_json::Value;
 
@@ -13,13 +13,11 @@ use crate::hooks::converter::{ConversionWarning, ScriptInfo, SourceFormat};
 
 use super::converter::{KeyMap, ScriptGenerator, StructureConverter};
 
-pub(crate) use super::super::event::antigravity::{
-    AntigravityEventMap, ANTIGRAVITY_FLAT_HANDLER_EVENTS,
-};
+pub(crate) use super::super::event::antigravity::AntigravityEventMap;
 
 /// Default key used when wrapping converted events under a named hook.
-/// Deploy renames this to the component's sanitized name.
-pub(crate) const ANTIGRAVITY_DEFAULT_HOOK_NAME: &str = "converted";
+/// Deploy renames the single root key to the component's sanitized name.
+pub(crate) const DEFAULT_HOOK_NAME: &str = "converted";
 
 pub(crate) struct AntigravityKeyMap;
 
@@ -84,6 +82,19 @@ impl KeyMap for AntigravityKeyMap {
 pub(crate) struct AntigravityStructureConverter;
 
 impl StructureConverter for AntigravityStructureConverter {
+    fn validate_input(&self, value: &Value) -> Result<(), PlmError> {
+        // Native format is a named-hook map (no top-level `hooks`). Claude Code
+        // input still has `hooks` and is accepted here; ClaudeCode branch
+        // re-validates that object before conversion.
+        if value.is_object() {
+            Ok(())
+        } else {
+            Err(PlmError::HookConversion(
+                "Hooks config must be a JSON object".to_string(),
+            ))
+        }
+    }
+
     fn detect_format(&self, value: &Value) -> SourceFormat {
         // Claude Code / Copilot / Codex shaped input has a top-level `hooks` object.
         if value.get("hooks").and_then(|h| h.as_object()).is_some() {
@@ -118,8 +129,14 @@ impl StructureConverter for AntigravityStructureConverter {
             });
         }
 
-        // Final assembly replaces the root with a named-hook map.
+        // `assemble` replaces the root with a named-hook map.
         (Value::Object(serde_json::Map::new()), warnings)
+    }
+
+    fn assemble(&self, _top_level: Value, events: Value) -> Value {
+        let mut root = serde_json::Map::new();
+        root.insert(DEFAULT_HOOK_NAME.to_string(), events);
+        Value::Object(root)
     }
 }
 
@@ -133,7 +150,7 @@ impl ScriptGenerator for AntigravityScriptGenerator {
         _matcher: Option<&str>,
         _index: usize,
     ) -> ScriptInfo {
-        // Phase 1: keep commands inline (structure conversion only).
+        // Keep commands inline (structure conversion only).
         // stdin/stdout bridging wrappers are a follow-up if needed.
         ScriptInfo {
             path: String::new(),

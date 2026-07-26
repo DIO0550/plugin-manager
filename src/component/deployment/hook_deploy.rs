@@ -14,15 +14,14 @@ use std::path::Path;
 impl ComponentDeployment {
     /// 変換後 JSON に残った hook 定義数を数える。
     ///
-    /// - Copilot / Cursor: `hooks.<event>[]`（フラットまたは entry matcher）
-    /// - Codex: `hooks.<event>[].hooks[]`（matcher group）
-    /// - Antigravity: `<named-hook>.<event>[]`（トップに `hooks` キーなし）
+    /// - 標準形式: `hooks.<event>[]`（フラットまたは matcher group）
+    /// - 命名フック形式: `<named-hook>.<event>[]`（トップに `hooks` キーなし）
     fn count_hooks_in_json(json: &serde_json::Value) -> usize {
         if let Some(hooks) = json.get("hooks").and_then(|h| h.as_object()) {
             return Self::count_event_hook_entries(hooks);
         }
 
-        // Antigravity named-hook map: each top-level value is an event object.
+        // Named-hook map: each top-level value is an event object.
         json.as_object()
             .map(|root| {
                 root.values()
@@ -47,18 +46,20 @@ impl ComponentDeployment {
             .sum()
     }
 
-    /// Rename Antigravity's default `"converted"` key to the component safe name.
-    fn rename_antigravity_hook_key(json: &mut serde_json::Value, safe_name: &str) {
-        use crate::hooks::converter::antigravity_default_hook_name;
-
+    /// 命名フック形式（トップに `hooks` が無い単一ルートキー）なら、
+    /// そのキーをコンポーネント名へリネームする。標準形式では何もしない。
+    fn apply_component_name_to_root(json: &mut serde_json::Value, safe_name: &str) {
         let Some(root) = json.as_object_mut() else {
             return;
         };
-        let default_key = antigravity_default_hook_name();
-        if default_key == safe_name {
+        if root.contains_key("hooks") || root.len() != 1 {
             return;
         }
-        if let Some(events) = root.remove(default_key) {
+        let old_key = root.keys().next().expect("len == 1").clone();
+        if old_key == safe_name {
+            return;
+        }
+        if let Some(events) = root.remove(&old_key) {
             root.insert(safe_name.to_string(), events);
         }
     }
@@ -132,10 +133,8 @@ impl ComponentDeployment {
         let hook_name = HookName::new(self.name());
         let safe_name = hook_name.as_safe();
 
-        if target_kind == TargetKind::Antigravity
-            && convert_result.source_format == SourceFormat::ClaudeCode
-        {
-            Self::rename_antigravity_hook_key(&mut convert_result.json, safe_name);
+        if convert_result.source_format == SourceFormat::ClaudeCode {
+            Self::apply_component_name_to_root(&mut convert_result.json, safe_name);
         }
 
         if !convert_result.scripts.is_empty() {

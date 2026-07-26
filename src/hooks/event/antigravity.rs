@@ -33,15 +33,17 @@ const ANTIGRAVITY_EVENT_ENTRIES: &[EventBridge] = &[
     },
 ];
 
-/// Events that must use flat handler arrays (not matcher groups).
-pub(crate) const ANTIGRAVITY_FLAT_HANDLER_EVENTS: &[&str] =
-    &["PreInvocation", "PostInvocation", "Stop"];
-
 pub(crate) struct AntigravityEventMap;
 
 impl EventMap for AntigravityEventMap {
     fn map_event(&self, event: &str) -> Option<&'static str> {
         let hook_event = HookEvent::from_str(event.trim());
         to_target_event(ANTIGRAVITY_EVENT_ENTRIES, &hook_event)
+    }
+
+    fn preserve_matcher_groups(&self, target_event: &str) -> bool {
+        // ToolUse keeps matcher groups; PreInvocation / PostInvocation / Stop
+        // use flat handler arrays (official schema asymmetry).
+        matches!(target_event, "PreToolUse" | "PostToolUse")
     }
 }

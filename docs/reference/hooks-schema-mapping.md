@@ -932,9 +932,10 @@ Antigravity のツール名は Claude Code / Copilot と大きく異なる。mat
 
 | 項目 | 状態 |
 |------|------|
-| `AntigravityTarget::supported_components` に `Hook` | ❌（Skills のみ） |
-| EventMap / KeyMap / StructureConverter | ❌ |
-| `create_layers` への登録 | ❌（「Hook conversion is not yet implemented for target」） |
-| `.agents/hooks.json` / `~/.gemini/config/hooks.json` 配置 | ❌ |
+| `AntigravityTarget::supported_components` に `Hook` | ✅ |
+| EventMap / KeyMap / StructureConverter / ToolMap | ✅ |
+| `create_layers` への登録 | ✅ |
+| `.agents/hooks.json` / `~/.gemini/config/hooks.json` 配置 | ✅（単一ファイル・上書き/複数 Hook 拒否） |
+| stdin/stdout ラッパースクリプト | ❌（command はインライン保持。I/O 差分は利用側で吸収） |
 
-実装は [#309](https://github.com/DIO0550/plugin-manager/issues/309) で追跡。本セクションを単一リファレンスとする。
+実装: [#309](https://github.com/DIO0550/plugin-manager/issues/309)。スキーマ整理: [#399](https://github.com/DIO0550/plugin-manager/issues/399)。

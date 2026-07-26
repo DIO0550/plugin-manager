@@ -20,4 +20,8 @@ impl EventMap for CodexEventMap {
             _ => None,
         }
     }
+
+    fn preserve_matcher_groups(&self, _target_event: &str) -> bool {
+        true
+    }
 }

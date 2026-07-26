@@ -3,8 +3,7 @@
 use serde_json::json;
 
 use super::antigravity::{
-    AntigravityEventMap, AntigravityKeyMap, AntigravityStructureConverter,
-    ANTIGRAVITY_DEFAULT_HOOK_NAME,
+    AntigravityEventMap, AntigravityKeyMap, AntigravityStructureConverter, DEFAULT_HOOK_NAME,
 };
 use super::converter::{
     convert, ConversionWarning, EventMap, KeyMap, SourceFormat, StructureConverter,
@@ -105,7 +104,7 @@ fn test_convert_wraps_named_hook_and_remaps_matcher() {
     let root = result.json.as_object().unwrap();
     assert!(root.get("hooks").is_none());
     let named = root
-        .get(ANTIGRAVITY_DEFAULT_HOOK_NAME)
+        .get(DEFAULT_HOOK_NAME)
         .and_then(|v| v.as_object())
         .expect("named hook wrapper");
 
@@ -141,9 +140,7 @@ fn test_convert_merges_events_mapping_to_same_target() {
     }"#;
 
     let result = convert(input, TargetKind::Antigravity).unwrap();
-    let named = result.json[ANTIGRAVITY_DEFAULT_HOOK_NAME]
-        .as_object()
-        .unwrap();
+    let named = result.json[DEFAULT_HOOK_NAME].as_object().unwrap();
     let pre_inv = named
         .get("PreInvocation")
         .and_then(|v| v.as_array())
@@ -190,7 +187,7 @@ fn test_convert_excludes_http_and_stub_hooks() {
     }"#;
 
     let result = convert(input, TargetKind::Antigravity).unwrap();
-    let hooks = &result.json[ANTIGRAVITY_DEFAULT_HOOK_NAME]["PreToolUse"][0]["hooks"];
+    let hooks = &result.json[DEFAULT_HOOK_NAME]["PreToolUse"][0]["hooks"];
     assert_eq!(hooks.as_array().unwrap().len(), 1);
     assert_eq!(hooks[0]["command"], "./ok.sh");
     assert!(result.warnings.iter().any(|w| matches!(

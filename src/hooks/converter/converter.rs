@@ -128,6 +128,14 @@ pub(crate) trait EventMap {
     ///
     /// * `event` - Claude Code event name to translate.
     fn map_event(&self, event: &str) -> Option<&'static str>;
+
+    /// Whether the target keeps Claude-style matcher groups for this mapped event.
+    ///
+    /// Defaults to `false` (flat handler arrays). Codex / Antigravity ToolUse
+    /// events override to `true`.
+    fn preserve_matcher_groups(&self, _target_event: &str) -> bool {
+        false
+    }
 }
 
 /// Layer 1b: Tool name mapping (optional).
@@ -162,6 +170,22 @@ pub(crate) trait StructureConverter {
     /// * `value` - Root JSON value to inspect.
     fn detect_format(&self, value: &Value) -> SourceFormat;
 
+    /// Validate the raw input before conversion / passthrough.
+    ///
+    /// Default: require a top-level `"hooks"` object (Copilot / Codex / Cursor).
+    /// Targets whose native format omits that wrapper override this.
+    fn validate_input(&self, value: &Value) -> Result<(), PlmError> {
+        match value.get("hooks") {
+            Some(h) if h.is_object() => Ok(()),
+            Some(_) => Err(PlmError::HookConversion(
+                "'hooks' field must be an object".to_string(),
+            )),
+            None => Err(PlmError::HookConversion(
+                "Missing 'hooks' field".to_string(),
+            )),
+        }
+    }
+
     /// Handle input that is already in the target format (passthrough).
     /// Returns an error if the target format is invalid (e.g., unsupported version).
     ///
@@ -180,6 +204,17 @@ pub(crate) trait StructureConverter {
     ///
     /// * `value` - Root JSON value in Claude Code format.
     fn convert_top_level(&self, value: &Value) -> (Value, Vec<ConversionWarning>);
+
+    /// Assemble the final document from top-level fields and converted events.
+    ///
+    /// Default: insert events under `"hooks"`. Targets with a different root
+    /// shape (e.g. named-hook maps) override this.
+    fn assemble(&self, mut top_level: Value, events: Value) -> Value {
+        if let Some(obj) = top_level.as_object_mut() {
+            obj.insert("hooks".to_string(), events);
+        }
+        top_level
+    }
 }
 
 /// Layer 4: Script generation for different hook types.
@@ -251,17 +286,10 @@ pub(crate) struct HookConversionLayers {
     pub key_map: Box<dyn KeyMap>,
     pub structure: Box<dyn StructureConverter>,
     pub script_gen: Box<dyn ScriptGenerator>,
-    pub preserve_matcher_groups: bool,
     /// When flattening matcher groups, attach the (tool-mapped) matcher to
     /// each flat hook entry instead of moving it into a wrapper script.
     /// Used by Cursor, which supports entry-level `matcher` on flat arrays.
     pub attach_matcher_to_entries: bool,
-    /// Events that must use flat handler arrays even when
-    /// `preserve_matcher_groups` is true (Antigravity non-ToolUse events).
-    pub flat_handler_events: &'static [&'static str],
-    /// When set, wrap converted events under this named-hook key instead of
-    /// a top-level `"hooks"` object (Antigravity format).
-    pub named_hook_key: Option<&'static str>,
 }
 
 /// Create conversion layers for the given target.
@@ -277,10 +305,7 @@ pub(crate) fn create_layers(target: TargetKind) -> Result<HookConversionLayers, 
             key_map: Box::new(super::copilot::CopilotKeyMap),
             structure: Box::new(super::copilot::CopilotStructureConverter),
             script_gen: Box::new(super::copilot::CopilotScriptGenerator),
-            preserve_matcher_groups: false,
             attach_matcher_to_entries: false,
-            flat_handler_events: &[],
-            named_hook_key: None,
         }),
         TargetKind::Codex => Ok(HookConversionLayers {
             event_map: Box::new(super::codex::CodexEventMap),
@@ -288,10 +313,7 @@ pub(crate) fn create_layers(target: TargetKind) -> Result<HookConversionLayers, 
             key_map: Box::new(super::codex::CodexKeyMap),
             structure: Box::new(super::codex::CodexStructureConverter),
             script_gen: Box::new(super::codex::CodexScriptGenerator),
-            preserve_matcher_groups: true,
             attach_matcher_to_entries: false,
-            flat_handler_events: &[],
-            named_hook_key: None,
         }),
         TargetKind::Cursor => Ok(HookConversionLayers {
             event_map: Box::new(super::cursor::CursorEventMap),
@@ -299,10 +321,7 @@ pub(crate) fn create_layers(target: TargetKind) -> Result<HookConversionLayers, 
             key_map: Box::new(super::cursor::CursorKeyMap),
             structure: Box::new(super::cursor::CursorStructureConverter),
             script_gen: Box::new(super::cursor::CursorScriptGenerator),
-            preserve_matcher_groups: false,
             attach_matcher_to_entries: true,
-            flat_handler_events: &[],
-            named_hook_key: None,
         }),
         TargetKind::Antigravity => Ok(HookConversionLayers {
             event_map: Box::new(super::antigravity::AntigravityEventMap),
@@ -312,10 +331,7 @@ pub(crate) fn create_layers(target: TargetKind) -> Result<HookConversionLayers, 
             key_map: Box::new(super::antigravity::AntigravityKeyMap),
             structure: Box::new(super::antigravity::AntigravityStructureConverter),
             script_gen: Box::new(super::antigravity::AntigravityScriptGenerator),
-            preserve_matcher_groups: true,
             attach_matcher_to_entries: false,
-            flat_handler_events: super::antigravity::ANTIGRAVITY_FLAT_HANDLER_EVENTS,
-            named_hook_key: Some(super::antigravity::ANTIGRAVITY_DEFAULT_HOOK_NAME),
         }),
         other => Err(PlmError::HookConversion(format!(
             "Hook conversion is not yet implemented for target: {}",
@@ -371,25 +387,7 @@ pub fn convert(input: &str, target: TargetKind) -> Result<ConvertOutcome, PlmErr
     let value: Value = serde_json::from_str(input)
         .map_err(|e| PlmError::HookConversion(format!("Invalid JSON: {}", e)))?;
 
-    // Copilot / Codex / Cursor always use a top-level `hooks` object.
-    // Antigravity native format is a named-hook map without that wrapper, so
-    // skip this check for Antigravity (Claude Code → Antigravity still
-    // validates inside the ClaudeCode branch below).
-    if !matches!(target, TargetKind::Antigravity) {
-        match value.get("hooks") {
-            Some(h) if h.is_object() => {}
-            Some(_) => {
-                return Err(PlmError::HookConversion(
-                    "'hooks' field must be an object".to_string(),
-                ));
-            }
-            None => {
-                return Err(PlmError::HookConversion(
-                    "Missing 'hooks' field".to_string(),
-                ));
-            }
-        }
-    }
+    layers.structure.validate_input(&value)?;
 
     match layers.structure.detect_format(&value) {
         SourceFormat::TargetFormat => {
@@ -402,10 +400,8 @@ pub fn convert(input: &str, target: TargetKind) -> Result<ConvertOutcome, PlmErr
             })
         }
         SourceFormat::ClaudeCode => {
-            // Claude Code shaped input requires a `hooks` object (also needed
-            // for Antigravity, which skipped the early check above).
-            match value.get("hooks") {
-                Some(h) if h.is_object() => {}
+            let hooks_value = match value.get("hooks") {
+                Some(h) if h.is_object() => h,
                 Some(_) => {
                     return Err(PlmError::HookConversion(
                         "'hooks' field must be an object".to_string(),
@@ -416,29 +412,17 @@ pub fn convert(input: &str, target: TargetKind) -> Result<ConvertOutcome, PlmErr
                         "Missing 'hooks' field".to_string(),
                     ));
                 }
-            }
+            };
 
-            let (mut result, mut warnings) = layers.structure.convert_top_level(&value);
+            let (top_level, mut warnings) = layers.structure.convert_top_level(&value);
             let mut scripts = Vec::new();
             let mut out = ConvertOutput {
                 warnings: &mut warnings,
                 scripts: &mut scripts,
             };
 
-            let hooks_value = value.get("hooks").unwrap();
             let new_hooks = convert_event_hooks(hooks_value, &layers, &mut out)?;
-
-            if let Some(name) = layers.named_hook_key {
-                // Antigravity: `{ "<hook-name>": { <Event>: [...] } }`
-                let mut root = serde_json::Map::new();
-                root.insert(name.to_string(), new_hooks);
-                result = Value::Object(root);
-            } else {
-                result
-                    .as_object_mut()
-                    .unwrap()
-                    .insert("hooks".to_string(), new_hooks);
-            }
+            let result = layers.structure.assemble(top_level, new_hooks);
 
             Ok(ConvertOutcome {
                 json: result,
@@ -474,9 +458,7 @@ fn convert_event_hooks(
     for (event_name, event_value) in hooks_obj {
         match layers.event_map.map_event(event_name) {
             Some(target_event) => {
-                let preserve = layers.preserve_matcher_groups
-                    && !layers.flat_handler_events.contains(&target_event);
-                let converted_hooks = if preserve {
+                let converted_hooks = if layers.event_map.preserve_matcher_groups(target_event) {
                     preserve_matcher_groups(event_value, target_event, layers, out)?
                 } else {
                     flatten_matchers(event_value, target_event, layers, out)?

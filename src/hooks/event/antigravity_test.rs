@@ -29,3 +29,13 @@ fn test_antigravity_event_map_unsupported_events() {
     assert_eq!(map.map_event("PermissionRequest"), None);
     assert_eq!(map.map_event("UnknownEvent"), None);
 }
+
+#[test]
+fn test_antigravity_event_map_preserve_matcher_groups() {
+    let map = AntigravityEventMap;
+    assert!(map.preserve_matcher_groups("PreToolUse"));
+    assert!(map.preserve_matcher_groups("PostToolUse"));
+    assert!(!map.preserve_matcher_groups("PreInvocation"));
+    assert!(!map.preserve_matcher_groups("PostInvocation"));
+    assert!(!map.preserve_matcher_groups("Stop"));
+}
