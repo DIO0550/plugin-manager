@@ -212,12 +212,12 @@ description: コマンドの説明
 | Agents | ✅ | ✅ | ❌* | ❌ | ✅ |
 | Commands | ❌ | ✅ | ❌* | ❌ | ✅ |
 | Instructions | ✅ | ✅ | ❌* | ✅** | ✅*** |
-| Hooks | ✅ | ✅ | ❌**** | ❌ | ✅***** |
+| Hooks | ✅ | ✅ | ✅**** | ❌ | ✅***** |
 
 > *Antigravity 公式は Agents / Workflows（Commands 相当）/ Rules・`AGENTS.md`（Instructions 相当）をサポート。PLM 実装は未着手（[#400](https://github.com/DIO0550/plugin-manager/issues/400)）。
 > **Gemini CLIは`GEMINI.md`形式で対応（`AGENTS.md`は設定で変更可能）。
 > ***CursorのInstructionsはProjectスコープ（`AGENTS.md`）のみ。
-> ****Antigravity Hooks は公式サポートあり。PLM 実装は [#309](https://github.com/DIO0550/plugin-manager/issues/309)。
+> ****Antigravity Hooks は変換・配置を実装済み（[#309](https://github.com/DIO0550/plugin-manager/issues/309)）。単一 `hooks.json`、複数 Hook 同時配置は拒否。
 > *****CursorのHooksは単一 `hooks.json`。非管理ファイルの上書きと複数 Hook 同時配置は拒否（フルマージ未実装）。
 
 ## 共通規格
