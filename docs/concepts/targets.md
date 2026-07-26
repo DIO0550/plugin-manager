@@ -22,7 +22,7 @@ PLMがサポートするAI開発環境（ターゲット）について説明し
 | Instructions | ✅ | ✅ | ❌* | ✅** | ✅*** |
 | Hooks | ✅ | ✅ | ❌**** | ❌ | ✅***** |
 
-> *Antigravity は公式に Agents（`agent.md`）/ Workflows（Commands 相当）/ Rules・`GEMINI.md`・`AGENTS.md`（Instructions 相当）をサポートする。PLM 実装は未着手（調査: [#400](https://github.com/DIO0550/plugin-manager/issues/400)、レビュー: [docs/reviews/issue-400-antigravity-agents-commands-instructions.md](../reviews/issue-400-antigravity-agents-commands-instructions.md)）。
+> *Antigravity は公式に Agents（`agent.md`）/ Workflows（Commands 相当）/ Rules・`GEMINI.md`・`AGENTS.md`（Instructions 相当）をサポートする。PLM 実装は未着手（調査: [#400](https://github.com/DIO0550/plugin-manager/issues/400)）。
 > **Gemini CLIは`GEMINI.md`による階層的な指示システムを持ちます。
 > ***CursorのInstructionsはProjectスコープ（`AGENTS.md`）のみ。Personalスコープの指示（User Rules）はアプリ設定画面で管理されるため対象外。
 > ****Antigravity Hooks は公式サポートあり。PLM 実装は [#309](https://github.com/DIO0550/plugin-manager/issues/309) で追跡。
@@ -254,7 +254,7 @@ Google Antigravityはエージェント指向の開発プラットフォーム�
 | Instructions | `GEMINI.md` / `AGENTS.md` | `~/.gemini/GEMINI.md` | ルート `AGENTS.md`（または `GEMINI.md`）。複数ルールは `.agents/rules/` |
 | Hooks | `hooks.json` | `~/.gemini/config/hooks.json` | `.agents/hooks.json` |
 
-詳細な方針・変換論点は [docs/reviews/issue-400-antigravity-agents-commands-instructions.md](../reviews/issue-400-antigravity-agents-commands-instructions.md) を参照。
+配置パス・形式の詳細は上記表と [#400](https://github.com/DIO0550/plugin-manager/issues/400) を参照。
 
 ### 制約事項
 
