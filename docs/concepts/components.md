@@ -67,7 +67,7 @@ skills/skill-name/
 
 - 特定のタスクに特化したエージェントを定義
 - 使用可能なツールを指定可能
-- Codex、Copilot、Cursorでサポート
+- Codex、Copilot、Cursorでサポート（Antigravity は公式サポートあり・PLM 未実装: [#400](https://github.com/DIO0550/plugin-manager/issues/400)）
 
 ### ファイル形式
 
@@ -130,7 +130,7 @@ description: コマンドの説明
 
 - AGENTS.md形式のオープン標準（Linux Foundation管轄）
 - プロジェクト全体に適用される指示
-- Codex、Copilot、Gemini CLI、Cursorでサポート（Gemini CLIは`GEMINI.md`で対応）
+- Codex、Copilot、Gemini CLI、Cursorでサポート（Gemini CLIは`GEMINI.md`で対応）。Antigravity も公式に `GEMINI.md` / `AGENTS.md` / Rules をサポートするが PLM 未実装（[#400](https://github.com/DIO0550/plugin-manager/issues/400)）
 
 ### ファイル形式
 
@@ -209,14 +209,16 @@ description: コマンドの説明
 | コンポーネント | Codex | Copilot | Antigravity | Gemini CLI | Cursor |
 |----------------|-------|---------|-------------|------------|--------|
 | Skills | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Agents | ✅ | ✅ | ❌ | ❌ | ✅ |
-| Commands | ❌ | ✅ | ❌ | ❌ | ✅ |
-| Instructions | ✅ | ✅ | ❌ | ✅* | ✅** |
-| Hooks | ✅ | ✅ | ❌ | ❌ | ✅*** |
+| Agents | ✅ | ✅ | ❌* | ❌ | ✅ |
+| Commands | ❌ | ✅ | ❌* | ❌ | ✅ |
+| Instructions | ✅ | ✅ | ❌* | ✅** | ✅*** |
+| Hooks | ✅ | ✅ | ❌**** | ❌ | ✅***** |
 
-> *Gemini CLIは`GEMINI.md`形式で対応（`AGENTS.md`は設定で変更可能）。
-> **CursorのInstructionsはProjectスコープ（`AGENTS.md`）のみ。
-> ***CursorのHooksは単一 `hooks.json`。非管理ファイルの上書きと複数 Hook 同時配置は拒否（フルマージ未実装）。
+> *Antigravity 公式は Agents / Workflows（Commands 相当）/ Rules・`AGENTS.md`（Instructions 相当）をサポート。PLM 実装は未着手（[#400](https://github.com/DIO0550/plugin-manager/issues/400)）。
+> **Gemini CLIは`GEMINI.md`形式で対応（`AGENTS.md`は設定で変更可能）。
+> ***CursorのInstructionsはProjectスコープ（`AGENTS.md`）のみ。
+> ****Antigravity Hooks は公式サポートあり。PLM 実装は [#309](https://github.com/DIO0550/plugin-manager/issues/309)。
+> *****CursorのHooksは単一 `hooks.json`。非管理ファイルの上書きと複数 Hook 同時配置は拒否（フルマージ未実装）。
 
 ## 共通規格
 
@@ -224,7 +226,7 @@ description: コマンドの説明
 |------|------|------|
 | **AGENTS.md** | カスタム指示ファイル（Linux Foundation管轄のオープン標準） | https://agents.md |
 | **SKILL.md** | スキル定義（Anthropicがオープン標準として公開、OpenAI/Microsoft/Googleが採用） | - |
-| **GEMINI.md** | Gemini CLI用のコンテキスト・指示ファイル | [Gemini CLI Docs](https://geminicli.com/docs/cli/gemini-md/) |
+| **GEMINI.md** | Gemini CLI / Antigravity 用のコンテキスト・指示ファイル | [Gemini CLI Docs](https://geminicli.com/docs/cli/gemini-md/)、[Antigravity Rules](https://antigravity.google/docs/rules-workflows) |
 
 ## 関連
 

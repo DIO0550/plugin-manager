@@ -17,15 +17,16 @@ PLMがサポートするAI開発環境（ターゲット）について説明し
 | コンポーネント | Codex | Copilot | Antigravity | Gemini CLI | Cursor |
 |----------------|-------|---------|-------------|------------|--------|
 | Skills | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Agents | ✅ | ✅ | ❌ | ❌ | ✅ |
-| Commands | ❌ | ✅ | ❌ | ❌ | ✅ |
+| Agents | ✅ | ✅ | ❌* | ❌ | ✅ |
+| Commands | ❌ | ✅ | ❌* | ❌ | ✅ |
 | Instructions | ✅ | ✅ | ❌* | ✅** | ✅*** |
-| Hooks | ✅ | ✅ | ❌ | ❌ | ✅**** |
+| Hooks | ✅ | ✅ | ❌**** | ❌ | ✅***** |
 
-> *AntigravityはSkills専用の設計で、Instructionsは別途設定で管理します。
+> *Antigravity は公式に Agents（`agent.md`）/ Workflows（Commands 相当）/ Rules・`GEMINI.md`・`AGENTS.md`（Instructions 相当）をサポートする。PLM 実装は未着手（調査: [#400](https://github.com/DIO0550/plugin-manager/issues/400)、レビュー: [docs/reviews/issue-400-antigravity-agents-commands-instructions.md](../reviews/issue-400-antigravity-agents-commands-instructions.md)）。
 > **Gemini CLIは`GEMINI.md`による階層的な指示システムを持ちます。
 > ***CursorのInstructionsはProjectスコープ（`AGENTS.md`）のみ。Personalスコープの指示（User Rules）はアプリ設定画面で管理されるため対象外。
-> ****CursorのHooksは単一の `hooks.json` に配置する。既存の非管理ファイルの上書きと、同一インストール内の複数 Hook コンポーネントは拒否する（フルマージは未実装）。
+> ****Antigravity Hooks は公式サポートあり。PLM 実装は [#309](https://github.com/DIO0550/plugin-manager/issues/309) で追跡。
+> *****CursorのHooksは単一の `hooks.json` に配置する。既存の非管理ファイルの上書きと、同一インストール内の複数 Hook コンポーネントは拒否する（フルマージは未実装）。
 
 ## OpenAI Codex
 
@@ -195,36 +196,72 @@ Hooks は stdin で JSON を受け取り、stdout で JSON を返します。
 
 ## Google Antigravity
 
+> **実装状況**: Skills 配置は実装済み。Agents / Commands（Workflows）/ Instructions（Rules・context files）/ Hooks は公式サポート確認済みだが PLM 未実装（調査 [#400](https://github.com/DIO0550/plugin-manager/issues/400)、Hooks [#309](https://github.com/DIO0550/plugin-manager/issues/309)）。
+
 ### 概要
 
-Google AntigravityはGemini 3 Pro搭載のエージェント指向IDE。2026年1月13日にAnthropicのAgent Skills open standard（SKILL.md形式）を正式採用。
+Google Antigravityはエージェント指向の開発プラットフォーム（IDE / CLI / AGY）。Anthropic 発の Agent Skills open standard（`SKILL.md`）に加え、Custom Subagents（`agent.md`）、Workflows（スラッシュコマンド）、Rules / `GEMINI.md` / `AGENTS.md`、Hooks をファイルベースでサポートする。
 
 公式ドキュメント:
+- [Skills](https://antigravity.google/docs/skills)
+- [Rules & Workflows](https://antigravity.google/docs/rules-workflows)
+- [Subagents](https://antigravity.google/docs/subagents)
+- [Hooks](https://antigravity.google/docs/hooks)
+- [CLI Best Practices（GEMINI.md / AGENTS.md）](https://antigravity.google/docs/cli/best-practices)
 - [Getting Started with Google Antigravity](https://codelabs.developers.google.com/getting-started-google-antigravity)
 - [Authoring Google Antigravity Skills](https://codelabs.developers.google.com/getting-started-with-antigravity-skills)
 
-### 読み込みパスと優先順位
+### 読み込みパスと優先順位（公式）
 
-| スコープ | パス | 自動読み込み | 備考 |
-|---------|------|--------------|------|
-| Global | `~/.gemini/antigravity/skills/` | ✅ | Personal対応 |
-| Workspace | `<workspace-root>/.agent/skills/` | ✅ | Project対応 |
+| 種別 | スコープ | パス | 自動読み込み | 備考 |
+|------|---------|------|--------------|------|
+| Skills | Global（推奨） | `~/.gemini/config/skills/` | ✅ | AGY / IDE / CLI 共通で認識 |
+| Skills | Global（IDE 互換） | `~/.gemini/antigravity/skills/` | ✅* | *AGY CLI では非認識。PLM 現状パス |
+| Skills | Workspace | `.agents/skills/` | ✅ | `.agent/skills` は後方互換。PLM 現状は `.agent/skills/` |
+| Agents | Global | `~/.gemini/config/agents/<name>/agent.md` | ✅ | Custom Subagents |
+| Agents | Workspace | `.agents/agents/<name>/agent.md` | ✅ | または `.agents/agents/<name>.md` |
+| Workflows（Commands 相当） | Global | `~/.gemini/config/global_workflows/<name>.md` | ✅ | `/name` で呼び出し。公式 docs 未記載パスは実機検証で確定 |
+| Workflows | Workspace | `.agents/workflows/<name>.md` | ✅ | 同上 |
+| Rules（Instructions） | Global | `~/.gemini/GEMINI.md` | ✅ | 単一ファイル |
+| Rules | Workspace | `.agents/rules/*.md` | ✅ | Manual / Always On / Model Decision / Glob |
+| Context（Instructions） | Workspace root | `GEMINI.md` / `AGENTS.md` | ✅ | セッション開始時に読み込み |
 
 ### 重要な特徴
 
 - **ディレクトリベースのSkillsパッケージ**: 各Skillは独立したディレクトリとして管理
 - **Progressive Disclosure**: Skillは必要時のみコンテキストにロードされる（コンテキスト肥大化を防止）
 - **SKILL.md形式**: Anthropic発祥のAgent Skills open standardを採用
+- **Custom Subagents**: YAML frontmatter 付き `agent.md`（`name` / `description` / `tools` / `model` 等）
+- **Workflows**: 保存済みプロンプト列を `/workflow-name` で実行（PLM Commands に相当）
+- **Rules + AGENTS.md**: 永続指示。Changelog で `AGENTS.md` 読み込みが追加済み
 
 ### コンポーネント配置場所
+
+#### PLM 実装済み（Skills）
 
 | 種別 | ファイル形式 | Personal | Project |
 |------|-------------|----------|---------|
 | Skills | `SKILL.md` | `~/.gemini/antigravity/skills/<marketplace>/<plugin>/<skill>/` | `.agent/skills/<marketplace>/<plugin>/<skill>/` |
 
+> Skills の公式推奨パスは Personal `~/.gemini/config/skills/`、Project `.agents/skills/`。PLM 現状パスは IDE 互換だが CLI 非対応のため、パス移行は別 feature（[#402](https://github.com/DIO0550/plugin-manager/issues/402) 連携）で扱う。
+
+#### 公式サポートあり・PLM 未実装（#400 / #309）
+
+| 種別 | ファイル形式 | Personal（想定） | Project（想定） |
+|------|-------------|------------------|-----------------|
+| Agents | `agent.md` | `~/.gemini/config/agents/<name>/agent.md` | `.agents/agents/<name>/agent.md` |
+| Commands（Workflows） | `*.md` | `~/.gemini/config/global_workflows/<name>.md` | `.agents/workflows/<name>.md` |
+| Instructions | `GEMINI.md` / `AGENTS.md` | `~/.gemini/GEMINI.md` | ルート `AGENTS.md`（または `GEMINI.md`）。複数ルールは `.agents/rules/` |
+| Hooks | `hooks.json` | `~/.gemini/config/hooks.json` | `.agents/hooks.json` |
+
+詳細な方針・変換論点は [docs/reviews/issue-400-antigravity-agents-commands-instructions.md](../reviews/issue-400-antigravity-agents-commands-instructions.md) を参照。
+
 ### 制約事項
 
-- **Skills専用**: Agents、Prompts、Instructionsは別のシステムで管理
+- **PLM は現状 Skills のみ配置**: Agents / Commands / Instructions / Hooks は公式サポート確認済みだが未実装
+- **Agent 形式は Claude Code 非互換**: `*.agent.md` ではなく `agent.md` + Antigravity 固有 frontmatter
+- **Workflows パスは公式 docs 未記載**: 実装前に IDE 実機で再確認すること
+- **Personal Instruction は Gemini CLI と `~/.gemini/GEMINI.md` を共有**しうる
 - Skillsはタスク終了後にコンテキストから解放される（エフェメラル）
 
 ## Gemini CLI
@@ -383,7 +420,7 @@ Agents / Commands / Hooks は他ターゲットと同様に `flatten_name(plugin
 |-----------|----------------------|----------------|
 | Codex | `~/.codex/` に配置 | Hook 配置時のみ `~/.codex/config.toml` に `[features] codex_hooks = true` を自動追記（`--no-enable-flag` で抑止可、`codex_hooks = false` 既設定時は警告のみでスキップ） |
 | Copilot | ファイル配置 + VSCode設定追記 | `settings.json` への参照追加が必要 |
-| Antigravity | `~/.gemini/antigravity/` に配置 | 不要（自動読み込み） |
+| Antigravity | Skills: `~/.gemini/antigravity/`（実装済み）。Agents / Workflows / Instructions / Hooks は公式パスが `~/.gemini/config/` および `.agents/`（未実装・[#400](https://github.com/DIO0550/plugin-manager/issues/400) / [#309](https://github.com/DIO0550/plugin-manager/issues/309)） | Skills は不要（自動読み込み） |
 | Gemini CLI | `~/.gemini/skills/` に配置 | 不要（自動読み込み、要Settings有効化） |
 | Cursor | `~/.cursor/` に配置（Skills / Agents / Commands / Hooks） | 不要（自動読み込み）。Hooksは単一 `hooks.json` へ変換配置（上書きガードあり） |
 

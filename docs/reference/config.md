@@ -117,7 +117,7 @@ skills_personal = "~/.gemini/antigravity/skills"
 skills_project = ".agent/skills"
 ```
 
-> 注: AntigravityはSkillsのみサポートしています。
+> 注: Antigravity の PLM 実装は現状 Skills のみ。Agents / Commands（Workflows）/ Instructions は公式サポート確認済み・未実装（[#400](https://github.com/DIO0550/plugin-manager/issues/400)）。
 
 ### [targets.codex]
 
