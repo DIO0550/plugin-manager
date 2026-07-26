@@ -175,7 +175,7 @@ fn test_place_plugin_skill_to_codex() {
 fn test_place_plugin_unsupported_component_skipped() {
     let temp = TempDir::new().unwrap();
     let project_dir = TempDir::new().unwrap();
-    // Antigravity only supports Skills
+    // Antigravity does not support Agents (Skills + Hooks only)
     let cached = create_test_cached_package(temp.path(), &[], &["my-agent"], &[]);
     let package = MarketplaceContent::try_from(cached).unwrap();
     let scanned = scan_plugin(&package, None).unwrap();

@@ -17,7 +17,7 @@ use crate::commands::{
 Supported environments:
   - OpenAI Codex: Skills, Agents, Instructions
   - VSCode Copilot: Skills, Agents, Commands, Instructions
-  - Google Antigravity: Skills
+  - Google Antigravity: Skills, Hooks
   - Gemini CLI: Skills, Instructions
 
 Install plugins from GitHub or marketplaces, manage their lifecycle, and keep them synchronized across environments."#

@@ -28,6 +28,11 @@ pub const COPILOT_PROJECT_SUBDIR: &str = ".github";
 pub const ANTIGRAVITY_PERSONAL_PARENT: &str = ".gemini";
 pub const ANTIGRAVITY_PERSONAL_CHILD: &str = "antigravity";
 pub const ANTIGRAVITY_PROJECT_SUBDIR: &str = ".agent";
+/// Antigravity Hooks の Global（Personal）配置: `~/.gemini/config/hooks.json`
+pub const ANTIGRAVITY_HOOKS_PERSONAL_CHILD: &str = "config";
+/// Antigravity Hooks の Project 配置ディレクトリ（Skills の `.agent` とは別）
+pub const ANTIGRAVITY_HOOKS_PROJECT_SUBDIR: &str = ".agents";
+pub const ANTIGRAVITY_HOOKS_FILE: &str = "hooks.json";
 pub const GEMINI_SUBDIR: &str = ".gemini";
 pub const CURSOR_SUBDIR: &str = ".cursor";
 
