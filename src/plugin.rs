@@ -1,7 +1,10 @@
+mod attached;
 mod cache;
 mod content;
 mod lifecycle;
 pub mod meta;
+
+pub(crate) use attached::list_attached_for_plugin;
 
 pub(crate) use cache::{cleanup_legacy_hierarchy, cleanup_plugin_directories, list_installed};
 pub use cache::{

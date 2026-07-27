@@ -112,7 +112,8 @@ pub fn enable_plugin(
         components,
         project_root.to_path_buf(),
         target_filter,
-    );
+    )
+    .with_plugin_root(plugin.path());
 
     // Imperative Shell: 実行（I/O）
     intent.apply()

@@ -26,7 +26,8 @@ use std::env;
 /// 2. それ以外で `source_format` / `dest_format` が両方 `Some`: ` (Converted: src → dst)`
 /// 3. その他: 空
 ///
-/// stderr ブロック群は Hook のみ `render_hook_success` の `stderr_blocks` を返す。
+/// stderr ブロック群は Hook の `render_hook_success` に加え、
+/// Skill の Plugin 付属リソース警告があれば追記する。
 pub fn render_place_success_to_strings(success: &PlaceSuccess) -> (String, Vec<String>) {
     let rendered = render_hook_success(HookRenderInput {
         component_kind: success.component_kind,
@@ -54,7 +55,12 @@ pub fn render_place_success_to_strings(success: &PlaceSuccess) -> (String, Vec<S
         suffix
     );
 
-    (stdout_line, rendered.stderr_blocks)
+    let mut stderr_blocks = rendered.stderr_blocks;
+    for warning in &success.attached_warnings {
+        stderr_blocks.push(format!("warning: {warning}"));
+    }
+
+    (stdout_line, stderr_blocks)
 }
 
 #[derive(Debug, Parser)]

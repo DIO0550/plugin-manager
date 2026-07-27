@@ -11,10 +11,13 @@
 //! ## 低レベル関数
 //!
 //! - [`list_skill_names`], [`list_agent_names`], etc.: 個別コンポーネントのスキャン
+//! - [`list_plugin_attached_resources`]: プラグイン直下の付属リソース（#393）
 
+mod attached;
 mod components;
 mod placement;
 
+pub use attached::{list_plugin_attached_resources, AttachedEntry};
 pub use components::{
     file_stem_name, list_agent_names, list_command_names, list_hook_names, list_markdown_names,
     list_skill_names,

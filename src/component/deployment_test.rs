@@ -1,6 +1,8 @@
 use super::*;
 use crate::component::convert::{AgentFormat, ConversionOutcome};
-use crate::component::{CommandFormat, Component, ComponentKind, ConversionConfig, Scope};
+use crate::component::{
+    AttachedResourceWarning, CommandFormat, Component, ComponentKind, ConversionConfig, Scope,
+};
 use std::fs;
 use std::path::{Path, PathBuf};
 use tempfile::TempDir;
@@ -463,6 +465,7 @@ fn test_execute_skill_strips_unsupported_frontmatter_for_codex() {
         target.clone(),
         ConversionConfig::Skill {
             target_kind: TargetKind::Codex,
+            plugin_root: None,
         },
     );
 
@@ -496,6 +499,7 @@ fn test_execute_skill_keeps_frontmatter_for_non_codex_target() {
         target.clone(),
         ConversionConfig::Skill {
             target_kind: TargetKind::Copilot,
+            plugin_root: None,
         },
     );
 
@@ -568,7 +572,10 @@ fn test_execute_skill_copies_bundled_resources_same_structure() {
         let deployment = make_deployment(
             Component::new(ComponentKind::Skill, "my-skill".to_string(), source),
             target.clone(),
-            ConversionConfig::Skill { target_kind },
+            ConversionConfig::Skill {
+                target_kind,
+                plugin_root: None,
+            },
         );
 
         deployment.execute().unwrap();
@@ -592,7 +599,10 @@ fn test_execute_skill_strip_does_not_touch_bundled_markdown() {
         let deployment = make_deployment(
             Component::new(ComponentKind::Skill, "my-skill".to_string(), source),
             target.clone(),
-            ConversionConfig::Skill { target_kind },
+            ConversionConfig::Skill {
+                target_kind,
+                plugin_root: None,
+            },
         );
 
         deployment.execute().unwrap();
@@ -638,6 +648,7 @@ fn test_execute_skill_replace_dir_removes_stale_bundled_resources() {
         target.clone(),
         ConversionConfig::Skill {
             target_kind: TargetKind::Copilot,
+            plugin_root: None,
         },
     );
 
@@ -702,5 +713,156 @@ fn test_execute_agent_with_mock_fs_copies_file() {
     assert_eq!(
         fs.read_to_string(Path::new("/dest/agent.md")).unwrap(),
         "agent content"
+    );
+}
+
+// ========================================
+// Plugin attached resources (#393)
+// ========================================
+
+fn write_spec_plugin_layout(plugin_root: &Path) {
+    fs::create_dir_all(plugin_root.join(".claude-plugin")).unwrap();
+    fs::write(
+        plugin_root.join(".claude-plugin/plugin.json"),
+        r#"{"name":"spec-plugin","version":"1.0.0"}"#,
+    )
+    .unwrap();
+    fs::create_dir_all(plugin_root.join("skills/implementation-plan")).unwrap();
+    fs::write(
+        plugin_root.join("skills/implementation-plan/SKILL.md"),
+        "---\nname: implementation-plan\ndescription: plan\n---\n\nSee references/tdd-guidelines.md\n",
+    )
+    .unwrap();
+    fs::create_dir_all(plugin_root.join("skills/spec-driven-dev/references")).unwrap();
+    fs::write(
+        plugin_root.join("skills/spec-driven-dev/SKILL.md"),
+        "---\nname: spec-driven-dev\ndescription: sdd\n---\n\n# Body\n",
+    )
+    .unwrap();
+    fs::write(
+        plugin_root.join("skills/spec-driven-dev/references/exploration.md"),
+        "skill-local\n",
+    )
+    .unwrap();
+    fs::create_dir_all(plugin_root.join("references")).unwrap();
+    fs::write(
+        plugin_root.join("references/tdd-guidelines.md"),
+        "tdd guidelines\n",
+    )
+    .unwrap();
+    fs::write(
+        plugin_root.join("references/test-design-patterns.md"),
+        "patterns\n",
+    )
+    .unwrap();
+    fs::write(plugin_root.join("README.md"), "# readme\n").unwrap();
+}
+
+#[test]
+fn test_execute_skill_overlays_plugin_attached_resources_for_all_targets() {
+    use crate::target::TargetKind;
+
+    let skill_targets = [
+        TargetKind::Codex,
+        TargetKind::Copilot,
+        TargetKind::Antigravity,
+        TargetKind::GeminiCli,
+        TargetKind::Cursor,
+    ];
+
+    for target_kind in skill_targets {
+        let temp = TempDir::new().unwrap();
+        let plugin_root = temp.path().join("spec-plugin");
+        write_spec_plugin_layout(&plugin_root);
+
+        let skill_source = plugin_root.join("skills/implementation-plan");
+        let target = temp.path().join(format!("dest/{target_kind:?}/skill"));
+
+        let deployment = make_deployment(
+            Component::new(
+                ComponentKind::Skill,
+                "spec-plugin_implementation-plan".to_string(),
+                skill_source,
+            ),
+            target.clone(),
+            ConversionConfig::Skill {
+                target_kind,
+                plugin_root: Some(plugin_root.clone()),
+            },
+        );
+
+        let result = deployment.execute().unwrap();
+        match result {
+            DeploymentOutput::SkillCopied { warnings } => assert!(warnings.is_empty()),
+            other => panic!("expected SkillCopied, got {other}"),
+        }
+
+        assert!(target.join("SKILL.md").is_file());
+        assert_eq!(
+            fs::read_to_string(target.join("references/tdd-guidelines.md")).unwrap(),
+            "tdd guidelines\n"
+        );
+        assert_eq!(
+            fs::read_to_string(target.join("references/test-design-patterns.md")).unwrap(),
+            "patterns\n"
+        );
+        // README は除外
+        assert!(!target.join("README.md").exists());
+    }
+}
+
+#[test]
+fn test_execute_skill_plugin_attached_prefers_skill_local_file() {
+    use crate::target::TargetKind;
+
+    let temp = TempDir::new().unwrap();
+    let plugin_root = temp.path().join("spec-plugin");
+    write_spec_plugin_layout(&plugin_root);
+    // Skill 側にも同名ファイルを置く
+    fs::write(
+        plugin_root.join("skills/spec-driven-dev/references/tdd-guidelines.md"),
+        "skill-override\n",
+    )
+    .unwrap();
+
+    let skill_source = plugin_root.join("skills/spec-driven-dev");
+    let target = temp.path().join("dest/skill");
+
+    let deployment = make_deployment(
+        Component::new(
+            ComponentKind::Skill,
+            "spec-plugin_spec-driven-dev".to_string(),
+            skill_source,
+        ),
+        target.clone(),
+        ConversionConfig::Skill {
+            target_kind: TargetKind::Codex,
+            plugin_root: Some(plugin_root),
+        },
+    );
+
+    let result = deployment.execute().unwrap();
+    match result {
+        DeploymentOutput::SkillCopied { warnings } => {
+            assert!(warnings.iter().any(|w| matches!(
+                w,
+                AttachedResourceWarning::SkillPreferred { relative }
+                if relative == Path::new("references/tdd-guidelines.md")
+            )));
+        }
+        other => panic!("expected SkillCopied, got {other}"),
+    }
+
+    assert_eq!(
+        fs::read_to_string(target.join("references/tdd-guidelines.md")).unwrap(),
+        "skill-override\n"
+    );
+    assert_eq!(
+        fs::read_to_string(target.join("references/exploration.md")).unwrap(),
+        "skill-local\n"
+    );
+    assert_eq!(
+        fs::read_to_string(target.join("references/test-design-patterns.md")).unwrap(),
+        "patterns\n"
     );
 }

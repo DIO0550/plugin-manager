@@ -2,7 +2,9 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use crate::component::{AgentFormat, CommandFormat, ComponentKind, Scope};
-use crate::component::{Component, ComponentDeployment, ConversionConfig, DeploymentOutput};
+use crate::component::{
+    AttachedResourceWarning, Component, ComponentDeployment, ConversionConfig, DeploymentOutput,
+};
 use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
 use crate::plugin::{
     cleanup_legacy_hierarchy, meta, meta::TargetStatus, MarketplaceContent, PackageCache,
@@ -90,6 +92,8 @@ pub struct PlaceSuccess {
     pub dest_format: Option<String>,
     /// Hook 変換時の警告（`HookConverted` 以外は空）。
     pub hook_warnings: Vec<ConversionWarning>,
+    /// Plugin 付属リソース overlay 時の警告（Skill 以外は空）。
+    pub attached_warnings: Vec<AttachedResourceWarning>,
     /// `HookConverted` 時に生成されたスクリプト数（それ以外は 0）。
     pub script_count: usize,
     /// `HookConverted` 時に変換後 JSON に残った hook 定義数（それ以外は 0）。
@@ -265,6 +269,7 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
                 }
                 ComponentKind::Skill => ConversionConfig::Skill {
                     target_kind: target.kind(),
+                    plugin_root: Some(request.scanned.plugin_root().to_path_buf()),
                 },
                 _ => ConversionConfig::None,
             };
@@ -314,6 +319,11 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
                             _ => (Vec::new(), 0, 0, None),
                         };
 
+                    let attached_warnings = match &result {
+                        DeploymentOutput::SkillCopied { warnings } => warnings.clone(),
+                        _ => Vec::new(),
+                    };
+
                     successes.push(PlaceSuccess {
                         target: target.name().to_string(),
                         target_kind: target.kind(),
@@ -323,6 +333,7 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
                         source_format,
                         dest_format,
                         hook_warnings,
+                        attached_warnings,
                         script_count,
                         hook_count,
                         hook_source_format,

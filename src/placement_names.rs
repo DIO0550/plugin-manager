@@ -39,6 +39,45 @@ pub const CURSOR_SUBDIR: &str = ".cursor";
 /// Copilot Command の実配置ディレクトリ（表示用 `plural()` の `"commands"` とは異なる）。
 pub const COPILOT_COMMAND_SUBDIR: &str = "prompts";
 
+// ---------------------------------------------------------------------------
+// Plugin 付属リソース除外（#393）
+// ---------------------------------------------------------------------------
+
+/// プラグインマニフェスト用の予約ディレクトリ。
+pub const PLUGIN_MANIFEST_DIR: &str = ".claude-plugin";
+
+/// プラグインルート直下の `plugin.json`（マニフェスト）。
+pub const PLUGIN_MANIFEST_FILE: &str = "plugin.json";
+
+/// PLM 管理メタデータファイル。
+pub const PLM_META_FILE: &str = ".plm-meta.json";
+
+/// プラグインパッケージ内のデフォルト instruction ファイル名。
+pub const DEFAULT_INSTRUCTIONS_FILE: &str = "instructions.md";
+
+/// Plugin 付属リソース検出時に除外する正確なベースネーム（VCS / CI / OS / 予約）。
+pub const ATTACHED_EXACT_EXCLUSIONS: &[&str] = &[
+    PLUGIN_MANIFEST_DIR,
+    PLUGIN_MANIFEST_FILE,
+    PLM_META_FILE,
+    DEFAULT_INSTRUCTIONS_FILE,
+    ".git",
+    ".gitignore",
+    ".gitattributes",
+    ".github",
+    ".DS_Store",
+    COPILOT_COMMAND_SUBDIR,
+];
+
+/// Plugin 付属リソース検出時に除外するプレフィックス（大文字小文字無視）。
+///
+/// `README` / `LICENSE` / `CHANGELOG` / `CONTRIBUTING` で始まる名前
+/// （拡張子付き含む）を対象とする。
+pub const ATTACHED_PREFIX_EXCLUSIONS: &[&str] = &["README", "LICENSE", "CHANGELOG", "CONTRIBUTING"];
+
+/// Plugin 付属リソースの合計サイズ上限（バイト）。超過時は配置せず警告する。
+pub const ATTACHED_RESOURCES_MAX_BYTES: u64 = 10 * 1024 * 1024;
+
 #[cfg(test)]
 #[path = "placement_names_test.rs"]
 mod tests;

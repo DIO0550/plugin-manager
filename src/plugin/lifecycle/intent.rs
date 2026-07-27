@@ -37,6 +37,8 @@ pub struct PluginIntent {
     components: Vec<Component>,
     project_root: PathBuf,
     target_filter: Option<String>,
+    /// enable 時に Plugin 付属リソースを overlay するためのプラグインルート（#393）
+    plugin_root: Option<PathBuf>,
 }
 
 impl PluginIntent {
@@ -53,6 +55,7 @@ impl PluginIntent {
             components,
             project_root,
             target_filter: None,
+            plugin_root: None,
         }
     }
 
@@ -75,7 +78,14 @@ impl PluginIntent {
             components,
             project_root,
             target_filter: target_filter.map(String::from),
+            plugin_root: None,
         }
+    }
+
+    /// Plugin ルートを設定（enable 時の付属リソース overlay 用）
+    pub fn with_plugin_root(mut self, plugin_root: impl Into<PathBuf>) -> Self {
+        self.plugin_root = Some(plugin_root.into());
+        self
     }
 
     /// アクションを取得
@@ -201,7 +211,7 @@ impl PluginIntent {
     /// Imperative Shell: 実行（副作用）
     pub fn apply(self) -> OperationOutcome {
         let result = self.expand();
-        execute_file_operations(result, &self.project_root)
+        execute_file_operations(result, self.plugin_root.as_deref())
     }
 }
 
@@ -210,15 +220,38 @@ impl PluginIntent {
 /// # Arguments
 ///
 /// * `expand_outcome` - pre-computed operations and validation errors from `expand`
-/// * `_project_root` - project root (currently unused but retained for future scoping needs)
+/// * `plugin_root` - plugin root for Skill CopyDir overlay of attached resources (#393)
 fn execute_file_operations(
     expand_outcome: ExpandOutcome,
-    _project_root: &Path,
+    plugin_root: Option<&Path>,
 ) -> OperationOutcome {
+    use crate::component::overlay_attached_resources;
     use crate::fs::{FileSystem, RealFs};
+    use crate::plugin::list_attached_for_plugin;
+    use crate::plugin::meta::resolve_manifest_path;
+    use crate::plugin::PluginManifest;
 
     let fs = RealFs;
     let mut affected = AffectedTargets::new();
+
+    let attached_entries = plugin_root.map(|root| {
+        match resolve_manifest_path(root).and_then(|p| PluginManifest::load(&p).ok()) {
+            Some(manifest) => list_attached_for_plugin(&manifest, root),
+            None => {
+                use crate::component::ComponentKind;
+                use crate::scan::list_plugin_attached_resources;
+                use std::collections::HashSet;
+                let mut excluded = HashSet::new();
+                for kind in ComponentKind::all() {
+                    excluded.insert(std::path::PathBuf::from(kind.plural()));
+                }
+                excluded.insert(std::path::PathBuf::from(
+                    crate::placement_names::COPILOT_COMMAND_SUBDIR,
+                ));
+                list_plugin_attached_resources(root, &excluded)
+            }
+        }
+    });
 
     for (target_kind, msg) in expand_outcome.validation_errors {
         affected.record_error(target_kind.as_str(), msg);
@@ -241,7 +274,15 @@ fn execute_file_operations(
                     fs.copy_file(source, target.as_path())
                 }
                 FileOperation::CopyDir { source, target } => {
-                    fs.replace_dir(source, target.as_path())
+                    fs.replace_dir(source, target.as_path()).and_then(|_| {
+                        if let (Some(root), Some(entries)) =
+                            (plugin_root, attached_entries.as_ref())
+                        {
+                            // Skill ディレクトリへの CopyDir のみ overlay（#393）
+                            overlay_attached_resources(&fs, root, entries, target.as_path())?;
+                        }
+                        Ok(())
+                    })
                 }
                 FileOperation::RemoveFile { path } => {
                     let p = path.as_path();

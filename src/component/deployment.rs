@@ -3,6 +3,7 @@
 //! `ComponentDeployment` 構造体本体と配置実行 (`execute()` / `deploy_*`) を定義する。
 //! Hook 変換のような大きめの処理は `hook_deploy` サブモジュールへ分離。
 
+pub(crate) mod attached;
 mod bash;
 mod builder;
 mod conversion;
@@ -13,8 +14,10 @@ use crate::component::convert;
 use crate::component::{Component, ComponentKind, Scope};
 use crate::error::Result;
 use crate::fs::{FileSystem, RealFs};
+use crate::plugin::{list_attached_for_plugin, PluginManifest};
 use std::path::{Path, PathBuf};
 
+pub use attached::AttachedResourceWarning;
 pub use builder::ComponentDeploymentBuilder;
 pub use conversion::ConversionConfig;
 pub use output::DeploymentOutput;
@@ -85,12 +88,19 @@ impl ComponentDeployment {
     /// `SKILL.md` 以外の直下ファイルや任意名サブフォルダ（`references/` / `assets/` 等）も
     /// 付属リソースとして同相対構造でコピーする。`replace_dir` によりターゲット側の
     /// 余剰ファイルは削除される。frontmatter 変換がある場合も触るのは `SKILL.md` のみ。
+    ///
+    /// `ConversionConfig::Skill.plugin_root` がある場合、その後に Plugin 直下の付属
+    /// リソースを overlay する（#393）。Skill 側の同名ファイルを優先し、衝突は警告する。
     fn deploy_skill(&self, fs: &dyn FileSystem) -> Result<DeploymentOutput> {
         // Skills are directories — replace target to avoid stale files.
         fs.replace_dir(self.source_path(), &self.target_path)?;
 
         // ターゲットがサポートしない frontmatter フィールドを SKILL.md から除去する。
-        if let ConversionConfig::Skill { target_kind } = &self.conversion {
+        let plugin_root = if let ConversionConfig::Skill {
+            target_kind,
+            plugin_root,
+        } = &self.conversion
+        {
             if let Some(allowed) = convert::skill_allowed_fields(*target_kind) {
                 let manifest = self.target_path.join(ComponentKind::skill_manifest());
                 if fs.exists(&manifest) && !fs.is_dir(&manifest) {
@@ -103,9 +113,18 @@ impl ComponentDeployment {
                     }
                 }
             }
-        }
+            plugin_root.clone()
+        } else {
+            None
+        };
 
-        Ok(DeploymentOutput::Copied)
+        let warnings = if let Some(root) = plugin_root {
+            overlay_plugin_attached(fs, &root, &self.target_path)?
+        } else {
+            Vec::new()
+        };
+
+        Ok(DeploymentOutput::SkillCopied { warnings })
     }
 
     fn deploy_command(&self, fs: &dyn FileSystem) -> Result<DeploymentOutput> {
@@ -161,6 +180,34 @@ impl ComponentDeployment {
             }
         }
     }
+}
+
+/// Plugin ルートから付属リソースを列挙し Skill 配置先へ overlay する。
+fn overlay_plugin_attached(
+    fs: &dyn FileSystem,
+    plugin_root: &Path,
+    skill_target: &Path,
+) -> Result<Vec<AttachedResourceWarning>> {
+    use crate::plugin::meta::resolve_manifest_path;
+    use crate::scan::list_plugin_attached_resources;
+    use std::collections::HashSet;
+
+    let entries =
+        match resolve_manifest_path(plugin_root).and_then(|p| PluginManifest::load(&p).ok()) {
+            Some(manifest) => list_attached_for_plugin(&manifest, plugin_root),
+            None => {
+                // マニフェスト無しでも既定コンポーネント dir 名は除外する。
+                let mut excluded = HashSet::new();
+                for kind in ComponentKind::all() {
+                    excluded.insert(PathBuf::from(kind.plural()));
+                }
+                excluded.insert(PathBuf::from(
+                    crate::placement_names::COPILOT_COMMAND_SUBDIR,
+                ));
+                list_plugin_attached_resources(plugin_root, &excluded)
+            }
+        };
+    attached::overlay_attached_resources(fs, plugin_root, &entries, skill_target)
 }
 
 #[cfg(test)]

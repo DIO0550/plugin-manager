@@ -4,6 +4,7 @@
 //! `Result` 系名（`std::result::Result`）との混同を避けるため
 //! `~Output` 命名を採用している（`std::process::Output` などの慣用に倣う）。
 
+use super::attached::AttachedResourceWarning;
 use crate::component::convert::{AgentConversionOutcome, ConversionOutcome};
 use crate::hooks::converter::{ConversionWarning, SourceFormat};
 
@@ -12,6 +13,10 @@ use crate::hooks::converter::{ConversionWarning, SourceFormat};
 pub enum DeploymentOutput {
     /// ファイルコピーのみ
     Copied,
+    /// Skill 配置（Plugin 付属リソース overlay の警告を含む）
+    SkillCopied {
+        warnings: Vec<AttachedResourceWarning>,
+    },
     /// Command フォーマット変換が行われた
     CommandConverted(ConversionOutcome),
     /// Agent フォーマット変換が行われた
@@ -35,6 +40,18 @@ impl std::fmt::Display for DeploymentOutput {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             DeploymentOutput::Copied => write!(f, "Copied"),
+            DeploymentOutput::SkillCopied { warnings } => {
+                if warnings.is_empty() {
+                    write!(f, "Copied")
+                } else {
+                    write!(
+                        f,
+                        "Copied ({} attached warning{})",
+                        warnings.len(),
+                        if warnings.len() == 1 { "" } else { "s" }
+                    )
+                }
+            }
             DeploymentOutput::CommandConverted(conv) => {
                 if conv.converted {
                     write!(

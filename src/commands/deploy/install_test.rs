@@ -39,6 +39,7 @@ fn make_success(
         source_format: source_format.map(|s| s.to_string()),
         dest_format: dest_format.map(|s| s.to_string()),
         hook_warnings,
+        attached_warnings: Vec::new(),
         script_count,
         hook_count,
         hook_source_format,

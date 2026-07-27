@@ -17,3 +17,11 @@ fn copilot_command_subdir_differs_from_plural() {
     assert_ne!(COPILOT_COMMAND_SUBDIR, ComponentKind::Command.plural());
     assert_eq!(COPILOT_COMMAND_SUBDIR, "prompts");
 }
+
+#[test]
+fn attached_exact_exclusions_cover_reserved_names() {
+    assert!(ATTACHED_EXACT_EXCLUSIONS.contains(&PLUGIN_MANIFEST_DIR));
+    assert!(ATTACHED_EXACT_EXCLUSIONS.contains(&PLUGIN_MANIFEST_FILE));
+    assert!(ATTACHED_EXACT_EXCLUSIONS.contains(&PLM_META_FILE));
+    assert!(ATTACHED_RESOURCES_MAX_BYTES > 0);
+}

@@ -27,11 +27,16 @@ pub enum ConversionConfig {
         target_kind: TargetKind,
         plugin_root: Option<PathBuf>,
     },
-    /// Skill デプロイ時の frontmatter 調整。
+    /// Skill デプロイ時の frontmatter 調整と Plugin 付属リソース overlay。
     ///
     /// ターゲットがサポートしない `SKILL.md` frontmatter フィールドを除去する。
     /// 制限のないターゲットでは何もしない（ディレクトリをそのままコピーする）。
-    Skill { target_kind: TargetKind },
+    /// `plugin_root` が `Some` のとき、プラグイン直下の付属リソースを Skill 配置先へ
+    /// 複製する（#393）。
+    Skill {
+        target_kind: TargetKind,
+        plugin_root: Option<PathBuf>,
+    },
 }
 
 #[cfg(test)]
