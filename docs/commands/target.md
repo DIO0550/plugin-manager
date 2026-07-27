@@ -17,7 +17,7 @@
 ```bash
 $ plm target list
 📍 Active targets:
-   • antigravity (skills)
+   • antigravity (skills, hooks)
    • codex       (skills, agents, instructions, hooks)
    • copilot     (skills, agents, commands, instructions, hooks)
    • cursor      (skills, agents, commands, instructions, hooks)
@@ -62,7 +62,7 @@ $ plm target add cursor
 
 | ターゲット | サポートするコンポーネント |
 |------------|----------------------------|
-| `antigravity` | Skills |
+| `antigravity` | Skills, Hooks |
 | `codex` | Skills, Agents, Instructions, Hooks |
 | `copilot` | Skills, Agents, Commands, Instructions, Hooks |
 | `cursor` | Skills, Agents, Commands, Instructions, Hooks |

@@ -22,8 +22,9 @@ fn test_antigravity_display_name() {
 fn test_antigravity_supported_components() {
     let target = AntigravityTarget::new();
     let supported = target.supported_components();
-    assert_eq!(supported.len(), 1);
-    assert_eq!(supported[0], ComponentKind::Skill);
+    assert_eq!(supported.len(), 2);
+    assert!(supported.contains(&ComponentKind::Skill));
+    assert!(supported.contains(&ComponentKind::Hook));
 }
 
 #[test]
@@ -51,9 +52,9 @@ fn test_antigravity_not_supports_instruction() {
 }
 
 #[test]
-fn test_antigravity_not_supports_hook() {
+fn test_antigravity_supports_hook() {
     let target = AntigravityTarget::new();
-    assert!(!target.supports(ComponentKind::Hook));
+    assert!(target.supports(ComponentKind::Hook));
 }
 
 #[test]
@@ -242,4 +243,71 @@ fn test_antigravity_list_placed_agent_returns_empty() {
         .list_placed(ComponentKind::Agent, Scope::Project, project_root)
         .unwrap();
     assert!(result.is_empty());
+}
+
+#[test]
+fn test_antigravity_placement_location_hook_project() {
+    let target = AntigravityTarget::new();
+    let project_root = Path::new("/project");
+    let origin = PluginOrigin::from_marketplace("official", "my-plugin");
+
+    let ctx = PlacementContext {
+        component: ComponentRef::new(ComponentKind::Hook, "my-hooks"),
+        origin: &origin,
+        scope: PlacementScope::new(Scope::Project),
+        project: ProjectContext::new(project_root),
+    };
+    let location = target.placement_location(&ctx).unwrap();
+    assert!(location.is_file());
+    assert_eq!(location.as_path(), Path::new("/project/.agents/hooks.json"));
+}
+
+#[test]
+fn test_antigravity_placement_location_hook_personal() {
+    let target = AntigravityTarget::new();
+    let project_root = Path::new("/project");
+    let origin = PluginOrigin::from_marketplace("official", "my-plugin");
+
+    let ctx = PlacementContext {
+        component: ComponentRef::new(ComponentKind::Hook, "my-hooks"),
+        origin: &origin,
+        scope: PlacementScope::new(Scope::Personal),
+        project: ProjectContext::new(project_root),
+    };
+    let location = target.placement_location(&ctx).unwrap();
+    let home = std::env::var("HOME").unwrap();
+    let expected = std::path::PathBuf::from(home)
+        .join(".gemini")
+        .join("config")
+        .join("hooks.json");
+    assert_eq!(location.as_path(), expected.as_path());
+}
+
+#[test]
+fn test_antigravity_hook_component_conflict_rejects_multiple() {
+    use crate::component::Component;
+    use std::path::PathBuf;
+
+    let components = vec![
+        Component::new(ComponentKind::Hook, "a", PathBuf::from("hooks/a.json")),
+        Component::new(ComponentKind::Hook, "b", PathBuf::from("hooks/b.json")),
+    ];
+    let err = AntigravityTarget::hook_component_conflict_error(&components);
+    assert!(err.unwrap().contains("single hooks.json"));
+}
+
+#[test]
+fn test_antigravity_list_placed_hooks() {
+    let target = AntigravityTarget::new();
+    let temp_dir = TempDir::new().unwrap();
+    let project_root = temp_dir.path();
+
+    let hooks_dir = project_root.join(".agents");
+    std::fs::create_dir_all(&hooks_dir).unwrap();
+    std::fs::write(hooks_dir.join("hooks.json"), "{}").unwrap();
+
+    let result = target
+        .list_placed(ComponentKind::Hook, Scope::Project, project_root)
+        .unwrap();
+    assert_eq!(result, vec!["hooks"]);
 }

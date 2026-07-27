@@ -178,7 +178,7 @@ impl TargetKind {
     /// ターゲット環境が期待する Command ファイル形式を返す。
     pub fn command_format(&self) -> CommandFormat {
         match self {
-            TargetKind::Antigravity => CommandFormat::ClaudeCode, // Antigravity は Skills のみ
+            TargetKind::Antigravity => CommandFormat::ClaudeCode, // Agents/Commands は未実装
             TargetKind::Codex => CommandFormat::Codex,
             TargetKind::Copilot => CommandFormat::Copilot,
             // Cursor は Claude Code 互換の Command 形式（#359 で配置対応）

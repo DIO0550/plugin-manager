@@ -14,14 +14,26 @@ use std::path::Path;
 impl ComponentDeployment {
     /// 変換後 JSON に残った hook 定義数を数える。
     ///
-    /// Copilot は `hooks.<event>[]` のフラット構造、Codex は
-    /// `hooks.<event>[].hooks[]` の matcher group 構造を使うため両方を扱う。
+    /// - 標準形式: `hooks.<event>[]`（フラットまたは matcher group）
+    /// - 命名フック形式: `<named-hook>.<event>[]`（トップに `hooks` キーなし）
     fn count_hooks_in_json(json: &serde_json::Value) -> usize {
-        let Some(hooks) = json.get("hooks").and_then(|h| h.as_object()) else {
-            return 0;
-        };
+        if let Some(hooks) = json.get("hooks").and_then(|h| h.as_object()) {
+            return Self::count_event_hook_entries(hooks);
+        }
 
-        hooks
+        // Named-hook map: each top-level value is an event object.
+        json.as_object()
+            .map(|root| {
+                root.values()
+                    .filter_map(|v| v.as_object())
+                    .map(Self::count_event_hook_entries)
+                    .sum()
+            })
+            .unwrap_or(0)
+    }
+
+    fn count_event_hook_entries(events: &serde_json::Map<String, serde_json::Value>) -> usize {
+        events
             .values()
             .filter_map(|event_hooks| event_hooks.as_array())
             .flat_map(|event_hooks| event_hooks.iter())
@@ -32,6 +44,24 @@ impl ComponentDeployment {
                     .map_or(1, |nested| nested.len())
             })
             .sum()
+    }
+
+    /// 命名フック形式（トップに `hooks` が無い単一ルートキー）なら、
+    /// そのキーをコンポーネント名へリネームする。標準形式では何もしない。
+    fn apply_component_name_to_root(json: &mut serde_json::Value, safe_name: &str) {
+        let Some(root) = json.as_object_mut() else {
+            return;
+        };
+        if root.contains_key("hooks") || root.len() != 1 {
+            return;
+        }
+        let old_key = root.keys().next().expect("len == 1").clone();
+        if old_key == safe_name {
+            return;
+        }
+        if let Some(events) = root.remove(&old_key) {
+            root.insert(safe_name.to_string(), events);
+        }
     }
 
     /// JSON 内の hooks[].bash / hooks[].command パスを名前空間付きに書き換える
@@ -102,6 +132,10 @@ impl ComponentDeployment {
         // Hook 名をサニタイズ（パスセグメント・シェルコマンドで安全に使えるようにする）
         let hook_name = HookName::new(self.name());
         let safe_name = hook_name.as_safe();
+
+        if convert_result.source_format == SourceFormat::ClaudeCode {
+            Self::apply_component_name_to_root(&mut convert_result.json, safe_name);
+        }
 
         if !convert_result.scripts.is_empty() {
             let original_paths: HashSet<String> = convert_result

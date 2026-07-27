@@ -100,7 +100,7 @@ cargo deny check
 |------------|--------|--------|----------|--------------|-------|
 | OpenAI Codex | ○ | ○ | × | ○ | ○ |
 | VSCode Copilot | ○ | ○ | ○ | ○ | ○ |
-| Google Antigravity | ○ | × | × | × | × |
+| Google Antigravity | ○ | × | × | × | ○ |
 | Gemini CLI | ○ | × | × | ○ | × |
 | Cursor | ○ | ○ | ○ | ○* | ○ |
 

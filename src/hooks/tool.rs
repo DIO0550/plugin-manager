@@ -1,8 +1,11 @@
+pub(crate) mod antigravity;
 pub(crate) mod claude_code;
 pub(crate) mod codex;
 pub(crate) mod copilot;
 pub(crate) mod cursor;
 
+#[cfg(test)]
+mod antigravity_test;
 #[cfg(test)]
 mod claude_code_test;
 #[cfg(test)]
