@@ -690,8 +690,8 @@ Claude Code は PascalCase、Copilot CLI は小文字。
 ## 10. Google Antigravity
 
 > **出典:** [Antigravity Hooks](https://antigravity.google/docs/hooks)（本文取得・確認日: 2026-07-26）  
-> **PLM 実装状況:** 未実装（[#309](https://github.com/DIO0550/plugin-manager/issues/309)）  
-> **関連:** [#399](https://github.com/DIO0550/plugin-manager/issues/399)（本セクション追加）、`docs/concepts/targets.md`、`docs/hooks-conversion/index.md`
+> **PLM 実装状況:** 実装済み。IDE / CLI 共通。Gemini CLI 単体の hooks は追わず本セクション（Antigravity）に一本化する。  
+> **関連:** `docs/concepts/targets.md`、`docs/hooks-conversion/index.md`
 
 ### 10.1 配置先
 

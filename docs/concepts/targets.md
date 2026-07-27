@@ -8,7 +8,7 @@ PLMがサポートするAI開発環境（ターゲット）について説明し
 |------------|------|------|
 | **codex** | OpenAI Codex CLI | ✅ 対応済み |
 | **copilot** | VSCode GitHub Copilot | ✅ 対応済み |
-| **antigravity** | Google Antigravity IDE | ✅ 対応済み |
+| **antigravity** | Google Antigravity（IDE / CLI・Hooks 共通） | ✅ 対応済み |
 | **gemini** | Gemini CLI（ターミナルベースAIエージェント） | ✅ 対応済み |
 | **cursor** | Cursor（IDE / CLI） | ✅ 対応済み |
 
@@ -20,13 +20,14 @@ PLMがサポートするAI開発環境（ターゲット）について説明し
 | Agents | ✅ | ✅ | ❌* | ❌ | ✅ |
 | Commands | ❌ | ✅ | ❌* | ❌ | ✅ |
 | Instructions | ✅ | ✅ | ❌* | ✅** | ✅*** |
-| Hooks | ✅ | ✅ | ✅**** | ❌ | ✅***** |
+| Hooks | ✅ | ✅ | ✅**** | ❌****** | ✅***** |
 
 > *Antigravity は公式に Agents（`agent.md`）/ Workflows（Commands 相当）/ Rules・`GEMINI.md`・`AGENTS.md`（Instructions 相当）をサポートする。PLM 実装は未着手（調査: [#400](https://github.com/DIO0550/plugin-manager/issues/400)）。
 > **Gemini CLIは`GEMINI.md`による階層的な指示システムを持ちます。
 > ***CursorのInstructionsはProjectスコープ（`AGENTS.md`）のみ。Personalスコープの指示（User Rules）はアプリ設定画面で管理されるため対象外。
-> ****Antigravity Hooks は公式 5 イベント対応の変換・配置を実装済み（[#309](https://github.com/DIO0550/plugin-manager/issues/309)）。単一 `hooks.json`・複数 Hook 同時配置は拒否（フルマージ未実装）。stdin/stdout ラッパーは未生成（インライン command）。
+> ****Antigravity（IDE / CLI 共通）Hooks は公式 5 イベント対応の変換・配置を実装済み。単一 `hooks.json`・複数 Hook 同時配置は拒否（フルマージ未実装）。stdin/stdout ラッパーは未生成（インライン command）。
 > *****CursorのHooksは単一の `hooks.json` に配置する。既存の非管理ファイルの上書きと、同一インストール内の複数 Hook コンポーネントは拒否する（フルマージは未実装）。
+> ******Gemini CLI の Hooks は非対応。一般向けは Antigravity CLI へ移行済みで、Hooks は Antigravity（IDE / CLI 共通）仕様として扱う。Enterprise 向け `gemini` ターゲットはレガシーとして維持する。
 
 ## OpenAI Codex
 
@@ -336,6 +337,7 @@ Gemini CLIは `GEMINI.md` ファイルによる階層的な指示システムを
 - **実験的機能**: `/settings` で Agent Skills を `true` に設定して有効化が必要
 - **Agents非対応**: `.agent.md` 形式はサポートしない
 - **Prompts非対応**: `.prompt.md` 形式はサポートしない
+- **Hooks 非対応**: Gemini CLI 単体の hooks 公式仕様は追わず、Antigravity（IDE / CLI）共通仕様へ一本化する。一般向け製品移行の詳細は [Transitioning Gemini CLI to Antigravity CLI](https://github.com/google-gemini/gemini-cli/discussions/27274) を参照
 
 ## Cursor
 
