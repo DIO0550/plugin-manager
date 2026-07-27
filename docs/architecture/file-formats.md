@@ -543,9 +543,93 @@ skills/spec-driven-dev/
 
 ### 境界・既知制限
 
-- **Plugin 直下**（例: `plugins/<plugin>/references/`）の未認識ファイル/フォルダは本節の対象外。
+- **Plugin 直下**（例: `plugins/<plugin>/references/`）の未認識ファイル/フォルダは「[Plugin 付属リソース](#plugin-付属リソース)」で扱う。
 - **symlink** のコピー挙動は保証外。
 - **Cursor** は skills ルートを再帰走査するため、Skill 配下にネストした `SKILL.md` があると実行時に別 Skill として見える可能性がある。PLM はこれを別 Component にせず、変換・除外もしない。
+
+---
+
+## Plugin 付属リソース
+
+プラグインルート（`plugins/<plugin>/`）直下のエントリのうち、PLM が Component（Skill / Agent / Command / Instruction / Hook）としてもプラグイン管理用の予約エントリとしても扱わないファイル・フォルダは、**プラグイン全体の付属リソース**として扱い、Skill 配置時に同梱する。
+
+複数の Skill から共通参照される規約ファイル（TDD ガイドライン、テスト設計パターン等）が典型例で、ターゲットへコピーされないと SKILL.md 内の相対参照が解決できない。
+
+### 配置方針
+
+**各 Skill の配置ディレクトリへ、プラグインルートからの相対パスを保って複製する。**
+
+```text
+plugins/spec-plugin/
+├── .claude-plugin/plugin.json   # 予約（対象外）
+├── skills/
+│   ├── implementation-plan/SKILL.md
+│   └── spec-driven-dev/
+│       ├── SKILL.md
+│       └── references/exploration-perspectives.md
+├── agents/
+└── references/                  # Plugin 付属リソース
+    ├── tdd-guidelines.md
+    └── test-design-patterns.md
+
+配置後（Codex / Personal の例）:
+~/.codex/skills/<spec-plugin の implementation-plan 配置名>/
+├── SKILL.md
+└── references/
+    ├── tdd-guidelines.md          # Plugin 付属リソース
+    └── test-design-patterns.md    # Plugin 付属リソース
+~/.codex/skills/<spec-plugin の spec-driven-dev 配置名>/
+├── SKILL.md
+└── references/
+    ├── exploration-perspectives.md  # Skill 付属リソース
+    ├── tdd-guidelines.md            # Plugin 付属リソース
+    └── test-design-patterns.md      # Plugin 付属リソース
+```
+
+Skill 数ぶんディスク上に重複するが、SKILL.md 側の相対参照が Skill 付属リソースと同じ書き方（`references/xxx.md`）で解決でき、所有権・削除も Skill ディレクトリに閉じるため、共有ディレクトリ方式（`<plugin>_shared/` の兄弟配置）より副作用が小さい。共有方式はターゲットごとに Skill ディレクトリ名の規則が異なる（Cursor は `original_name`、他は `<plugin>_<skill>`）ため、相対参照が一意に定まらない。
+
+### 検出
+
+- 走査起点はプラグインルート **1 階層**。採用したディレクトリはその内容ごと再帰的に対象とする。
+- 除外判定は **マニフェスト解決後のパス**で行う。`plugin.json` の `skills` / `agents` / `commands` / `hooks` / `instructions` が既定値以外を指す場合、その解決結果を除外する（リテラル名だけで判定しない）。
+
+| 除外対象 | 例 | 理由 |
+|----------|-----|------|
+| 解決済みコンポーネントディレクトリ | `skills/` `agents/` `commands/` `prompts/` `hooks/` `instructions/` | Component として個別に配置される |
+| Instruction ファイル | `AGENTS.md` `copilot-instructions.md` `GEMINI.md` `instructions.md` | 同上 |
+| プラグインマニフェスト | `.claude-plugin/` `plugin.json` | プラグイン定義用の予約 |
+| PLM 管理ファイル | `.plm-meta.json` | PLM 自身の管理メタデータ |
+| VCS / CI / OS メタ | `.git/` `.gitignore` `.gitattributes` `.github/` `.DS_Store` | 配布物ではない |
+| リポジトリ定型ドキュメント | `README*` `LICENSE*` `CHANGELOG*` `CONTRIBUTING*` | Skill からの参照想定が薄く、Skill 数ぶん複製する不利益が上回る |
+| symlink | - | Skill 付属リソースと同じく保証外（スキップ） |
+
+フォルダ名にホワイトリストは設けない（`references/` `docs/` `examples/` `templates/` いずれも同じ扱い）。除外リテラルの真実源は `src/placement_names.rs`（#339）に置き、マニフェスト解決との合成は `plugin` モジュール側で行う。
+
+誤同梱（`node_modules/` `target/` 等の巨大ディレクトリ）を避けるため、付属リソース総量が閾値を超える場合は配置せず警告する。
+
+### 命名衝突
+
+Skill 付属リソースと Plugin 付属リソースが同じ相対パスに着地する場合は **Skill 側を優先**する（Skill ローカルの改変版で共通版を上書きする意図と解釈）。上書きが発生した相対パスは警告として通知する。
+Hook 変換の `ConversionWarning` は Hook 専用のため、配置時警告を通す共通チャネル（配置結果に警告を集約する仕組み）が別途必要になる。
+
+### ライフサイクル
+
+Plugin 付属リソースは Skill 配置ディレクトリの内側に置かれるため、所有権とライフサイクルは Skill と共有する。`.plm-meta.json` の `managedFiles` へ個別に登録する必要はない。
+
+| 操作 | 挙動 |
+|------|------|
+| `install` | Skill 配置の一部として配置する |
+| `update` | Skill ディレクトリ置換（`replace_dir`）の**後**に付属リソースを書き込む。上流で削除されたファイルは置換により自動で消える |
+| `enable` / `disable` | Skill ディレクトリ単位の追加・削除に追随する。enable は install とは別のコピー経路（`FileOperation::CopyDir`）を通るため、そちらにも同梱処理が必要 |
+| `uninstall` | Skill ディレクトリごと削除される |
+| `sync` | Skill コンポーネント単位の差分に含める。現状 sync は `copy_dir` のため stale が残る（install 経路との非対称は別途解消が必要） |
+
+### 境界・既知制限
+
+- **相対参照の書き換えは行わない。** プラグインルート起点の上位参照（`../../references/xxx.md`）は配置後に解決されない。Skill から見た相対（`references/xxx.md`）で記述する必要がある。
+- **別 Skill を指す相対参照**（`../<other-skill>/references/xxx.md`）はフラット化されたディレクトリ名により壊れる（Cursor のみ `original_name` 配置のため挙動が異なる）。本仕様の対象外。
+- **Skill を持たないプラグイン**では配置先が無いため、付属リソースは配置されない。Agent / Command は単一ファイル配置のため同梱先を持たない。
+- **ディスク重複**は許容する。
 
 ---
 
