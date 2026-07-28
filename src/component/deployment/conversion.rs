@@ -32,7 +32,7 @@ pub enum ConversionConfig {
     /// ターゲットがサポートしない `SKILL.md` frontmatter フィールドを除去する。
     /// 制限のないターゲットでは何もしない（ディレクトリをそのままコピーする）。
     /// `plugin_root` が `Some` のとき、プラグイン直下の付属リソースを Skill 配置先へ
-    /// 複製する（#393）。
+    /// 複製する。
     Skill {
         target_kind: TargetKind,
         plugin_root: Option<PathBuf>,

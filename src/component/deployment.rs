@@ -90,7 +90,7 @@ impl ComponentDeployment {
     /// 余剰ファイルは削除される。frontmatter 変換がある場合も触るのは `SKILL.md` のみ。
     ///
     /// `ConversionConfig::Skill.plugin_root` がある場合、その後に Plugin 直下の付属
-    /// リソースを overlay する（#393）。Skill 側の同名ファイルを優先し、衝突は警告する。
+    /// リソースを overlay する。Skill 側の同名ファイルを優先し、衝突は警告する。
     fn deploy_skill(&self, fs: &dyn FileSystem) -> Result<DeploymentOutput> {
         // Skills are directories — replace target to avoid stale files.
         fs.replace_dir(self.source_path(), &self.target_path)?;

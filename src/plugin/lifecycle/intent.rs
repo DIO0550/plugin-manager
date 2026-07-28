@@ -37,7 +37,7 @@ pub struct PluginIntent {
     components: Vec<Component>,
     project_root: PathBuf,
     target_filter: Option<String>,
-    /// enable 時に Plugin 付属リソースを overlay するためのプラグインルート（#393）
+    /// enable 時に Plugin 付属リソースを overlay するためのプラグインルート
     plugin_root: Option<PathBuf>,
 }
 
@@ -220,7 +220,7 @@ impl PluginIntent {
 /// # Arguments
 ///
 /// * `expand_outcome` - pre-computed operations and validation errors from `expand`
-/// * `plugin_root` - plugin root for Skill CopyDir overlay of attached resources (#393)
+/// * `plugin_root` - plugin root for Skill CopyDir overlay of attached resources
 fn execute_file_operations(
     expand_outcome: ExpandOutcome,
     plugin_root: Option<&Path>,
@@ -278,7 +278,7 @@ fn execute_file_operations(
                         if let (Some(root), Some(entries)) =
                             (plugin_root, attached_entries.as_ref())
                         {
-                            // Skill ディレクトリへの CopyDir のみ overlay（#393）
+                            // Skill ディレクトリへの CopyDir のみ overlay
                             overlay_attached_resources(&fs, root, entries, target.as_path())?;
                         }
                         Ok(())

@@ -1,4 +1,4 @@
-//! Plugin 付属リソースの除外集合合成（#393）
+//! Plugin 付属リソースの除外集合合成
 //!
 //! `placement_names` のリテラルと `PluginManifest` 解決パスを合成する。
 

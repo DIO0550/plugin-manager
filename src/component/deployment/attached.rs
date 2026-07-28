@@ -1,4 +1,4 @@
-//! Plugin 付属リソースの Skill 配置ディレクトリへの overlay（#393）
+//! Plugin 付属リソースの Skill 配置ディレクトリへの overlay
 //!
 //! `deploy_skill` の `replace_dir` **後**に呼び、相対パスを保って複製する。
 //! Skill 側に同名がある場合は Skill を優先（上書きしない）し警告する。

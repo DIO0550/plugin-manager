@@ -11,7 +11,7 @@
 //! ## 低レベル関数
 //!
 //! - [`list_skill_names`], [`list_agent_names`], etc.: 個別コンポーネントのスキャン
-//! - [`list_plugin_attached_resources`]: プラグイン直下の付属リソース（#393）
+//! - [`list_plugin_attached_resources`]: プラグイン直下の付属リソース
 
 mod attached;
 mod components;

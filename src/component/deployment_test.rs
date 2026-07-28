@@ -717,7 +717,7 @@ fn test_execute_agent_with_mock_fs_copies_file() {
 }
 
 // ========================================
-// Plugin attached resources (#393)
+// Plugin attached resources
 // ========================================
 
 fn write_spec_plugin_layout(plugin_root: &Path) {
