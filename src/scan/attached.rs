@@ -4,7 +4,6 @@
 //! `ComponentKind` には混ぜず、呼び出し側が除外集合を渡す。
 
 use std::collections::HashSet;
-use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
 /// プラグインルート直下の付属エントリ（ファイルまたはディレクトリ）。
@@ -21,10 +20,6 @@ impl AttachedEntry {
         Self {
             relative: relative.into(),
         }
-    }
-
-    pub fn name(&self) -> Option<&OsStr> {
-        self.relative.file_name()
     }
 }
 

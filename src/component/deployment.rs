@@ -14,7 +14,7 @@ use crate::component::convert;
 use crate::component::{Component, ComponentKind, Scope};
 use crate::error::Result;
 use crate::fs::{FileSystem, RealFs};
-use crate::plugin::{list_attached_for_plugin, PluginManifest};
+use crate::plugin::list_attached_entries;
 use std::path::{Path, PathBuf};
 
 pub use attached::AttachedResourceWarning;
@@ -188,25 +188,7 @@ fn overlay_plugin_attached(
     plugin_root: &Path,
     skill_target: &Path,
 ) -> Result<Vec<AttachedResourceWarning>> {
-    use crate::plugin::meta::resolve_manifest_path;
-    use crate::scan::list_plugin_attached_resources;
-    use std::collections::HashSet;
-
-    let entries =
-        match resolve_manifest_path(plugin_root).and_then(|p| PluginManifest::load(&p).ok()) {
-            Some(manifest) => list_attached_for_plugin(&manifest, plugin_root),
-            None => {
-                // マニフェスト無しでも既定コンポーネント dir 名は除外する。
-                let mut excluded = HashSet::new();
-                for kind in ComponentKind::all() {
-                    excluded.insert(PathBuf::from(kind.plural()));
-                }
-                excluded.insert(PathBuf::from(
-                    crate::placement_names::COPILOT_COMMAND_SUBDIR,
-                ));
-                list_plugin_attached_resources(plugin_root, &excluded)
-            }
-        };
+    let entries = list_attached_entries(plugin_root);
     attached::overlay_attached_resources(fs, plugin_root, &entries, skill_target)
 }
 

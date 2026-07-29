@@ -47,6 +47,19 @@ fn list_attached_for_default_layout_finds_references() {
 }
 
 #[test]
+fn list_attached_entries_falls_back_without_manifest() {
+    let temp = TempDir::new().unwrap();
+    let root = temp.path();
+    fs::create_dir_all(root.join("skills")).unwrap();
+    fs::create_dir_all(root.join("references")).unwrap();
+    fs::write(root.join("README.md"), "r\n").unwrap();
+
+    let entries = list_attached_entries(root);
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].relative, PathBuf::from("references"));
+}
+
+#[test]
 fn attached_exclusion_paths_includes_custom_skills() {
     let temp = TempDir::new().unwrap();
     let root = temp.path();

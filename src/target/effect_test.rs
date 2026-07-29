@@ -58,4 +58,17 @@ fn test_operation_outcome_error() {
     assert!(!result.success);
     assert_eq!(result.error, Some("Plugin not found".to_string()));
     assert!(result.affected_targets.target_names().is_empty());
+    assert!(result.warnings.is_empty());
+}
+
+#[test]
+fn test_affected_targets_records_warnings() {
+    let mut affected = AffectedTargets::new();
+    affected.record_success("codex", 1);
+    affected.record_warning("skill preferred references/a.md");
+
+    let result = affected.into_result();
+    assert!(result.success);
+    assert_eq!(result.warnings.len(), 1);
+    assert!(result.warnings[0].contains("references/a.md"));
 }

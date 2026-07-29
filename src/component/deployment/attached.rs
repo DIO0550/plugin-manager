@@ -38,28 +38,38 @@ impl std::fmt::Display for AttachedResourceWarning {
 }
 
 /// Plugin 付属リソースを Skill 配置ディレクトリへ overlay する。
-///
-/// # Arguments
-///
-/// * `fs` - ファイルシステム
-/// * `plugin_root` - プラグインルート
-/// * `entries` - 検出済み付属エントリ
-/// * `skill_target` - Skill の配置先ディレクトリ
 pub fn overlay_attached_resources(
     fs: &dyn FileSystem,
     plugin_root: &Path,
     entries: &[AttachedEntry],
     skill_target: &Path,
 ) -> Result<Vec<AttachedResourceWarning>> {
+    overlay_attached_resources_with_limit(
+        fs,
+        plugin_root,
+        entries,
+        skill_target,
+        ATTACHED_RESOURCES_MAX_BYTES,
+    )
+}
+
+/// サイズ上限を指定して Plugin 付属リソースを overlay する（テスト用に閾値を注入可能）。
+pub fn overlay_attached_resources_with_limit(
+    fs: &dyn FileSystem,
+    plugin_root: &Path,
+    entries: &[AttachedEntry],
+    skill_target: &Path,
+    max_bytes: u64,
+) -> Result<Vec<AttachedResourceWarning>> {
     if entries.is_empty() {
         return Ok(Vec::new());
     }
 
-    let total = measure_attached_bytes(plugin_root, entries);
-    if total > ATTACHED_RESOURCES_MAX_BYTES {
+    let total = measure_attached_bytes(fs, plugin_root, entries);
+    if total > max_bytes {
         return Ok(vec![AttachedResourceWarning::SkippedTooLarge {
             total_bytes: total,
-            limit_bytes: ATTACHED_RESOURCES_MAX_BYTES,
+            limit_bytes: max_bytes,
         }]);
     }
 
@@ -122,36 +132,34 @@ fn overlay_dir(
     Ok(())
 }
 
-fn measure_attached_bytes(plugin_root: &Path, entries: &[AttachedEntry]) -> u64 {
+fn measure_attached_bytes(
+    fs: &dyn FileSystem,
+    plugin_root: &Path,
+    entries: &[AttachedEntry],
+) -> u64 {
     let mut total = 0u64;
     for entry in entries {
         let path = plugin_root.join(&entry.relative);
-        total = total.saturating_add(dir_or_file_size(&path));
+        total = total.saturating_add(measure_path_bytes(fs, &path));
     }
     total
 }
 
-fn dir_or_file_size(path: &Path) -> u64 {
-    let Ok(meta) = std::fs::symlink_metadata(path) else {
-        return 0;
-    };
-    if meta.file_type().is_symlink() {
+fn measure_path_bytes(fs: &dyn FileSystem, path: &Path) -> u64 {
+    if !fs.exists(path) {
         return 0;
     }
-    if meta.is_file() {
-        return meta.len();
+    if fs.is_dir(path) {
+        let Ok(nodes) = fs.read_dir(path) else {
+            return 0;
+        };
+        return nodes
+            .into_iter()
+            .filter(|n| !n.is_symlink())
+            .map(|n| measure_path_bytes(fs, &n.path))
+            .fold(0u64, u64::saturating_add);
     }
-    if !meta.is_dir() {
-        return 0;
-    }
-    let mut total = 0u64;
-    let Ok(read_dir) = std::fs::read_dir(path) else {
-        return 0;
-    };
-    for entry in read_dir.flatten() {
-        total = total.saturating_add(dir_or_file_size(&entry.path()));
-    }
-    total
+    fs.file_size(path).unwrap_or(0)
 }
 
 #[cfg(test)]

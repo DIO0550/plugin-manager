@@ -185,6 +185,15 @@ pub trait FileSystem: Send + Sync {
     ///
     /// * `path` - Directory path to enumerate.
     fn read_dir(&self, path: &Path) -> Result<Vec<FsNode>>;
+
+    /// ファイルサイズ（バイト）を取得
+    ///
+    /// - ファイル以外（ディレクトリ・symlink）は Err
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - File path whose size is measured.
+    fn file_size(&self, path: &Path) -> Result<u64>;
 }
 
 /// 本番用ファイルシステム実装
@@ -319,6 +328,17 @@ impl FileSystem for RealFs {
             });
         }
         Ok(entries)
+    }
+
+    fn file_size(&self, path: &Path) -> Result<u64> {
+        let metadata = std::fs::symlink_metadata(path)?;
+        if metadata.file_type().is_symlink() || metadata.is_dir() {
+            return Err(crate::error::PlmError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "file_size requires a regular file",
+            )));
+        }
+        Ok(metadata.len())
     }
 }
 

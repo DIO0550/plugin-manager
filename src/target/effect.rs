@@ -73,6 +73,7 @@ impl TargetError {
 pub struct AffectedTargets {
     effects: Vec<TargetEffect>,
     errors: Vec<TargetError>,
+    warnings: Vec<String>,
 }
 
 impl AffectedTargets {
@@ -104,6 +105,11 @@ impl AffectedTargets {
         self.errors.push(TargetError::new(target_name, message));
     }
 
+    /// 警告を記録（操作は成功扱いのまま通知する）
+    pub fn record_warning(&mut self, message: impl Into<String>) {
+        self.warnings.push(message.into());
+    }
+
     /// 総コンポーネント数
     pub fn total_components(&self) -> usize {
         self.effects.iter().map(|e| e.component_count).sum()
@@ -112,6 +118,11 @@ impl AffectedTargets {
     /// ターゲット名一覧
     pub fn target_names(&self) -> Vec<&str> {
         self.effects.iter().map(|e| e.target_name()).collect()
+    }
+
+    /// 警告メッセージ一覧
+    pub fn warnings(&self) -> &[String] {
+        &self.warnings
     }
 
     /// エラーがあるか
@@ -136,11 +147,13 @@ impl AffectedTargets {
 
     /// OperationOutcome を生成（値オブジェクトがファクトリ）
     pub fn into_result(self) -> OperationOutcome {
+        let warnings = self.warnings.clone();
         if self.errors.is_empty() {
             OperationOutcome {
                 success: true,
                 error: None,
                 affected_targets: self,
+                warnings,
             }
         } else {
             let error = self.error_message();
@@ -148,6 +161,7 @@ impl AffectedTargets {
                 success: false,
                 error,
                 affected_targets: self,
+                warnings,
             }
         }
     }
@@ -162,6 +176,8 @@ pub struct OperationOutcome {
     pub error: Option<String>,
     /// 影響を受けたターゲット
     pub affected_targets: AffectedTargets,
+    /// 非致命の警告（付属リソース衝突など）
+    pub warnings: Vec<String>,
 }
 
 impl OperationOutcome {
@@ -175,6 +191,7 @@ impl OperationOutcome {
             success: false,
             error: Some(message.into()),
             affected_targets: AffectedTargets::new(),
+            warnings: Vec::new(),
         }
     }
 }

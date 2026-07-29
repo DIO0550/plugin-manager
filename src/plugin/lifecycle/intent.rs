@@ -227,31 +227,11 @@ fn execute_file_operations(
 ) -> OperationOutcome {
     use crate::component::overlay_attached_resources;
     use crate::fs::{FileSystem, RealFs};
-    use crate::plugin::list_attached_for_plugin;
-    use crate::plugin::meta::resolve_manifest_path;
-    use crate::plugin::PluginManifest;
+    use crate::plugin::list_attached_entries;
 
     let fs = RealFs;
     let mut affected = AffectedTargets::new();
-
-    let attached_entries = plugin_root.map(|root| {
-        match resolve_manifest_path(root).and_then(|p| PluginManifest::load(&p).ok()) {
-            Some(manifest) => list_attached_for_plugin(&manifest, root),
-            None => {
-                use crate::component::ComponentKind;
-                use crate::scan::list_plugin_attached_resources;
-                use std::collections::HashSet;
-                let mut excluded = HashSet::new();
-                for kind in ComponentKind::all() {
-                    excluded.insert(std::path::PathBuf::from(kind.plural()));
-                }
-                excluded.insert(std::path::PathBuf::from(
-                    crate::placement_names::COPILOT_COMMAND_SUBDIR,
-                ));
-                list_plugin_attached_resources(root, &excluded)
-            }
-        }
-    });
+    let attached_entries = plugin_root.map(list_attached_entries);
 
     for (target_kind, msg) in expand_outcome.validation_errors {
         affected.record_error(target_kind.as_str(), msg);
@@ -274,15 +254,33 @@ fn execute_file_operations(
                     fs.copy_file(source, target.as_path())
                 }
                 FileOperation::CopyDir { source, target } => {
-                    fs.replace_dir(source, target.as_path()).and_then(|_| {
-                        if let (Some(root), Some(entries)) =
-                            (plugin_root, attached_entries.as_ref())
-                        {
-                            // Skill ディレクトリへの CopyDir のみ overlay
-                            overlay_attached_resources(&fs, root, entries, target.as_path())?;
+                    // CopyDir は現状 Skill 専用。SKILL.md がある場合のみ付属リソースを overlay する。
+                    match fs.replace_dir(source, target.as_path()) {
+                        Ok(()) => {
+                            let is_skill = fs.exists(&source.join(ComponentKind::skill_manifest()));
+                            if let (Some(root), Some(entries), true) =
+                                (plugin_root, attached_entries.as_ref(), is_skill)
+                            {
+                                match overlay_attached_resources(
+                                    &fs,
+                                    root,
+                                    entries,
+                                    target.as_path(),
+                                ) {
+                                    Ok(warnings) => {
+                                        for warning in warnings {
+                                            affected.record_warning(warning.to_string());
+                                        }
+                                        Ok(())
+                                    }
+                                    Err(e) => Err(e),
+                                }
+                            } else {
+                                Ok(())
+                            }
                         }
-                        Ok(())
-                    })
+                        Err(e) => Err(e),
+                    }
                 }
                 FileOperation::RemoveFile { path } => {
                     let p = path.as_path();

@@ -135,6 +135,9 @@ fn display_result(plugin_name: &str, result: &OperationOutcome, target_filter: O
             plugin_name, component_count, target_list
         );
     }
+    for warning in &result.warnings {
+        eprintln!("warning: {warning}");
+    }
 }
 
 #[cfg(test)]

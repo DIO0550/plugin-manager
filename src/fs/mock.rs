@@ -292,4 +292,18 @@ impl FileSystem for MockFs {
 
         Ok(entries)
     }
+
+    fn file_size(&self, path: &Path) -> Result<u64> {
+        let files = self.files.read().unwrap();
+        let file = files
+            .get(path.to_string_lossy().as_ref())
+            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "not found"))?;
+        if file.file_type != FsFileType::File {
+            return Err(crate::error::PlmError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "file_size requires a regular file",
+            )));
+        }
+        Ok(file.content.len() as u64)
+    }
 }
