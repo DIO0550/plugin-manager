@@ -1,6 +1,6 @@
 # Issue #393 実装状況検証レポート
 
-> **方針注記（2026-07-29）:** Issue #393 現行本文が正本（構造そのまま配置）。本検証の「Rust 未実装」結論は有効。最新レビュー: [`docs/review-issue-393-placement-strategy-revision.md`](../review-issue-393-placement-strategy-revision.md)。
+> **ARCHIVED:** 旧配置案前提の検証。正本は Issue #393 と [`docs/review-issue-393-placement-strategy-revision.md`](../review-issue-393-placement-strategy-revision.md)。「Rust 未実装」事実のみ参考可。
 
 検証日: 2026-07-27  
 HEAD: `705dc6d` (`docs: report plugin-root resource scan/deploy gaps for #393`)  

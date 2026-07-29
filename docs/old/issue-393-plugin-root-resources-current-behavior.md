@@ -1,6 +1,6 @@
 # Issue #393 調査報告: Plugin 直下の未認識ファイル/フォルダ（現状とギャップ）
 
-> **方針注記（2026-07-29）:** Issue #393 現行本文（プラグイン構造をそのまま配置）が正本。本調査の実装ギャップ（Scan/Deploy 未実装）は有効だが、配置方針の記述が古い場合は無視し、[`docs/review-issue-393-placement-strategy-revision.md`](../review-issue-393-placement-strategy-revision.md) と `file-formats.md` を参照すること。
+> **ARCHIVED:** 旧配置案前提の調査。正本は Issue #393 現行本文と [`docs/review-issue-393-placement-strategy-revision.md`](../review-issue-393-placement-strategy-revision.md)。実装ギャップ（未実装）の事実のみ参考可。
 
 調査日: 2026-07-27  
 対象 Issue: [#393](https://github.com/DIO0550/plugin-manager/issues/393)（OPEN）  
