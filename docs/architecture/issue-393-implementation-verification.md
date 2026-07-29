@@ -1,5 +1,7 @@
 # Issue #393 実装状況検証レポート
 
+> **方針注記（2026-07-29）:** 本検証は **案 A** 前提。Issue #393 本文は「構造そのまま配置」へ更新済みで #407 仕様と矛盾する。最新レビュー: [`docs/review-issue-393-placement-strategy-revision.md`](../review-issue-393-placement-strategy-revision.md)。「Rust 未実装」の結論は 2026-07-29 時点の `main` でも変わらない（案 A 実装 PR #410 は未 merge で CLOSED）。
+
 検証日: 2026-07-27  
 HEAD: `705dc6d` (`docs: report plugin-root resource scan/deploy gaps for #393`)  
 対象: Plugin 直下の未認識ファイル/フォルダ（Plugin 付属リソース）案 A
