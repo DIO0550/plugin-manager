@@ -207,7 +207,7 @@ Property tests: `src/scan/components/proptests.rs`（`list_skill_names` 基本�
 `docs/concepts/components.md` L24-25:
 
 > Skill ディレクトリ内の `references/` / `assets/` など任意名の補助ファイル・フォルダは **付属リソース**として本体と一緒にターゲットへコピーされる  
-> プラグイン直下の任意名フォルダ（`references/` 等）は **Plugin 付属リソース**として、各 Skill の配置ディレクトリへ複製される
+> プラグイン直下の任意名フォルダ（`references/` 等）は **Plugin 付属リソース**として、プラグイン構造を保ったままターゲットへ配置される（#393）
 
 `docs/concepts/deployment.md` L29-42: Skill ツリー例 + 同梱注記 + Plugin 付属との境界。
 
@@ -227,7 +227,7 @@ Property tests: `src/scan/components/proptests.rs`（`list_skill_names` 基本�
 2. **Cursor 実行時のネスト SKILL.md:** 仕様どおり PLM は別 Component にしないが、Cursor 本体が再帰走査するため実行時に別 Skill に見える可能性あり（file-formats 既知制限）。
 3. **symlink:** コピー挙動は保証外。
 4. **別経路:** `enable` 等の `FileOperation::CopyDir` も実装上 `replace_dir`（`intent.rs:243-244`）。`sync` は docs 上 `copy_dir` のため stale 非対称が残る（主に Plugin 付属の話だが Skill 更新経路でも留意）。
-5. **Plugin 付属 (#393):** 仕様ドキュメントは厚いが、`src/` に Skill 内部 bundled とは別の「Plugin ルート複製」実装・テストは本調査時点で未確認（grep 上は deployment の Skill bundled テストのみ）。#392 と混同しないこと。
+5. **Plugin 付属 (#393):** プラグイン構造を保ったまま配置する方針（Issue #393 正本）。Skill 内部 bundled とは別コードパス。実装・テストは未着手。混同しないこと。
 6. **概念 docs の配置パス表記**がコードのフラット化と乖離 — レビュア/利用者の誤解源。
 7. **Issue #392 未クローズ** — 実装は #395 で入っているため、クローズ or 本文更新が望ましい。
 
