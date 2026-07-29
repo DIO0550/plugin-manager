@@ -1,0 +1,211 @@
+//! プラグイン付属リソースの除外合成・配置・削除（#393）
+
+use crate::component::Scope;
+use crate::error::{PlmError, Result};
+use crate::fs::{FileSystem, RealFs};
+use crate::placement_names::{
+    ALL_INSTRUCTION_FILENAMES, ATTACHED_RESOURCE_VCS_NAMES, CLAUDE_PLUGIN_DIR, PLM_META_FILE,
+    PLUGIN_JSON_FILE, PLUGIN_RESOURCES_SUBDIR,
+};
+use crate::plugin::PluginManifest;
+use crate::scan::{list_plugin_attached_resources, AttachedResourceEntry};
+use crate::target::{paths::home_dir, TargetKind};
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
+
+/// ターゲット上の付属リソースルート: `<base>/plugins/<plugin_name>`
+pub fn plugin_attached_root(
+    target_kind: TargetKind,
+    scope: Scope,
+    project_root: &Path,
+    plugin_name: &str,
+) -> Result<PathBuf> {
+    validate_plugin_name(plugin_name)?;
+    let base = match scope {
+        Scope::Personal => target_kind.personal_base(&home_dir()),
+        Scope::Project => target_kind.project_base(project_root),
+    };
+    Ok(base.join(PLUGIN_RESOURCES_SUBDIR).join(plugin_name))
+}
+
+/// manifest + 予約パスから除外絶対パス集合を構築する。
+pub fn attached_exclusion_paths(plugin_root: &Path, manifest: &PluginManifest) -> HashSet<PathBuf> {
+    let mut paths = HashSet::new();
+
+    paths.insert(manifest.skills_dir(plugin_root));
+    paths.insert(manifest.agents_dir(plugin_root));
+    paths.insert(manifest.commands_dir(plugin_root));
+
+    let hooks = manifest.hooks_dir(plugin_root);
+    paths.insert(hooks.clone());
+    // hooks がファイル宣言のとき親ディレクトリも除外
+    if let Some(parent) = hooks.parent() {
+        if parent != plugin_root {
+            paths.insert(parent.to_path_buf());
+        }
+    }
+
+    paths.insert(manifest.instructions_path(plugin_root));
+    paths.insert(manifest.instructions_dir(plugin_root));
+
+    paths.insert(plugin_root.join(CLAUDE_PLUGIN_DIR));
+    paths.insert(plugin_root.join(PLUGIN_JSON_FILE));
+    paths.insert(plugin_root.join(PLM_META_FILE));
+
+    for name in ALL_INSTRUCTION_FILENAMES {
+        paths.insert(plugin_root.join(name));
+    }
+
+    if let Some(ref p) = manifest.mcp_servers {
+        paths.insert(plugin_root.join(p));
+    }
+    if let Some(ref p) = manifest.lsp_servers {
+        paths.insert(plugin_root.join(p));
+    }
+
+    paths
+}
+
+/// VCS 等のトップレベル名除外集合。
+pub fn attached_exclusion_names() -> HashSet<&'static str> {
+    ATTACHED_RESOURCE_VCS_NAMES.iter().copied().collect()
+}
+
+/// プラグインルートから付属リソースを列挙する（manifest 境界込み）。
+pub fn list_attached_for_plugin(
+    plugin_root: &Path,
+    manifest: &PluginManifest,
+) -> Vec<AttachedResourceEntry> {
+    let excluded_paths = attached_exclusion_paths(plugin_root, manifest);
+    let excluded_names = attached_exclusion_names();
+    list_plugin_attached_resources(plugin_root, &excluded_paths, &excluded_names)
+}
+
+/// 付属リソース配置のパラメータ。
+pub struct DeployAttachedRequest<'a> {
+    pub plugin_root: &'a Path,
+    pub manifest: &'a PluginManifest,
+    pub target_kind: TargetKind,
+    pub scope: Scope,
+    pub project_root: &'a Path,
+}
+
+/// 付属リソースをターゲットへ構造維持で配置する。
+///
+/// エントリが空なら既存の付属ルートを削除する（stale 掃除）。
+/// 戻り値は配置（または削除）した付属ルート。
+pub fn deploy_attached_resources(
+    fs: &dyn FileSystem,
+    request: &DeployAttachedRequest<'_>,
+) -> Result<Option<PathBuf>> {
+    let dest = plugin_attached_root(
+        request.target_kind,
+        request.scope,
+        request.project_root,
+        &request.manifest.name,
+    )?;
+    let entries = list_attached_for_plugin(request.plugin_root, request.manifest);
+
+    if entries.is_empty() {
+        if fs.exists(&dest) {
+            fs.remove(&dest)?;
+        }
+        return Ok(None);
+    }
+
+    let staging_parent = dest
+        .parent()
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| PathBuf::from("."));
+    fs.create_dir_all(&staging_parent)?;
+
+    let staging = staging_parent.join(format!(
+        ".plm-attached-staging-{}-{}",
+        request.target_kind.as_str(),
+        request.manifest.name
+    ));
+    if fs.exists(&staging) {
+        fs.remove(&staging)?;
+    }
+    fs.create_dir_all(&staging)?;
+
+    for entry in &entries {
+        let target = staging.join(&entry.name);
+        if entry.absolute.is_dir() {
+            fs.copy_dir(&entry.absolute, &target)?;
+        } else if entry.absolute.is_file() {
+            fs.copy_file(&entry.absolute, &target)?;
+        }
+    }
+
+    fs.replace_dir(&staging, &dest)?;
+    if fs.exists(&staging) {
+        let _ = fs.remove(&staging);
+    }
+
+    Ok(Some(dest))
+}
+
+/// RealFs で付属リソースを配置する便利関数。
+pub fn deploy_attached_resources_real(
+    plugin_root: &Path,
+    manifest: &PluginManifest,
+    target_kind: TargetKind,
+    scope: Scope,
+    project_root: &Path,
+) -> Result<Option<PathBuf>> {
+    deploy_attached_resources(
+        &RealFs,
+        &DeployAttachedRequest {
+            plugin_root,
+            manifest,
+            target_kind,
+            scope,
+            project_root,
+        },
+    )
+}
+
+/// 付属リソースルートを削除する。
+pub fn remove_attached_resources(
+    fs: &dyn FileSystem,
+    target_kind: TargetKind,
+    scope: Scope,
+    project_root: &Path,
+    plugin_name: &str,
+) -> Result<Option<PathBuf>> {
+    let dest = plugin_attached_root(target_kind, scope, project_root, plugin_name)?;
+    if fs.exists(&dest) {
+        fs.remove(&dest)?;
+        return Ok(Some(dest));
+    }
+    Ok(None)
+}
+
+pub fn remove_attached_resources_real(
+    target_kind: TargetKind,
+    scope: Scope,
+    project_root: &Path,
+    plugin_name: &str,
+) -> Result<Option<PathBuf>> {
+    remove_attached_resources(&RealFs, target_kind, scope, project_root, plugin_name)
+}
+
+fn validate_plugin_name(name: &str) -> Result<()> {
+    if name.is_empty()
+        || name.contains('/')
+        || name.contains('\\')
+        || name.contains('\0')
+        || name == "."
+        || name == ".."
+    {
+        return Err(PlmError::Validation(format!(
+            "plugin name '{name}' is not a safe path segment for attached resources"
+        )));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+#[path = "attached_test.rs"]
+mod tests;

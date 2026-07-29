@@ -678,3 +678,137 @@ fn record_codex_hook_ownership_unblocks_re_import() {
         "managedFiles に記録された path への再 import は許可されるべき"
     );
 }
+
+#[test]
+fn test_place_plugin_deploys_attached_resources_under_plugins_root() {
+    let temp = TempDir::new().unwrap();
+    let project_dir = TempDir::new().unwrap();
+    let cached = create_test_cached_package(temp.path(), &["plan-to-issues"], &[], &[]);
+    fs::create_dir_all(temp.path().join("references")).unwrap();
+    fs::write(
+        temp.path().join("references/tdd-guidelines.md"),
+        "tdd guidelines\n",
+    )
+    .unwrap();
+    fs::create_dir_all(temp.path().join("skills/plan-to-issues/scripts")).unwrap();
+    fs::write(
+        temp.path()
+            .join("skills/plan-to-issues/scripts/create-github-labels.sh"),
+        "#!/bin/sh\n",
+    )
+    .unwrap();
+
+    let package = MarketplaceContent::try_from(cached).unwrap();
+    let scanned = scan_plugin(&package, None).unwrap();
+    let targets: Vec<Box<dyn crate::target::Target>> = vec![
+        Box::new(CodexTarget::new()),
+        Box::new(CursorTarget::new()),
+        Box::new(CopilotTarget::new()),
+    ];
+
+    let result = place_plugin(&PlaceRequest {
+        scanned: &scanned,
+        targets: &targets,
+        scope: crate::component::Scope::Project,
+        project_root: project_dir.path(),
+        enable_codex_hooks_flag: false,
+    });
+
+    assert!(result.failures.is_empty(), "{:?}", result.failures);
+
+    let codex_ref = project_dir
+        .path()
+        .join(".codex/plugins/test-plugin/references/tdd-guidelines.md");
+    assert!(
+        codex_ref.is_file(),
+        "missing attached resource at {}",
+        codex_ref.display()
+    );
+    assert_eq!(fs::read_to_string(&codex_ref).unwrap(), "tdd guidelines\n");
+
+    let cursor_ref = project_dir
+        .path()
+        .join(".cursor/plugins/test-plugin/references/tdd-guidelines.md");
+    assert!(cursor_ref.is_file());
+
+    let copilot_ref = project_dir
+        .path()
+        .join(".github/plugins/test-plugin/references/tdd-guidelines.md");
+    assert!(copilot_ref.is_file());
+
+    // Skill 内 scripts は #392 どおり Skill 配置先に同梱
+    let skill_script = project_dir
+        .path()
+        .join(".codex/skills/test-plugin_plan-to-issues/scripts/create-github-labels.sh");
+    assert!(
+        skill_script.is_file(),
+        "skill bundled script missing at {}",
+        skill_script.display()
+    );
+
+    // 付属ルートが managedFiles に登録される
+    update_meta_after_place(temp.path(), &result);
+    // record happens inside place_plugin via record_managed_file_ownership
+    let meta = crate::plugin::meta::load_meta(temp.path()).unwrap_or_default();
+    assert!(meta.manages_file(
+        "codex",
+        &project_dir.path().join(".codex/plugins/test-plugin")
+    ));
+}
+
+#[test]
+fn test_place_plugin_custom_skills_path_not_treated_as_attached() {
+    let temp = TempDir::new().unwrap();
+    let project_dir = TempDir::new().unwrap();
+    let manifest_content = serde_json::json!({
+        "name": "custom-plugin",
+        "version": "1.0.0",
+        "skills": "./my-skills"
+    });
+    fs::write(
+        temp.path().join("plugin.json"),
+        manifest_content.to_string(),
+    )
+    .unwrap();
+    fs::create_dir_all(temp.path().join("my-skills/foo")).unwrap();
+    fs::write(temp.path().join("my-skills/foo/SKILL.md"), "# Foo").unwrap();
+    fs::create_dir_all(temp.path().join("skills")).unwrap();
+    fs::write(temp.path().join("skills/orphan.md"), "orphan").unwrap();
+    fs::create_dir_all(temp.path().join("references")).unwrap();
+    fs::write(temp.path().join("references/a.md"), "a").unwrap();
+
+    let manifest = PluginManifest::load(&temp.path().join("plugin.json")).unwrap();
+    let cached = CachedPackage {
+        name: "custom-plugin".to_string(),
+        id: None,
+        marketplace: Some("test".to_string()),
+        path: temp.path().to_path_buf(),
+        manifest,
+        git_ref: "main".to_string(),
+        commit_sha: "abc".to_string(),
+        marketplace_manifest: None,
+    };
+    let package = MarketplaceContent::try_from(cached).unwrap();
+    let scanned = scan_plugin(&package, None).unwrap();
+    let targets: Vec<Box<dyn crate::target::Target>> = vec![Box::new(CodexTarget::new())];
+
+    let result = place_plugin(&PlaceRequest {
+        scanned: &scanned,
+        targets: &targets,
+        scope: crate::component::Scope::Project,
+        project_root: project_dir.path(),
+        enable_codex_hooks_flag: false,
+    });
+    assert!(result.failures.is_empty(), "{:?}", result.failures);
+
+    let root = project_dir.path().join(".codex/plugins/custom-plugin");
+    assert!(root.join("references/a.md").is_file());
+    assert!(
+        root.join("skills/orphan.md").is_file(),
+        "default skills/ is attached when custom path is declared"
+    );
+    assert!(
+        !root.join("my-skills").exists(),
+        "custom skills path must not be attached"
+    );
+}

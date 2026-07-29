@@ -9,10 +9,11 @@
 //! 2. Functional Core: `PluginIntent::expand()` で操作を展開（パス検証時にFS参照あり）
 //! 3. Imperative Shell: `PluginIntent::apply()` で実行（I/O）
 
-use crate::component::Component;
+use crate::component::{Component, Scope};
 use crate::plugin::{
-    cleanup_legacy_hierarchy, cleanup_plugin_directories, load_plugin, PackageCacheAccess,
-    PluginAction, PluginIntent,
+    cleanup_legacy_hierarchy, cleanup_plugin_directories, deploy_attached_resources_real,
+    load_plugin, meta, remove_attached_resources_real, PackageCacheAccess, PluginAction,
+    PluginIntent,
 };
 use crate::target::{all_targets, OperationOutcome};
 use std::path::Path;
@@ -68,6 +69,18 @@ pub fn disable_plugin(
             None => all_targets(),
         };
         for target in &targets_to_cleanup {
+            // Plugin 付属リソースをプラグイン単位で除去（#393）
+            if let Ok(Some(root)) = remove_attached_resources_real(
+                target.kind(),
+                Scope::Project,
+                project_root,
+                plugin.name(),
+            ) {
+                let mut plugin_meta = meta::load_meta(plugin.path()).unwrap_or_default();
+                if plugin_meta.remove_managed_file(target.name(), &root) {
+                    let _ = meta::write_meta(plugin.path(), &plugin_meta);
+                }
+            }
             cleanup_plugin_directories(target.kind(), plugin.origin(), project_root);
             cleanup_legacy_hierarchy(target.kind(), plugin.origin(), project_root);
         }
@@ -115,7 +128,43 @@ pub fn enable_plugin(
     );
 
     // Imperative Shell: 実行（I/O）
-    intent.apply()
+    let result = intent.apply();
+    if !result.success {
+        return result;
+    }
+
+    // Plugin 付属リソースを Project スコープへ配置（#393）
+    let targets_to_deploy: Vec<_> = match target_filter {
+        Some(filter) => all_targets()
+            .into_iter()
+            .filter(|t| t.name() == filter)
+            .collect(),
+        None => all_targets(),
+    };
+    for target in &targets_to_deploy {
+        match deploy_attached_resources_real(
+            plugin.path(),
+            plugin.manifest(),
+            target.kind(),
+            Scope::Project,
+            project_root,
+        ) {
+            Ok(Some(root)) => {
+                let mut plugin_meta = meta::load_meta(plugin.path()).unwrap_or_default();
+                plugin_meta.add_managed_file(target.name(), &root);
+                let _ = meta::write_meta(plugin.path(), &plugin_meta);
+            }
+            Ok(None) => {}
+            Err(e) => {
+                eprintln!(
+                    "Warning: failed to deploy plugin attached resources for {}: {e}",
+                    target.name()
+                );
+            }
+        }
+    }
+
+    result
 }
 
 /// アンインストール前の情報取得

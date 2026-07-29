@@ -5,8 +5,8 @@ use crate::component::{AgentFormat, CommandFormat, ComponentKind, Scope};
 use crate::component::{Component, ComponentDeployment, ConversionConfig, DeploymentOutput};
 use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
 use crate::plugin::{
-    cleanup_legacy_hierarchy, meta, meta::TargetStatus, MarketplaceContent, PackageCache,
-    PackageCacheAccess,
+    cleanup_legacy_hierarchy, deploy_attached_resources_real, meta, meta::TargetStatus,
+    MarketplaceContent, PackageCache, PackageCacheAccess,
 };
 use crate::source::parse_source;
 use crate::target::{PluginOrigin, Target, TargetKind};
@@ -52,6 +52,11 @@ impl ScannedPlugin {
     /// パッケージキャッシュのルートパスを取得
     pub fn plugin_root(&self) -> &Path {
         self.package.path()
+    }
+
+    /// プラグインマニフェストを取得
+    pub fn manifest(&self) -> &crate::plugin::PluginManifest {
+        self.package.manifest()
     }
 }
 
@@ -361,6 +366,33 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
         let target_had_failure = failures.len() > failures_before;
         if !target_had_failure {
             cleanup_legacy_hierarchy(target.kind(), &origin, request.project_root);
+
+            // Plugin 付属リソース（#393）: コンポーネント配置成功後に構造維持で配置
+            match deploy_attached_resources_real(
+                request.scanned.plugin_root(),
+                request.scanned.manifest(),
+                target.kind(),
+                request.scope,
+                request.project_root,
+            ) {
+                Ok(Some(root)) => {
+                    record_managed_file_ownership(
+                        request.scanned.plugin_root(),
+                        &root,
+                        target.name(),
+                    );
+                }
+                Ok(None) => {}
+                Err(e) => {
+                    failures.push(PlaceFailure {
+                        target: target.name().to_string(),
+                        component_name: request.scanned.name().to_string(),
+                        component_kind: ComponentKind::Skill,
+                        error: format!("failed to deploy plugin attached resources: {e}"),
+                        stage: PlaceFailureStage::Deployment,
+                    });
+                }
+            }
         }
     }
 
