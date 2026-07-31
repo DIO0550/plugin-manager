@@ -5,7 +5,7 @@ use crate::component::{AgentFormat, CommandFormat, ComponentKind, Scope};
 use crate::component::{Component, ComponentDeployment, ConversionConfig, DeploymentOutput};
 use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
 use crate::plugin::{
-    cleanup_legacy_hierarchy, deploy_attached_resources_real, meta, meta::TargetStatus,
+    cleanup_legacy_hierarchy, deploy_plugin_resources_real, meta, meta::TargetStatus,
     MarketplaceContent, PackageCache, PackageCacheAccess,
 };
 use crate::source::parse_source;
@@ -367,8 +367,8 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
         if !target_had_failure {
             cleanup_legacy_hierarchy(target.kind(), &origin, request.project_root);
 
-            // Plugin 付属リソース（#393）: コンポーネント配置成功後に構造維持で配置
-            match deploy_attached_resources_real(
+            // Plugin リソース（#393）: コンポーネント配置成功後に構造維持で配置
+            match deploy_plugin_resources_real(
                 request.scanned.plugin_root(),
                 request.scanned.manifest(),
                 target.kind(),
@@ -388,7 +388,7 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
                         target: target.name().to_string(),
                         component_name: request.scanned.name().to_string(),
                         component_kind: ComponentKind::Skill,
-                        error: format!("failed to deploy plugin attached resources: {e}"),
+                        error: format!("failed to deploy plugin resources: {e}"),
                         stage: PlaceFailureStage::Deployment,
                     });
                 }

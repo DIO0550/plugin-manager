@@ -680,7 +680,7 @@ fn record_codex_hook_ownership_unblocks_re_import() {
 }
 
 #[test]
-fn test_place_plugin_deploys_attached_resources_under_plugins_root() {
+fn test_place_plugin_deploys_plugin_resources_under_plugins_root() {
     let temp = TempDir::new().unwrap();
     let project_dir = TempDir::new().unwrap();
     let cached = create_test_cached_package(temp.path(), &["plan-to-issues"], &[], &[]);
@@ -721,7 +721,7 @@ fn test_place_plugin_deploys_attached_resources_under_plugins_root() {
         .join(".codex/plugins/test-plugin/references/tdd-guidelines.md");
     assert!(
         codex_ref.is_file(),
-        "missing attached resource at {}",
+        "missing plugin resource at {}",
         codex_ref.display()
     );
     assert_eq!(fs::read_to_string(&codex_ref).unwrap(), "tdd guidelines\n");
@@ -746,7 +746,7 @@ fn test_place_plugin_deploys_attached_resources_under_plugins_root() {
         skill_script.display()
     );
 
-    // 付属ルートが managedFiles に登録される
+    // リソースルートが managedFiles に登録される
     update_meta_after_place(temp.path(), &result);
     // record happens inside place_plugin via record_managed_file_ownership
     let meta = crate::plugin::meta::load_meta(temp.path()).unwrap_or_default();
@@ -757,7 +757,7 @@ fn test_place_plugin_deploys_attached_resources_under_plugins_root() {
 }
 
 #[test]
-fn test_place_plugin_custom_skills_path_not_treated_as_attached() {
+fn test_place_plugin_custom_skills_path_not_treated_as_plugin_resource() {
     let temp = TempDir::new().unwrap();
     let project_dir = TempDir::new().unwrap();
     let manifest_content = serde_json::json!({
@@ -805,10 +805,10 @@ fn test_place_plugin_custom_skills_path_not_treated_as_attached() {
     assert!(root.join("references/a.md").is_file());
     assert!(
         root.join("skills/orphan.md").is_file(),
-        "default skills/ is attached when custom path is declared"
+        "default skills/ is a plugin resource when custom path is declared"
     );
     assert!(
         !root.join("my-skills").exists(),
-        "custom skills path must not be attached"
+        "custom skills path must not be a plugin resource"
     );
 }

@@ -12,13 +12,13 @@
 //!
 //! - [`list_skill_names`], [`list_agent_names`], etc.: 個別コンポーネントのスキャン
 
-mod attached;
 mod components;
 mod placement;
+mod resources;
 
-pub use attached::{list_plugin_attached_resources, AttachedResourceEntry};
 pub use components::{
     file_stem_name, list_agent_names, list_command_names, list_hook_names, list_markdown_names,
     list_skill_names,
 };
 pub use placement::{is_instruction_file, list_placed_components};
+pub use resources::{list_plugin_resources, PluginResourceEntry};

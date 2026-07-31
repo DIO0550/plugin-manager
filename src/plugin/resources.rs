@@ -1,20 +1,20 @@
-//! プラグイン付属リソースの除外合成・配置・削除（#393）
+//! プラグインリソースの除外合成・配置・削除（#393）
 
 use crate::component::Scope;
 use crate::error::{PlmError, Result};
 use crate::fs::{FileSystem, RealFs};
 use crate::placement_names::{
-    ALL_INSTRUCTION_FILENAMES, ATTACHED_RESOURCE_VCS_NAMES, CLAUDE_PLUGIN_DIR, PLM_META_FILE,
-    PLUGIN_JSON_FILE, PLUGIN_RESOURCES_SUBDIR,
+    ALL_INSTRUCTION_FILENAMES, CLAUDE_PLUGIN_DIR, PLM_META_FILE, PLUGIN_JSON_FILE,
+    PLUGIN_RESOURCES_SUBDIR, PLUGIN_RESOURCE_VCS_NAMES,
 };
 use crate::plugin::PluginManifest;
-use crate::scan::{list_plugin_attached_resources, AttachedResourceEntry};
+use crate::scan::{list_plugin_resources, PluginResourceEntry};
 use crate::target::{paths::home_dir, TargetKind};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-/// ターゲット上の付属リソースルート: `<base>/plugins/<plugin_name>`
-pub fn plugin_attached_root(
+/// ターゲット上のプラグインリソースルート: `<base>/plugins/<plugin_name>`
+pub fn plugin_resources_root(
     target_kind: TargetKind,
     scope: Scope,
     project_root: &Path,
@@ -29,7 +29,10 @@ pub fn plugin_attached_root(
 }
 
 /// manifest + 予約パスから除外絶対パス集合を構築する。
-pub fn attached_exclusion_paths(plugin_root: &Path, manifest: &PluginManifest) -> HashSet<PathBuf> {
+pub fn plugin_resource_exclusion_paths(
+    plugin_root: &Path,
+    manifest: &PluginManifest,
+) -> HashSet<PathBuf> {
     let mut paths = HashSet::new();
 
     paths.insert(manifest.skills_dir(plugin_root));
@@ -67,22 +70,22 @@ pub fn attached_exclusion_paths(plugin_root: &Path, manifest: &PluginManifest) -
 }
 
 /// VCS 等のトップレベル名除外集合。
-pub fn attached_exclusion_names() -> HashSet<&'static str> {
-    ATTACHED_RESOURCE_VCS_NAMES.iter().copied().collect()
+pub fn plugin_resource_exclusion_names() -> HashSet<&'static str> {
+    PLUGIN_RESOURCE_VCS_NAMES.iter().copied().collect()
 }
 
-/// プラグインルートから付属リソースを列挙する（manifest 境界込み）。
-pub fn list_attached_for_plugin(
+/// プラグインルートからリソースを列挙する（manifest 境界込み）。
+pub fn list_resources_for_plugin(
     plugin_root: &Path,
     manifest: &PluginManifest,
-) -> Vec<AttachedResourceEntry> {
-    let excluded_paths = attached_exclusion_paths(plugin_root, manifest);
-    let excluded_names = attached_exclusion_names();
-    list_plugin_attached_resources(plugin_root, &excluded_paths, &excluded_names)
+) -> Vec<PluginResourceEntry> {
+    let excluded_paths = plugin_resource_exclusion_paths(plugin_root, manifest);
+    let excluded_names = plugin_resource_exclusion_names();
+    list_plugin_resources(plugin_root, &excluded_paths, &excluded_names)
 }
 
-/// 付属リソース配置のパラメータ。
-pub struct DeployAttachedRequest<'a> {
+/// プラグインリソース配置のパラメータ。
+pub struct DeployPluginResourcesRequest<'a> {
     pub plugin_root: &'a Path,
     pub manifest: &'a PluginManifest,
     pub target_kind: TargetKind,
@@ -90,21 +93,21 @@ pub struct DeployAttachedRequest<'a> {
     pub project_root: &'a Path,
 }
 
-/// 付属リソースをターゲットへ構造維持で配置する。
+/// プラグインリソースをターゲットへ構造維持で配置する。
 ///
-/// エントリが空なら既存の付属ルートを削除する（stale 掃除）。
-/// 戻り値は配置（または削除）した付属ルート。
-pub fn deploy_attached_resources(
+/// エントリが空なら既存のリソースルートを削除する（stale 掃除）。
+/// 戻り値は配置（または削除）したリソースルート。
+pub fn deploy_plugin_resources(
     fs: &dyn FileSystem,
-    request: &DeployAttachedRequest<'_>,
+    request: &DeployPluginResourcesRequest<'_>,
 ) -> Result<Option<PathBuf>> {
-    let dest = plugin_attached_root(
+    let dest = plugin_resources_root(
         request.target_kind,
         request.scope,
         request.project_root,
         &request.manifest.name,
     )?;
-    let entries = list_attached_for_plugin(request.plugin_root, request.manifest);
+    let entries = list_resources_for_plugin(request.plugin_root, request.manifest);
 
     if entries.is_empty() {
         if fs.exists(&dest) {
@@ -120,7 +123,7 @@ pub fn deploy_attached_resources(
     fs.create_dir_all(&staging_parent)?;
 
     let staging = staging_parent.join(format!(
-        ".plm-attached-staging-{}-{}",
+        ".plm-resources-staging-{}-{}",
         request.target_kind.as_str(),
         request.manifest.name
     ));
@@ -146,17 +149,17 @@ pub fn deploy_attached_resources(
     Ok(Some(dest))
 }
 
-/// RealFs で付属リソースを配置する便利関数。
-pub fn deploy_attached_resources_real(
+/// RealFs でプラグインリソースを配置する便利関数。
+pub fn deploy_plugin_resources_real(
     plugin_root: &Path,
     manifest: &PluginManifest,
     target_kind: TargetKind,
     scope: Scope,
     project_root: &Path,
 ) -> Result<Option<PathBuf>> {
-    deploy_attached_resources(
+    deploy_plugin_resources(
         &RealFs,
-        &DeployAttachedRequest {
+        &DeployPluginResourcesRequest {
             plugin_root,
             manifest,
             target_kind,
@@ -166,15 +169,15 @@ pub fn deploy_attached_resources_real(
     )
 }
 
-/// 付属リソースルートを削除する。
-pub fn remove_attached_resources(
+/// プラグインリソースルートを削除する。
+pub fn remove_plugin_resources(
     fs: &dyn FileSystem,
     target_kind: TargetKind,
     scope: Scope,
     project_root: &Path,
     plugin_name: &str,
 ) -> Result<Option<PathBuf>> {
-    let dest = plugin_attached_root(target_kind, scope, project_root, plugin_name)?;
+    let dest = plugin_resources_root(target_kind, scope, project_root, plugin_name)?;
     if fs.exists(&dest) {
         fs.remove(&dest)?;
         return Ok(Some(dest));
@@ -182,13 +185,13 @@ pub fn remove_attached_resources(
     Ok(None)
 }
 
-pub fn remove_attached_resources_real(
+pub fn remove_plugin_resources_real(
     target_kind: TargetKind,
     scope: Scope,
     project_root: &Path,
     plugin_name: &str,
 ) -> Result<Option<PathBuf>> {
-    remove_attached_resources(&RealFs, target_kind, scope, project_root, plugin_name)
+    remove_plugin_resources(&RealFs, target_kind, scope, project_root, plugin_name)
 }
 
 fn validate_plugin_name(name: &str) -> Result<()> {
@@ -200,12 +203,12 @@ fn validate_plugin_name(name: &str) -> Result<()> {
         || name == ".."
     {
         return Err(PlmError::Validation(format!(
-            "plugin name '{name}' is not a safe path segment for attached resources"
+            "plugin name '{name}' is not a safe path segment for plugin resources"
         )));
     }
     Ok(())
 }
 
 #[cfg(test)]
-#[path = "attached_test.rs"]
+#[path = "resources_test.rs"]
 mod tests;

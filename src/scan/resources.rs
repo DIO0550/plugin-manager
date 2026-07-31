@@ -1,4 +1,4 @@
-//! プラグイン直下の付属リソース列挙（#393）
+//! プラグイン直下のリソース列挙（#393）
 //!
 //! コンポーネント境界（manifest 解決パス等）に該当しないトップレベルエントリを返す。
 //! `ComponentKind` には混ぜない。
@@ -7,9 +7,9 @@ use crate::path_ext::PathExt;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-/// プラグインルートからの付属リソース（トップレベルエントリ）
+/// プラグインルートからのリソース（トップレベルエントリ）
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AttachedResourceEntry {
+pub struct PluginResourceEntry {
     /// プラグインルートからの相対名（単一セグメント）
     pub name: String,
     /// 絶対パス
@@ -29,11 +29,11 @@ pub struct AttachedResourceEntry {
 /// * `plugin_root` - プラグインルートディレクトリ
 /// * `excluded_paths` - コンポーネント境界など絶対パス除外
 /// * `excluded_names` - トップレベル名のリテラル除外
-pub fn list_plugin_attached_resources(
+pub fn list_plugin_resources(
     plugin_root: &Path,
     excluded_paths: &HashSet<PathBuf>,
     excluded_names: &HashSet<&str>,
-) -> Vec<AttachedResourceEntry> {
+) -> Vec<PluginResourceEntry> {
     if !plugin_root.is_dir() {
         return Vec::new();
     }
@@ -52,7 +52,7 @@ pub fn list_plugin_attached_resources(
         if is_excluded_entry(&entry, excluded_paths) {
             continue;
         }
-        out.push(AttachedResourceEntry {
+        out.push(PluginResourceEntry {
             name,
             absolute: entry,
         });
@@ -85,5 +85,5 @@ fn is_excluded_entry(entry: &Path, excluded_paths: &HashSet<PathBuf>) -> bool {
 }
 
 #[cfg(test)]
-#[path = "attached_test.rs"]
+#[path = "resources_test.rs"]
 mod tests;

@@ -1,10 +1,9 @@
-mod attached;
 mod cache;
 mod content;
 mod lifecycle;
 pub mod meta;
+mod resources;
 
-pub(crate) use attached::{deploy_attached_resources_real, remove_attached_resources_real};
 pub(crate) use cache::{cleanup_legacy_hierarchy, cleanup_plugin_directories, list_installed};
 pub use cache::{
     CachedPackage, GithubCacheId, LegacyCacheCleaner, PackageCache, PackageCacheAccess,
@@ -15,6 +14,7 @@ pub use lifecycle::{
     update_all_plugins, update_plugin, PluginAction, PluginIntent, UpdateOutcome, UpdateStatus,
 };
 pub use meta::manifest::{Author, PluginManifest};
+pub(crate) use resources::{deploy_plugin_resources_real, remove_plugin_resources_real};
 
 /// id フォールバック: id が None なら name を返す
 ///

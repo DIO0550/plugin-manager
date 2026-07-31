@@ -22,7 +22,7 @@ PLMが管理するコンポーネントの種類について説明します。
 - 専門的なタスクを実行するための詳細な指示を含む
 - Codex、Copilot、Gemini CLI、Cursorでサポート（Antigravityも対応）
 - Skill ディレクトリ内の `references/` / `assets/` など任意名の補助ファイル・フォルダは **付属リソース**として本体と一緒にターゲットへコピーされる
-- プラグイン直下の任意名フォルダ（`references/` 等）は **Plugin 付属リソース**として、`<target_base>/plugins/<plugin_name>/` 配下に構造を保ったまま配置される
+- プラグイン直下の任意名フォルダ（`references/` 等）は **Plugin リソース**として、`<target_base>/plugins/<plugin_name>/` 配下に構造を保ったまま配置される
 
 ### ファイル形式
 

@@ -11,8 +11,8 @@
 
 use crate::component::{Component, Scope};
 use crate::plugin::{
-    cleanup_legacy_hierarchy, cleanup_plugin_directories, deploy_attached_resources_real,
-    load_plugin, meta, remove_attached_resources_real, PackageCacheAccess, PluginAction,
+    cleanup_legacy_hierarchy, cleanup_plugin_directories, deploy_plugin_resources_real,
+    load_plugin, meta, remove_plugin_resources_real, PackageCacheAccess, PluginAction,
     PluginIntent,
 };
 use crate::target::{all_targets, OperationOutcome};
@@ -69,8 +69,8 @@ pub fn disable_plugin(
             None => all_targets(),
         };
         for target in &targets_to_cleanup {
-            // Plugin 付属リソースをプラグイン単位で除去（#393）
-            if let Ok(Some(root)) = remove_attached_resources_real(
+            // Plugin リソースをプラグイン単位で除去（#393）
+            if let Ok(Some(root)) = remove_plugin_resources_real(
                 target.kind(),
                 Scope::Project,
                 project_root,
@@ -133,7 +133,7 @@ pub fn enable_plugin(
         return result;
     }
 
-    // Plugin 付属リソースを Project スコープへ配置（#393）
+    // Plugin リソースを Project スコープへ配置（#393）
     let targets_to_deploy: Vec<_> = match target_filter {
         Some(filter) => all_targets()
             .into_iter()
@@ -142,7 +142,7 @@ pub fn enable_plugin(
         None => all_targets(),
     };
     for target in &targets_to_deploy {
-        match deploy_attached_resources_real(
+        match deploy_plugin_resources_real(
             plugin.path(),
             plugin.manifest(),
             target.kind(),
@@ -157,7 +157,7 @@ pub fn enable_plugin(
             Ok(None) => {}
             Err(e) => {
                 eprintln!(
-                    "Warning: failed to deploy plugin attached resources for {}: {e}",
+                    "Warning: failed to deploy plugin resources for {}: {e}",
                     target.name()
                 );
             }

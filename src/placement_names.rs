@@ -40,10 +40,10 @@ pub const CURSOR_SUBDIR: &str = ".cursor";
 pub const COPILOT_COMMAND_SUBDIR: &str = "prompts";
 
 // ---------------------------------------------------------------------------
-// Plugin 付属リソース（#393）
+// Plugin リソース（#393）
 // ---------------------------------------------------------------------------
 
-/// ターゲット上のプラグイン付属リソース親ディレクトリ（`<base>/plugins/<plugin>/...`）。
+/// ターゲット上のプラグインリソース親ディレクトリ（`<base>/plugins/<plugin>/...`）。
 pub const PLUGIN_RESOURCES_SUBDIR: &str = "plugins";
 
 /// Claude Code Plugin マニフェスト用ディレクトリ。
@@ -55,8 +55,8 @@ pub const PLUGIN_JSON_FILE: &str = "plugin.json";
 /// PLM 管理メタデータファイル。
 pub const PLM_META_FILE: &str = ".plm-meta.json";
 
-/// プラグインルート直下で付属リソースからも除外する VCS / OS メタ名。
-pub const ATTACHED_RESOURCE_VCS_NAMES: &[&str] = &[
+/// プラグインルート直下でリソースからも除外する VCS / OS メタ名。
+pub const PLUGIN_RESOURCE_VCS_NAMES: &[&str] = &[
     ".git",
     ".gitignore",
     ".gitattributes",

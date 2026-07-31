@@ -543,26 +543,26 @@ skills/spec-driven-dev/
 
 ### 境界・既知制限
 
-- **Plugin 直下**（例: `plugins/<plugin>/references/`）の未認識ファイル/フォルダは「[Plugin 付属リソース](#plugin-付属リソース)」で扱う。
+- **Plugin 直下**（例: `plugins/<plugin>/references/`）の未認識ファイル/フォルダは「[Plugin リソース](#plugin-リソース)」で扱う。
 - **symlink** のコピー挙動は保証外。
 - **Cursor** は skills ルートを再帰走査するため、Skill 配下にネストした `SKILL.md` があると実行時に別 Skill として見える可能性がある。PLM はこれを別 Component にせず、変換・除外もしない。
 
 ---
 
-## Plugin 付属リソース
+## Plugin リソース
 
 > 正本: [Issue #393](https://github.com/DIO0550/plugin-manager/issues/393)。  
 > コンポーネント認識はマニフェストに従い、該当しないものは **プラグイン構造を変えず** ターゲットへ配置する。
 
-プラグインルート（`plugins/<plugin>/`）直下のうち、Skills / Agents / Commands / Instructions / Hooks として解決されないファイル・フォルダは、**プラグイン付属リソース**として扱う。フォルダ名にホワイトリストは無い（`references/` / `docs/` / `examples/` / `templates/` / 直下の任意 md など）。
+プラグインルート（`plugins/<plugin>/`）直下のうち、Skills / Agents / Commands / Instructions / Hooks として解決されないファイル・フォルダは、**プラグインリソース**として扱う。フォルダ名にホワイトリストは無い（`references/` / `docs/` / `examples/` / `templates/` / 直下の任意 md など）。
 
 ### 基本方針
 
 1. コンポーネント境界の真実源は `.claude-plugin/plugin.json`（未宣言種別はデフォルト規約へフォールバック）。
 2. コンポーネントは従来どおり各ターゲットの規則で変換・配置する。
-3. 付属リソースはプラグイン直下の構造を保ったまま配置する（Skill 配下への複製や `_shared/` は行わない）。
+3. プラグインリソースはプラグイン直下の構造を保ったまま配置する（Skill 配下への複製や `_shared/` は行わない）。
 4. Skill ディレクトリ内の未認識ファイル/フォルダは Skill 付属として同梱する（[Skill 付属リソース](#skill-付属リソース) / #392）。
-5. `ComponentKind` は 5 種のまま。付属リソースは別枠。
+5. `ComponentKind` は 5 種のまま。プラグインリソースは別枠。
 
 ```text
 plugins/spec-plugin/
@@ -570,7 +570,7 @@ plugins/spec-plugin/
 ├── skills/plan-to-issues/SKILL.md
 ├── agents/
 ├── hooks/
-└── references/                  # Plugin 付属リソース
+└── references/                  # Plugin リソース
     ├── tdd-guidelines.md
     └── test-design-patterns.md
 ```
@@ -579,9 +579,9 @@ plugins/spec-plugin/
 
 既存スキャンと並列に、プラグイン直下の非コンポーネントエントリを列挙する（採用ディレクトリは内容ごと再帰コピー対象）。
 
-**コンポーネント扱い（付属から除外）:** `.claude-plugin/`、`plugin.json` 宣言パス（カスタム含む）、未宣言種別のデフォルト規約 dir（`skills/` / `agents/` / `commands/` / `hooks/`）、Instruction ファイル。宣言パスがファイル（`hooks/hooks.json`）なら親ディレクトリも除外。
+**コンポーネント扱い（リソースから除外）:** `.claude-plugin/`、`plugin.json` 宣言パス（カスタム含む）、未宣言種別のデフォルト規約 dir（`skills/` / `agents/` / `commands/` / `hooks/`）、Instruction ファイル。宣言パスがファイル（`hooks/hooks.json`）なら親ディレクトリも除外。
 
-**付属・配置から除外:** VCS（`.git/` 等）、`.plm-meta.json`、symlink。
+**リソース・配置から除外:** VCS（`.git/` 等）、`.plm-meta.json`、symlink。
 
 除外判定は manifest 解決結果 + デフォルトフォールバック。リテラル真実源は `src/placement_names.rs`。
 
@@ -601,22 +601,22 @@ plugins/spec-plugin/
 | Gemini CLI | `~/.gemini/plugins/spec-plugin/references/...` | `.gemini/plugins/spec-plugin/references/...` |
 | Cursor | `~/.cursor/plugins/spec-plugin/references/...` | `.cursor/plugins/spec-plugin/references/...` |
 
-コンポーネントはフラット配置のまま。付属だけが `plugins/<plugin_name>/` に構造維持で置かれる。Skill 無しでも付属があれば同ルートへ配置する。配置はステージング後 `replace_dir` でプラグイン単位ルートを置換する。命名衝突ルールは不要。Claude Code（#96）はターゲット追加後に同写像で追随。
+コンポーネントはフラット配置のまま。プラグインリソースだけが `plugins/<plugin_name>/` に構造維持で置かれる。Skill 無しでもリソースがあれば同ルートへ配置する。配置はステージング後 `replace_dir` でプラグイン単位ルートを置換する。命名衝突ルールは不要。Claude Code（#96）はターゲット追加後に同写像で追随。
 
 ### ライフサイクル
 
-所有権はプラグイン単位。付属ルートを `.plm-meta.json` の `managedFiles` に登録する。
+所有権はプラグイン単位。リソースルートを `.plm-meta.json` の `managedFiles` に登録する。
 
 | 操作 | 挙動 |
 |------|------|
 | `install` / `enable` | 写像どおり配置し `managedFiles` に登録 |
 | `update` | `replace_dir` で差分再配置（enable 経路経由） |
-| `disable` / `uninstall` | プラグイン単位で付属ルートを除去 |
-| `sync` | コンポーネント単位の既存 sync とは別。付属は enable/disable ライフサイクルで同期 |
+| `disable` / `uninstall` | プラグイン単位でリソースルートを除去 |
+| `sync` | コンポーネント単位の既存 sync とは別。リソースは enable/disable ライフサイクルで同期 |
 
 ### 境界・既知制限
 
-- Skill 内付属（#392）と Plugin 付属は別コードパス。
+- Skill 内付属（#392）と Plugin リソースは別コードパス。
 - コンポーネント側のフラット化により、ソース上の `../other-skill/...` 参照はターゲットで壊れる場合がある（対象外）。
 - symlink は保証外。
 

@@ -38,7 +38,7 @@ Copilot: .github/skills/company-tools/code-formatter/formatter-skill/
 ```
 
 > Skill 配下の未認識ファイル/フォルダは Skill の付属リソースとして同梱される。
-> Plugin 直下（`plugins/<plugin>/references/` 等）の未認識ファイル/フォルダは Plugin 付属リソースとして、
+> Plugin 直下（`plugins/<plugin>/references/` 等）の未認識ファイル/フォルダは Plugin リソースとして、
 > `<target_base>/plugins/<plugin_name>/` 配下に構造を保ったまま配置される（Skill 配下への複製は行わない）。
 > 詳細は [architecture/file-formats](../architecture/file-formats.md) を参照。
 

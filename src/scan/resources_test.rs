@@ -23,7 +23,7 @@ fn lists_references_and_skips_skills() {
     excluded_paths.insert(root.join("skills"));
     let excluded_names = HashSet::new();
 
-    let entries = list_plugin_attached_resources(root, &excluded_paths, &excluded_names);
+    let entries = list_plugin_resources(root, &excluded_paths, &excluded_names);
     let names: Vec<_> = entries.iter().map(|e| e.name.as_str()).collect();
     assert_eq!(names, vec!["docs", "references"]);
     assert!(entries.iter().any(|e| e.absolute.join("tdd.md").is_file()));
@@ -41,7 +41,7 @@ fn excludes_hooks_parent_when_hooks_file_declared() {
     excluded_paths.insert(root.join("hooks/hooks.json"));
     let excluded_names = HashSet::new();
 
-    let entries = list_plugin_attached_resources(root, &excluded_paths, &excluded_names);
+    let entries = list_plugin_resources(root, &excluded_paths, &excluded_names);
     let names: Vec<_> = entries.iter().map(|e| e.name.as_str()).collect();
     assert_eq!(names, vec!["references"]);
 }
@@ -57,13 +57,13 @@ fn excludes_vcs_names() {
     let excluded_paths = HashSet::new();
     let excluded_names: HashSet<&str> = [".git", ".gitignore"].into_iter().collect();
 
-    let entries = list_plugin_attached_resources(root, &excluded_paths, &excluded_names);
+    let entries = list_plugin_resources(root, &excluded_paths, &excluded_names);
     assert_eq!(entries.len(), 1);
     assert_eq!(entries[0].name, "references");
 }
 
 #[test]
-fn custom_skills_path_excluded_default_skills_can_be_attached() {
+fn custom_skills_path_excluded_default_skills_can_be_resource() {
     let tmp = TempDir::new().unwrap();
     let root = tmp.path();
     write_tree(root, "my-skills/foo/SKILL.md", "#\n");
@@ -74,7 +74,7 @@ fn custom_skills_path_excluded_default_skills_can_be_attached() {
     excluded_paths.insert(root.join("my-skills"));
     let excluded_names = HashSet::new();
 
-    let entries = list_plugin_attached_resources(root, &excluded_paths, &excluded_names);
+    let entries = list_plugin_resources(root, &excluded_paths, &excluded_names);
     let names: Vec<_> = entries.iter().map(|e| e.name.as_str()).collect();
     assert_eq!(names, vec!["references", "skills"]);
 }
@@ -83,6 +83,6 @@ fn custom_skills_path_excluded_default_skills_can_be_attached() {
 fn returns_empty_when_root_missing() {
     let tmp = TempDir::new().unwrap();
     let missing = tmp.path().join("nope");
-    let entries = list_plugin_attached_resources(&missing, &HashSet::new(), &HashSet::new());
+    let entries = list_plugin_resources(&missing, &HashSet::new(), &HashSet::new());
     assert!(entries.is_empty());
 }
