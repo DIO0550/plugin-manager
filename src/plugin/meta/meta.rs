@@ -213,6 +213,32 @@ impl PluginMeta {
             .get(target)
             .is_some_and(|paths| paths.iter().any(|p| p.as_str() == path_str.as_ref()))
     }
+
+    /// `target` の管理ファイル一覧から `path` を除去する。
+    ///
+    /// # Returns
+    /// 除去した場合は `true`、未登録で何もしなかった場合は `false`。
+    pub fn remove_managed_file(&mut self, target: &str, path: &Path) -> bool {
+        let path_str = path.to_string_lossy();
+        let Some(entry) = self.managed_files.get_mut(target) else {
+            return false;
+        };
+        let before = entry.len();
+        entry.retain(|p| p.as_str() != path_str.as_ref());
+        let removed = entry.len() != before;
+        if entry.is_empty() {
+            self.managed_files.remove(target);
+        }
+        removed
+    }
+
+    /// `target` の管理ファイル一覧を返す。
+    pub fn managed_files_for_target(&self, target: &str) -> &[String] {
+        self.managed_files
+            .get(target)
+            .map(|v| v.as_slice())
+            .unwrap_or(&[])
+    }
 }
 
 /// installedAt の正規化

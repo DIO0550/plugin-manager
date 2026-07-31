@@ -9,10 +9,11 @@
 //! 2. Functional Core: `PluginIntent::expand()` で操作を展開（パス検証時にFS参照あり）
 //! 3. Imperative Shell: `PluginIntent::apply()` で実行（I/O）
 
-use crate::component::Component;
+use crate::component::{Component, Scope};
+use crate::fs::RealFs;
 use crate::plugin::{
-    cleanup_legacy_hierarchy, cleanup_plugin_directories, load_plugin, PackageCacheAccess,
-    PluginAction, PluginIntent,
+    cleanup_legacy_hierarchy, cleanup_plugin_directories, load_plugin, meta, PackageCacheAccess,
+    PluginAction, PluginIntent, PluginResources,
 };
 use crate::target::{all_targets, OperationOutcome};
 use std::path::Path;
@@ -68,6 +69,25 @@ pub fn disable_plugin(
             None => all_targets(),
         };
         for target in &targets_to_cleanup {
+            // Plugin リソースをプラグイン単位で除去
+            match PluginResources::new(plugin.path(), plugin.manifest()) {
+                Ok(resources) => {
+                    if let Ok(Some(root)) =
+                        resources.remove(&RealFs, target.kind(), Scope::Project, project_root)
+                    {
+                        let mut plugin_meta = meta::load_meta(plugin.path()).unwrap_or_default();
+                        if plugin_meta.remove_managed_file(target.name(), &root) {
+                            let _ = meta::write_meta(plugin.path(), &plugin_meta);
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!(
+                        "Warning: failed to remove plugin resources for {}: {e}",
+                        target.name()
+                    );
+                }
+            }
             cleanup_plugin_directories(target.kind(), plugin.origin(), project_root);
             cleanup_legacy_hierarchy(target.kind(), plugin.origin(), project_root);
         }
@@ -115,7 +135,47 @@ pub fn enable_plugin(
     );
 
     // Imperative Shell: 実行（I/O）
-    intent.apply()
+    let result = intent.apply();
+    if !result.success {
+        return result;
+    }
+
+    // Plugin リソースを Project スコープへ配置
+    let targets_to_deploy: Vec<_> = match target_filter {
+        Some(filter) => all_targets()
+            .into_iter()
+            .filter(|t| t.name() == filter)
+            .collect(),
+        None => all_targets(),
+    };
+    for target in &targets_to_deploy {
+        match PluginResources::new(plugin.path(), plugin.manifest()) {
+            Ok(resources) => {
+                match resources.deploy(&RealFs, target.kind(), Scope::Project, project_root) {
+                    Ok(Some(root)) => {
+                        let mut plugin_meta = meta::load_meta(plugin.path()).unwrap_or_default();
+                        plugin_meta.add_managed_file(target.name(), &root);
+                        let _ = meta::write_meta(plugin.path(), &plugin_meta);
+                    }
+                    Ok(None) => {}
+                    Err(e) => {
+                        eprintln!(
+                            "Warning: failed to deploy plugin resources for {}: {e}",
+                            target.name()
+                        );
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!(
+                    "Warning: failed to deploy plugin resources for {}: {e}",
+                    target.name()
+                );
+            }
+        }
+    }
+
+    result
 }
 
 /// アンインストール前の情報取得

@@ -39,6 +39,31 @@ pub const CURSOR_SUBDIR: &str = ".cursor";
 /// Copilot Command の実配置ディレクトリ（表示用 `plural()` の `"commands"` とは異なる）。
 pub const COPILOT_COMMAND_SUBDIR: &str = "prompts";
 
+// ---------------------------------------------------------------------------
+// Plugin リソース
+// ---------------------------------------------------------------------------
+
+/// ターゲット上のプラグインリソース親ディレクトリ（`<base>/plugins/<plugin>/...`）。
+pub const PLUGIN_RESOURCES_SUBDIR: &str = "plugins";
+
+/// Claude Code Plugin マニフェスト用ディレクトリ。
+pub const CLAUDE_PLUGIN_DIR: &str = ".claude-plugin";
+
+/// プラグインルート直下の `plugin.json`。
+pub const PLUGIN_JSON_FILE: &str = "plugin.json";
+
+/// PLM 管理メタデータファイル。
+pub const PLM_META_FILE: &str = ".plm-meta.json";
+
+/// プラグインルート直下でリソースからも除外する VCS / OS メタ名。
+pub const PLUGIN_RESOURCE_VCS_NAMES: &[&str] = &[
+    ".git",
+    ".gitignore",
+    ".gitattributes",
+    ".github",
+    ".DS_Store",
+];
+
 #[cfg(test)]
 #[path = "placement_names_test.rs"]
 mod tests;

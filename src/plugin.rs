@@ -2,6 +2,8 @@ mod cache;
 mod content;
 mod lifecycle;
 pub mod meta;
+mod name;
+mod resources;
 
 pub(crate) use cache::{cleanup_legacy_hierarchy, cleanup_plugin_directories, list_installed};
 pub use cache::{
@@ -13,6 +15,8 @@ pub use lifecycle::{
     update_all_plugins, update_plugin, PluginAction, PluginIntent, UpdateOutcome, UpdateStatus,
 };
 pub use meta::manifest::{Author, PluginManifest};
+pub(crate) use name::PluginName;
+pub(crate) use resources::PluginResources;
 
 /// id フォールバック: id が None なら name を返す
 ///
