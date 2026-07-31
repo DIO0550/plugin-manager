@@ -1,4 +1,4 @@
-//! プラグインリソースの除外合成・配置・削除（#393）
+//! プラグインリソースの除外合成・配置・削除
 
 use crate::component::Scope;
 use crate::error::{PlmError, Result};

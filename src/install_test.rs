@@ -736,7 +736,7 @@ fn test_place_plugin_deploys_plugin_resources_under_plugins_root() {
         .join(".github/plugins/test-plugin/references/tdd-guidelines.md");
     assert!(copilot_ref.is_file());
 
-    // Skill 内 scripts は #392 どおり Skill 配置先に同梱
+    // Skill 内 scripts は Skill 配置先に同梱
     let skill_script = project_dir
         .path()
         .join(".codex/skills/test-plugin_plan-to-issues/scripts/create-github-labels.sh");

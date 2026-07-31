@@ -367,7 +367,7 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
         if !target_had_failure {
             cleanup_legacy_hierarchy(target.kind(), &origin, request.project_root);
 
-            // Plugin リソース（#393）: コンポーネント配置成功後に構造維持で配置
+            // Plugin リソース: コンポーネント配置成功後に構造維持で配置
             match deploy_plugin_resources_real(
                 request.scanned.plugin_root(),
                 request.scanned.manifest(),

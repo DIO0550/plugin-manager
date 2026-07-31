@@ -69,7 +69,7 @@ pub fn disable_plugin(
             None => all_targets(),
         };
         for target in &targets_to_cleanup {
-            // Plugin リソースをプラグイン単位で除去（#393）
+            // Plugin リソースをプラグイン単位で除去
             if let Ok(Some(root)) = remove_plugin_resources_real(
                 target.kind(),
                 Scope::Project,
@@ -133,7 +133,7 @@ pub fn enable_plugin(
         return result;
     }
 
-    // Plugin リソースを Project スコープへ配置（#393）
+    // Plugin リソースを Project スコープへ配置
     let targets_to_deploy: Vec<_> = match target_filter {
         Some(filter) => all_targets()
             .into_iter()
