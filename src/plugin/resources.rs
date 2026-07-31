@@ -7,7 +7,7 @@ use crate::placement_names::{
     ALL_INSTRUCTION_FILENAMES, CLAUDE_PLUGIN_DIR, PLM_META_FILE, PLUGIN_JSON_FILE,
     PLUGIN_RESOURCES_SUBDIR, PLUGIN_RESOURCE_VCS_NAMES,
 };
-use crate::plugin::PluginManifest;
+use crate::plugin::{PluginManifest, PluginName};
 use crate::scan::{list_plugin_resources, PluginResourceEntry};
 use crate::target::{paths::home_dir, TargetKind};
 use std::collections::HashSet;
@@ -17,11 +17,23 @@ use std::path::{Path, PathBuf};
 pub struct PluginResources<'a> {
     root: &'a Path,
     manifest: &'a PluginManifest,
+    name: PluginName<'a>,
 }
 
 impl<'a> PluginResources<'a> {
-    pub fn new(root: &'a Path, manifest: &'a PluginManifest) -> Self {
-        Self { root, manifest }
+    /// プラグイン名がパスセグメントとして安全なときだけ構築する。
+    pub fn new(root: &'a Path, manifest: &'a PluginManifest) -> Result<Self> {
+        let name = PluginName::new(&manifest.name).ok_or_else(|| {
+            PlmError::Validation(format!(
+                "plugin name '{}' is not a safe path segment for plugin resources",
+                manifest.name
+            ))
+        })?;
+        Ok(Self {
+            root,
+            manifest,
+            name,
+        })
     }
 
     /// ターゲットへ構造維持で配置する。
@@ -35,7 +47,7 @@ impl<'a> PluginResources<'a> {
         scope: Scope,
         project_root: &Path,
     ) -> Result<Option<PathBuf>> {
-        let dest = self.target_root(target_kind, scope, project_root)?;
+        let dest = self.target_root(target_kind, scope, project_root);
         let entries = self.list();
 
         if entries.is_empty() {
@@ -54,7 +66,7 @@ impl<'a> PluginResources<'a> {
         let staging = staging_parent.join(format!(
             ".plm-resources-staging-{}-{}",
             target_kind.as_str(),
-            self.manifest.name
+            self.name.as_str()
         ));
         if fs.exists(&staging) {
             fs.remove(&staging)?;
@@ -86,7 +98,7 @@ impl<'a> PluginResources<'a> {
         scope: Scope,
         project_root: &Path,
     ) -> Result<Option<PathBuf>> {
-        let dest = self.target_root(target_kind, scope, project_root)?;
+        let dest = self.target_root(target_kind, scope, project_root);
         if fs.exists(&dest) {
             fs.remove(&dest)?;
             return Ok(Some(dest));
@@ -102,18 +114,12 @@ impl<'a> PluginResources<'a> {
         )
     }
 
-    fn target_root(
-        &self,
-        target_kind: TargetKind,
-        scope: Scope,
-        project_root: &Path,
-    ) -> Result<PathBuf> {
-        validate_plugin_name(&self.manifest.name)?;
+    fn target_root(&self, target_kind: TargetKind, scope: Scope, project_root: &Path) -> PathBuf {
         let base = match scope {
             Scope::Personal => target_kind.personal_base(&home_dir()),
             Scope::Project => target_kind.project_base(project_root),
         };
-        Ok(base.join(PLUGIN_RESOURCES_SUBDIR).join(&self.manifest.name))
+        base.join(PLUGIN_RESOURCES_SUBDIR).join(self.name.as_str())
     }
 
     fn exclusion_paths(&self) -> HashSet<PathBuf> {
@@ -151,21 +157,6 @@ impl<'a> PluginResources<'a> {
 
         paths
     }
-}
-
-fn validate_plugin_name(name: &str) -> Result<()> {
-    if name.is_empty()
-        || name.contains('/')
-        || name.contains('\\')
-        || name.contains('\0')
-        || name == "."
-        || name == ".."
-    {
-        return Err(PlmError::Validation(format!(
-            "plugin name '{name}' is not a safe path segment for plugin resources"
-        )));
-    }
-    Ok(())
 }
 
 #[cfg(test)]

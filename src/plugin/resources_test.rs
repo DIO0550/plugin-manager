@@ -38,7 +38,9 @@ fn exclusion_includes_default_component_dirs() {
     let tmp = TempDir::new().unwrap();
     let root = tmp.path();
     let manifest = sample_manifest("spec-plugin");
-    let paths = PluginResources::new(root, &manifest).exclusion_paths();
+    let paths = PluginResources::new(root, &manifest)
+        .unwrap()
+        .exclusion_paths();
     assert!(paths.contains(&root.join("skills")));
     assert!(paths.contains(&root.join("agents")));
     assert!(paths.contains(&root.join("commands")));
@@ -52,7 +54,9 @@ fn exclusion_hooks_file_also_excludes_parent() {
     let root = tmp.path();
     let mut manifest = sample_manifest("p");
     manifest.hooks = Some("./hooks/hooks.json".into());
-    let paths = PluginResources::new(root, &manifest).exclusion_paths();
+    let paths = PluginResources::new(root, &manifest)
+        .unwrap()
+        .exclusion_paths();
     assert!(paths.contains(&root.join("hooks/hooks.json")));
     assert!(paths.contains(&root.join("hooks")));
 }
@@ -65,7 +69,7 @@ fn list_skips_components_keeps_references() {
     write_tree(root, "references/tdd-guidelines.md", "tdd\n");
     write_tree(root, ".gitignore", "x\n");
     let manifest = sample_manifest("spec-plugin");
-    let entries = PluginResources::new(root, &manifest).list();
+    let entries = PluginResources::new(root, &manifest).unwrap().list();
     assert_eq!(entries.len(), 1);
     assert_eq!(entries[0].name, "references");
 }
@@ -79,9 +83,16 @@ fn custom_skills_path_not_resource_default_skills_is() {
     write_tree(root, "references/a.md", "a\n");
     let mut manifest = sample_manifest("p");
     manifest.skills = Some("./my-skills".into());
-    let entries = PluginResources::new(root, &manifest).list();
+    let entries = PluginResources::new(root, &manifest).unwrap().list();
     let names: Vec<_> = entries.iter().map(|e| e.name.as_str()).collect();
     assert_eq!(names, vec!["references", "skills"]);
+}
+
+#[test]
+fn new_rejects_unsafe_plugin_name() {
+    let tmp = TempDir::new().unwrap();
+    let manifest = sample_manifest("../evil");
+    assert!(PluginResources::new(tmp.path(), &manifest).is_err());
 }
 
 #[test]
@@ -101,6 +112,7 @@ fn deploy_preserves_structure_under_plugins_plugin_name() {
 
     let manifest = sample_manifest("spec-plugin");
     let dest = PluginResources::new(&plugin_root, &manifest)
+        .unwrap()
         .deploy(&RealFs, TargetKind::Codex, Scope::Project, &project)
         .unwrap()
         .expect("dest");
@@ -124,13 +136,12 @@ fn deploy_replace_removes_stale_resource_files() {
     write_tree(&plugin_root, "references/keep.md", "keep\n");
 
     let manifest = sample_manifest("p");
-    let dest = PluginResources::new(&plugin_root, &manifest)
-        .target_root(TargetKind::Cursor, Scope::Project, &project)
-        .unwrap();
+    let resources = PluginResources::new(&plugin_root, &manifest).unwrap();
+    let dest = resources.target_root(TargetKind::Cursor, Scope::Project, &project);
     fs::create_dir_all(dest.join("references")).unwrap();
     fs::write(dest.join("references/stale.md"), "stale\n").unwrap();
 
-    PluginResources::new(&plugin_root, &manifest)
+    resources
         .deploy(&RealFs, TargetKind::Cursor, Scope::Project, &project)
         .unwrap();
 
@@ -147,7 +158,7 @@ fn deploy_all_skill_target_kinds() {
     fs::create_dir_all(&project).unwrap();
     write_tree(&plugin_root, "references/a.md", "a\n");
     let manifest = sample_manifest("demo");
-    let resources = PluginResources::new(&plugin_root, &manifest);
+    let resources = PluginResources::new(&plugin_root, &manifest).unwrap();
 
     for kind in [
         TargetKind::Codex,
@@ -176,10 +187,8 @@ fn remove_deletes_root() {
     fs::create_dir_all(&plugin_root).unwrap();
     fs::create_dir_all(&project).unwrap();
     let manifest = sample_manifest("spec-plugin");
-    let resources = PluginResources::new(&plugin_root, &manifest);
-    let dest = resources
-        .target_root(TargetKind::Codex, Scope::Project, &project)
-        .unwrap();
+    let resources = PluginResources::new(&plugin_root, &manifest).unwrap();
+    let dest = resources.target_root(TargetKind::Codex, Scope::Project, &project);
     fs::create_dir_all(dest.join("references")).unwrap();
     fs::write(dest.join("references/a.md"), "a\n").unwrap();
 

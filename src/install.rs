@@ -369,17 +369,33 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
             cleanup_legacy_hierarchy(target.kind(), &origin, request.project_root);
 
             // Plugin リソース: コンポーネント配置成功後に構造維持で配置
-            match PluginResources::new(request.scanned.plugin_root(), request.scanned.manifest())
-                .deploy(&RealFs, target.kind(), request.scope, request.project_root)
-            {
-                Ok(Some(root)) => {
-                    record_managed_file_ownership(
-                        request.scanned.plugin_root(),
-                        &root,
-                        target.name(),
-                    );
+            match PluginResources::new(request.scanned.plugin_root(), request.scanned.manifest()) {
+                Ok(resources) => {
+                    match resources.deploy(
+                        &RealFs,
+                        target.kind(),
+                        request.scope,
+                        request.project_root,
+                    ) {
+                        Ok(Some(root)) => {
+                            record_managed_file_ownership(
+                                request.scanned.plugin_root(),
+                                &root,
+                                target.name(),
+                            );
+                        }
+                        Ok(None) => {}
+                        Err(e) => {
+                            failures.push(PlaceFailure {
+                                target: target.name().to_string(),
+                                component_name: request.scanned.name().to_string(),
+                                component_kind: ComponentKind::Skill,
+                                error: format!("failed to deploy plugin resources: {e}"),
+                                stage: PlaceFailureStage::Deployment,
+                            });
+                        }
+                    }
                 }
-                Ok(None) => {}
                 Err(e) => {
                     failures.push(PlaceFailure {
                         target: target.name().to_string(),

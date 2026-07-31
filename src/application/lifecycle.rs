@@ -70,15 +70,22 @@ pub fn disable_plugin(
         };
         for target in &targets_to_cleanup {
             // Plugin リソースをプラグイン単位で除去
-            if let Ok(Some(root)) = PluginResources::new(plugin.path(), plugin.manifest()).remove(
-                &RealFs,
-                target.kind(),
-                Scope::Project,
-                project_root,
-            ) {
-                let mut plugin_meta = meta::load_meta(plugin.path()).unwrap_or_default();
-                if plugin_meta.remove_managed_file(target.name(), &root) {
-                    let _ = meta::write_meta(plugin.path(), &plugin_meta);
+            match PluginResources::new(plugin.path(), plugin.manifest()) {
+                Ok(resources) => {
+                    if let Ok(Some(root)) =
+                        resources.remove(&RealFs, target.kind(), Scope::Project, project_root)
+                    {
+                        let mut plugin_meta = meta::load_meta(plugin.path()).unwrap_or_default();
+                        if plugin_meta.remove_managed_file(target.name(), &root) {
+                            let _ = meta::write_meta(plugin.path(), &plugin_meta);
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!(
+                        "Warning: failed to remove plugin resources for {}: {e}",
+                        target.name()
+                    );
                 }
             }
             cleanup_plugin_directories(target.kind(), plugin.origin(), project_root);
@@ -142,18 +149,23 @@ pub fn enable_plugin(
         None => all_targets(),
     };
     for target in &targets_to_deploy {
-        match PluginResources::new(plugin.path(), plugin.manifest()).deploy(
-            &RealFs,
-            target.kind(),
-            Scope::Project,
-            project_root,
-        ) {
-            Ok(Some(root)) => {
-                let mut plugin_meta = meta::load_meta(plugin.path()).unwrap_or_default();
-                plugin_meta.add_managed_file(target.name(), &root);
-                let _ = meta::write_meta(plugin.path(), &plugin_meta);
+        match PluginResources::new(plugin.path(), plugin.manifest()) {
+            Ok(resources) => {
+                match resources.deploy(&RealFs, target.kind(), Scope::Project, project_root) {
+                    Ok(Some(root)) => {
+                        let mut plugin_meta = meta::load_meta(plugin.path()).unwrap_or_default();
+                        plugin_meta.add_managed_file(target.name(), &root);
+                        let _ = meta::write_meta(plugin.path(), &plugin_meta);
+                    }
+                    Ok(None) => {}
+                    Err(e) => {
+                        eprintln!(
+                            "Warning: failed to deploy plugin resources for {}: {e}",
+                            target.name()
+                        );
+                    }
+                }
             }
-            Ok(None) => {}
             Err(e) => {
                 eprintln!(
                     "Warning: failed to deploy plugin resources for {}: {e}",
