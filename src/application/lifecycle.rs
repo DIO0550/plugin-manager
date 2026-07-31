@@ -10,9 +10,10 @@
 //! 3. Imperative Shell: `PluginIntent::apply()` で実行（I/O）
 
 use crate::component::{Component, Scope};
+use crate::fs::RealFs;
 use crate::plugin::{
-    cleanup_legacy_hierarchy, cleanup_plugin_directories, deploy_plugin_resources_real,
-    load_plugin, meta, remove_plugin_resources_real, PackageCacheAccess, PluginAction,
+    cleanup_legacy_hierarchy, cleanup_plugin_directories, deploy_plugin_resources, load_plugin,
+    meta, remove_plugin_resources, DeployPluginResourcesRequest, PackageCacheAccess, PluginAction,
     PluginIntent,
 };
 use crate::target::{all_targets, OperationOutcome};
@@ -70,7 +71,8 @@ pub fn disable_plugin(
         };
         for target in &targets_to_cleanup {
             // Plugin リソースをプラグイン単位で除去
-            if let Ok(Some(root)) = remove_plugin_resources_real(
+            if let Ok(Some(root)) = remove_plugin_resources(
+                &RealFs,
                 target.kind(),
                 Scope::Project,
                 project_root,
@@ -142,12 +144,15 @@ pub fn enable_plugin(
         None => all_targets(),
     };
     for target in &targets_to_deploy {
-        match deploy_plugin_resources_real(
-            plugin.path(),
-            plugin.manifest(),
-            target.kind(),
-            Scope::Project,
-            project_root,
+        match deploy_plugin_resources(
+            &RealFs,
+            &DeployPluginResourcesRequest {
+                plugin_root: plugin.path(),
+                manifest: plugin.manifest(),
+                target_kind: target.kind(),
+                scope: Scope::Project,
+                project_root,
+            },
         ) {
             Ok(Some(root)) => {
                 let mut plugin_meta = meta::load_meta(plugin.path()).unwrap_or_default();

@@ -14,7 +14,9 @@ pub use lifecycle::{
     update_all_plugins, update_plugin, PluginAction, PluginIntent, UpdateOutcome, UpdateStatus,
 };
 pub use meta::manifest::{Author, PluginManifest};
-pub(crate) use resources::{deploy_plugin_resources_real, remove_plugin_resources_real};
+pub(crate) use resources::{
+    deploy_plugin_resources, remove_plugin_resources, DeployPluginResourcesRequest,
+};
 
 /// id フォールバック: id が None なら name を返す
 ///

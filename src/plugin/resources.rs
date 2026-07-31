@@ -2,7 +2,7 @@
 
 use crate::component::Scope;
 use crate::error::{PlmError, Result};
-use crate::fs::{FileSystem, RealFs};
+use crate::fs::FileSystem;
 use crate::placement_names::{
     ALL_INSTRUCTION_FILENAMES, CLAUDE_PLUGIN_DIR, PLM_META_FILE, PLUGIN_JSON_FILE,
     PLUGIN_RESOURCES_SUBDIR, PLUGIN_RESOURCE_VCS_NAMES,
@@ -149,26 +149,6 @@ pub fn deploy_plugin_resources(
     Ok(Some(dest))
 }
 
-/// RealFs でプラグインリソースを配置する便利関数。
-pub fn deploy_plugin_resources_real(
-    plugin_root: &Path,
-    manifest: &PluginManifest,
-    target_kind: TargetKind,
-    scope: Scope,
-    project_root: &Path,
-) -> Result<Option<PathBuf>> {
-    deploy_plugin_resources(
-        &RealFs,
-        &DeployPluginResourcesRequest {
-            plugin_root,
-            manifest,
-            target_kind,
-            scope,
-            project_root,
-        },
-    )
-}
-
 /// プラグインリソースルートを削除する。
 pub fn remove_plugin_resources(
     fs: &dyn FileSystem,
@@ -183,15 +163,6 @@ pub fn remove_plugin_resources(
         return Ok(Some(dest));
     }
     Ok(None)
-}
-
-pub fn remove_plugin_resources_real(
-    target_kind: TargetKind,
-    scope: Scope,
-    project_root: &Path,
-    plugin_name: &str,
-) -> Result<Option<PathBuf>> {
-    remove_plugin_resources(&RealFs, target_kind, scope, project_root, plugin_name)
 }
 
 fn validate_plugin_name(name: &str) -> Result<()> {
