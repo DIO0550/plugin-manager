@@ -12,9 +12,8 @@
 use crate::component::{Component, Scope};
 use crate::fs::RealFs;
 use crate::plugin::{
-    cleanup_legacy_hierarchy, cleanup_plugin_directories, deploy_plugin_resources, load_plugin,
-    meta, remove_plugin_resources, DeployPluginResourcesRequest, PackageCacheAccess, PluginAction,
-    PluginIntent,
+    cleanup_legacy_hierarchy, cleanup_plugin_directories, load_plugin, meta, PackageCacheAccess,
+    PluginAction, PluginIntent, PluginResources,
 };
 use crate::target::{all_targets, OperationOutcome};
 use std::path::Path;
@@ -71,12 +70,11 @@ pub fn disable_plugin(
         };
         for target in &targets_to_cleanup {
             // Plugin リソースをプラグイン単位で除去
-            if let Ok(Some(root)) = remove_plugin_resources(
+            if let Ok(Some(root)) = PluginResources::new(plugin.path(), plugin.manifest()).remove(
                 &RealFs,
                 target.kind(),
                 Scope::Project,
                 project_root,
-                plugin.name(),
             ) {
                 let mut plugin_meta = meta::load_meta(plugin.path()).unwrap_or_default();
                 if plugin_meta.remove_managed_file(target.name(), &root) {
@@ -144,15 +142,11 @@ pub fn enable_plugin(
         None => all_targets(),
     };
     for target in &targets_to_deploy {
-        match deploy_plugin_resources(
+        match PluginResources::new(plugin.path(), plugin.manifest()).deploy(
             &RealFs,
-            &DeployPluginResourcesRequest {
-                plugin_root: plugin.path(),
-                manifest: plugin.manifest(),
-                target_kind: target.kind(),
-                scope: Scope::Project,
-                project_root,
-            },
+            target.kind(),
+            Scope::Project,
+            project_root,
         ) {
             Ok(Some(root)) => {
                 let mut plugin_meta = meta::load_meta(plugin.path()).unwrap_or_default();

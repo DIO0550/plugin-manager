@@ -38,7 +38,7 @@ fn exclusion_includes_default_component_dirs() {
     let tmp = TempDir::new().unwrap();
     let root = tmp.path();
     let manifest = sample_manifest("spec-plugin");
-    let paths = plugin_resource_exclusion_paths(root, &manifest);
+    let paths = PluginResources::new(root, &manifest).exclusion_paths();
     assert!(paths.contains(&root.join("skills")));
     assert!(paths.contains(&root.join("agents")));
     assert!(paths.contains(&root.join("commands")));
@@ -52,20 +52,20 @@ fn exclusion_hooks_file_also_excludes_parent() {
     let root = tmp.path();
     let mut manifest = sample_manifest("p");
     manifest.hooks = Some("./hooks/hooks.json".into());
-    let paths = plugin_resource_exclusion_paths(root, &manifest);
+    let paths = PluginResources::new(root, &manifest).exclusion_paths();
     assert!(paths.contains(&root.join("hooks/hooks.json")));
     assert!(paths.contains(&root.join("hooks")));
 }
 
 #[test]
-fn list_resources_skips_components_keeps_references() {
+fn list_skips_components_keeps_references() {
     let tmp = TempDir::new().unwrap();
     let root = tmp.path();
     write_tree(root, "skills/foo/SKILL.md", "#\n");
     write_tree(root, "references/tdd-guidelines.md", "tdd\n");
     write_tree(root, ".gitignore", "x\n");
     let manifest = sample_manifest("spec-plugin");
-    let entries = list_resources_for_plugin(root, &manifest);
+    let entries = PluginResources::new(root, &manifest).list();
     assert_eq!(entries.len(), 1);
     assert_eq!(entries[0].name, "references");
 }
@@ -79,7 +79,7 @@ fn custom_skills_path_not_resource_default_skills_is() {
     write_tree(root, "references/a.md", "a\n");
     let mut manifest = sample_manifest("p");
     manifest.skills = Some("./my-skills".into());
-    let entries = list_resources_for_plugin(root, &manifest);
+    let entries = PluginResources::new(root, &manifest).list();
     let names: Vec<_> = entries.iter().map(|e| e.name.as_str()).collect();
     assert_eq!(names, vec!["references", "skills"]);
 }
@@ -100,18 +100,10 @@ fn deploy_preserves_structure_under_plugins_plugin_name() {
     );
 
     let manifest = sample_manifest("spec-plugin");
-    let dest = deploy_plugin_resources(
-        &RealFs,
-        &DeployPluginResourcesRequest {
-            plugin_root: &plugin_root,
-            manifest: &manifest,
-            target_kind: TargetKind::Codex,
-            scope: Scope::Project,
-            project_root: &project,
-        },
-    )
-    .unwrap()
-    .expect("dest");
+    let dest = PluginResources::new(&plugin_root, &manifest)
+        .deploy(&RealFs, TargetKind::Codex, Scope::Project, &project)
+        .unwrap()
+        .expect("dest");
 
     assert_eq!(dest, project.join(".codex/plugins/spec-plugin"));
     assert_eq!(
@@ -132,21 +124,15 @@ fn deploy_replace_removes_stale_resource_files() {
     write_tree(&plugin_root, "references/keep.md", "keep\n");
 
     let manifest = sample_manifest("p");
-    let dest = plugin_resources_root(TargetKind::Cursor, Scope::Project, &project, "p").unwrap();
+    let dest = PluginResources::new(&plugin_root, &manifest)
+        .target_root(TargetKind::Cursor, Scope::Project, &project)
+        .unwrap();
     fs::create_dir_all(dest.join("references")).unwrap();
     fs::write(dest.join("references/stale.md"), "stale\n").unwrap();
 
-    deploy_plugin_resources(
-        &RealFs,
-        &DeployPluginResourcesRequest {
-            plugin_root: &plugin_root,
-            manifest: &manifest,
-            target_kind: TargetKind::Cursor,
-            scope: Scope::Project,
-            project_root: &project,
-        },
-    )
-    .unwrap();
+    PluginResources::new(&plugin_root, &manifest)
+        .deploy(&RealFs, TargetKind::Cursor, Scope::Project, &project)
+        .unwrap();
 
     assert!(dest.join("references/keep.md").is_file());
     assert!(!dest.join("references/stale.md").exists());
@@ -161,6 +147,7 @@ fn deploy_all_skill_target_kinds() {
     fs::create_dir_all(&project).unwrap();
     write_tree(&plugin_root, "references/a.md", "a\n");
     let manifest = sample_manifest("demo");
+    let resources = PluginResources::new(&plugin_root, &manifest);
 
     for kind in [
         TargetKind::Codex,
@@ -169,18 +156,10 @@ fn deploy_all_skill_target_kinds() {
         TargetKind::GeminiCli,
         TargetKind::Cursor,
     ] {
-        let dest = deploy_plugin_resources(
-            &RealFs,
-            &DeployPluginResourcesRequest {
-                plugin_root: &plugin_root,
-                manifest: &manifest,
-                target_kind: kind,
-                scope: Scope::Project,
-                project_root: &project,
-            },
-        )
-        .unwrap()
-        .expect("dest");
+        let dest = resources
+            .deploy(&RealFs, kind, Scope::Project, &project)
+            .unwrap()
+            .expect("dest");
         assert!(
             dest.join("references/a.md").is_file(),
             "missing for {:?}",
@@ -190,22 +169,23 @@ fn deploy_all_skill_target_kinds() {
 }
 
 #[test]
-fn remove_resources_deletes_root() {
+fn remove_deletes_root() {
     let tmp = TempDir::new().unwrap();
-    let project = tmp.path();
-    let dest =
-        plugin_resources_root(TargetKind::Codex, Scope::Project, project, "spec-plugin").unwrap();
+    let plugin_root = tmp.path().join("plugin");
+    let project = tmp.path().join("project");
+    fs::create_dir_all(&plugin_root).unwrap();
+    fs::create_dir_all(&project).unwrap();
+    let manifest = sample_manifest("spec-plugin");
+    let resources = PluginResources::new(&plugin_root, &manifest);
+    let dest = resources
+        .target_root(TargetKind::Codex, Scope::Project, &project)
+        .unwrap();
     fs::create_dir_all(dest.join("references")).unwrap();
     fs::write(dest.join("references/a.md"), "a\n").unwrap();
 
-    let removed = remove_plugin_resources(
-        &RealFs,
-        TargetKind::Codex,
-        Scope::Project,
-        project,
-        "spec-plugin",
-    )
-    .unwrap();
+    let removed = resources
+        .remove(&RealFs, TargetKind::Codex, Scope::Project, &project)
+        .unwrap();
     assert_eq!(removed, Some(dest.clone()));
     assert!(!dest.exists());
 }

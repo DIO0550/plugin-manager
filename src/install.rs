@@ -6,8 +6,8 @@ use crate::component::{Component, ComponentDeployment, ConversionConfig, Deploym
 use crate::component::{ComponentRef, PlacementContext, PlacementScope, ProjectContext};
 use crate::fs::RealFs;
 use crate::plugin::{
-    cleanup_legacy_hierarchy, deploy_plugin_resources, meta, meta::TargetStatus,
-    DeployPluginResourcesRequest, MarketplaceContent, PackageCache, PackageCacheAccess,
+    cleanup_legacy_hierarchy, meta, meta::TargetStatus, MarketplaceContent, PackageCache,
+    PackageCacheAccess, PluginResources,
 };
 use crate::source::parse_source;
 use crate::target::{PluginOrigin, Target, TargetKind};
@@ -369,16 +369,9 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
             cleanup_legacy_hierarchy(target.kind(), &origin, request.project_root);
 
             // Plugin リソース: コンポーネント配置成功後に構造維持で配置
-            match deploy_plugin_resources(
-                &RealFs,
-                &DeployPluginResourcesRequest {
-                    plugin_root: request.scanned.plugin_root(),
-                    manifest: request.scanned.manifest(),
-                    target_kind: target.kind(),
-                    scope: request.scope,
-                    project_root: request.project_root,
-                },
-            ) {
+            match PluginResources::new(request.scanned.plugin_root(), request.scanned.manifest())
+                .deploy(&RealFs, target.kind(), request.scope, request.project_root)
+            {
                 Ok(Some(root)) => {
                     record_managed_file_ownership(
                         request.scanned.plugin_root(),
