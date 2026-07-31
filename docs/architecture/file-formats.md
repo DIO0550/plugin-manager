@@ -551,7 +551,6 @@ skills/spec-driven-dev/
 
 ## Plugin リソース
 
-> 正本: [Issue #393](https://github.com/DIO0550/plugin-manager/issues/393)。  
 > コンポーネント認識はマニフェストに従い、該当しないものは **プラグイン構造を変えず** ターゲットへ配置する。
 
 プラグインルート（`plugins/<plugin>/`）直下のうち、Skills / Agents / Commands / Instructions / Hooks として解決されないファイル・フォルダは、**プラグインリソース**として扱う。フォルダ名にホワイトリストは無い（`references/` / `docs/` / `examples/` / `templates/` / 直下の任意 md など）。
