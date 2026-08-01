@@ -113,7 +113,18 @@ fn test_init_help() {
         .args(["init", "--help"])
         .assert()
         .success()
-        .stdout(predicate::str::contains("Generate plugin templates"));
+        .stdout(predicate::str::contains("Generate component templates"))
+        .stdout(predicate::str::contains("skill, agent, command"));
+}
+
+#[test]
+fn test_pack_help() {
+    ProcessCommand::cargo_bin("plm")
+        .unwrap()
+        .args(["pack", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Package a skill or plugin"));
 }
 
 #[test]
