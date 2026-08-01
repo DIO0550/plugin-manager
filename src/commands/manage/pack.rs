@@ -106,7 +106,7 @@ fn load_plugin_manifest(source: &Path) -> Result<PluginManifest, String> {
 fn validate_pack(source: &Path, kind: &PackKind) -> Result<(), String> {
     match kind {
         PackKind::Plugin(manifest) => validate_plugin(source, manifest),
-        PackKind::Skill => validate_skill(source),
+        PackKind::Skill => validate_skill_file(&source.join("SKILL.md")),
     }
 }
 
@@ -142,10 +142,6 @@ fn validate_plugin(source: &Path, manifest: &PluginManifest) -> Result<(), Strin
     }
 
     Ok(())
-}
-
-fn validate_skill(source: &Path) -> Result<(), String> {
-    validate_skill_file(&source.join("SKILL.md"))
 }
 
 fn validate_skill_file(path: &Path) -> Result<(), String> {
