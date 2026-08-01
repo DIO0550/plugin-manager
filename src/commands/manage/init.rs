@@ -2,6 +2,7 @@
 //!
 //! コンポーネント（skill / agent / command）のテンプレートを生成する。
 
+use crate::component::ComponentName;
 use clap::{Parser, ValueEnum};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -45,34 +46,22 @@ pub async fn run(args: Args) -> Result<(), String> {
 /// * `args` - CLI 引数
 /// * `base_dir` - 生成先の親ディレクトリ（通常は CWD）
 pub(crate) fn init_in_dir(args: &Args, base_dir: &Path) -> Result<PathBuf, String> {
-    validate_name(&args.name)?;
+    let name = ComponentName::new(&args.name).ok_or_else(|| {
+        format!(
+            "Invalid component name '{}': must be a single path segment",
+            args.name
+        )
+    })?;
 
     match args.component_type {
-        ComponentType::Skill => create_skill(base_dir, &args.name),
-        ComponentType::Agent => create_agent(base_dir, &args.name),
-        ComponentType::Command => create_command(base_dir, &args.name),
+        ComponentType::Skill => create_skill(base_dir, name),
+        ComponentType::Agent => create_agent(base_dir, name),
+        ComponentType::Command => create_command(base_dir, name),
     }
 }
 
-fn validate_name(name: &str) -> Result<(), String> {
-    if name.is_empty() {
-        return Err("Component name must not be empty".to_string());
-    }
-    if name.contains('/') || name.contains('\\') || name.contains("..") {
-        return Err(format!(
-            "Invalid component name '{name}': must not contain path separators or '..'"
-        ));
-    }
-    if name.starts_with('.') {
-        return Err(format!(
-            "Invalid component name '{name}': must not start with '.'"
-        ));
-    }
-    Ok(())
-}
-
-fn create_skill(base_dir: &Path, name: &str) -> Result<PathBuf, String> {
-    let dir = base_dir.join(name);
+fn create_skill(base_dir: &Path, name: ComponentName<'_>) -> Result<PathBuf, String> {
+    let dir = base_dir.join(name.as_str());
     if dir.exists() {
         return Err(format!("Path already exists: {}", dir.display()));
     }
@@ -83,8 +72,8 @@ fn create_skill(base_dir: &Path, name: &str) -> Result<PathBuf, String> {
     Ok(dir)
 }
 
-fn create_agent(base_dir: &Path, name: &str) -> Result<PathBuf, String> {
-    let path = base_dir.join(format!("{name}.agent.md"));
+fn create_agent(base_dir: &Path, name: ComponentName<'_>) -> Result<PathBuf, String> {
+    let path = base_dir.join(format!("{}.agent.md", name.as_str()));
     if path.exists() {
         return Err(format!("Path already exists: {}", path.display()));
     }
@@ -92,8 +81,8 @@ fn create_agent(base_dir: &Path, name: &str) -> Result<PathBuf, String> {
     Ok(path)
 }
 
-fn create_command(base_dir: &Path, name: &str) -> Result<PathBuf, String> {
-    let path = base_dir.join(format!("{name}.prompt.md"));
+fn create_command(base_dir: &Path, name: ComponentName<'_>) -> Result<PathBuf, String> {
+    let path = base_dir.join(format!("{}.prompt.md", name.as_str()));
     if path.exists() {
         return Err(format!("Path already exists: {}", path.display()));
     }
@@ -101,7 +90,8 @@ fn create_command(base_dir: &Path, name: &str) -> Result<PathBuf, String> {
     Ok(path)
 }
 
-fn skill_template(name: &str) -> String {
+fn skill_template(name: ComponentName<'_>) -> String {
+    let name = name.as_str();
     format!(
         r#"---
 name: {name}
@@ -117,7 +107,8 @@ metadata:
     )
 }
 
-fn agent_template(name: &str) -> String {
+fn agent_template(name: ComponentName<'_>) -> String {
+    let name = name.as_str();
     format!(
         r#"---
 name: {name}
@@ -132,7 +123,8 @@ tools: ['search', 'fetch', 'edit']
     )
 }
 
-fn command_template(name: &str) -> String {
+fn command_template(name: ComponentName<'_>) -> String {
+    let name = name.as_str();
     format!(
         r#"---
 name: {name}

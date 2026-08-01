@@ -9,6 +9,6 @@ mod model;
 pub use convert::{AgentFormat, CommandFormat};
 pub use deployment::{ComponentDeployment, ConversionConfig, DeploymentOutput};
 pub use model::{
-    Component, ComponentKind, ComponentRef, FileOperation, PlacementContext, PlacementLocation,
-    PlacementScope, ProjectContext, Scope, ScopedPath,
+    Component, ComponentKind, ComponentName, ComponentRef, FileOperation, PlacementContext,
+    PlacementLocation, PlacementScope, ProjectContext, Scope, ScopedPath,
 };
