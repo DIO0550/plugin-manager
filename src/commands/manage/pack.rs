@@ -51,6 +51,12 @@ pub async fn run(args: Args) -> Result<(), String> {
     Ok(())
 }
 
+/// パッケージ化対象の種別。
+enum PackKind {
+    Plugin(PluginManifest),
+    Skill,
+}
+
 /// `source` ディレクトリを `output_dir/<name>.zip` にパッケージ化する。
 ///
 /// # Arguments
@@ -65,7 +71,10 @@ pub(crate) fn pack_path(source: &Path, output_dir: &Path) -> Result<PathBuf, Str
         return Err(format!("Path must be a directory: {}", source.display()));
     }
 
-    let package_name = validate_and_resolve_name(source)?;
+    let kind = detect_pack_kind(source)?;
+    validate_pack(source, &kind)?;
+    let package_name = resolve_package_name(source, &kind)?;
+
     let zip_path = output_dir.join(format!("{package_name}.zip"));
     if zip_path.exists() {
         return Err(format!("Output already exists: {}", zip_path.display()));
@@ -75,16 +84,11 @@ pub(crate) fn pack_path(source: &Path, output_dir: &Path) -> Result<PathBuf, Str
     Ok(zip_path)
 }
 
-fn validate_and_resolve_name(source: &Path) -> Result<String, String> {
+fn detect_pack_kind(source: &Path) -> Result<PackKind, String> {
     if has_manifest(source) {
-        validate_plugin(source)
+        Ok(PackKind::Plugin(load_plugin_manifest(source)?))
     } else if source.join("SKILL.md").is_file() {
-        validate_skill(source)?;
-        source
-            .file_name()
-            .and_then(|s| s.to_str())
-            .map(|s| s.to_string())
-            .ok_or_else(|| "Could not determine skill directory name".to_string())
+        Ok(PackKind::Skill)
     } else {
         Err(
             "Unrecognized package: expected a plugin (plugin.json) or a skill directory (SKILL.md)"
@@ -93,11 +97,31 @@ fn validate_and_resolve_name(source: &Path) -> Result<String, String> {
     }
 }
 
-fn validate_plugin(source: &Path) -> Result<String, String> {
+fn load_plugin_manifest(source: &Path) -> Result<PluginManifest, String> {
     let manifest_path =
         resolve_manifest_path(source).ok_or_else(|| "plugin.json not found".to_string())?;
-    let manifest = PluginManifest::load(&manifest_path).map_err(|e| e.to_string())?;
+    PluginManifest::load(&manifest_path).map_err(|e| e.to_string())
+}
 
+fn validate_pack(source: &Path, kind: &PackKind) -> Result<(), String> {
+    match kind {
+        PackKind::Plugin(manifest) => validate_plugin(source, manifest),
+        PackKind::Skill => validate_skill(source),
+    }
+}
+
+fn resolve_package_name(source: &Path, kind: &PackKind) -> Result<String, String> {
+    match kind {
+        PackKind::Plugin(manifest) => Ok(manifest.name.clone()),
+        PackKind::Skill => source
+            .file_name()
+            .and_then(|s| s.to_str())
+            .map(|s| s.to_string())
+            .ok_or_else(|| "Could not determine skill directory name".to_string()),
+    }
+}
+
+fn validate_plugin(source: &Path, manifest: &PluginManifest) -> Result<(), String> {
     if manifest.name.trim().is_empty() {
         return Err("plugin.json 'name' must not be empty".to_string());
     }
@@ -117,7 +141,7 @@ fn validate_plugin(source: &Path) -> Result<String, String> {
         }
     }
 
-    Ok(manifest.name)
+    Ok(())
 }
 
 fn validate_skill(source: &Path) -> Result<(), String> {
