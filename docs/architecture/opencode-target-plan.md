@@ -1,6 +1,6 @@
 # OpenCode ターゲット追加 — 実装計画
 
-> 状態: 仕様策定済み / Phase 1–2 実装済み（#417 / #418）  
+> 状態: 仕様策定済み / 実装未着手  
 > Epic: [#416](https://github.com/DIO0550/plugin-manager/issues/416)  
 > 参照仕様: [`docs/concepts/targets.md`](../concepts/targets.md) の「OpenCode」セクション  
 > 参考 Epic: Cursor [#356](https://github.com/DIO0550/plugin-manager/issues/356)
