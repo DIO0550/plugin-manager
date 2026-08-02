@@ -16,6 +16,9 @@ fn test_default_config() {
     assert!(config.targets.contains(&TargetKind::Codex));
     assert!(config.targets.contains(&TargetKind::Copilot));
     assert!(config.targets.contains(&TargetKind::Cursor));
+    // OpenCode / GeminiCli は opt-in（`plm target add` で有効化）
+    assert!(!config.targets.contains(&TargetKind::OpenCode));
+    assert!(!config.targets.contains(&TargetKind::GeminiCli));
 }
 
 #[test]

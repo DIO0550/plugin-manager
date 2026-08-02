@@ -23,6 +23,38 @@ fn instruction_filename_per_target() {
         Some("GEMINI.md")
     );
     assert_eq!(TargetKind::Antigravity.instruction_filename(), None);
+    assert_eq!(
+        TargetKind::OpenCode.instruction_filename(),
+        Some("AGENTS.md")
+    );
+}
+
+#[test]
+fn opencode_bases() {
+    let home = Path::new("/home/u");
+    let root = Path::new("/proj");
+    assert_eq!(
+        TargetKind::OpenCode.personal_base(home),
+        home.join(".config").join("opencode")
+    );
+    assert_eq!(
+        TargetKind::OpenCode.project_base(root),
+        root.join(".opencode")
+    );
+}
+
+#[test]
+fn cleanup_specs_opencode() {
+    let home = Path::new("/home/u");
+    let root = Path::new("/proj");
+    let specs = TargetKind::OpenCode.cleanup_specs(Some(home), root);
+    let base = home.join(".config").join("opencode");
+    assert!(specs.contains(&(base.clone(), "skills")));
+    assert!(specs.contains(&(base.clone(), "agents")));
+    assert!(specs.contains(&(base, "commands")));
+    assert!(specs.contains(&(root.join(".opencode"), "skills")));
+    assert!(specs.contains(&(root.join(".opencode"), "agents")));
+    assert!(specs.contains(&(root.join(".opencode"), "commands")));
 }
 
 #[test]
