@@ -36,6 +36,13 @@ pub const ANTIGRAVITY_HOOKS_FILE: &str = "hooks.json";
 pub const GEMINI_SUBDIR: &str = ".gemini";
 pub const CURSOR_SUBDIR: &str = ".cursor";
 
+/// OpenCode の Personal 配置ルート（`~/.config/opencode`）。
+/// `$XDG_CONFIG_HOME` による上書き解決は OpenCodeTarget 実装（#418）で扱う。
+pub const OPENCODE_PERSONAL_PARENT: &str = ".config";
+pub const OPENCODE_PERSONAL_CHILD: &str = "opencode";
+/// OpenCode の Project 配置ルート
+pub const OPENCODE_PROJECT_SUBDIR: &str = ".opencode";
+
 /// Copilot Command の実配置ディレクトリ（表示用 `plural()` の `"commands"` とは異なる）。
 pub const COPILOT_COMMAND_SUBDIR: &str = "prompts";
 
