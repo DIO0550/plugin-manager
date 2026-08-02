@@ -123,6 +123,17 @@ Epic: [#356](https://github.com/DIO0550/plugin-manager/issues/356)（仕様: `do
 - [x] Hooks（hooks.json）変換・配置対応（[#361](https://github.com/DIO0550/plugin-manager/issues/361)）
 - [x] ドキュメント・整合性更新（[#362](https://github.com/DIO0550/plugin-manager/issues/362)）
 
+### Phase 17: OpenCode ターゲット対応 📋
+
+Epic: [#416](https://github.com/DIO0550/plugin-manager/issues/416)（仕様: `docs/concepts/targets.md` の「OpenCode」セクション / 計画: `docs/architecture/opencode-target-plan.md`）
+
+- [ ] `TargetKind` に OpenCode バリアントを追加（[#417](https://github.com/DIO0550/plugin-manager/issues/417)）
+- [ ] `OpenCodeTarget` 実装（Skills 配置・`original_name`）（[#418](https://github.com/DIO0550/plugin-manager/issues/418)）
+- [ ] Agents / Commands 配置対応（[#419](https://github.com/DIO0550/plugin-manager/issues/419)）
+- [ ] Instructions（Personal + Project）配置対応（[#420](https://github.com/DIO0550/plugin-manager/issues/420)）
+- [ ] ドキュメント・整合性更新（[#421](https://github.com/DIO0550/plugin-manager/issues/421)）
+- [ ] Hooks / Plugins は対象外（JS/TS Plugin モデルのため別 Epic）
+
 ## 将来の拡張
 
 ### リファクタ（ドメイン整合）
@@ -138,6 +149,7 @@ Epic: [#356](https://github.com/DIO0550/plugin-manager/issues/356)（仕様: `do
 
 | ターゲット | 説明 | 状態 |
 |------------|------|------|
+| OpenCode | `.opencode/` / `~/.config/opencode/` | 📋 仕様策定中（[#416](https://github.com/DIO0550/plugin-manager/issues/416)） |
 | Claude Code | .claude/ ディレクトリ | 計画中（[#96](https://github.com/DIO0550/plugin-manager/issues/96)）。**#338 完了後に着手推奨** |
 | Windsurf | Windsurf IDE | 調査対象 |
 | Aider | Aider CLI | 調査対象 |
@@ -198,6 +210,14 @@ impl GitRepo {
 - [Subagents | Cursor Docs](https://cursor.com/docs/agent/subagents)
 - [Rules / AGENTS.md | Cursor Docs](https://cursor.com/docs/context/rules)
 - [Hooks | Cursor Docs](https://cursor.com/docs/agent/hooks)
+
+### OpenCode
+
+- [Agent Skills | OpenCode](https://opencode.ai/docs/skills/)
+- [Agents | OpenCode](https://opencode.ai/docs/agents/)
+- [Commands | OpenCode](https://opencode.ai/docs/commands/)
+- [Rules / AGENTS.md | OpenCode](https://opencode.ai/docs/rules/)
+- [Plugins | OpenCode](https://opencode.ai/docs/plugins/)
 
 ### Google Antigravity
 

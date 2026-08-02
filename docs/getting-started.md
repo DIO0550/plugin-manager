@@ -40,6 +40,10 @@ $ plm target add gemini
 $ plm target add cursor
 ✅ Added target: cursor
    Supports: skills, agents, commands, instructions, hooks
+
+$ plm target add opencode
+✅ Added target: opencode
+   Supports: skills, agents, commands, instructions
 ```
 
 ターゲットの確認:
@@ -52,6 +56,7 @@ $ plm target list
    • copilot     (skills, agents, commands, instructions, hooks)
    • cursor      (skills, agents, commands, instructions, hooks)
    • gemini      (skills, instructions)
+   • opencode    (skills, agents, commands, instructions)
 ```
 
 ### 2. マーケットプレイスの登録（オプション）

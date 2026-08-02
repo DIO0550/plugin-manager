@@ -9,7 +9,7 @@ AIコーディングアシスタント（OpenAI Codex、VSCode Copilot、Google 
 
 ## 特徴
 
-- **マルチ環境対応**: OpenAI Codex、VSCode Copilot、Google Antigravity、Gemini CLIにプラグインを単一ツールでデプロイ
+- **マルチ環境対応**: OpenAI Codex、VSCode Copilot、Google Antigravity、Gemini CLI、Cursor、OpenCode（仕様策定中）にプラグインを単一ツールでデプロイ
 - **Claude Code Pluginインポート**: 既存のClaude Code Pluginsをインポートして他の環境で使用
 - **コンポーネントタイプ**: Skills、Agents、Prompts、Instructionsに対応
 - **マーケットプレイス連携**: マーケットプレイスからプラグインを検索・インストール
@@ -213,9 +213,11 @@ plm init my-plugin --type skill
 | OpenAI Codex | 対応 | - | - | 対応 |
 | VSCode Copilot | 対応 | 対応 | 対応 | 対応 |
 | Google Antigravity | 対応 | -\* | -\* | -\* |
-
-\* Antigravity 公式は Agents（`agent.md`）/ Workflows（スラッシュコマンド）/ Rules・`AGENTS.md`・`GEMINI.md` をサポート。PLM 実装は未着手（[#400](https://github.com/DIO0550/plugin-manager/issues/400)）。
 | Gemini CLI | 対応 | - | - | 対応 |
+| Cursor | 対応 | 対応 | 対応 | 対応 |
+| OpenCode | 仕様策定中 | 仕様策定中 | 仕様策定中 | 仕様策定中 |
+
+\* Antigravity 公式は Agents（`agent.md`）/ Workflows（スラッシュコマンド）/ Rules・`AGENTS.md`・`GEMINI.md` をサポート。PLM 実装は未着手（[#400](https://github.com/DIO0550/plugin-manager/issues/400)）。OpenCode の詳細は [`docs/concepts/targets.md`](docs/concepts/targets.md) を参照。
 
 ## 設定
 

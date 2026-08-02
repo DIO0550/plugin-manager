@@ -64,6 +64,16 @@ skills_project = ".gemini/skills"
 instructions_personal = "~/.gemini/GEMINI.md"
 instructions_project = "GEMINI.md"
 
+[targets.opencode]
+skills_personal = "~/.config/opencode/skills"
+skills_project = ".opencode/skills"
+agents_personal = "~/.config/opencode/agents"
+agents_project = ".opencode/agents"
+commands_personal = "~/.config/opencode/commands"
+commands_project = ".opencode/commands"
+instructions_personal = "~/.config/opencode/AGENTS.md"
+instructions_project = "AGENTS.md"
+
 [marketplaces]
 
 [marketplaces.anthropic]
@@ -183,6 +193,35 @@ skills_project = ".gemini/skills"
 instructions_personal = "~/.gemini/GEMINI.md"
 instructions_project = "GEMINI.md"
 ```
+
+### [targets.opencode]
+
+OpenCode ターゲットのパス設定（将来仕様。実装は `docs/concepts/targets.md` の OpenCode セクションに従う）。
+
+| キー | 型 | デフォルト |
+|------|-----|------------|
+| `skills_personal` | string | `"~/.config/opencode/skills"` |
+| `skills_project` | string | `".opencode/skills"` |
+| `agents_personal` | string | `"~/.config/opencode/agents"` |
+| `agents_project` | string | `".opencode/agents"` |
+| `commands_personal` | string | `"~/.config/opencode/commands"` |
+| `commands_project` | string | `".opencode/commands"` |
+| `instructions_personal` | string | `"~/.config/opencode/AGENTS.md"` |
+| `instructions_project` | string | `"AGENTS.md"` |
+
+```toml
+[targets.opencode]
+skills_personal = "~/.config/opencode/skills"
+skills_project = ".opencode/skills"
+agents_personal = "~/.config/opencode/agents"
+agents_project = ".opencode/agents"
+commands_personal = "~/.config/opencode/commands"
+commands_project = ".opencode/commands"
+instructions_personal = "~/.config/opencode/AGENTS.md"
+instructions_project = "AGENTS.md"
+```
+
+> 注: Personal ルートは `$XDG_CONFIG_HOME/opencode`（未設定時 `~/.config/opencode`）。Hooks は OpenCode Plugins（JS/TS）のため本セクションには含めない。
 
 ### [marketplaces]
 
