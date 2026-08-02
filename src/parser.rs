@@ -4,7 +4,7 @@ mod claude_code;
 mod codex;
 pub mod convert;
 mod copilot;
-mod frontmatter;
+pub mod frontmatter;
 
 pub use claude_code::{ClaudeCodeAgent, ClaudeCodeCommand};
 pub use convert::TargetType;

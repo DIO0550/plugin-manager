@@ -17,8 +17,8 @@ PLMのコマンド一覧と使い分けガイド。
 | [marketplace](./marketplace.md) | マーケットプレイスの管理 |
 | [managed](./managed.md) | TUI管理画面を起動 |
 | [sync](./sync.md) | 環境間のコンポーネント同期 |
-| [init](./init.md) | コンポーネントテンプレートの作成 ※未実装スタブ |
-| [pack](./pack.md) | コンポーネントのパッケージ化 ※未実装スタブ |
+| [init](./init.md) | コンポーネントテンプレートの作成 |
+| [pack](./pack.md) | コンポーネントのパッケージ化 |
 | [import](./import.md) | Claude Code Pluginからのインポート |
 | [link](./link.md) | シンボリックリンクの作成 |
 | [unlink](./link.md#plm-unlink) | シンボリックリンクの削除 |
@@ -79,10 +79,12 @@ plm list --target codex                 # ターゲット別
 plm list --type skill                   # 種別フィルタ
 plm info <plugin-name>                  # 詳細情報
 
-# コンポーネント作成・配布（未実装）
+# コンポーネント作成・配布
 plm init my-skill --type skill          # テンプレート作成
 plm init my-agent --type agent
-plm pack ./my-component                 # 配布用パッケージ作成
+plm init my-command --type command
+plm pack ./my-skill                     # 配布用パッケージ作成
+plm pack ./my-plugin
 
 # 環境間同期
 plm sync --from codex --to copilot      # コンポーネントをコピー

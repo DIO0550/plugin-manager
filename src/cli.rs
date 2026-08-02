@@ -142,15 +142,25 @@ OPTIONS:
     Update(update::Args),
 
     /// Generate templates
-    #[command(long_about = r#"Generate plugin templates for creating new plugins.
+    #[command(long_about = r#"Generate component templates for creating new plugins.
 
-Creates a new plugin skeleton with the specified component type.
+Creates a skill directory, agent file, or command file with starter frontmatter.
 
 OPTIONS:
-  --type  Component type to generate (skill, agent, prompt, instruction)"#)]
+  --type  Component type to generate (skill, agent, command)
+          Alias: prompt → command"#)]
     Init(init::Args),
 
     /// Create distribution package
+    #[command(
+        long_about = r#"Package a skill or plugin directory into a ZIP archive.
+
+Validates required files and frontmatter / plugin.json before packaging.
+Output is <name>.zip in the current directory.
+
+ARGUMENTS:
+  <PATH>  Skill directory (contains SKILL.md) or plugin directory (contains plugin.json)"#
+    )]
     Pack(pack::Args),
 
     /// Create a symbolic link
