@@ -4,7 +4,7 @@
 
 ## プロジェクト概要
 
-PLM (Plugin Manager CLI) は、複数のAI開発環境（OpenAI Codex、VSCode Copilot、Google Antigravity、Gemini CLI、Cursor、Claude Code）のプラグインを統合管理するRust製CLIツールです。Skills、Agents、Prompts、Instructionsのダウンロード、インストール、同期を行います。
+PLM (Plugin Manager CLI) は、複数のAI開発環境（OpenAI Codex、VSCode Copilot、Google Antigravity、Gemini CLI、Cursor、OpenCode、Claude Code）のプラグインを統合管理するRust製CLIツールです。Skills、Agents、Prompts、Instructionsのダウンロード、インストール、同期を行います。
 
 ## ビルドコマンド
 
@@ -103,8 +103,11 @@ cargo deny check
 | Google Antigravity | ○ | × | × | × | ○ |
 | Gemini CLI | ○ | × | × | ○ | × |
 | Cursor | ○ | ○ | ○ | ○* | ○ |
+| OpenCode | ○** | ○** | ○** | ○** | ×*** |
 
-> \*Cursor の Instructions は Project スコープ（`AGENTS.md`）のみ。Personal（User Rules）は対象外。
+> \*Cursor の Instructions は Project スコープ（`AGENTS.md`）のみ。Personal（User Rules）は対象外。  
+> \*\*OpenCode は仕様策定済み・実装未着手（Epic #416）。Skills は `original_name` 配置、Instructions は Personal + Project。  
+> \*\*\*OpenCode の拡張は JS/TS Plugin モデルのため Hook コンポーネント対象外。
 
 **Component** - コンポーネントタイプを抽象化（`ComponentKind` enum）：
 - Skills: YAMLフロントマター付き `SKILL.md`
@@ -113,7 +116,7 @@ cargo deny check
 - Instructions: `AGENTS.md` / `copilot-instructions.md` / `GEMINI.md`
 - Hooks: イベントハンドラ
 
-**スコープ** - Personal（`~/.codex/`, `~/.copilot/`, `~/.gemini/antigravity/`, `~/.gemini/skills/`, `~/.cursor/`）vs Project（`.codex/`, `.github/`, `.agent/`, `.gemini/skills/`, `.cursor/`）
+**スコープ** - Personal（`~/.codex/`, `~/.copilot/`, `~/.gemini/antigravity/`, `~/.gemini/skills/`, `~/.cursor/`, `~/.config/opencode/`）vs Project（`.codex/`, `.github/`, `.agent/`, `.gemini/skills/`, `.cursor/`, `.opencode/`）
 
 ## 主要依存関係
 - `clap` v4 - deriveマクロによるCLIパース

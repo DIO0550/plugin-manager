@@ -1,19 +1,19 @@
 # ファイルフォーマット仕様
 
-各AI開発環境（Claude Code、Copilot、Codex、Gemini CLI、Cursor）のコンポーネントファイル形式を定義します。
+各AI開発環境（Claude Code、Copilot、Codex、Gemini CLI、Cursor、OpenCode）のコンポーネントファイル形式を定義します。
 
 ## 概要
 
-PLMはClaude Code Pluginからコンポーネントをインポートし、Codex/Copilot/Gemini CLI/Cursorへ変換・配置します。
+PLMはClaude Code Pluginからコンポーネントをインポートし、Codex/Copilot/Gemini CLI/Cursor/OpenCodeへ変換・配置します。
 各環境でファイル形式が異なるため、変換が必要です。
 
 | コンポーネント | 形式の違い | 変換要否 |
 |---------------|-----------|---------|
 | Skills | 共通形式（SKILL.md） | 不要（Gemini CLIは frontmatter 削減あり） |
-| Agents | 環境ごとに差異あり | **必要**（Cursorは内容無変換・拡張子のみ） |
-| Commands/Prompts | 環境ごとに異なる | **必要**（Cursorは内容無変換・拡張子のみ） |
+| Agents | 環境ごとに差異あり | **必要**（Cursor / OpenCode は内容無変換・拡張子のみ） |
+| Commands/Prompts | 環境ごとに異なる | **必要**（Cursor / OpenCode は内容無変換・拡張子のみ） |
 | Instructions | 共通形式（AGENTS.md） | 不要 |
-| Hooks | 環境ごとに差異あり | **必要**（Cursor含む） |
+| Hooks | 環境ごとに差異あり | **必要**（Cursor含む。OpenCode は初回対象外） |
 
 ---
 
@@ -344,6 +344,45 @@ Personal（User Rules）はアプリ設定画面管理のため PLM 対象外。
 
 ---
 
+## OpenCode
+
+OpenCode は Skills / Agents / Commands / AGENTS.md をファイルベースでサポートする。PLM はネイティブパス（`.opencode/` / `~/.config/opencode/`）へ配置する。Hooks 相当は JS/TS Plugin のため初回対象外。
+
+詳細な配置方針は [concepts/targets.md の OpenCode セクション](../concepts/targets.md#opencode) を参照。
+
+### Skills
+
+**パス:** `~/.config/opencode/skills/<original_name>/SKILL.md` / `.opencode/skills/<original_name>/SKILL.md`
+
+Claude Code / Codex と同じ `SKILL.md`（YAML frontmatter + Markdown）。内容変換は不要。  
+発見パターンは `skills/*/SKILL.md`（1 階層）のため、**`original_name` フラット配置**が必須。`name` は親ディレクトリ名と一致し、`^[a-z0-9]+(-[a-z0-9]+)*$` を満たすこと。
+
+### Agents
+
+**パス:** `~/.config/opencode/agents/<flattened_name>.md` / `.opencode/agents/<flattened_name>.md`
+
+プレーン Markdown（YAML frontmatter 可）。PLM 内部の `.agent.md` サフィックスは OpenCode ではファイル名がエージェント名になるため、配置時に `.md` へリネームする（内容は無変換。OpenCode 固有の `mode` / `permission` は v1 で自動付与しない）。
+
+### Commands
+
+**パス:** `~/.config/opencode/commands/<flattened_name>.md` / `.opencode/commands/<flattened_name>.md`
+
+プレーン Markdown。`.prompt.md` は `.md` へリネーム（内容無変換）。本文の `$ARGUMENTS` / `$1` は OpenCode ネイティブ互換。
+
+### Instructions (AGENTS.md)
+
+**パス:**
+- Personal: `~/.config/opencode/AGENTS.md`
+- Project: プロジェクトルートの `AGENTS.md`
+
+Cursor と異なり Personal もファイルベースでサポートする。Project `AGENTS.md` は Codex / Cursor と同一ファイルを共有しうる。
+
+### Hooks / Plugins
+
+**対象外（v1）**。OpenCode は `.opencode/plugins/*.ts` の JS/TS モジュールでライフサイクルフックを提供する。JSON Hooks 変換パイプラインとは別モデルのため、別 Epic で扱う。
+
+---
+
 ## 変換マッピング
 
 Claude Code形式から各環境への変換時のフィールド割り当てを定義します。
@@ -599,8 +638,11 @@ plugins/spec-plugin/
 | Antigravity | `~/.gemini/antigravity/plugins/spec-plugin/references/...` | `.agent/plugins/spec-plugin/references/...` |
 | Gemini CLI | `~/.gemini/plugins/spec-plugin/references/...` | `.gemini/plugins/spec-plugin/references/...` |
 | Cursor | `~/.cursor/plugins/spec-plugin/references/...` | `.cursor/plugins/spec-plugin/references/...` |
+| OpenCode | `~/.config/opencode/plugins/spec-plugin/references/...`※ | `.opencode/plugins/spec-plugin/references/...`※ |
 
-コンポーネントはフラット配置のまま。プラグインリソースだけが `plugins/<plugin_name>/` に構造維持で置かれる。Skill 無しでもリソースがあれば同ルートへ配置する。配置はステージング後 `replace_dir` でプラグイン単位ルートを置換する。命名衝突ルールは不要。Claude Code（#96）はターゲット追加後に同写像で追随。
+※ OpenCode ネイティブの `plugins/` は JS/TS 拡張モジュール用ディレクトリでもある。PLM の「プラグインリソース」配置パスと同名衝突しうるため、実装時は `plugins/<plugin_name>/` 以外のプレフィックス（例: `plm-plugins/`）またはサブディレクトリ方針を Epic で確定する。
+
+コンポーネントはフラット配置のまま。プラグインリソースだけが `plugins/<plugin_name>/` に構造維持で置かれる。Skill 無しでもリソースがあれば同ルートへ配置する。配置はステージング後 `replace_dir` でプラグイン単位ルートを置換する。命名衝突ルールは不要。Claude Code（#96）および OpenCode はターゲット追加後に同写像で追随（OpenCode は上記衝突に注意）。
 
 ### ライフサイクル
 
@@ -673,6 +715,13 @@ plugins/spec-plugin/
 - [Subagents](https://cursor.com/docs/agent/subagents)
 - [Rules / AGENTS.md](https://cursor.com/docs/context/rules)
 - [Hooks](https://cursor.com/docs/agent/hooks)
+
+### OpenCode
+- [Agent Skills](https://opencode.ai/docs/skills/)
+- [Agents](https://opencode.ai/docs/agents/)
+- [Commands](https://opencode.ai/docs/commands/)
+- [Rules / AGENTS.md](https://opencode.ai/docs/rules/)
+- [Plugins](https://opencode.ai/docs/plugins/)
 
 ---
 

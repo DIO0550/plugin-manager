@@ -22,6 +22,7 @@ $ plm target list
    • copilot     (skills, agents, commands, instructions, hooks)
    • cursor      (skills, agents, commands, instructions, hooks)
    • gemini      (skills, instructions)
+   • opencode    (skills, agents, commands, instructions)
 ```
 
 ## plm target add
@@ -56,6 +57,10 @@ $ plm target add gemini
 $ plm target add cursor
 ✅ Added target: cursor
    Supports: skills, agents, commands, instructions, hooks
+
+$ plm target add opencode
+✅ Added target: opencode
+   Supports: skills, agents, commands, instructions
 ```
 
 ### 利用可能なターゲット
@@ -67,6 +72,7 @@ $ plm target add cursor
 | `copilot` | Skills, Agents, Commands, Instructions, Hooks |
 | `cursor` | Skills, Agents, Commands, Instructions, Hooks |
 | `gemini` | Skills, Instructions |
+| `opencode` | Skills, Agents, Commands, Instructions（実装予定） |
 
 ## plm target remove
 

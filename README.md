@@ -3,13 +3,13 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/rust-2021-orange.svg)](https://www.rust-lang.org/)
 
-A unified CLI tool for managing plugins across AI coding assistants (OpenAI Codex, VSCode Copilot, Google Antigravity, Gemini CLI). Import Claude Code Plugins and deploy them to other environments. Download, install, and sync Skills, Agents, Prompts, and Instructions seamlessly.
+A unified CLI tool for managing plugins across AI coding assistants (OpenAI Codex, VSCode Copilot, Google Antigravity, Gemini CLI, Cursor, OpenCode). Import Claude Code Plugins and deploy them to other environments. Download, install, and sync Skills, Agents, Prompts, and Instructions seamlessly.
 
 [日本語版 README](README.ja.md)
 
 ## Features
 
-- **Multi-Environment Support**: Deploy plugins to OpenAI Codex, VSCode Copilot, Google Antigravity, and Gemini CLI from a single tool
+- **Multi-Environment Support**: Deploy plugins to OpenAI Codex, VSCode Copilot, Google Antigravity, Gemini CLI, Cursor, and OpenCode (spec in progress) from a single tool
 - **Claude Code Plugin Import**: Import existing Claude Code Plugins and use them in other environments
 - **Component Types**: Handle Skills, Agents, Prompts, and Instructions
 - **Marketplace Integration**: Browse and install plugins from marketplaces
@@ -236,9 +236,11 @@ plm init my-plugin --type skill
 | OpenAI Codex | Yes | - | - | Yes |
 | VSCode Copilot | Yes | Yes | Yes | Yes |
 | Google Antigravity | Yes | -* | -* | -* |
-
-\* Antigravity officially supports Agents (`agent.md`), Workflows (slash commands), and Rules / `AGENTS.md` / `GEMINI.md`. PLM support is not implemented yet ([#400](https://github.com/DIO0550/plugin-manager/issues/400)).
 | Gemini CLI | Yes | - | - | Yes |
+| Cursor | Yes | Yes | Yes | Yes |
+| OpenCode | Spec in progress | Spec in progress | Spec in progress | Spec in progress |
+
+\* Antigravity officially supports Agents (`agent.md`), Workflows (slash commands), and Rules / `AGENTS.md` / `GEMINI.md`. PLM support is not implemented yet ([#400](https://github.com/DIO0550/plugin-manager/issues/400)). OpenCode details: [`docs/concepts/targets.md`](docs/concepts/targets.md) / Epic [#416](https://github.com/DIO0550/plugin-manager/issues/416).
 
 ## Configuration
 

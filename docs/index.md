@@ -22,7 +22,7 @@ GitHubからAI開発環境向けのプラグインをダウンロードし、複
 
 | 機能 | 説明 |
 |------|------|
-| マルチターゲット対応 | OpenAI Codex、VSCode Copilot、Google Antigravity、Gemini CLI、Cursorに対応 |
+| マルチターゲット対応 | OpenAI Codex、VSCode Copilot、Google Antigravity、Gemini CLI、Cursor、OpenCode（仕様策定中）に対応 |
 | 統一管理 | 複数環境のプラグインを一元管理 |
 | 自動展開 | コンポーネント種別に応じて適切な場所へ配置 |
 | マーケットプレイス | GitHubリポジトリをマーケットプレイスとして登録 |
@@ -69,6 +69,14 @@ GitHubからAI開発環境向けのプラグインをダウンロードし、複
 - [Subagents](https://cursor.com/docs/agent/subagents)
 - [Rules / AGENTS.md](https://cursor.com/docs/context/rules)
 - [Hooks](https://cursor.com/docs/agent/hooks)
+
+### OpenCode
+
+- [Agent Skills](https://opencode.ai/docs/skills/)
+- [Agents](https://opencode.ai/docs/agents/)
+- [Commands](https://opencode.ai/docs/commands/)
+- [Rules / AGENTS.md](https://opencode.ai/docs/rules/)
+- [Plugins](https://opencode.ai/docs/plugins/)
 
 ### Claude Code
 
