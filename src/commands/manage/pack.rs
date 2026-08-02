@@ -52,8 +52,9 @@ pub async fn run(args: Args) -> Result<(), String> {
 }
 
 /// パッケージ化対象の種別。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PackKind {
-    Plugin(PluginManifest),
+    Plugin,
     Skill,
 }
 
@@ -72,8 +73,17 @@ pub(crate) fn pack_path(source: &Path, output_dir: &Path) -> Result<PathBuf, Str
     }
 
     let kind = detect_pack_kind(source)?;
-    validate_pack(source, &kind)?;
-    let package_name = resolve_package_name(source, &kind)?;
+    let package_name = match kind {
+        PackKind::Plugin => {
+            let manifest = load_plugin_manifest(source)?;
+            validate_plugin(source, &manifest)?;
+            manifest.name
+        }
+        PackKind::Skill => {
+            validate_skill_file(&source.join("SKILL.md"))?;
+            resolve_skill_dir_name(source)?
+        }
+    };
 
     let zip_path = output_dir.join(format!("{package_name}.zip"));
     if zip_path.exists() {
@@ -86,7 +96,7 @@ pub(crate) fn pack_path(source: &Path, output_dir: &Path) -> Result<PathBuf, Str
 
 fn detect_pack_kind(source: &Path) -> Result<PackKind, String> {
     if has_manifest(source) {
-        Ok(PackKind::Plugin(load_plugin_manifest(source)?))
+        Ok(PackKind::Plugin)
     } else if source.join("SKILL.md").is_file() {
         Ok(PackKind::Skill)
     } else {
@@ -103,22 +113,12 @@ fn load_plugin_manifest(source: &Path) -> Result<PluginManifest, String> {
     PluginManifest::load(&manifest_path).map_err(|e| e.to_string())
 }
 
-fn validate_pack(source: &Path, kind: &PackKind) -> Result<(), String> {
-    match kind {
-        PackKind::Plugin(manifest) => validate_plugin(source, manifest),
-        PackKind::Skill => validate_skill_file(&source.join("SKILL.md")),
-    }
-}
-
-fn resolve_package_name(source: &Path, kind: &PackKind) -> Result<String, String> {
-    match kind {
-        PackKind::Plugin(manifest) => Ok(manifest.name.clone()),
-        PackKind::Skill => source
-            .file_name()
-            .and_then(|s| s.to_str())
-            .map(|s| s.to_string())
-            .ok_or_else(|| "Could not determine skill directory name".to_string()),
-    }
+fn resolve_skill_dir_name(source: &Path) -> Result<String, String> {
+    source
+        .file_name()
+        .and_then(|s| s.to_str())
+        .map(|s| s.to_string())
+        .ok_or_else(|| "Could not determine skill directory name".to_string())
 }
 
 fn validate_plugin(source: &Path, manifest: &PluginManifest) -> Result<(), String> {
