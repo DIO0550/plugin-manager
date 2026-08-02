@@ -515,6 +515,16 @@ pub fn record_cursor_skill_ownership(plugin_path: &Path, skill_path: &Path) {
     record_managed_file_ownership(plugin_path, skill_path, "cursor");
 }
 
+/// OpenCode Skill 配置成功時の所有権記録。
+///
+/// # Arguments
+///
+/// * `plugin_path` - Filesystem path of the cached plugin (`.plm-meta.json` のディレクトリ).
+/// * `skill_path` - 実際に書き込んだ Skill ディレクトリの絶対パス.
+pub fn record_opencode_skill_ownership(plugin_path: &Path, skill_path: &Path) {
+    record_managed_file_ownership(plugin_path, skill_path, "opencode");
+}
+
 /// Codex Hook 配置成功時の所有権記録（後方互換ラッパー）。
 ///
 /// # Arguments
