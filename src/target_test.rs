@@ -63,6 +63,40 @@ fn test_target_kind_cursor_as_str_and_formats() {
 }
 
 #[test]
+fn test_target_kind_opencode_as_str_and_formats() {
+    assert_eq!(TargetKind::OpenCode.as_str(), "opencode");
+    assert_eq!(
+        TargetKind::OpenCode.command_format(),
+        crate::component::CommandFormat::ClaudeCode
+    );
+    assert_eq!(
+        TargetKind::OpenCode.agent_format(),
+        crate::component::AgentFormat::ClaudeCode
+    );
+}
+
+#[test]
+fn test_target_kind_opencode_serde_roundtrip() {
+    let json = serde_json::to_string(&TargetKind::OpenCode).unwrap();
+    assert_eq!(json, "\"opencode\"");
+    let parsed: TargetKind = serde_json::from_str("\"opencode\"").unwrap();
+    assert_eq!(parsed, TargetKind::OpenCode);
+}
+
+#[test]
+fn test_target_kind_opencode_value_enum_name() {
+    // clap 既定の kebab-case（"open-code"）ではなく "opencode" を受理する
+    let parsed = <TargetKind as ValueEnum>::from_str("opencode", false).unwrap();
+    assert_eq!(parsed, TargetKind::OpenCode);
+}
+
+#[test]
+fn test_parse_target_opencode_not_registered_yet() {
+    // OpenCodeTarget は #418 で実装・登録する。Phase 1 では未登録のためエラー。
+    assert!(parse_target("opencode").is_err());
+}
+
+#[test]
 fn test_name_is_derived_from_kind() {
     // `Target::name()` は `kind().as_str()` から導出される単一の真実源。
     // 各ターゲットで両者が一致することを保証し、識別子表現のドリフトを防ぐ。
