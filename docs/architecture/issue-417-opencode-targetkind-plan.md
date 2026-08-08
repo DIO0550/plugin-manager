@@ -1,6 +1,6 @@
 # Issue #417 実装計画 — TargetKind に OpenCode バリアントを追加
 
-> 状態: 実装中  
+> 状態: 実装済み  
 > Issue: [#417](https://github.com/DIO0550/plugin-manager/issues/417)  
 > Epic: [#416](https://github.com/DIO0550/plugin-manager/issues/416) Phase 1  
 > 親計画: [`opencode-target-plan.md`](./opencode-target-plan.md)
