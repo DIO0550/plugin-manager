@@ -131,6 +131,7 @@ fn target_display_name(target_kind: TargetKind) -> &'static str {
         TargetKind::Antigravity => "Antigravity",
         TargetKind::Cursor => "Cursor",
         TargetKind::GeminiCli => "Gemini CLI",
+        TargetKind::OpenCode => "OpenCode",
     }
 }
 

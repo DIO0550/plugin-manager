@@ -159,6 +159,9 @@ pub enum TargetKind {
     #[value(name = "gemini")]
     #[serde(rename = "gemini")]
     GeminiCli,
+    // clap の ValueEnum は既定で kebab-case（"open-code"）になるため明示する
+    #[value(name = "opencode")]
+    OpenCode,
 }
 
 impl TargetKind {
@@ -170,6 +173,7 @@ impl TargetKind {
             TargetKind::Copilot => "copilot",
             TargetKind::Cursor => "cursor",
             TargetKind::GeminiCli => "gemini",
+            TargetKind::OpenCode => "opencode",
         }
     }
 
@@ -184,6 +188,8 @@ impl TargetKind {
             // Cursor は Claude Code 互換の Command 形式（#359 で配置対応）
             TargetKind::Cursor => CommandFormat::ClaudeCode,
             TargetKind::GeminiCli => CommandFormat::ClaudeCode, // Gemini CLI は Command 非サポート
+            // OpenCode は Claude Code 互換の Command 形式（Epic #416）
+            TargetKind::OpenCode => CommandFormat::ClaudeCode,
         }
     }
 
@@ -198,6 +204,8 @@ impl TargetKind {
             // Cursor は Claude Code 互換の Agent 形式（#359 で配置対応）
             TargetKind::Cursor => AgentFormat::ClaudeCode,
             TargetKind::GeminiCli => AgentFormat::ClaudeCode, // Gemini CLI は Agent 非サポート
+            // OpenCode は Claude Code 互換の Agent 形式（Epic #416）
+            TargetKind::OpenCode => AgentFormat::ClaudeCode,
         }
     }
 }
