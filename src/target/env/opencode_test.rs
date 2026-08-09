@@ -1,4 +1,4 @@
-//! OpenCodeTarget unit tests（#418 Skills / #419 Agents·Commands / #420 Instructions）
+//! OpenCodeTarget unit tests（Skills / Agents / Commands / Instructions）
 
 use super::*;
 use crate::component::{ComponentRef, PlacementScope, ProjectContext};

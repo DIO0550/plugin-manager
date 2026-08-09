@@ -1,4 +1,4 @@
-//! OpenCode ターゲット実装（Skills — #418 / Agents·Commands — #419 / Instructions — #420）
+//! OpenCode ターゲット実装（Skills / Agents / Commands / Instructions）
 //!
 //! Hooks は JS/TS Plugin モデルのため対象外。
 
@@ -129,7 +129,7 @@ impl Target for OpenCodeTarget {
         let name = context.name();
         match kind {
             // OpenCode は frontmatter `name` と親フォルダ名の一致を要求するため、
-            // Skill は original_name で配置する（Cursor #377 と同型）。
+            // Skill は original_name で配置する（Cursor と同型）。
             ComponentKind::Skill => {
                 let dir_name = context.original_name().filter(|n| !n.is_empty())?;
                 Some(skill_dir(&base, dir_name))
