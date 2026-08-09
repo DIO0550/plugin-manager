@@ -1,6 +1,6 @@
 # Issue #419 — OpenCode Agents / Commands 配置 実装計画
 
-> 状態: 実装中  
+> 状態: 実装完了（PR 提出済み）  
 > Issue: [#419](https://github.com/DIO0550/plugin-manager/issues/419)  
 > Epic: [#416](https://github.com/DIO0550/plugin-manager/issues/416)  
 > blocked_by: [#418](https://github.com/DIO0550/plugin-manager/issues/418)（完了）  
@@ -17,7 +17,7 @@
 | `TargetKind::OpenCode`（#417） | ✅ |
 | Skills `original_name` 配置（#418） | ✅ |
 | Instructions Personal + Project（#420） | ✅ |
-| Agents / Commands（#419） | ❌（本 Issue） |
+| Agents / Commands（#419） | ✅（本 Issue） |
 | Docs 整合（#421） | ❌（別 Issue） |
 
 現行 `OpenCodeTarget` の `SUPPORTED` / `CAPABILITIES` は Skill + Instruction のみ。`placement_location` の Agent / Command アームは `_ => None`。
@@ -77,8 +77,8 @@ Cursor Target（#356 系）と同型パターンを再利用する。
 
 ## 受け入れ条件
 
-- [ ] `OpenCodeTarget::supported_components` に Agent / Command が含まれる
-- [ ] Personal / Project で flatten 名の `.md` 配置パスが返る
-- [ ] `list_placed` が agents / commands 配下のプレーン `.md` を返す
-- [ ] 単体テストがパスする
-- [ ] Hook は引き続き非サポート
+- [x] `OpenCodeTarget::supported_components` に Agent / Command が含まれる
+- [x] Personal / Project で flatten 名の `.md` 配置パスが返る
+- [x] `list_placed` が agents / commands 配下のプレーン `.md` を返す
+- [x] 単体テストがパスする（`cargo test target::env::opencode::tests` → 32/32）
+- [x] Hook は引き続き非サポート

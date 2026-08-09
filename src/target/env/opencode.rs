@@ -135,9 +135,12 @@ impl Target for OpenCodeTarget {
                 Some(skill_dir(&base, dir_name))
             }
             // Agents / Commands は flatten 名のプレーン `.md`（内容無変換・拡張子のみ）。
-            ComponentKind::Agent => {
-                Some(named_file(&base, ComponentKind::Agent.plural(), name, ".md"))
-            }
+            ComponentKind::Agent => Some(named_file(
+                &base,
+                ComponentKind::Agent.plural(),
+                name,
+                ".md",
+            )),
             ComponentKind::Command => Some(named_file(
                 &base,
                 ComponentKind::Command.plural(),
