@@ -14,7 +14,9 @@ impl TargetKind {
     /// Instruction ファイル名。非サポートターゲットは `None`。
     pub fn instruction_filename(self) -> Option<&'static str> {
         match self {
-            TargetKind::Codex | TargetKind::Cursor => Some(INSTRUCTION_AGENTS),
+            TargetKind::Codex | TargetKind::Cursor | TargetKind::OpenCode => {
+                Some(INSTRUCTION_AGENTS)
+            }
             TargetKind::Copilot => Some(INSTRUCTION_COPILOT),
             TargetKind::GeminiCli => Some(INSTRUCTION_GEMINI),
             TargetKind::Antigravity => None,
@@ -41,6 +43,9 @@ impl TargetKind {
                 .join(placement_names::ANTIGRAVITY_PERSONAL_CHILD),
             TargetKind::GeminiCli => home.join(placement_names::GEMINI_SUBDIR),
             TargetKind::Cursor => home.join(placement_names::CURSOR_SUBDIR),
+            TargetKind::OpenCode => home
+                .join(placement_names::OPENCODE_PERSONAL_PARENT)
+                .join(placement_names::OPENCODE_PERSONAL_CHILD),
         }
     }
 
@@ -52,6 +57,7 @@ impl TargetKind {
             TargetKind::Antigravity => project_root.join(ANTIGRAVITY_PROJECT_SUBDIR),
             TargetKind::GeminiCli => project_root.join(placement_names::GEMINI_SUBDIR),
             TargetKind::Cursor => project_root.join(placement_names::CURSOR_SUBDIR),
+            TargetKind::OpenCode => project_root.join(placement_names::OPENCODE_PROJECT_SUBDIR),
         }
     }
 
@@ -89,7 +95,8 @@ impl TargetKind {
                 ComponentKind::Hook,
             ],
             (TargetKind::Antigravity, _) | (TargetKind::GeminiCli, _) => &[ComponentKind::Skill],
-            (TargetKind::Cursor, _) => &[
+            // OpenCode は Cursor と同型（Hooks 非対応）
+            (TargetKind::Cursor, _) | (TargetKind::OpenCode, _) => &[
                 ComponentKind::Skill,
                 ComponentKind::Agent,
                 ComponentKind::Command,
@@ -110,6 +117,7 @@ pub fn assert_instruction_filenames_consistent() {
         TargetKind::Copilot,
         TargetKind::Cursor,
         TargetKind::GeminiCli,
+        TargetKind::OpenCode,
     ]
     .into_iter()
     .filter_map(TargetKind::instruction_filename)

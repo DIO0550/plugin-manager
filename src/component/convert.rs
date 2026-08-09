@@ -294,7 +294,11 @@ pub fn skill_allowed_fields(target: TargetKind) -> Option<&'static [&'static str
         TargetKind::Codex => Some(&["name", "description", "metadata"]),
         TargetKind::GeminiCli => Some(&["name", "description"]),
         // Cursor は paths / disable-model-invocation / metadata も許容するため除去しない
-        TargetKind::Antigravity | TargetKind::Copilot | TargetKind::Cursor => None,
+        // OpenCode は Claude Code 互換のため除去しない（詳細方針は #418 で確定）
+        TargetKind::Antigravity
+        | TargetKind::Copilot
+        | TargetKind::Cursor
+        | TargetKind::OpenCode => None,
     }
 }
 
