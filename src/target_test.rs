@@ -27,12 +27,13 @@ fn test_parse_target_antigravity() {
 #[test]
 fn test_all_targets() {
     let targets = all_targets();
-    assert_eq!(targets.len(), 5);
+    assert_eq!(targets.len(), 6);
     assert!(targets.iter().any(|t| t.name() == "antigravity"));
     assert!(targets.iter().any(|t| t.name() == "codex"));
     assert!(targets.iter().any(|t| t.name() == "copilot"));
     assert!(targets.iter().any(|t| t.name() == "cursor"));
     assert!(targets.iter().any(|t| t.name() == "gemini"));
+    assert!(targets.iter().any(|t| t.name() == "opencode"));
 }
 
 #[test]
@@ -91,9 +92,11 @@ fn test_target_kind_opencode_value_enum_name() {
 }
 
 #[test]
-fn test_parse_target_opencode_not_registered_yet() {
-    // OpenCodeTarget は #418 で実装・登録する。Phase 1 では未登録のためエラー。
-    assert!(parse_target("opencode").is_err());
+fn test_parse_target_opencode() {
+    let target = parse_target("opencode").unwrap();
+    assert_eq!(target.name(), "opencode");
+    assert_eq!(target.display_name(), "OpenCode");
+    assert_eq!(target.kind(), TargetKind::OpenCode);
 }
 
 #[test]

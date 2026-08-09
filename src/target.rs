@@ -29,7 +29,7 @@ pub use core::{AddOutcome, RemoveOutcome, TargetRegistry};
 pub use effect::{AffectedTargets, OperationOutcome};
 pub use env::{
     AntigravityTarget, CodexTarget, CopilotTarget, CursorTarget, FeatureFlagOutcome,
-    GeminiCliTarget,
+    GeminiCliTarget, OpenCodeTarget,
 };
 pub use placed::scanner;
 pub(crate) use placed::{filter, list_all_placed, list_helpers, placement_helpers, scope_support};
@@ -372,7 +372,7 @@ pub trait Target: Send + Sync {
 ///
 /// # Arguments
 ///
-/// * `name` - Target name (`"antigravity"`, `"codex"`, `"copilot"`, `"cursor"`, or `"gemini"`).
+/// * `name` - Target name (`"antigravity"`, `"codex"`, `"copilot"`, `"cursor"`, `"gemini"`, or `"opencode"`).
 pub fn parse_target(name: &str) -> Result<Box<dyn Target>> {
     match name {
         "antigravity" => Ok(Box::new(AntigravityTarget::new())),
@@ -380,6 +380,7 @@ pub fn parse_target(name: &str) -> Result<Box<dyn Target>> {
         "copilot" => Ok(Box::new(CopilotTarget::new())),
         "cursor" => Ok(Box::new(CursorTarget::new())),
         "gemini" => Ok(Box::new(GeminiCliTarget::new())),
+        "opencode" => Ok(Box::new(OpenCodeTarget::new())),
         _ => Err(PlmError::TargetNotFound(name.to_string())),
     }
 }
@@ -392,6 +393,7 @@ pub fn all_targets() -> Vec<Box<dyn Target>> {
         Box::new(CopilotTarget::new()),
         Box::new(CursorTarget::new()),
         Box::new(GeminiCliTarget::new()),
+        Box::new(OpenCodeTarget::new()),
     ]
 }
 

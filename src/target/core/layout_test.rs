@@ -31,6 +31,15 @@ fn instruction_filename_per_target() {
 
 #[test]
 fn opencode_bases() {
+    use std::sync::{Mutex, OnceLock};
+    fn env_lock() -> &'static Mutex<()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+    }
+    let _lock = env_lock().lock().unwrap();
+    let prev_xdg = std::env::var_os("XDG_CONFIG_HOME");
+    std::env::remove_var("XDG_CONFIG_HOME");
+
     let home = Path::new("/home/u");
     let root = Path::new("/proj");
     assert_eq!(
@@ -41,10 +50,30 @@ fn opencode_bases() {
         TargetKind::OpenCode.project_base(root),
         root.join(".opencode")
     );
+
+    std::env::set_var("XDG_CONFIG_HOME", "/xdg/config");
+    assert_eq!(
+        TargetKind::OpenCode.personal_base(home),
+        Path::new("/xdg/config/opencode")
+    );
+
+    match prev_xdg {
+        Some(v) => std::env::set_var("XDG_CONFIG_HOME", v),
+        None => std::env::remove_var("XDG_CONFIG_HOME"),
+    }
 }
 
 #[test]
 fn cleanup_specs_opencode() {
+    use std::sync::{Mutex, OnceLock};
+    fn env_lock() -> &'static Mutex<()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+    }
+    let _lock = env_lock().lock().unwrap();
+    let prev_xdg = std::env::var_os("XDG_CONFIG_HOME");
+    std::env::remove_var("XDG_CONFIG_HOME");
+
     let home = Path::new("/home/u");
     let root = Path::new("/proj");
     let specs = TargetKind::OpenCode.cleanup_specs(Some(home), root);
@@ -55,6 +84,11 @@ fn cleanup_specs_opencode() {
     assert!(specs.contains(&(root.join(".opencode"), "skills")));
     assert!(specs.contains(&(root.join(".opencode"), "agents")));
     assert!(specs.contains(&(root.join(".opencode"), "commands")));
+
+    match prev_xdg {
+        Some(v) => std::env::set_var("XDG_CONFIG_HOME", v),
+        None => std::env::remove_var("XDG_CONFIG_HOME"),
+    }
 }
 
 #[test]
