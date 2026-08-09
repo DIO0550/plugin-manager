@@ -43,9 +43,8 @@ impl TargetKind {
                 .join(placement_names::ANTIGRAVITY_PERSONAL_CHILD),
             TargetKind::GeminiCli => home.join(placement_names::GEMINI_SUBDIR),
             TargetKind::Cursor => home.join(placement_names::CURSOR_SUBDIR),
-            TargetKind::OpenCode => home
-                .join(placement_names::OPENCODE_PERSONAL_PARENT)
-                .join(placement_names::OPENCODE_PERSONAL_CHILD),
+            // XDG_CONFIG_HOME を尊重（#418）
+            TargetKind::OpenCode => crate::target::env::personal_root_from_env(home),
         }
     }
 
