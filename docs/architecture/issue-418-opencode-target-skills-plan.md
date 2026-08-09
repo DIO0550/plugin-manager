@@ -1,6 +1,6 @@
 # Issue #418: OpenCodeTarget を実装する（Skills 配置）— 実装計画
 
-> 状態: 実装計画  
+> 状態: 実装済み（PR [#426](https://github.com/DIO0550/plugin-manager/pull/426)）  
 > Issue: [#418](https://github.com/DIO0550/plugin-manager/issues/418)  
 > Epic: [#416](https://github.com/DIO0550/plugin-manager/issues/416) Phase 2  
 > blocked_by: [#417](https://github.com/DIO0550/plugin-manager/issues/417)（main マージ済み: [#425](https://github.com/DIO0550/plugin-manager/pull/425)）  
