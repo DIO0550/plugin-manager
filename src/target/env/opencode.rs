@@ -1,26 +1,29 @@
-//! OpenCode ターゲット実装（Skills 配置 — Phase 2 / #418）
+//! OpenCode ターゲット実装（Skills — #418 / Instructions — #420）
 //!
-//! Agents / Commands / Instructions は後続 Issue（#419 / #420）で追加する。
+//! Agents / Commands は後続 Issue（#419）で追加する。
 //! Hooks は JS/TS Plugin モデルのため対象外。
 
 use crate::component::{ComponentKind, PlacementContext, PlacementLocation, Scope};
 use crate::env::EnvVar;
 use crate::error::Result;
 use crate::placement_names::{
-    OPENCODE_PERSONAL_CHILD, OPENCODE_PERSONAL_PARENT, OPENCODE_PROJECT_SUBDIR,
+    INSTRUCTION_AGENTS, OPENCODE_PERSONAL_CHILD, OPENCODE_PERSONAL_PARENT, OPENCODE_PROJECT_SUBDIR,
 };
 use crate::target::filter::filter_skill_dir;
-use crate::target::list_helpers::scan_and_filter;
+use crate::target::list_helpers::{list_instruction_at, scan_and_filter};
 use crate::target::paths::home_dir;
-use crate::target::placement_helpers::skill_dir;
+use crate::target::placement_helpers::{instruction_file, skill_dir};
 use crate::target::scope_support::{allows_scope, ScopeSupport};
 use crate::target::{PostPlaceOutcome, Target, TargetKind};
 use std::path::{Path, PathBuf};
 
-const SUPPORTED: &[ComponentKind] = &[ComponentKind::Skill];
+const SUPPORTED: &[ComponentKind] = &[ComponentKind::Skill, ComponentKind::Instruction];
 
-const CAPABILITIES: &[(ComponentKind, ScopeSupport)] =
-    &[(ComponentKind::Skill, ScopeSupport::Both)];
+const CAPABILITIES: &[(ComponentKind, ScopeSupport)] = &[
+    (ComponentKind::Skill, ScopeSupport::Both),
+    // Cursor と異なり Personal もサポートする。
+    (ComponentKind::Instruction, ScopeSupport::Both),
+];
 
 /// OpenCode ターゲット
 pub struct OpenCodeTarget;
@@ -40,6 +43,18 @@ impl OpenCodeTarget {
             Scope::Personal => Self::personal_root(),
             Scope::Project => project_root.join(OPENCODE_PROJECT_SUBDIR),
         }
+    }
+
+    /// Instruction パス（Project はルートの `AGENTS.md`、Personal は config 直下）。
+    fn instruction_path(scope: Scope, project_root: &Path) -> PathBuf {
+        instruction_file(
+            scope,
+            project_root,
+            &Self::base_dir(scope, project_root),
+            INSTRUCTION_AGENTS,
+        )
+        .as_path()
+        .to_path_buf()
     }
 
     pub fn skill_overwrite_error(target_path: &Path, plugin_root: &Path) -> Option<String> {
@@ -103,7 +118,8 @@ impl Target for OpenCodeTarget {
             return None;
         }
 
-        let base = Self::base_dir(scope, context.project_root());
+        let project_root = context.project_root();
+        let base = Self::base_dir(scope, project_root);
         match kind {
             // OpenCode は frontmatter `name` と親フォルダ名の一致を要求するため、
             // Skill は original_name で配置する（Cursor #377 と同型）。
@@ -111,6 +127,13 @@ impl Target for OpenCodeTarget {
                 let dir_name = context.original_name().filter(|n| !n.is_empty())?;
                 Some(skill_dir(&base, dir_name))
             }
+            // Project は Codex / Cursor と同一のルート `AGENTS.md` を共有しうる。
+            ComponentKind::Instruction => Some(instruction_file(
+                scope,
+                project_root,
+                &base,
+                INSTRUCTION_AGENTS,
+            )),
             _ => None,
         }
     }
@@ -150,6 +173,13 @@ impl Target for OpenCodeTarget {
     ) -> Result<Vec<String>> {
         if !self.can_place_scope(kind, scope) {
             return Ok(vec![]);
+        }
+
+        if kind == ComponentKind::Instruction {
+            return Ok(list_instruction_at(
+                &Self::instruction_path(scope, project_root),
+                INSTRUCTION_AGENTS,
+            ));
         }
 
         let base = Self::base_dir(scope, project_root);
