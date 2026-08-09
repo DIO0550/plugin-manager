@@ -1,6 +1,6 @@
 # Issue #419 — OpenCode Agents / Commands 配置 実装計画
 
-> 状態: 実装予定  
+> 状態: 実装中  
 > Issue: [#419](https://github.com/DIO0550/plugin-manager/issues/419)  
 > Epic: [#416](https://github.com/DIO0550/plugin-manager/issues/416)  
 > blocked_by: [#418](https://github.com/DIO0550/plugin-manager/issues/418)（完了）  
