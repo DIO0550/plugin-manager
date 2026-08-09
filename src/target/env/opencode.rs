@@ -128,9 +128,12 @@ impl Target for OpenCodeTarget {
                 Some(skill_dir(&base, dir_name))
             }
             // Project は Codex / Cursor と同一のルート `AGENTS.md` を共有しうる。
-            ComponentKind::Instruction => {
-                Some(instruction_file(scope, project_root, &base, INSTRUCTION_AGENTS))
-            }
+            ComponentKind::Instruction => Some(instruction_file(
+                scope,
+                project_root,
+                &base,
+                INSTRUCTION_AGENTS,
+            )),
             _ => None,
         }
     }
