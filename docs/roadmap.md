@@ -127,12 +127,7 @@ Epic: [#356](https://github.com/DIO0550/plugin-manager/issues/356)（仕様: `do
 
 Epic: [#416](https://github.com/DIO0550/plugin-manager/issues/416)（仕様: `docs/concepts/targets.md` の「OpenCode」セクション / 計画: `docs/architecture/opencode-target-plan.md`）
 
-- [x] `TargetKind` に OpenCode バリアントを追加（[#417](https://github.com/DIO0550/plugin-manager/issues/417)）
-- [x] `OpenCodeTarget` 実装（Skills 配置・`original_name`）（[#418](https://github.com/DIO0550/plugin-manager/issues/418)）
-- [x] Agents / Commands 配置対応（[#419](https://github.com/DIO0550/plugin-manager/issues/419)）
-- [x] Instructions（Personal + Project）配置対応（[#420](https://github.com/DIO0550/plugin-manager/issues/420)）
-- [x] ドキュメント・整合性更新（[#421](https://github.com/DIO0550/plugin-manager/issues/421)）
-- [x] Hooks / Plugins は対象外（JS/TS Plugin モデルのため別 Epic）
+Skills / Agents / Commands / Instructions を対応。Hooks / Plugins（JS/TS）は対象外。
 
 ## 将来の拡張
 
