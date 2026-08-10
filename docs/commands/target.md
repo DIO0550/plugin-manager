@@ -72,7 +72,7 @@ $ plm target add opencode
 | `copilot` | Skills, Agents, Commands, Instructions, Hooks |
 | `cursor` | Skills, Agents, Commands, Instructions, Hooks |
 | `gemini` | Skills, Instructions |
-| `opencode` | Skills, Agents, Commands, Instructions（実装予定） |
+| `opencode` | Skills, Agents, Commands, Instructions |
 
 ## plm target remove
 

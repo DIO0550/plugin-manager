@@ -121,6 +121,33 @@ Cursor (Project):  .cursor/hooks.json
 （Claude Code → Cursor 変換。既存の非管理ファイルは上書き拒否）
 ```
 
+### OpenCode（フラット配置）
+
+OpenCode の Agents / Commands は `flatten_name(plugin, original)` によるフラット配置を使う。
+**Skills のみ** frontmatter `name` ↔ 親フォルダ名一致要件に合わせ、元のスキル名（`original_name`）で配置する（Cursor #377 と同型）。
+Instructions は Cursor と異なり Personal もサポートする。Hooks / Plugins（JS/TS）は対象外。
+
+```
+プラグイン内:
+├── skills/formatter-skill/SKILL.md
+├── agents/formatter-agent.md
+└── prompts/format-prompt.prompt.md
+
+展開先（Skills）:
+OpenCode (Personal): ~/.config/opencode/skills/formatter-skill/SKILL.md
+OpenCode (Project):  .opencode/skills/formatter-skill/SKILL.md
+（Skill のみ元名で配置。`$XDG_CONFIG_HOME/opencode` を尊重）
+
+展開先（Agents / Commands）:
+OpenCode (Personal): ~/.config/opencode/agents/code-formatter_formatter-agent.md
+OpenCode (Project):  .opencode/commands/code-formatter_format-prompt.md
+（`.agent.md` / `.prompt.md` サフィックスはプレーン `.md` にリネーム。内容は無変換）
+
+展開先（Instructions）:
+OpenCode (Personal): ~/.config/opencode/AGENTS.md
+OpenCode (Project):  AGENTS.md（Codex / Cursor と共有しうる）
+```
+
 ### Hooks
 
 ```
@@ -231,6 +258,15 @@ Codex/Copilotがネストしたディレクトリを読み込むかは公式ド�
 | Commands | `~/.cursor/commands/<flattened_name>.md` | `.cursor/commands/<flattened_name>.md` |
 | Instructions | - | `AGENTS.md` |
 | Hooks | `~/.cursor/hooks.json` | `.cursor/hooks.json` |
+
+### OpenCode
+
+| コンポーネント | Personal | Project |
+|----------------|----------|---------|
+| Skills | `~/.config/opencode/skills/<original_name>/` | `.opencode/skills/<original_name>/` |
+| Agents | `~/.config/opencode/agents/<flattened_name>.md` | `.opencode/agents/<flattened_name>.md` |
+| Commands | `~/.config/opencode/commands/<flattened_name>.md` | `.opencode/commands/<flattened_name>.md` |
+| Instructions | `~/.config/opencode/AGENTS.md` | `AGENTS.md` |
 
 ## 関連
 

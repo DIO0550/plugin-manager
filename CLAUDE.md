@@ -103,10 +103,10 @@ cargo deny check
 | Google Antigravity | ○ | × | × | × | ○ |
 | Gemini CLI | ○ | × | × | ○ | × |
 | Cursor | ○ | ○ | ○ | ○* | ○ |
-| OpenCode | ○** | ○** | ○** | ○** | ×*** |
+| OpenCode | ○ | ○ | ○ | ○** | ×*** |
 
 > \*Cursor の Instructions は Project スコープ（`AGENTS.md`）のみ。Personal（User Rules）は対象外。  
-> \*\*OpenCode は仕様策定済み・実装未着手（Epic #416）。Skills は `original_name` 配置、Instructions は Personal + Project。  
+> \*\*OpenCode の Instructions は Personal + Project。Skills は `original_name` 配置。opt-in（`plm target add opencode`）。Epic [#416](https://github.com/DIO0550/plugin-manager/issues/416)。  
 > \*\*\*OpenCode の拡張は JS/TS Plugin モデルのため Hook コンポーネント対象外。
 
 **Component** - コンポーネントタイプを抽象化（`ComponentKind` enum）：

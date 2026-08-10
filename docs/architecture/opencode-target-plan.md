@@ -1,6 +1,6 @@
 # OpenCode ターゲット追加 — 実装計画
 
-> 状態: 仕様策定済み / 実装未着手  
+> 状態: Skills / Agents / Commands / Instructions 実装済み / ドキュメント整合済み（[#421](https://github.com/DIO0550/plugin-manager/issues/421)）  
 > Epic: [#416](https://github.com/DIO0550/plugin-manager/issues/416)  
 > 参照仕様: [`docs/concepts/targets.md`](../concepts/targets.md) の「OpenCode」セクション  
 > 参考 Epic: Cursor [#356](https://github.com/DIO0550/plugin-manager/issues/356)
@@ -21,13 +21,13 @@ PLM に OpenCode を新しいターゲット環境として追加する。`plm i
 
 ## Issue 一覧
 
-| # | タイトル | Phase | blocked_by |
-|:--|:---------|:------|:-----------|
-| [#417](https://github.com/DIO0550/plugin-manager/issues/417) | TargetKind に OpenCode バリアントを追加する | Phase 1 | - |
-| [#418](https://github.com/DIO0550/plugin-manager/issues/418) | OpenCodeTarget を実装する（Skills 配置） | Phase 2 | #417 |
-| [#419](https://github.com/DIO0550/plugin-manager/issues/419) | OpenCode の Agents / Commands 配置に対応する | Phase 3 | #418 |
-| [#420](https://github.com/DIO0550/plugin-manager/issues/420) | OpenCode の Instructions 配置に対応する | Phase 4 | #418 |
-| [#421](https://github.com/DIO0550/plugin-manager/issues/421) | OpenCode 対応のドキュメント・整合性更新 | 最終 | #418, #419, #420 |
+| # | タイトル | Phase | blocked_by | 状態 |
+|:--|:---------|:------|:-----------|:-----|
+| [#417](https://github.com/DIO0550/plugin-manager/issues/417) | TargetKind に OpenCode バリアントを追加する | Phase 1 | - | ✅ |
+| [#418](https://github.com/DIO0550/plugin-manager/issues/418) | OpenCodeTarget を実装する（Skills 配置） | Phase 2 | #417 | ✅ |
+| [#419](https://github.com/DIO0550/plugin-manager/issues/419) | OpenCode の Agents / Commands 配置に対応する | Phase 3 | #418 | ✅ |
+| [#420](https://github.com/DIO0550/plugin-manager/issues/420) | OpenCode の Instructions 配置に対応する | Phase 4 | #418 | ✅ |
+| [#421](https://github.com/DIO0550/plugin-manager/issues/421) | OpenCode 対応のドキュメント・整合性更新 | 最終 | #418, #419, #420 | ✅ |
 
 ## 依存関係図
 
@@ -73,10 +73,9 @@ Epic #416: OpenCode ターゲット追加
 - Project: `AGENTS.md`（Codex / Cursor と共有しうる）
 - Cursor と異なり Personal も `ScopeSupport::Both`
 
-### Phase 5: Docs 整合
+### Phase 5: Docs 整合 ✅
 
-- 実装完了後に本計画・`targets.md`・`roadmap.md`・`getting-started.md`・`commands/target.md`・`file-formats.md`・`config.md` の状態表記を ✅ に更新
-- README の対応ターゲット一覧があれば同期
+- 本計画・`targets.md`・`roadmap.md`・`getting-started.md`・`commands/target.md`・`file-formats.md`・`config.md`・README / `CLAUDE.md` の状態表記を ✅ に更新（[#421](https://github.com/DIO0550/plugin-manager/issues/421)）
 
 ## 設計上の注意
 

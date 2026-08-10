@@ -13,7 +13,7 @@ PLMはClaude Code Pluginからコンポーネントをインポートし、Codex
 | Agents | 環境ごとに差異あり | **必要**（Cursor / OpenCode は内容無変換・拡張子のみ） |
 | Commands/Prompts | 環境ごとに異なる | **必要**（Cursor / OpenCode は内容無変換・拡張子のみ） |
 | Instructions | 共通形式（AGENTS.md） | 不要 |
-| Hooks | 環境ごとに差異あり | **必要**（Cursor含む。OpenCode は初回対象外） |
+| Hooks | 環境ごとに差異あり | **必要**（Cursor含む。OpenCode は対象外） |
 
 ---
 
@@ -346,7 +346,7 @@ Personal（User Rules）はアプリ設定画面管理のため PLM 対象外。
 
 ## OpenCode
 
-OpenCode は Skills / Agents / Commands / AGENTS.md をファイルベースでサポートする。PLM はネイティブパス（`.opencode/` / `~/.config/opencode/`）へ配置する。Hooks 相当は JS/TS Plugin のため初回対象外。
+OpenCode は Skills / Agents / Commands / AGENTS.md をファイルベースでサポートする。PLM はネイティブパス（`.opencode/` / `~/.config/opencode/`）へ配置する（実装済み）。Hooks 相当は JS/TS Plugin のため対象外。
 
 詳細な配置方針は [concepts/targets.md の OpenCode セクション](../concepts/targets.md#opencode) を参照。
 

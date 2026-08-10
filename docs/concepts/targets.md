@@ -11,16 +11,16 @@ PLMがサポートするAI開発環境（ターゲット）について説明し
 | **antigravity** | Google Antigravity（IDE / CLI・Hooks 共通） | ✅ 対応済み |
 | **gemini** | Gemini CLI（ターミナルベースAIエージェント） | ✅ 対応済み |
 | **cursor** | Cursor（IDE / CLI） | ✅ 対応済み |
-| **opencode** | OpenCode（ターミナル AI エージェント） | 📋 仕様策定中 |
+| **opencode** | OpenCode（ターミナル AI エージェント） | ✅ 対応済み |
 
 ## サポートするコンポーネント
 
 | コンポーネント | Codex | Copilot | Antigravity | Gemini CLI | Cursor | OpenCode |
 |----------------|-------|---------|-------------|------------|--------|----------|
-| Skills | ✅ | ✅ | ✅ | ✅ | ✅ | 📋******* |
-| Agents | ✅ | ✅ | ❌* | ❌ | ✅ | 📋******* |
-| Commands | ❌ | ✅ | ❌* | ❌ | ✅ | 📋******* |
-| Instructions | ✅ | ✅ | ❌* | ✅** | ✅*** | 📋******** |
+| Skills | ✅ | ✅ | ✅ | ✅ | ✅ | ✅******* |
+| Agents | ✅ | ✅ | ❌* | ❌ | ✅ | ✅******* |
+| Commands | ❌ | ✅ | ❌* | ❌ | ✅ | ✅******* |
+| Instructions | ✅ | ✅ | ❌* | ✅** | ✅*** | ✅******** |
 | Hooks | ✅ | ✅ | ✅**** | ❌****** | ✅***** | ❌********* |
 
 > *Antigravity は公式に Agents（`agent.md`）/ Workflows（Commands 相当）/ Rules・`GEMINI.md`・`AGENTS.md`（Instructions 相当）をサポートする。PLM 実装は未着手（調査: [#400](https://github.com/DIO0550/plugin-manager/issues/400)）。
@@ -29,9 +29,9 @@ PLMがサポートするAI開発環境（ターゲット）について説明し
 > ****Antigravity（IDE / CLI 共通）Hooks は公式 5 イベント対応の変換・配置を実装済み。単一 `hooks.json`・複数 Hook 同時配置は拒否（フルマージ未実装）。stdin/stdout ラッパーは未生成（インライン command）。
 > *****CursorのHooksは単一の `hooks.json` に配置する。既存の非管理ファイルの上書きと、同一インストール内の複数 Hook コンポーネントは拒否する（フルマージは未実装）。
 > ******Gemini CLI の Hooks は非対応。一般向けは Antigravity CLI へ移行済みで、Hooks は Antigravity（IDE / CLI 共通）仕様として扱う。Enterprise 向け `gemini` ターゲットはレガシーとして維持する。
-> *******OpenCode は Skills / Agents / Commands をファイルベースでサポート（仕様: 本ページ「OpenCode」セクション。Epic [#416](https://github.com/DIO0550/plugin-manager/issues/416)）。
+> *******OpenCode の Skills / Agents / Commands はファイルベースで配置する（Skills は `original_name`。Epic [#416](https://github.com/DIO0550/plugin-manager/issues/416)）。
 > ********OpenCode の Instructions は Personal（`~/.config/opencode/AGENTS.md`）と Project（`AGENTS.md`）の両方。
-> *********OpenCode の拡張は JSON Hooks ではなく TypeScript/JavaScript Plugin。PLM の Hook コンポーネントとはモデルが異なるため初回スコープ外。
+> *********OpenCode の拡張は JSON Hooks ではなく TypeScript/JavaScript Plugin。PLM の Hook コンポーネントとはモデルが異なるため対象外。
 
 ## OpenAI Codex
 
@@ -425,7 +425,7 @@ Agents / Commands / Hooks は他ターゲットと同様に `flatten_name(plugin
 
 ## OpenCode
 
-> **実装状況**: 仕様策定中（未実装）。Epic: [#416](https://github.com/DIO0550/plugin-manager/issues/416)。計画: [`docs/architecture/opencode-target-plan.md`](../architecture/opencode-target-plan.md)。
+> **実装状況**: Skills / Agents / Commands / Instructions 配置は実装済み（Epic [#416](https://github.com/DIO0550/plugin-manager/issues/416)）。Hooks / Plugins（JS/TS）は対象外。計画: [`docs/architecture/opencode-target-plan.md`](../architecture/opencode-target-plan.md)。
 
 ### 概要
 
@@ -465,7 +465,7 @@ OpenCode はターミナルベースの AI コーディングエージェント�
 - **Instructions**: Personal + Project の両方。Project `AGENTS.md` は Codex / Cursor と同一パスを共有しうる
 - **Claude Code 互換読み込み**: OpenCode 自体は `.claude/` も読むが、PLM はネイティブパスへ配置して責務を明確化する
 
-### Hooks / Plugins（初回スコープ外）
+### Hooks / Plugins（対象外）
 
 OpenCode の拡張点は Claude Code / Cursor 系の JSON Hooks ではなく、**TypeScript/JavaScript Plugin**（`tool.execute.before` 等のフック関数を export）。
 
@@ -475,9 +475,9 @@ OpenCode の拡張点は Claude Code / Cursor 系の JSON Hooks ではなく、*
 | 配置 | 単一 JSON or ディレクトリ | `plugins/` ディレクトリ |
 | 実行 | シェルコマンド | Bun 上の JS 関数 |
 
-PLM の `ComponentKind::Hook` 変換パイプラインとはモデルが根本的に異なるため、**初回の OpenCode 対応では Hooks をサポートしない**（`supported_components` に含めない）。将来の Plugin 配置・生成は別 Epic とする。
+PLM の `ComponentKind::Hook` 変換パイプラインとはモデルが根本的に異なるため、**OpenCode 対応では Hooks をサポートしない**（`supported_components` に含めない）。将来の Plugin 配置・生成は別 Epic とする。
 
-### コンポーネント配置場所（PLM 計画）
+### コンポーネント配置場所（PLM 実装）
 
 Skills は frontmatter `name` と親フォルダ名の一致要件に合わせ、**元のスキル名（`original_name`）**で配置する（Cursor #377 と同型）。同名スキルの衝突時はエラー。
 
@@ -508,8 +508,9 @@ Agents / Commands は他ターゲットと同様に `flatten_name(plugin, origin
 - **Personal Instruction あり**: Cursor と異なり `~/.config/opencode/AGENTS.md` をサポートする
 - **Project `AGENTS.md` は Codex / Cursor と共有**: 複数ターゲット有効時は同一パスを参照する
 - **Hooks 非対応**: JS/TS Plugin モデルのため別設計が必要
-- **XDG**: Personal ルートは `$XDG_CONFIG_HOME/opencode`（デフォルト `~/.config/opencode`）。実装時は環境変数を尊重する
+- **XDG**: Personal ルートは `$XDG_CONFIG_HOME/opencode`（デフォルト `~/.config/opencode`）。環境変数を尊重する
 - **sync と OpenCode Skills**: Cursor と同様、Skill 名キーが元名のため他ターゲット（フラット化名）との sync 名不一致に注意（既知パターン: [#384](https://github.com/DIO0550/plugin-manager/issues/384)）
+- **opt-in**: デフォルト有効ターゲットには含めない。`plm target add opencode` で有効化する
 
 ### 検証結果（仕様調査）
 
@@ -517,11 +518,11 @@ Agents / Commands は他ターゲットと同様に `flatten_name(plugin, origin
 - Global Skills は `~/.config/opencode/skills/` であり、`~/.opencode/skills/` ではない（第三者記事の誤りに注意）
 - Plugins は Hook 相当だが JSON 変換対象外と決定
 
-### 未検証
+### 未対応・将来検討
 
-- Commands のネスト配置（`commands/team/review.md`）を PLM フラット配置で使う必要性
-- OpenCode が Agents / Commands ディレクトリを再帰走査するか（フラット配置で十分かは実装前に再確認）
-- `OPENCODE_CONFIG_DIR` 指定時の追加探索パスを PLM が扱うべきか（v1 では標準パスのみ）
+- Commands のネスト配置（`commands/team/review.md`）の保持（v1 はフラット配置のみ）
+- `OPENCODE_CONFIG_DIR` 指定時の追加探索パス（v1 では標準パスのみ）
+- OpenCode Plugins（JS/TS）の生成・配置
 
 ## PLMでの対応方針
 
@@ -532,7 +533,7 @@ Agents / Commands は他ターゲットと同様に `flatten_name(plugin, origin
 | Antigravity | Skills: `~/.gemini/antigravity/`。Hooks: `~/.gemini/config/hooks.json`（実装済み・[#309](https://github.com/DIO0550/plugin-manager/issues/309)）。Agents / Workflows / Instructions は未実装（[#400](https://github.com/DIO0550/plugin-manager/issues/400)） | Skills / Hooks は自動読み込み。Hooks は単一 `hooks.json`（上書きガードあり） |
 | Gemini CLI | `~/.gemini/skills/` に配置 | 不要（自動読み込み、要Settings有効化） |
 | Cursor | `~/.cursor/` に配置（Skills / Agents / Commands / Hooks） | 不要（自動読み込み）。Hooksは単一 `hooks.json` へ変換配置（上書きガードあり） |
-| OpenCode | `~/.config/opencode/` に配置（Skills / Agents / Commands / Instructions） | 不要（自動読み込み）。Hooks/Plugins は初回対象外 |
+| OpenCode | `~/.config/opencode/` に配置（Skills / Agents / Commands / Instructions） | 不要（自動読み込み）。Hooks/Plugins は対象外 |
 
 ## 将来の拡張候補
 

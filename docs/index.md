@@ -22,7 +22,7 @@ GitHubからAI開発環境向けのプラグインをダウンロードし、複
 
 | 機能 | 説明 |
 |------|------|
-| マルチターゲット対応 | OpenAI Codex、VSCode Copilot、Google Antigravity、Gemini CLI、Cursor、OpenCode（仕様策定中）に対応 |
+| マルチターゲット対応 | OpenAI Codex、VSCode Copilot、Google Antigravity、Gemini CLI、Cursor、OpenCode に対応 |
 | 統一管理 | 複数環境のプラグインを一元管理 |
 | 自動展開 | コンポーネント種別に応じて適切な場所へ配置 |
 | マーケットプレイス | GitHubリポジトリをマーケットプレイスとして登録 |
