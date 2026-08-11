@@ -196,7 +196,7 @@ instructions_project = "GEMINI.md"
 
 ### [targets.opencode]
 
-OpenCode ターゲットのパス設定（将来仕様。実装は `docs/concepts/targets.md` の OpenCode セクションに従う）。
+OpenCode ターゲットのパス設定（将来仕様。配置パスは実装済みのハードコード定数と一致させる想定。実装は `docs/concepts/targets.md` の OpenCode セクションに従う）。
 
 | キー | 型 | デフォルト |
 |------|-----|------------|

@@ -20,7 +20,7 @@ PLMが管理するコンポーネントの種類について説明します。
 
 - YAML frontmatterでメタデータを定義
 - 専門的なタスクを実行するための詳細な指示を含む
-- Codex、Copilot、Gemini CLI、Cursorでサポート（Antigravityも対応）
+- Codex、Copilot、Gemini CLI、Cursor、OpenCodeでサポート（Antigravityも対応）
 - Skill ディレクトリ内の `references/` / `assets/` など任意名の補助ファイル・フォルダは **付属リソース**として本体と一緒にターゲットへコピーされる
 - プラグイン直下の任意名フォルダ（`references/` 等）は **Plugin リソース**として、`<target_base>/plugins/<plugin_name>/` 配下に構造を保ったまま配置される
 
@@ -59,6 +59,7 @@ skills/skill-name/
 | Antigravity | `~/.gemini/antigravity/skills/<marketplace>/<plugin>/<skill>/` | `.agent/skills/<marketplace>/<plugin>/<skill>/` |
 | Gemini CLI | `~/.gemini/skills/<marketplace>/<plugin>/<skill>/` | `.gemini/skills/<marketplace>/<plugin>/<skill>/` |
 | Cursor | `~/.cursor/skills/<flattened_name>/` | `.cursor/skills/<flattened_name>/` |
+| OpenCode | `~/.config/opencode/skills/<original_name>/` | `.opencode/skills/<original_name>/` |
 
 ## Agents
 
@@ -68,7 +69,7 @@ skills/skill-name/
 
 - 特定のタスクに特化したエージェントを定義
 - 使用可能なツールを指定可能
-- Codex、Copilot、Cursorでサポート（Antigravity は公式サポートあり・PLM 未実装: [#400](https://github.com/DIO0550/plugin-manager/issues/400)）
+- Codex、Copilot、Cursor、OpenCodeでサポート（Antigravity は公式サポートあり・PLM 未実装: [#400](https://github.com/DIO0550/plugin-manager/issues/400)）
 
 ### ファイル形式
 
@@ -91,6 +92,7 @@ tools: ['search', 'fetch', 'edit']
 | Codex | `~/.codex/agents/<marketplace>/<plugin>/` | `.codex/agents/<marketplace>/<plugin>/` |
 | Copilot | `~/.copilot/agents/<marketplace>/<plugin>/` | `.github/agents/<marketplace>/<plugin>/` |
 | Cursor | `~/.cursor/agents/<flattened_name>.md` | `.cursor/agents/<flattened_name>.md` |
+| OpenCode | `~/.config/opencode/agents/<flattened_name>.md` | `.opencode/agents/<flattened_name>.md` |
 
 ## Commands
 
@@ -99,7 +101,7 @@ tools: ['search', 'fetch', 'edit']
 ### 特徴
 
 - Claude Code のスラッシュコマンド（`.prompt.md`形式）を他ターゲットにも展開
-- Copilot（Prompt Files）と Cursor（プレーン Markdown）でサポート
+- Copilot（Prompt Files）と Cursor / OpenCode（プレーン Markdown）でサポート
 - 手動で呼び出して使用
 
 ### ファイル形式
@@ -122,6 +124,7 @@ description: コマンドの説明
 | Codex | - | - |
 | Copilot | - | `.github/prompts/<marketplace>/<plugin>/` |
 | Cursor | `~/.cursor/commands/<flattened_name>.md` | `.cursor/commands/<flattened_name>.md` |
+| OpenCode | `~/.config/opencode/commands/<flattened_name>.md` | `.opencode/commands/<flattened_name>.md` |
 
 ## Instructions
 
@@ -131,7 +134,7 @@ description: コマンドの説明
 
 - AGENTS.md形式のオープン標準（Linux Foundation管轄）
 - プロジェクト全体に適用される指示
-- Codex、Copilot、Gemini CLI、Cursorでサポート（Gemini CLIは`GEMINI.md`で対応）。Antigravity も公式に `GEMINI.md` / `AGENTS.md` / Rules をサポートするが PLM 未実装（[#400](https://github.com/DIO0550/plugin-manager/issues/400)）
+- Codex、Copilot、Gemini CLI、Cursor、OpenCodeでサポート（Gemini CLIは`GEMINI.md`で対応）。Antigravity も公式に `GEMINI.md` / `AGENTS.md` / Rules をサポートするが PLM 未実装（[#400](https://github.com/DIO0550/plugin-manager/issues/400)）
 
 ### ファイル形式
 
@@ -149,6 +152,7 @@ description: コマンドの説明
 | Copilot | - | `.github/copilot-instructions.md`, `AGENTS.md` |
 | Gemini CLI | `~/.gemini/GEMINI.md` | `GEMINI.md` |
 | Cursor | - | `AGENTS.md` |
+| OpenCode | `~/.config/opencode/AGENTS.md` | `AGENTS.md` |
 
 ## Hooks
 
@@ -207,19 +211,21 @@ description: コマンドの説明
 
 ## ターゲット別サポート状況
 
-| コンポーネント | Codex | Copilot | Antigravity | Gemini CLI | Cursor |
-|----------------|-------|---------|-------------|------------|--------|
-| Skills | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Agents | ✅ | ✅ | ❌* | ❌ | ✅ |
-| Commands | ❌ | ✅ | ❌* | ❌ | ✅ |
-| Instructions | ✅ | ✅ | ❌* | ✅** | ✅*** |
-| Hooks | ✅ | ✅ | ✅**** | ❌ | ✅***** |
+| コンポーネント | Codex | Copilot | Antigravity | Gemini CLI | Cursor | OpenCode |
+|----------------|-------|---------|-------------|------------|--------|----------|
+| Skills | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Agents | ✅ | ✅ | ❌* | ❌ | ✅ | ✅ |
+| Commands | ❌ | ✅ | ❌* | ❌ | ✅ | ✅ |
+| Instructions | ✅ | ✅ | ❌* | ✅** | ✅*** | ✅****** |
+| Hooks | ✅ | ✅ | ✅**** | ❌ | ✅***** | ❌******* |
 
 > *Antigravity 公式は Agents / Workflows（Commands 相当）/ Rules・`AGENTS.md`（Instructions 相当）をサポート。PLM 実装は未着手（[#400](https://github.com/DIO0550/plugin-manager/issues/400)）。
 > **Gemini CLIは`GEMINI.md`形式で対応（`AGENTS.md`は設定で変更可能）。
 > ***CursorのInstructionsはProjectスコープ（`AGENTS.md`）のみ。
 > ****Antigravity Hooks は変換・配置を実装済み（[#309](https://github.com/DIO0550/plugin-manager/issues/309)）。単一 `hooks.json`、複数 Hook 同時配置は拒否。
 > *****CursorのHooksは単一 `hooks.json`。非管理ファイルの上書きと複数 Hook 同時配置は拒否（フルマージ未実装）。
+> ******OpenCode の Instructions は Personal + Project。
+> *******OpenCode の拡張は JS/TS Plugin のため Hook コンポーネント対象外。
 
 ## 共通規格
 

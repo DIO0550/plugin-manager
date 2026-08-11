@@ -217,7 +217,9 @@ src/
 │   │   ├── antigravity.rs # Antigravity ターゲット実装
 │   │   ├── codex.rs      # Codex ターゲット実装
 │   │   ├── copilot.rs    # Copilot ターゲット実装
-│   │   └── gemini_cli.rs # Gemini CLI ターゲット実装
+│   │   ├── cursor.rs     # Cursor ターゲット実装
+│   │   ├── gemini_cli.rs # Gemini CLI ターゲット実装
+│   │   └── opencode.rs   # OpenCode ターゲット実装
 │   ├── placed/       # 配置ユーティリティサブグループ
 │   │   ├── placed.rs        # 全ターゲット横断スキャン
 │   │   ├── placed_common.rs # Instruction placement 共通ロジック

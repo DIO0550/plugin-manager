@@ -51,6 +51,15 @@ PLMのインストールスコープについて説明します。
 | Instructions | - | `AGENTS.md` |
 | Hooks | `~/.cursor/hooks.json` | `.cursor/hooks.json` |
 
+### OpenCode
+
+| 種別 | Personal | Project |
+|------|----------|---------|
+| Skills | `~/.config/opencode/skills/` | `.opencode/skills/` |
+| Agents | `~/.config/opencode/agents/` | `.opencode/agents/` |
+| Commands | `~/.config/opencode/commands/` | `.opencode/commands/` |
+| Instructions | `~/.config/opencode/AGENTS.md` | `AGENTS.md` |
+
 ## スコープの選択
 
 ### コマンドラインでの指定
@@ -69,8 +78,8 @@ plm install owner/repo --scope project
 
 ```
 ? Select scope:
-> ( ) personal - ~/.codex/, ~/.copilot/, ~/.cursor/
-  (x) project  - .codex/, .github/, .cursor/
+> ( ) personal - ~/.codex/, ~/.copilot/, ~/.cursor/, ~/.config/opencode/
+  (x) project  - .codex/, .github/, .cursor/, .opencode/
 ```
 
 ## 使い分けガイド
