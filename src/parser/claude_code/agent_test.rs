@@ -70,6 +70,54 @@ fn parse_yaml_error() {
 }
 
 #[test]
+fn parse_description_with_examples_and_following_fields() {
+    let content = r#"---
+name: reviewer
+description: Reviews changes carefully.
+Examples:
+
+<example>
+Context: A pull request changes authentication.
+user: Review this change.
+assistant: I will inspect the authentication flow.
+<commentary>Focus on security boundaries.</commentary>
+</example>
+
+<example>
+Context: A pull request adds tests.
+user: Check coverage.
+assistant: I will identify missing cases.
+</example>
+tools: Read, Grep
+model: opus
+---
+
+Review the code."#;
+
+    let agent = ClaudeCodeAgent::parse(content).unwrap();
+    assert_eq!(
+        agent.description.as_deref(),
+        Some(
+            "Reviews changes carefully.\nExamples:\n\n<example>\nContext: A pull request changes authentication.\nuser: Review this change.\nassistant: I will inspect the authentication flow.\n<commentary>Focus on security boundaries.</commentary>\n</example>\n\n<example>\nContext: A pull request adds tests.\nuser: Check coverage.\nassistant: I will identify missing cases.\n</example>"
+        )
+    );
+    assert_eq!(agent.tools.as_deref(), Some("Read, Grep"));
+    assert_eq!(agent.model.as_deref(), Some("opus"));
+
+    for target in [TargetType::Codex, TargetType::Copilot] {
+        let markdown = agent.to_format(target).unwrap().to_markdown();
+        let yaml = markdown.split("---").nth(1).unwrap();
+        serde_yaml::from_str::<serde_yaml::Value>(yaml).unwrap();
+    }
+}
+
+#[test]
+fn parse_description_examples_does_not_absorb_unknown_invalid_yaml() {
+    let content = "---\ndescription: Test.\nExamples:\n<example>\nuser: Run it.\n</example>\nunknown: [invalid yaml\n---\nBody.";
+    assert!(ClaudeCodeAgent::parse(content).is_err());
+}
+
+#[test]
 fn parse_unknown_fields_ignored() {
     let content = "---\nname: test\nunknown_field: value\n---\n\nBody.";
     let agent = ClaudeCodeAgent::parse(content).unwrap();

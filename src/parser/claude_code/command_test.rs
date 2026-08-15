@@ -184,6 +184,59 @@ Body."#;
     assert_eq!(cmd.name, Some("test".to_string()));
 }
 
+#[test]
+fn parse_command_description_with_examples_and_following_fields() {
+    let content = r#"---
+name: explain
+description: Explains a command.
+<example>
+Context: The user is learning Git.
+user: Explain rebase.
+assistant: I will provide a safe example.
+<commentary>Prefer a visual explanation.</commentary>
+</example>
+
+<example>
+Context: The user has conflicts.
+user: Help resolve them.
+assistant: I will explain each step.
+</example>
+allowed-tools: Read, Bash
+argument-hint: "[topic]"
+model: haiku
+disable-model-invocation: true
+user-invocable: false
+---
+
+Explain $ARGUMENTS."#;
+
+    let command = ClaudeCodeCommand::parse(content).unwrap();
+    assert_eq!(
+        command.description.as_deref(),
+        Some(
+            "Explains a command.\n<example>\nContext: The user is learning Git.\nuser: Explain rebase.\nassistant: I will provide a safe example.\n<commentary>Prefer a visual explanation.</commentary>\n</example>\n\n<example>\nContext: The user has conflicts.\nuser: Help resolve them.\nassistant: I will explain each step.\n</example>"
+        )
+    );
+    assert_eq!(command.allowed_tools.as_deref(), Some("Read, Bash"));
+    assert_eq!(command.argument_hint.as_deref(), Some("[topic]"));
+    assert_eq!(command.model.as_deref(), Some("haiku"));
+    assert_eq!(command.disable_model_invocation, Some(true));
+    assert_eq!(command.user_invocable, Some(false));
+
+    for target in [TargetType::Codex, TargetType::Copilot] {
+        let markdown = command.to_format(target).unwrap().to_markdown();
+        let yaml = markdown.split("---").nth(1).unwrap();
+        serde_yaml::from_str::<serde_yaml::Value>(yaml).unwrap();
+    }
+}
+
+#[test]
+fn parse_command_description_examples_does_not_absorb_unknown_invalid_yaml() {
+    let content =
+        "---\ndescription: Test.\nExamples:\nuser: Run it.\nunknown: {invalid yaml\n---\nBody.";
+    assert!(ClaudeCodeCommand::parse(content).is_err());
+}
+
 // ============================================================================
 // to_markdown tests
 // ============================================================================

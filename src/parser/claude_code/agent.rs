@@ -11,9 +11,10 @@ use super::super::codex::CodexAgent;
 use super::super::convert::{self, TargetFormat, TargetType};
 use super::super::copilot::CopilotAgent;
 use super::super::frontmatter::{
-    emit_frontmatter, normalize_optional_name, parse_frontmatter, stem_without_suffixes,
-    ParsedDocument,
+    deserialize_frontmatter, emit_frontmatter, extract_frontmatter, normalize_optional_name,
+    stem_without_suffixes, ExtractedFrontmatter,
 };
+use super::frontmatter::normalize_description_examples;
 
 /// Claude Code Agent frontmatter fields.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -60,10 +61,14 @@ impl ClaudeCodeAgent {
     ///
     /// * `content` - Raw markdown content including optional YAML frontmatter.
     pub fn parse(content: &str) -> Result<Self> {
-        let ParsedDocument { frontmatter, body } =
-            parse_frontmatter::<ClaudeCodeAgentFrontmatter>(content)?;
-
-        let fm = frontmatter.unwrap_or_default();
+        let ExtractedFrontmatter { yaml, body } = extract_frontmatter(content);
+        let fm = match yaml {
+            Some(yaml) => deserialize_frontmatter(&normalize_description_examples(
+                &yaml,
+                &["name", "description", "tools", "model"],
+            ))?,
+            None => ClaudeCodeAgentFrontmatter::default(),
+        };
 
         Ok(ClaudeCodeAgent {
             name: normalize_optional_name(fm.name),

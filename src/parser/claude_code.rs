@@ -2,6 +2,7 @@
 
 mod agent;
 mod command;
+mod frontmatter;
 
 pub use agent::ClaudeCodeAgent;
 pub use command::ClaudeCodeCommand;
