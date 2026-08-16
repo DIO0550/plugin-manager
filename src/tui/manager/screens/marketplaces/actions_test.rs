@@ -7,18 +7,26 @@ use crate::tui::manager::screens::marketplaces::model::PluginInstallOutcome;
 // ============================================================================
 
 fn make_success_outcome(name: &str) -> PluginInstallOutcome {
-    PluginInstallOutcome {
-        plugin_name: name.to_string(),
-        success: true,
-        error: None,
-    }
+    PluginInstallOutcome::success(name, 1)
 }
 
 fn make_failure_outcome(name: &str, error: &str) -> PluginInstallOutcome {
+    PluginInstallOutcome::failure(name, error)
+}
+
+fn make_partial_outcome(
+    name: &str,
+    placed: usize,
+    failure_lines: Vec<&str>,
+) -> PluginInstallOutcome {
+    let failure_lines: Vec<String> = failure_lines.into_iter().map(str::to_string).collect();
+    let failed = failure_lines.len();
     PluginInstallOutcome {
         plugin_name: name.to_string(),
-        success: false,
-        error: Some(error.to_string()),
+        placed,
+        failed,
+        error: Some(failure_lines.join("; ")),
+        failure_lines,
     }
 }
 
@@ -270,6 +278,7 @@ fn build_summary_all_success() {
     let summary = super::build_install_summary(results);
     assert_eq!(summary.total, 2);
     assert_eq!(summary.succeeded, 2);
+    assert_eq!(summary.partial, 0);
     assert_eq!(summary.failed, 0);
 }
 
@@ -282,6 +291,7 @@ fn build_summary_all_failure() {
     let summary = super::build_install_summary(results);
     assert_eq!(summary.total, 2);
     assert_eq!(summary.succeeded, 0);
+    assert_eq!(summary.partial, 0);
     assert_eq!(summary.failed, 2);
 }
 
@@ -291,6 +301,7 @@ fn build_summary_mixed() {
     let summary = super::build_install_summary(results);
     assert_eq!(summary.total, 2);
     assert_eq!(summary.succeeded, 1);
+    assert_eq!(summary.partial, 0);
     assert_eq!(summary.failed, 1);
 }
 
@@ -309,6 +320,7 @@ fn build_summary_single_success() {
     let summary = super::build_install_summary(results);
     assert_eq!(summary.total, 1);
     assert_eq!(summary.succeeded, 1);
+    assert_eq!(summary.partial, 0);
     assert_eq!(summary.failed, 0);
 }
 
@@ -318,6 +330,7 @@ fn build_summary_single_failure() {
     let summary = super::build_install_summary(results);
     assert_eq!(summary.total, 1);
     assert_eq!(summary.succeeded, 0);
+    assert_eq!(summary.partial, 0);
     assert_eq!(summary.failed, 1);
 }
 
@@ -331,14 +344,36 @@ fn build_summary_preserves_results() {
     let summary = super::build_install_summary(results);
     assert_eq!(summary.total, 3);
     assert_eq!(summary.succeeded, 2);
+    assert_eq!(summary.partial, 0);
     assert_eq!(summary.failed, 1);
     assert_eq!(summary.results[0].plugin_name, "x");
-    assert!(summary.results[0].success);
+    assert!(summary.results[0].is_full_success());
     assert_eq!(summary.results[1].plugin_name, "y");
-    assert!(!summary.results[1].success);
+    assert!(!summary.results[1].is_full_success());
     assert_eq!(summary.results[1].error, Some("fail".to_string()));
     assert_eq!(summary.results[2].plugin_name, "z");
-    assert!(summary.results[2].success);
+    assert!(summary.results[2].is_full_success());
+}
+
+#[test]
+fn build_summary_counts_partial_separately() {
+    let results = vec![
+        make_success_outcome("ok"),
+        make_partial_outcome(
+            "spec-plugin",
+            12,
+            vec!["codex/spec-plugin_spec-planner: YAML parse error"],
+        ),
+        make_failure_outcome("broken", "download failed"),
+    ];
+    let summary = super::build_install_summary(results);
+    assert_eq!(summary.total, 3);
+    assert_eq!(summary.succeeded, 1);
+    assert_eq!(summary.partial, 1);
+    assert_eq!(summary.failed, 1);
+    assert!(summary.results[1].is_partial());
+    assert_eq!(summary.results[1].placed, 12);
+    assert_eq!(summary.results[1].failed, 1);
 }
 
 // ============================================================================
@@ -353,7 +388,7 @@ fn all_failed_summary_records_error() {
     assert_eq!(summary.succeeded, 0);
     assert_eq!(summary.failed, 2);
     for r in &summary.results {
-        assert!(!r.success);
+        assert!(!r.is_full_success());
         assert_eq!(r.error, Some("runtime error".to_string()));
     }
 }
@@ -410,7 +445,7 @@ fn install_plugins_empty_target_names_returns_all_failed() {
     assert_eq!(summary.succeeded, 0);
     assert_eq!(summary.failed, 2);
     for r in &summary.results {
-        assert!(!r.success);
+        assert!(!r.is_full_success());
         assert_eq!(r.error, Some("No targets specified".to_string()));
     }
 }
@@ -428,7 +463,7 @@ fn install_plugins_invalid_target_returns_all_failed() {
     assert_eq!(summary.total, 1);
     assert_eq!(summary.succeeded, 0);
     assert_eq!(summary.failed, 1);
-    assert!(!summary.results[0].success);
+    assert!(!summary.results[0].is_full_success());
     assert!(summary.results[0].error.is_some());
 }
 
@@ -452,7 +487,63 @@ fn install_plugins_no_runtime_returns_all_failed() {
     assert_eq!(result.succeeded, 0);
     assert_eq!(result.failed, 2);
     for r in &result.results {
-        assert!(!r.success);
+        assert!(!r.is_full_success());
         assert_eq!(r.error, Some("No Tokio runtime available".to_string()));
     }
+}
+
+#[test]
+fn outcome_from_place_marks_partial_when_failures_exist() {
+    use crate::component::ComponentKind;
+    use crate::install::{PlaceFailure, PlaceFailureStage, PlaceOutcome, PlaceSuccess};
+    use crate::target::TargetKind;
+    use std::path::PathBuf;
+
+    let place = PlaceOutcome {
+        plugin_name: "spec-plugin".to_string(),
+        successes: vec![PlaceSuccess {
+            target: "codex".to_string(),
+            target_kind: TargetKind::Codex,
+            component_name: "ok".to_string(),
+            component_kind: ComponentKind::Skill,
+            target_path: PathBuf::from("/tmp/ok"),
+            source_format: None,
+            dest_format: None,
+            hook_warnings: vec![],
+            script_count: 0,
+            hook_count: 0,
+            hook_source_format: None,
+        }],
+        failures: vec![PlaceFailure {
+            target: "codex".to_string(),
+            component_name: "bad".to_string(),
+            component_kind: ComponentKind::Agent,
+            error: "YAML parse error".to_string(),
+            stage: PlaceFailureStage::Deployment,
+        }],
+        feature_flags: vec![],
+    };
+
+    let outcome = super::outcome_from_place("spec-plugin", &place);
+    assert!(outcome.is_partial());
+    assert_eq!(outcome.placed, 1);
+    assert_eq!(outcome.failed, 1);
+    assert_eq!(outcome.failure_lines.len(), 1);
+    assert!(outcome.failure_lines[0].contains("codex/bad"));
+}
+
+#[test]
+fn outcome_from_place_empty_is_failure() {
+    use crate::install::PlaceOutcome;
+
+    let place = PlaceOutcome {
+        plugin_name: "empty".to_string(),
+        successes: vec![],
+        failures: vec![],
+        feature_flags: vec![],
+    };
+    let outcome = super::outcome_from_place("empty", &place);
+    assert!(!outcome.is_full_success());
+    assert!(!outcome.is_partial());
+    assert!(outcome.error.unwrap().contains("No components were placed"));
 }

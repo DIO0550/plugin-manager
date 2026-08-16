@@ -103,6 +103,17 @@ Please specify: plm install formatter@<marketplace>
 7. ターゲット環境へ自動展開
 8. `CachedPlugin`を作成し`plugins.json`に保存
 
+## 部分成功
+
+プラグイン内の一部コンポーネントだけが変換・配置に失敗した場合、成功したコンポーネントはディスク上に残ります。プラグイン全体を失敗として巻き戻しません。
+
+- CLI は成功行と失敗行を出し、対象ターゲットに混在があるとき `{target} - PARTIAL` と集計します
+- TUI は `⚠ {plugin}: N/M components placed, K failed` のあと、失敗コンポーネントを箇条書きします
+- 1 件以上置けたターゲットは `.plm-meta.json` の `statusByTarget` を `enabled` にし、Plugin リソースも配置します
+- 全コンポーネントが失敗したターゲットは meta を昇格せず、Plugin リソースも置きません
+
+失敗したコンポーネントはソースを直したうえで `plm install --force` で再配置します。
+
 ## デプロイ先
 
 インストールされたコンポーネントは以下のパスに展開されます:

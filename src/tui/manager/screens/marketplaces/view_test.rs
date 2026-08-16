@@ -523,13 +523,10 @@ fn modal_clears_outer_frame_cells_at_normal_size_for_install_result() {
         .expect("seed sentinel draw");
 
     let summary = InstallSummary {
-        results: vec![PluginInstallOutcome {
-            plugin_name: "alpha".to_string(),
-            success: true,
-            error: None,
-        }],
+        results: vec![PluginInstallOutcome::success("alpha", 1)],
         total: 1,
         succeeded: 1,
+        partial: 0,
         failed: 0,
     };
     terminal
@@ -611,4 +608,112 @@ fn modal_renders_without_panic_at_tiny_size() {
             view_installing(frame, &plugin_names, 0, 1);
         })
         .expect("render installing tiny");
+}
+
+#[test]
+fn format_install_result_lines_success() {
+    use super::format_install_result_lines;
+    use crate::tui::manager::screens::marketplaces::model::PluginInstallOutcome;
+    use ratatui::style::Color;
+
+    let lines = format_install_result_lines(&PluginInstallOutcome::success("alpha", 3));
+    assert_eq!(lines, vec![("  ✓ alpha".to_string(), Color::Green)]);
+}
+
+#[test]
+fn format_install_result_lines_partial_lists_failures() {
+    use super::format_install_result_lines;
+    use crate::tui::manager::screens::marketplaces::model::PluginInstallOutcome;
+    use ratatui::style::Color;
+
+    let result = PluginInstallOutcome {
+        plugin_name: "spec-plugin".to_string(),
+        placed: 12,
+        failed: 2,
+        error: Some("codex/a: err; copilot/b: err".to_string()),
+        failure_lines: vec![
+            "codex/spec-plugin_spec-planner: YAML parse error: could not find expected ':' at line 6".to_string(),
+            "codex/spec-plugin_spec-implementer: YAML parse error: could not find expected ':'".to_string(),
+        ],
+    };
+    let lines = format_install_result_lines(&result);
+    assert_eq!(lines.len(), 3);
+    assert!(lines[0]
+        .0
+        .starts_with("  ⚠ spec-plugin: 12/14 components placed, 2 failed"));
+    assert_eq!(lines[0].1, Color::Yellow);
+    assert!(lines[1].0.contains("codex/spec-plugin_spec-planner"));
+    assert!(lines[2].0.contains("codex/spec-plugin_spec-implementer"));
+    assert!(!lines[0].0.contains("YAML parse error"));
+}
+
+#[test]
+fn format_install_result_lines_full_failure_keeps_single_error() {
+    use super::format_install_result_lines;
+    use crate::tui::manager::screens::marketplaces::model::PluginInstallOutcome;
+    use ratatui::style::Color;
+
+    let lines =
+        format_install_result_lines(&PluginInstallOutcome::failure("broken", "download failed"));
+    assert_eq!(
+        lines,
+        vec![("  ✗ broken: download failed".to_string(), Color::Red)]
+    );
+}
+
+#[test]
+fn view_install_result_renders_partial_warning_and_failure_details() {
+    use super::view_install_result;
+    use crate::tui::manager::screens::marketplaces::model::{InstallSummary, PluginInstallOutcome};
+    use ratatui::backend::TestBackend;
+    use ratatui::Terminal;
+
+    let summary = InstallSummary {
+        results: vec![PluginInstallOutcome {
+            plugin_name: "spec-plugin".to_string(),
+            placed: 12,
+            failed: 2,
+            error: Some("joined".to_string()),
+            failure_lines: vec![
+                "codex/spec-plugin_spec-planner: YAML parse error: could not find expected ':'"
+                    .to_string(),
+            ],
+        }],
+        total: 1,
+        succeeded: 0,
+        partial: 1,
+        failed: 0,
+    };
+
+    let backend = TestBackend::new(80, 24);
+    let mut terminal = Terminal::new(backend).expect("terminal");
+    terminal
+        .draw(|frame| {
+            view_install_result(frame, &summary);
+        })
+        .expect("render partial install result");
+
+    let buffer = terminal.backend().buffer();
+    let mut rendered = String::new();
+    for y in 0..buffer.area.height {
+        for x in 0..buffer.area.width {
+            rendered.push_str(buffer[(x, y)].symbol());
+        }
+        rendered.push('\n');
+    }
+    assert!(
+        rendered.contains("Installed 1/1 plugins (1 partial)"),
+        "missing partial header:\n{}",
+        rendered
+    );
+    assert!(
+        rendered.contains("spec-plugin: 12/14 components placed, 2 failed"),
+        "missing partial warning:\n{}",
+        rendered
+    );
+    assert!(
+        rendered.contains("codex/spec-plugin_spec-planner"),
+        "failure detail should remain readable:\n{}",
+        rendered
+    );
 }

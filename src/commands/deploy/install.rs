@@ -197,8 +197,6 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
     println!("\nPlacement Results:");
 
     for target_name in &target_names {
-        let mut target_success = true;
-
         for success in result.successes.iter().filter(|s| &s.target == target_name) {
             let (stdout_line, stderr_blocks) = render_place_success_to_strings(success);
             println!("{}", stdout_line);
@@ -212,11 +210,10 @@ pub async fn run(args: Args) -> std::result::Result<(), String> {
                 "  x {} {}: {} - {}",
                 failure.target, failure.component_kind, failure.component_name, failure.error
             );
-            target_success = false;
         }
 
-        if !target_success {
-            println!("  {} - FAILED", target_name);
+        if let Some(label) = result.target_status_label(target_name) {
+            println!("  {} - {}", target_name, label);
         }
     }
 
