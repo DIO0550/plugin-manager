@@ -14,6 +14,10 @@ impl CommandSummary {
     /// * `failure` - Number of failed placements.
     pub fn format(success: usize, failure: usize) -> Self {
         match (success, failure) {
+            (s, f) if s > 0 && f > 0 => Self {
+                prefix: "⚠".yellow().to_string(),
+                message: format!("{} succeeded, {} failed", s.green(), f.red()),
+            },
             (_, f) if f > 0 => Self {
                 prefix: "✗".red().to_string(),
                 message: format!("{} succeeded, {} failed", success.green(), f.red()),
@@ -29,3 +33,7 @@ impl CommandSummary {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "output_test.rs"]
+mod tests;
