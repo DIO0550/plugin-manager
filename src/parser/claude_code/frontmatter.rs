@@ -2,26 +2,46 @@
 
 /// Claude Code frontmatter schema used during description normalization.
 pub(super) struct FrontmatterSchema {
-    /// Top-level YAML fields supported by the target component.
-    top_level_fields: &'static [&'static str],
+    /// Whether the YAML accepts `name`.
+    name: bool,
+    /// Whether the YAML accepts `description`.
+    description: bool,
+    /// Whether the YAML accepts `tools`.
+    tools: bool,
+    /// Whether the YAML accepts `allowed-tools`.
+    allowed_tools: bool,
+    /// Whether the YAML accepts `argument-hint`.
+    argument_hint: bool,
+    /// Whether the YAML accepts `model`.
+    model: bool,
+    /// Whether the YAML accepts `disable-model-invocation`.
+    disable_model_invocation: bool,
+    /// Whether the YAML accepts `user-invocable`.
+    user_invocable: bool,
 }
 
 /// Agent frontmatter schema.
 pub(super) const AGENT_FRONTMATTER_SCHEMA: FrontmatterSchema = FrontmatterSchema {
-    top_level_fields: &["name", "description", "tools", "model"],
+    name: true,
+    description: true,
+    tools: true,
+    allowed_tools: false,
+    argument_hint: false,
+    model: true,
+    disable_model_invocation: false,
+    user_invocable: false,
 };
 
 /// Command frontmatter schema.
 pub(super) const COMMAND_FRONTMATTER_SCHEMA: FrontmatterSchema = FrontmatterSchema {
-    top_level_fields: &[
-        "name",
-        "description",
-        "allowed-tools",
-        "argument-hint",
-        "model",
-        "disable-model-invocation",
-        "user-invocable",
-    ],
+    name: true,
+    description: true,
+    tools: false,
+    allowed_tools: true,
+    argument_hint: true,
+    model: true,
+    disable_model_invocation: true,
+    user_invocable: true,
 };
 
 impl FrontmatterSchema {
@@ -119,9 +139,32 @@ impl FrontmatterSchema {
         if matches!(key, "Examples" | "Context" | "user" | "assistant") {
             return false;
         }
-        self.top_level_fields.contains(&key)
+        self.is_supported_field(key)
             || key
                 .chars()
                 .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    }
+
+    /// Determines whether a key is a supported top-level YAML field.
+    ///
+    /// # Arguments
+    ///
+    /// * `key` - Top-level YAML key to inspect.
+    ///
+    /// # Returns
+    ///
+    /// `true` when the corresponding schema property is enabled.
+    fn is_supported_field(&self, key: &str) -> bool {
+        match key {
+            "name" => self.name,
+            "description" => self.description,
+            "tools" => self.tools,
+            "allowed-tools" => self.allowed_tools,
+            "argument-hint" => self.argument_hint,
+            "model" => self.model,
+            "disable-model-invocation" => self.disable_model_invocation,
+            "user-invocable" => self.user_invocable,
+            _ => false,
+        }
     }
 }
