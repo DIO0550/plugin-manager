@@ -11,9 +11,10 @@ use super::super::codex::CodexPrompt;
 use super::super::convert::{self, TargetFormat, TargetType};
 use super::super::copilot::CopilotPrompt;
 use super::super::frontmatter::{
-    emit_frontmatter, normalize_optional_name, parse_frontmatter, stem_without_suffixes,
-    ParsedDocument,
+    deserialize_frontmatter, emit_frontmatter, extract_frontmatter, normalize_optional_name,
+    stem_without_suffixes, ExtractedFrontmatter,
 };
+use super::frontmatter::COMMAND_FRONTMATTER_SCHEMA;
 
 /// Claude Code Command frontmatter fields.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -78,10 +79,13 @@ impl ClaudeCodeCommand {
     ///
     /// * `content` - Raw markdown content including optional YAML frontmatter.
     pub fn parse(content: &str) -> Result<Self> {
-        let ParsedDocument { frontmatter, body } =
-            parse_frontmatter::<ClaudeCodeCommandFrontmatter>(content)?;
-
-        let fm = frontmatter.unwrap_or_default();
+        let ExtractedFrontmatter { yaml, body } = extract_frontmatter(content);
+        let fm = match yaml {
+            Some(yaml) => deserialize_frontmatter(
+                &COMMAND_FRONTMATTER_SCHEMA.normalize_description_examples(&yaml),
+            )?,
+            None => ClaudeCodeCommandFrontmatter::default(),
+        };
 
         Ok(ClaudeCodeCommand {
             name: normalize_optional_name(fm.name),

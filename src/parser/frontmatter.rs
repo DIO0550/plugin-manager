@@ -16,6 +16,87 @@ pub struct ParsedDocument<T> {
     pub body: String,
 }
 
+/// Document with YAML frontmatter kept as an undecoded string.
+#[derive(Debug, Clone)]
+pub(crate) struct ExtractedFrontmatter {
+    /// Extracted YAML (None if no frontmatter is present).
+    pub yaml: Option<String>,
+    /// Body text (everything after the frontmatter).
+    pub body: String,
+}
+
+/// Extracts optional YAML frontmatter without deserializing it.
+///
+/// # Arguments
+///
+/// * `content` - Document text whose frontmatter and body should be separated.
+///
+/// # Returns
+///
+/// The undecoded YAML and body, or no YAML when the document has no complete
+/// frontmatter envelope.
+pub(crate) fn extract_frontmatter(content: &str) -> ExtractedFrontmatter {
+    let content = content.strip_prefix('\u{feff}').unwrap_or(content);
+    let lines: Vec<&str> = content.lines().collect();
+
+    let first_line = lines.first().map(|s| s.trim()).unwrap_or("");
+    if !first_line.starts_with("---") {
+        return ExtractedFrontmatter {
+            yaml: None,
+            body: content.to_string(),
+        };
+    }
+
+    let closing_index = lines
+        .iter()
+        .enumerate()
+        .skip(1)
+        .find(|(_, line)| line.trim().starts_with("---"))
+        .map(|(i, _)| i);
+
+    let Some(closing_index) = closing_index else {
+        return ExtractedFrontmatter {
+            yaml: None,
+            body: content.to_string(),
+        };
+    };
+
+    let yaml = lines[1..closing_index].join("\n");
+    let body = if closing_index + 1 < lines.len() {
+        let offset = lines
+            .iter()
+            .take(closing_index + 1)
+            .map(|line| line.len() + 1)
+            .sum::<usize>();
+        content.get(offset..).unwrap_or_default().to_string()
+    } else {
+        String::new()
+    };
+
+    ExtractedFrontmatter {
+        yaml: Some(yaml),
+        body,
+    }
+}
+
+/// Deserializes an extracted YAML frontmatter string into a requested type.
+///
+/// # Arguments
+///
+/// * `yaml` - YAML frontmatter content without delimiter lines.
+///
+/// # Returns
+///
+/// The deserialized value, using `T::default()` when `yaml` is empty, or a YAML
+/// parsing error when the input is invalid for `T`.
+pub(crate) fn deserialize_frontmatter<T: DeserializeOwned + Default>(yaml: &str) -> Result<T> {
+    if yaml.trim().is_empty() {
+        Ok(T::default())
+    } else {
+        serde_yaml::from_str(yaml).map_err(PlmError::Yaml)
+    }
+}
+
 /// Parses YAML frontmatter from a document.
 ///
 /// # Format
@@ -50,63 +131,14 @@ pub struct ParsedDocument<T> {
 pub fn parse_frontmatter<T: DeserializeOwned + Default>(
     content: &str,
 ) -> Result<ParsedDocument<T>> {
-    // Remove UTF-8 BOM if present
-    let content = content.strip_prefix('\u{feff}').unwrap_or(content);
-
-    let lines: Vec<&str> = content.lines().collect();
-
-    let first_line = lines.first().map(|s| s.trim()).unwrap_or("");
-    if !first_line.starts_with("---") {
-        // No frontmatter - entire content is body
+    let ExtractedFrontmatter { yaml, body } = extract_frontmatter(content);
+    let Some(yaml) = yaml else {
         return Ok(ParsedDocument {
             frontmatter: None,
-            body: content.to_string(),
-        });
-    }
-
-    let closing_index = lines
-        .iter()
-        .enumerate()
-        .skip(1) // Skip the opening ---
-        .find(|(_, line)| line.trim().starts_with("---"))
-        .map(|(i, _)| i);
-
-    let Some(closing_index) = closing_index else {
-        // No closing --- found - treat entire content as body
-        return Ok(ParsedDocument {
-            frontmatter: None,
-            body: content.to_string(),
+            body,
         });
     };
-
-    let yaml_content: String = lines[1..closing_index].join("\n");
-
-    let frontmatter: T = if yaml_content.trim().is_empty() {
-        // Empty frontmatter - use default
-        T::default()
-    } else {
-        serde_yaml::from_str(&yaml_content).map_err(PlmError::Yaml)?
-    };
-
-    // Extract body (everything after closing ---)
-    // Preserve exact content including leading newlines
-    let body = if closing_index + 1 < lines.len() {
-        let mut offset = 0;
-        for (i, line) in lines.iter().enumerate() {
-            if i <= closing_index {
-                offset += line.len() + 1; // +1 for newline
-            } else {
-                break;
-            }
-        }
-        if offset <= content.len() {
-            content[offset..].to_string()
-        } else {
-            String::new()
-        }
-    } else {
-        String::new()
-    };
+    let frontmatter = deserialize_frontmatter(&yaml)?;
 
     Ok(ParsedDocument {
         frontmatter: Some(frontmatter),
