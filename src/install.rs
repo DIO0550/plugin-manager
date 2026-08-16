@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use crate::component::{AgentFormat, CommandFormat, ComponentKind, Scope};
@@ -82,6 +81,63 @@ pub struct PlaceOutcome {
     /// Codex Hook 配置時に適用された feature flag の結果。
     /// 1 回の `place_plugin` で 1 scope につき最大 1 件。
     pub feature_flags: Vec<crate::target::FeatureFlagOutcome>,
+}
+
+impl PlaceOutcome {
+    /// 配置に成功したコンポーネント数。
+    pub fn placed_count(&self) -> usize {
+        self.successes.len()
+    }
+
+    /// 配置に失敗したコンポーネント数。
+    pub fn failed_count(&self) -> usize {
+        self.failures.len()
+    }
+
+    /// 成功と失敗が両方ある（部分成功）。
+    pub fn is_partial(&self) -> bool {
+        !self.successes.is_empty() && !self.failures.is_empty()
+    }
+
+    /// 指定 target の成功件数。
+    ///
+    /// # Arguments
+    ///
+    /// * `target` - Target name to count (`codex`, `copilot`, ...).
+    pub fn target_success_count(&self, target: &str) -> usize {
+        self.successes
+            .iter()
+            .filter(|success| success.target == target)
+            .count()
+    }
+
+    /// 指定 target の失敗件数。
+    ///
+    /// # Arguments
+    ///
+    /// * `target` - Target name to count (`codex`, `copilot`, ...).
+    pub fn target_failure_count(&self, target: &str) -> usize {
+        self.failures
+            .iter()
+            .filter(|failure| failure.target == target)
+            .count()
+    }
+
+    /// CLI の target 行に付けるラベル。成功のみの target は `None`。
+    ///
+    /// # Arguments
+    ///
+    /// * `target` - Target name to classify.
+    pub fn target_status_label(&self, target: &str) -> Option<&'static str> {
+        match (
+            self.target_success_count(target),
+            self.target_failure_count(target),
+        ) {
+            (_, 0) => None,
+            (0, _) => Some("FAILED"),
+            _ => Some("PARTIAL"),
+        }
+    }
 }
 
 /// 配置成功
@@ -204,6 +260,7 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
 
     for target in request.targets {
         let failures_before = failures.len();
+        let successes_before = successes.len();
         let component_conflict = target.component_conflict_error(&request.scanned.components);
 
         for component in &request.scanned.components {
@@ -357,15 +414,16 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
             }
         }
 
-        // 旧 3 階層構造 (<base>/<plural>/<mp>/<plg>) のクリーンアップは
-        // 当該 target 内で failure が発生しなかった場合に実行する。
-        // 途中で failure があった場合に旧階層を消すと「新旧どちらも残らない」
-        // 状態を招きうるため、ロールバック相当として旧階層を温存する。
-        // 一方、配置件数が 0 件（target がサポートしないコンポーネントだけ
-        // の場合など）でも failure がなければ、install 実行時の自動クリーン
-        // アップ対象とし旧階層が永続するのを避ける。
+        // 旧 3 階層構造 (<base>/<plural>/<mp>/<plg>) のクリーンアップと
+        // Plugin リソース配置は、当該 target が「全失敗」でないときに実行する。
+        // 部分成功でもリソースを置かないと「コンポーネントはあるがリソースが
+        // ない」不整合になる。全失敗のときだけ旧階層を温存する（新規配置が
+        // 無いため、消すとロールバック相当の残骸も失われる）。
+        // 配置 0 件かつ failure 0 件（未サポート種別のみ等）は従来どおり
+        // クリーンアップ対象とし、旧階層が永続するのを避ける。
         let target_had_failure = failures.len() > failures_before;
-        if !target_had_failure {
+        let target_had_success = successes.len() > successes_before;
+        if target_had_success || !target_had_failure {
             cleanup_legacy_hierarchy(target.kind(), &origin, request.project_root);
 
             // Plugin リソース: コンポーネント配置成功後に構造維持で配置
@@ -420,8 +478,9 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
 /// place_plugin 後のステータス更新（CLI / TUI 共通）
 ///
 /// 配置スキャンではプラグイン名を復元できないターゲット固有ファイル
-/// （例: Codex の `.codex/hooks.json`）もあるため、target 全体が成功した場合だけ
-/// `.plm-meta.json` の `statusByTarget` に記録して enabled 判定を安定させる。
+/// （例: Codex の `.codex/hooks.json`）もあるため、target に 1 件以上の
+/// 成功がある場合に `.plm-meta.json` の `statusByTarget` を enabled にする。
+/// 部分成功でもディスク上の配置と `plm list` / `enable` / `uninstall` を揃える。
 ///
 /// 実際にステータス更新が発生しなかった場合（全 target が失敗した、`successes`
 /// が空など）は `.plm-meta.json` を書き換えない。失敗 install で不要な
@@ -433,21 +492,12 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
 /// * `result` - Outcome returned by `place_plugin`.
 pub fn update_meta_after_place(plugin_path: &Path, result: &PlaceOutcome) {
     let mut plugin_meta = meta::load_meta(plugin_path).unwrap_or_default();
-    let failed_targets: HashSet<&str> = result
-        .failures
-        .iter()
-        .map(|failure| failure.target.as_str())
-        .collect();
 
     let mut updated = false;
     for success in &result.successes {
-        // statusByTarget = "enabled" は「target 全体として成功した」状態を表す
-        // ため、同じ target に failure があれば enabled に昇格させない。
         // 既に "enabled" の場合は内容変化なしの no-op 書き込みを避けるため
         // set_status を呼ばずに skip する（mtime 汚染を防ぐ）。
-        if !failed_targets.contains(success.target.as_str())
-            && plugin_meta.get_status(&success.target) != Some(TargetStatus::Enabled)
-        {
+        if plugin_meta.get_status(&success.target) != Some(TargetStatus::Enabled) {
             plugin_meta.set_status(&success.target, TargetStatus::Enabled);
             updated = true;
         }

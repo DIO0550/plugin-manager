@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use tempfile::TempDir;
 
@@ -8,7 +8,7 @@ use crate::component::ComponentKind;
 use crate::hooks::converter::{ConversionWarning, SourceFormat};
 use crate::plugin::meta::TargetStatus;
 use crate::plugin::{CachedPackage, MarketplaceContent, PluginManifest};
-use crate::target::{CodexTarget, CopilotTarget, CursorTarget};
+use crate::target::{CodexTarget, CopilotTarget, CursorTarget, TargetKind};
 
 /// テスト用 CachedPackage を構築するヘルパー
 fn create_test_cached_package(
@@ -810,5 +810,150 @@ fn test_place_plugin_custom_skills_path_not_treated_as_plugin_resource() {
     assert!(
         !root.join("my-skills").exists(),
         "custom skills path must not be a plugin resource"
+    );
+}
+
+fn make_place_failure(target: &str, component_name: &str) -> PlaceFailure {
+    PlaceFailure {
+        target: target.to_string(),
+        component_name: component_name.to_string(),
+        component_kind: ComponentKind::Agent,
+        error: "YAML parse error".to_string(),
+        stage: PlaceFailureStage::Deployment,
+    }
+}
+
+fn make_place_success(target: &str, component_name: &str) -> PlaceSuccess {
+    PlaceSuccess {
+        target: target.to_string(),
+        target_kind: TargetKind::Codex,
+        component_name: component_name.to_string(),
+        component_kind: ComponentKind::Skill,
+        target_path: PathBuf::from("/tmp/skill"),
+        source_format: None,
+        dest_format: None,
+        hook_warnings: vec![],
+        script_count: 0,
+        hook_count: 0,
+        hook_source_format: None,
+    }
+}
+
+#[test]
+fn place_outcome_is_partial_when_successes_and_failures_both_exist() {
+    let outcome = PlaceOutcome {
+        plugin_name: "spec-plugin".to_string(),
+        successes: vec![make_place_success("codex", "ok-skill")],
+        failures: vec![make_place_failure("codex", "bad-agent")],
+        feature_flags: vec![],
+    };
+
+    assert!(outcome.is_partial());
+    assert_eq!(outcome.placed_count(), 1);
+    assert_eq!(outcome.failed_count(), 1);
+    assert_eq!(outcome.target_success_count("codex"), 1);
+    assert_eq!(outcome.target_failure_count("codex"), 1);
+    assert_eq!(outcome.target_status_label("codex"), Some("PARTIAL"));
+}
+
+#[test]
+fn place_outcome_target_status_label_failed_when_no_success() {
+    let outcome = PlaceOutcome {
+        plugin_name: "spec-plugin".to_string(),
+        successes: vec![],
+        failures: vec![make_place_failure("codex", "bad-agent")],
+        feature_flags: vec![],
+    };
+
+    assert!(!outcome.is_partial());
+    assert_eq!(outcome.target_status_label("codex"), Some("FAILED"));
+    assert_eq!(outcome.target_status_label("copilot"), None);
+}
+
+#[test]
+fn test_place_plugin_partial_success_keeps_placed_files_and_deploys_resources() {
+    let temp = TempDir::new().unwrap();
+    let project_dir = TempDir::new().unwrap();
+    let cached = create_test_cached_package(temp.path(), &["ok-skill"], &["bad-agent"], &[]);
+    fs::write(
+        temp.path().join("agents/bad-agent.agent.md"),
+        "---\nname: [invalid yaml\n---\n\nBody.\n",
+    )
+    .unwrap();
+    fs::create_dir_all(temp.path().join("references")).unwrap();
+    fs::write(temp.path().join("references/guide.md"), "guide\n").unwrap();
+
+    let package = MarketplaceContent::try_from(cached).unwrap();
+    let scanned = scan_plugin(&package, None).unwrap();
+    let targets: Vec<Box<dyn crate::target::Target>> = vec![Box::new(CodexTarget::new())];
+
+    let result = place_plugin(&PlaceRequest {
+        scanned: &scanned,
+        targets: &targets,
+        scope: crate::component::Scope::Project,
+        project_root: project_dir.path(),
+        enable_codex_hooks_flag: false,
+    });
+
+    assert!(result.is_partial(), "{:?}", result.failures);
+    assert_eq!(result.placed_count(), 1);
+    assert_eq!(result.failed_count(), 1);
+    assert_eq!(result.successes[0].component_kind, ComponentKind::Skill);
+    assert!(result
+        .failures
+        .iter()
+        .all(|failure| failure.component_kind == ComponentKind::Agent));
+
+    let skill_dir = project_dir
+        .path()
+        .join(".codex/skills/test-plugin_ok-skill");
+    assert!(
+        skill_dir.join("SKILL.md").is_file(),
+        "successful skill must remain on disk"
+    );
+
+    let resource = project_dir
+        .path()
+        .join(".codex/plugins/test-plugin/references/guide.md");
+    assert!(
+        resource.is_file(),
+        "plugin resources must deploy on partial success: {}",
+        resource.display()
+    );
+}
+
+#[test]
+fn test_place_plugin_all_failures_skip_plugin_resources() {
+    let temp = TempDir::new().unwrap();
+    let project_dir = TempDir::new().unwrap();
+    let cached = create_test_cached_package(temp.path(), &[], &["bad-agent"], &[]);
+    fs::write(
+        temp.path().join("agents/bad-agent.agent.md"),
+        "---\nname: [invalid yaml\n---\n\nBody.\n",
+    )
+    .unwrap();
+    fs::create_dir_all(temp.path().join("references")).unwrap();
+    fs::write(temp.path().join("references/guide.md"), "guide\n").unwrap();
+
+    let package = MarketplaceContent::try_from(cached).unwrap();
+    let scanned = scan_plugin(&package, None).unwrap();
+    let targets: Vec<Box<dyn crate::target::Target>> = vec![Box::new(CodexTarget::new())];
+
+    let result = place_plugin(&PlaceRequest {
+        scanned: &scanned,
+        targets: &targets,
+        scope: crate::component::Scope::Project,
+        project_root: project_dir.path(),
+        enable_codex_hooks_flag: false,
+    });
+
+    assert!(result.successes.is_empty());
+    assert_eq!(result.failed_count(), 1);
+    assert!(!result.is_partial());
+
+    let resource_root = project_dir.path().join(".codex/plugins/test-plugin");
+    assert!(
+        !resource_root.exists(),
+        "total failure must not deploy plugin resources"
     );
 }
