@@ -265,11 +265,7 @@ fn build_browse_plugins(
 fn make_all_failed_summary(plugin_names: &[String], error: &str) -> InstallSummary {
     let results: Vec<PluginInstallOutcome> = plugin_names
         .iter()
-        .map(|name| PluginInstallOutcome {
-            plugin_name: name.clone(),
-            success: false,
-            error: Some(error.to_string()),
-        })
+        .map(|name| PluginInstallOutcome::failure(name.clone(), error))
         .collect();
     build_install_summary(results)
 }
@@ -306,22 +302,14 @@ fn install_single_plugin(
     }) {
         Ok(d) => d,
         Err(e) => {
-            return PluginInstallOutcome {
-                plugin_name: plugin_name.to_string(),
-                success: false,
-                error: Some(e.to_string()),
-            }
+            return PluginInstallOutcome::failure(plugin_name, e.to_string());
         }
     };
 
     let scanned = match install::scan_plugin(&package, None) {
         Ok(s) => s,
         Err(e) => {
-            return PluginInstallOutcome {
-                plugin_name: plugin_name.to_string(),
-                success: false,
-                error: Some(e),
-            }
+            return PluginInstallOutcome::failure(plugin_name, e);
         }
     };
 
@@ -335,34 +323,40 @@ fn install_single_plugin(
     });
 
     install::update_meta_after_place(scanned.plugin_root(), &place_result);
+    outcome_from_place(plugin_name, &place_result)
+}
 
-    if !place_result.failures.is_empty() {
-        let errors: Vec<String> = place_result
-            .failures
-            .iter()
-            .map(|f| format!("{}/{}: {}", f.target, f.component_name, f.error))
-            .collect();
-        PluginInstallOutcome {
-            plugin_name: plugin_name.to_string(),
-            success: false,
-            error: Some(errors.join("; ")),
-        }
-    } else if place_result.successes.is_empty() {
-        PluginInstallOutcome {
-            plugin_name: plugin_name.to_string(),
-            success: false,
-            error: Some(
-                "No components were placed. The plugin may contain no components after scanning, \
-                 or none of its components are supported by the selected targets."
-                    .to_string(),
-            ),
-        }
+fn outcome_from_place(plugin_name: &str, place: &install::PlaceOutcome) -> PluginInstallOutcome {
+    if place.placed_count() == 0 && place.failed_count() == 0 {
+        return PluginInstallOutcome::failure(
+            plugin_name,
+            "No components were placed. The plugin may contain no components after scanning, \
+             or none of its components are supported by the selected targets.",
+        );
+    }
+
+    let failure_lines: Vec<String> = place
+        .failures
+        .iter()
+        .map(|failure| {
+            format!(
+                "{}/{}: {}",
+                failure.target, failure.component_name, failure.error
+            )
+        })
+        .collect();
+    let error = if failure_lines.is_empty() {
+        None
     } else {
-        PluginInstallOutcome {
-            plugin_name: plugin_name.to_string(),
-            success: true,
-            error: None,
-        }
+        Some(failure_lines.join("; "))
+    };
+
+    PluginInstallOutcome {
+        plugin_name: plugin_name.to_string(),
+        placed: place.placed_count(),
+        failed: place.failed_count(),
+        error,
+        failure_lines,
     }
 }
 
@@ -442,12 +436,17 @@ pub fn install_plugins(
 /// * `results` - Individual install results to aggregate.
 fn build_install_summary(results: Vec<PluginInstallOutcome>) -> InstallSummary {
     let total = results.len();
-    let succeeded = results.iter().filter(|r| r.success).count();
-    let failed = total - succeeded;
+    let succeeded = results
+        .iter()
+        .filter(|result| result.is_full_success())
+        .count();
+    let partial = results.iter().filter(|result| result.is_partial()).count();
+    let failed = total - succeeded - partial;
     InstallSummary {
         results,
         total,
         succeeded,
+        partial,
         failed,
     }
 }

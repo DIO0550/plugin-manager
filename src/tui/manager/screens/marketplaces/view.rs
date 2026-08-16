@@ -17,7 +17,7 @@ use crate::tui::manager::core::{
     render_filter_bar, truncate_for_list, truncate_for_paragraph, DataStore, MarketplaceItem, Tab,
 };
 use ratatui::prelude::*;
-use ratatui::widgets::{Block, Borders, Clear, Gauge, ListItem, ListState, Paragraph, Tabs};
+use ratatui::widgets::{Block, Borders, Clear, Gauge, ListItem, ListState, Paragraph, Tabs, Wrap};
 use std::collections::HashSet;
 
 /// 描画用共通コンテキスト（DataStore + フィルタ情報）
@@ -764,19 +764,38 @@ fn installing_inner_layout(modal_area: Rect) -> [Rect; 3] {
     [chunks[0], chunks[1], chunks[2]]
 }
 
-/// インストール結果 1 件を描画用の `(行テキスト, 色)` に整形する。
+/// インストール結果 1 件を描画用の `(行テキスト, 色)` 群に整形する。
 ///
-/// 成功・失敗で接頭辞・色が異なるが、組み立て・切り詰め・スタイル付与の経路を
-/// 共通化するため、ここでは色とテキストの導出だけを担う。
-fn format_install_result_line(result: &PluginInstallOutcome) -> (String, Color) {
-    if result.success {
-        (format!("  ✓ {}", result.plugin_name), Color::Green)
+/// 部分成功は警告行のあとに失敗コンポーネントを箇条書きし、1 行連結で
+/// 切り詰めない。
+fn format_install_result_lines(result: &PluginInstallOutcome) -> Vec<(String, Color)> {
+    if result.is_full_success() {
+        vec![(format!("  ✓ {}", result.plugin_name), Color::Green)]
+    } else if result.is_partial() {
+        let total = result.placed + result.failed;
+        let mut lines = vec![(
+            format!(
+                "  ⚠ {}: {}/{} components placed, {} failed",
+                result.plugin_name, result.placed, total, result.failed
+            ),
+            Color::Yellow,
+        )];
+        for detail in &result.failure_lines {
+            lines.push((format!("      - {}", detail), Color::Red));
+        }
+        lines
+    } else if result.failure_lines.len() > 1 {
+        let mut lines = vec![(format!("  ✗ {}", result.plugin_name), Color::Red)];
+        for detail in &result.failure_lines {
+            lines.push((format!("      - {}", detail), Color::Red));
+        }
+        lines
     } else {
         let error_msg = result.error.as_deref().unwrap_or("Unknown error");
-        (
+        vec![(
             format!("  ✗ {}: {}", result.plugin_name, error_msg),
             Color::Red,
-        )
+        )]
     }
 }
 
@@ -799,26 +818,35 @@ fn view_install_result(f: &mut Frame, summary: &InstallSummary) {
         ])
         .split(modal_area);
 
-    let mut lines = vec![
-        Line::raw(""),
-        Line::from(format!(
+    let installed = summary.succeeded + summary.partial;
+    let header = if summary.partial > 0 {
+        format!(
+            "  Installed {}/{} plugins ({} partial)",
+            installed, summary.total, summary.partial
+        )
+    } else {
+        format!(
             "  Installed {}/{} plugins",
             summary.succeeded, summary.total
-        )),
-        Line::raw(""),
-    ];
+        )
+    };
+
+    let mut lines = vec![Line::raw(""), Line::from(header), Line::raw("")];
 
     for result in &summary.results {
-        let (raw, color) = format_install_result_line(result);
-        lines.push(Line::from(Span::styled(
-            truncate_for_paragraph(modal_area.width, raw),
-            Style::default().fg(color),
-        )));
+        for (raw, color) in format_install_result_lines(result) {
+            lines.push(Line::from(Span::styled(
+                truncate_for_paragraph(modal_area.width, raw),
+                Style::default().fg(color),
+            )));
+        }
     }
 
     lines.push(Line::raw(""));
 
-    let content = Paragraph::new(lines).block(bordered_block(" Install Result "));
+    let content = Paragraph::new(lines)
+        .wrap(Wrap { trim: false })
+        .block(bordered_block(" Install Result "));
     f.render_widget(content, chunks[0]);
 
     let help =

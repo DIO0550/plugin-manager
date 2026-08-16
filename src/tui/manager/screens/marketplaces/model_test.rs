@@ -342,6 +342,7 @@ fn key_to_msg_install_result_enter_returns_back_to_browse() {
             results: vec![],
             total: 0,
             succeeded: 0,
+            partial: 0,
             failed: 0,
         },
     };
@@ -361,6 +362,7 @@ fn key_to_msg_install_result_esc_returns_back_to_browse() {
             results: vec![],
             total: 0,
             succeeded: 0,
+            partial: 0,
             failed: 0,
         },
     };

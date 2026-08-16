@@ -1074,13 +1074,10 @@ fn back_to_plugin_browse_from_result_refreshes_plugins() {
         marketplace_name: "mp-a".to_string(),
         plugins,
         summary: InstallSummary {
-            results: vec![PluginInstallOutcome {
-                plugin_name: "p1".to_string(),
-                success: true,
-                error: None,
-            }],
+            results: vec![PluginInstallOutcome::success("p1", 1)],
             total: 1,
             succeeded: 1,
+            partial: 0,
             failed: 0,
         },
     };
@@ -1148,19 +1145,12 @@ fn execute_install_transitions_to_install_result() {
         &mut data,
         |_mp, _plugins, _targets, _scope| InstallSummary {
             results: vec![
-                PluginInstallOutcome {
-                    plugin_name: "p1".to_string(),
-                    success: true,
-                    error: None,
-                },
-                PluginInstallOutcome {
-                    plugin_name: "p2".to_string(),
-                    success: true,
-                    error: None,
-                },
+                PluginInstallOutcome::success("p1", 1),
+                PluginInstallOutcome::success("p2", 1),
             ],
             total: 2,
             succeeded: 2,
+            partial: 0,
             failed: 0,
         },
         |_d| {
@@ -1190,19 +1180,12 @@ fn execute_install_with_failure_shows_in_summary() {
         &mut data,
         |_mp, _plugins, _targets, _scope| InstallSummary {
             results: vec![
-                PluginInstallOutcome {
-                    plugin_name: "p1".to_string(),
-                    success: true,
-                    error: None,
-                },
-                PluginInstallOutcome {
-                    plugin_name: "p2".to_string(),
-                    success: false,
-                    error: Some("install failed".to_string()),
-                },
+                PluginInstallOutcome::success("p1", 1),
+                PluginInstallOutcome::failure("p2", "install failed"),
             ],
             total: 2,
             succeeded: 1,
+            partial: 0,
             failed: 1,
         },
         |_d| Ok(()),

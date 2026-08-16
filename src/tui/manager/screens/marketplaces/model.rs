@@ -98,8 +98,54 @@ pub struct BrowsePlugin {
 /// プラグインインストール結果（1件分）
 pub struct PluginInstallOutcome {
     pub plugin_name: String,
-    pub success: bool,
+    pub placed: usize,
+    pub failed: usize,
     pub error: Option<String>,
+    pub failure_lines: Vec<String>,
+}
+
+impl PluginInstallOutcome {
+    /// コンポーネント配置がすべて成功したときの結果。
+    ///
+    /// # Arguments
+    ///
+    /// * `plugin_name` - Installed plugin name.
+    /// * `placed` - Number of successfully placed components.
+    pub fn success(plugin_name: impl Into<String>, placed: usize) -> Self {
+        Self {
+            plugin_name: plugin_name.into(),
+            placed,
+            failed: 0,
+            error: None,
+            failure_lines: Vec::new(),
+        }
+    }
+
+    /// ダウンロード失敗など、コンポーネントを 1 件も置けなかったときの結果。
+    ///
+    /// # Arguments
+    ///
+    /// * `plugin_name` - Plugin that failed to install.
+    /// * `error` - Human-readable error message.
+    pub fn failure(plugin_name: impl Into<String>, error: impl Into<String>) -> Self {
+        Self {
+            plugin_name: plugin_name.into(),
+            placed: 0,
+            failed: 0,
+            error: Some(error.into()),
+            failure_lines: Vec::new(),
+        }
+    }
+
+    /// 1 件以上置けて、かつ 1 件以上失敗した部分成功。
+    pub fn is_partial(&self) -> bool {
+        self.placed > 0 && self.failed > 0
+    }
+
+    /// 失敗なく 1 件以上置けた完全成功。
+    pub fn is_full_success(&self) -> bool {
+        self.placed > 0 && self.failed == 0 && self.error.is_none()
+    }
 }
 
 /// インストールサマリー
@@ -107,6 +153,7 @@ pub struct InstallSummary {
     pub results: Vec<PluginInstallOutcome>,
     pub total: usize,
     pub succeeded: usize,
+    pub partial: usize,
     pub failed: usize,
 }
 
