@@ -14,7 +14,7 @@ use super::super::frontmatter::{
     deserialize_frontmatter, emit_frontmatter, extract_frontmatter, normalize_optional_name,
     stem_without_suffixes, ExtractedFrontmatter,
 };
-use super::frontmatter::normalize_description_examples;
+use super::frontmatter::AGENT_FRONTMATTER_SCHEMA;
 
 /// Claude Code Agent frontmatter fields.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -63,10 +63,9 @@ impl ClaudeCodeAgent {
     pub fn parse(content: &str) -> Result<Self> {
         let ExtractedFrontmatter { yaml, body } = extract_frontmatter(content);
         let fm = match yaml {
-            Some(yaml) => deserialize_frontmatter(&normalize_description_examples(
-                &yaml,
-                &["name", "description", "tools", "model"],
-            ))?,
+            Some(yaml) => deserialize_frontmatter(
+                &AGENT_FRONTMATTER_SCHEMA.normalize_description_examples(&yaml),
+            )?,
             None => ClaudeCodeAgentFrontmatter::default(),
         };
 
