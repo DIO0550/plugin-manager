@@ -35,6 +35,7 @@ GitHubからAI開発環境向けのプラグインをダウンロードし、複
 - [Concepts](./concepts/targets.md) - コンセプト・仕組み
 - [Architecture](./architecture/overview.md) - 内部アーキテクチャ
 - [Reference](./reference/config.md) - 技術リファレンス
+- [上流仕様の追随状況](./reference/upstream-spec-updates.md) - 各CLI公式仕様の更新チェックとTODO
 - [Roadmap](./roadmap.md) - 実装状況・ロードマップ
 
 ## 対応規格

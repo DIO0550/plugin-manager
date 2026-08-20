@@ -13,6 +13,9 @@ PLMがサポートするAI開発環境（ターゲット）について説明し
 | **cursor** | Cursor（IDE / CLI） | ✅ 対応済み |
 | **opencode** | OpenCode（ターミナル AI エージェント） | ✅ 対応済み |
 
+> **上流仕様の追随状況**: 各ターゲットの公式仕様は継続的に更新される。最終調査日と未対応 TODO は
+> [`docs/reference/upstream-spec-updates.md`](../reference/upstream-spec-updates.md) を参照（最終調査: 2026-08-20）。
+
 ## サポートするコンポーネント
 
 | コンポーネント | Codex | Copilot | Antigravity | Gemini CLI | Cursor | OpenCode |
@@ -66,7 +69,10 @@ PLMがサポートするAI開発環境（ターゲット）について説明し
 
 ### Hooks（10 イベント対応）
 
-公式ドキュメント: [Codex Hooks](https://developers.openai.com/codex/hooks)
+公式ドキュメント: [Codex Hooks](https://developers.openai.com/codex/hooks)（現行 URL: [learn.chatgpt.com/docs/hooks](https://learn.chatgpt.com/docs/hooks)。URL 移行対応は [#463](https://github.com/DIO0550/plugin-manager/issues/463)）
+
+> **TODO（2026-08-20 調査）**: 上流に `SessionEnd` イベントと `async` フィールドが追加されたが PLM 未対応（[#455](https://github.com/DIO0550/plugin-manager/issues/455)）。
+> また hooks は上流で既定有効になり `codex_hooks` は deprecated alias となったため、`[features] codex_hooks = true` の自動追記を見直す（[#456](https://github.com/DIO0550/plugin-manager/issues/456)）。
 
 Codex CLI は PascalCase 命名の hooks イベントを 10 種サポートし、PLM の `CodexEventMap` はそれらをすべて変換対象として保持する（イベント名は変換時にそのまま維持）。
 
@@ -100,7 +106,7 @@ Codex CLI は PascalCase 命名の hooks イベントを 10 種サポートし�
 
 ### 重要な制約
 
-- **Copilotはグローバルファイル（`~/.copilot/`等）を直接読み込まない**
+- **Copilotはグローバルファイル（`~/.copilot/`等）を直接読み込まない**（Instructions / Prompts の話。Skills は上流で `~/.copilot/skills/` が追加済み → [#457](https://github.com/DIO0550/plugin-manager/issues/457)）
 - Personal スコープは VSCode 設定経由で外部ファイルを参照する形式
 - Issue: [Global files outside workspace の要望](https://github.com/microsoft/vscode-copilot-release/issues/3129)
 
@@ -122,7 +128,7 @@ Codex CLI は PascalCase 命名の hooks イベントを 10 種サポートし�
 
 | 種別 | ファイル形式 | Personal | Project |
 |------|-------------|----------|---------|
-| Skills | `SKILL.md` | - | `.github/skills/<marketplace>/<plugin>/<skill>/` |
+| Skills | `SKILL.md` | -（TODO: [#457](https://github.com/DIO0550/plugin-manager/issues/457)） | `.github/skills/<marketplace>/<plugin>/<skill>/` |
 | Agents | `*.agent.md` | `~/.copilot/agents/<marketplace>/<plugin>/` | `.github/agents/<marketplace>/<plugin>/` |
 | Prompts | `*.prompt.md` | - | `.github/prompts/<marketplace>/<plugin>/` |
 | Instructions | `AGENTS.md` | - | `AGENTS.md` |
@@ -147,6 +153,10 @@ VSCode Copilot Agent Modeでは、エージェントセッションのライフ�
 | `PreCompact` | コンテキスト圧縮前 | 重要コンテキストの退避 |
 | `SubagentStart` | サブエージェント開始時 | 追跡 |
 | `SubagentStop` | サブエージェント終了時 | クリーンアップ |
+
+> **TODO（2026-08-20 調査）**: `PostToolUseFailure`（Copilot CLI の `errorOccurred`）/ `PreCompact` / `SubagentStart` が
+> PLM のイベントマップに無く、変換時に除外される（[#458](https://github.com/DIO0550/plugin-manager/issues/458)）。
+> Personal スコープの Skills パス `~/.copilot/skills/` も上流で追加済み（[#457](https://github.com/DIO0550/plugin-manager/issues/457)）。
 
 #### 設定形式
 
@@ -249,7 +259,8 @@ Google Antigravityはエージェント指向の開発プラットフォーム�
 | Skills | `SKILL.md` | `~/.gemini/antigravity/skills/<marketplace>/<plugin>/<skill>/` | `.agent/skills/<marketplace>/<plugin>/<skill>/` |
 | Hooks | `hooks.json` | `~/.gemini/config/hooks.json` | `.agents/hooks.json` |
 
-> Skills の公式推奨パスは Personal `~/.gemini/config/skills/`、Project `.agents/skills/`。PLM 現状パスは IDE 互換だが CLI 非対応のため、パス移行は別 feature（[#402](https://github.com/DIO0550/plugin-manager/issues/402) 連携）で扱う。
+> Skills の公式推奨パスは Personal `~/.gemini/config/skills/`、Project `.agents/skills/`。PLM 現状パスは IDE 互換だが CLI 非対応のため、パス移行は別 feature（[#460](https://github.com/DIO0550/plugin-manager/issues/460)、[#402](https://github.com/DIO0550/plugin-manager/issues/402) 連携）で扱う。
+> **TODO（2026-08-20 調査）**: 上流は `.agents/skills` を既定とし `.agent/skills` は後方互換扱いになった（[#460](https://github.com/DIO0550/plugin-manager/issues/460)）。
 >
 > Hooks は Claude Code 形式から命名フックマップへ変換して単一 `hooks.json` に配置する（[#309](https://github.com/DIO0550/plugin-manager/issues/309)）。非管理ファイルの上書きと複数 Hook 同時配置は拒否。スキーマ詳細は [hooks-schema-mapping.md](../reference/hooks-schema-mapping.md)。
 
@@ -338,7 +349,8 @@ Gemini CLIは `GEMINI.md` ファイルによる階層的な指示システムを
 
 ### 制約事項
 
-- **実験的機能**: `/settings` で Agent Skills を `true` に設定して有効化が必要
+- ~~**実験的機能**: `/settings` で Agent Skills を `true` に設定して有効化が必要~~
+  → **TODO（2026-08-20 調査）**: 上流で GA 済み。`.agents/skills` エイリアスや管理コマンドの追加も含めて記載を更新する（[#461](https://github.com/DIO0550/plugin-manager/issues/461)）
 - **Agents非対応**: `.agent.md` 形式はサポートしない
 - **Prompts非対応**: `.prompt.md` 形式はサポートしない
 - **Hooks 非対応**: Gemini CLI 単体の hooks 公式仕様は追わず、Antigravity（IDE / CLI）共通仕様へ一本化する。一般向け製品移行の詳細は [Transitioning Gemini CLI to Antigravity CLI](https://github.com/google-gemini/gemini-cli/discussions/27274) を参照
@@ -376,6 +388,7 @@ CursorはAnysphere社のAIコードエディタ。エディタに加えてター
 ### 重要な特徴
 
 - **SKILL.md形式**: frontmatterは `name`（必須、小文字・数字・ハイフンのみ、フォルダ名と一致）と `description`（必須）に加え、`paths`（globで適用範囲を制限）、`disable-model-invocation`（trueで明示的スラッシュコマンド専用化）、`metadata` をサポート
+  - **TODO（2026-08-20 調査）**: 上流に `icon` / `color`（Custom Mode 表示用）が追加済み（[#459](https://github.com/DIO0550/plugin-manager/issues/459)）
 - **skillsルートの再帰走査**: ネストしたディレクトリ内の `SKILL.md` も発見されるため、PLMの `<marketplace>/<plugin>/<skill>/` 階層はそのまま読み込まれる見込み
 - **Agents（サブエージェント）**: YAMLフロントマター（`name`, `description`, `model`, `readonly`, `is_background`）付きMarkdown。エディタ・CLI・Cloud Agentsで利用可能
 - **CommandsはSkillsへ移行中**: `/migrate-to-skills` により既存のCommandsは `disable-model-invocation: true` 付きSkillsへ変換される方向。`.cursor/commands/` 自体は引き続き動作する
@@ -386,6 +399,10 @@ CursorはAnysphere社のAIコードエディタ。エディタに加えてター
 設定は単一の `hooks.json`（`{"version": 1, "hooks": {"<event>": [{"command": "..."}]}}`）。イベント名は**camelCase**で、Copilot CLI形式（camelCase + `"version": 1`）に近い。
 
 主なイベント: `sessionStart`, `sessionEnd`, `preToolUse`, `postToolUse`, `postToolUseFailure`, `subagentStart`, `subagentStop`, `beforeShellExecution`, `afterShellExecution`, `beforeMCPExecution`, `afterMCPExecution`, `beforeReadFile`, `afterFileEdit`, `beforeSubmitPrompt`, `preCompact`, `stop`, `afterAgentResponse` など。
+
+> **TODO（2026-08-20 調査）**: 上流に `afterAgentThought`・Tab hooks（`beforeTabFileRead` / `afterTabFileEdit`）・`workspaceOpen` が追加され、
+> hook 単位のフィールドにも `type`（`command` / `prompt`）・`loop_limit`・`failClosed`・`matcher` が加わった。
+> 設定スコープの優先順位も Enterprise → Team → Project → User へ拡張されている（[#459](https://github.com/DIO0550/plugin-manager/issues/459)）。
 
 Claude Code側に対応イベントがないもの（`beforeShellExecution` 等のCursor固有イベント）は変換対象外。PLM は Claude Code → Cursor 変換（camelCase + `version: 1`）を行い、単一の `hooks.json` として配置する。既存の非管理 `hooks.json` の上書きと、同一インストール内の複数 Hook コンポーネントは拒否する（フルマージは将来対応）。
 
