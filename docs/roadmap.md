@@ -129,6 +129,25 @@ Epic: [#416](https://github.com/DIO0550/plugin-manager/issues/416)（仕様: `do
 
 Skills / Agents / Commands / Instructions を対応。Hooks / Plugins（JS/TS）は対象外。
 
+## 上流仕様の追随（TODO）
+
+各ターゲットの公式 Hooks / Skills / Agents 仕様は継続的に更新されるため、定期的に調査して差分を追随する。
+調査結果と TODO の詳細は [`docs/reference/upstream-spec-updates.md`](./reference/upstream-spec-updates.md) を参照。
+
+**最終調査日: 2026-08-20**
+
+| 対象 | 内容 | Issue | 状態 |
+|------|------|-------|------|
+| Codex Hooks | `SessionEnd` イベント追加・`async` フィールド対応 | [#455](https://github.com/DIO0550/plugin-manager/issues/455) | 未着手 |
+| Codex Hooks | 有効化フラグ見直し（`codex_hooks` は deprecated alias・既定で有効） | [#456](https://github.com/DIO0550/plugin-manager/issues/456) | 未着手 |
+| Copilot Skills | Personal スコープ（`~/.copilot/skills/`）対応 | [#457](https://github.com/DIO0550/plugin-manager/issues/457) | 未着手 |
+| Copilot Hooks | 未マップイベント追随（`errorOccurred` / `preCompact` / `subagentStart`） | [#458](https://github.com/DIO0550/plugin-manager/issues/458) | 未着手 |
+| Cursor | Skills frontmatter `icon` / `color`・Hooks 新イベント/新フィールド | [#459](https://github.com/DIO0550/plugin-manager/issues/459) | 未着手 |
+| Antigravity Skills | 公式既定パス（`~/.gemini/config/skills` / `.agents/skills`）へ移行 | [#460](https://github.com/DIO0550/plugin-manager/issues/460) | 未着手 |
+| Gemini CLI | Skills GA 化・`.agents/skills` エイリアス・管理コマンド更新 | [#461](https://github.com/DIO0550/plugin-manager/issues/461) | 未着手 |
+| Claude Code（変換元） | 新イベント群・`mcp_tool` type・新フィールドへの追随 | [#462](https://github.com/DIO0550/plugin-manager/issues/462) | 未着手 |
+| ドキュメント | 公式ドキュメント URL 移行（Codex → learn.chatgpt.com） | [#463](https://github.com/DIO0550/plugin-manager/issues/463) | 未着手 |
+
 ## 将来の拡張
 
 ### リファクタ（ドメイン整合）
