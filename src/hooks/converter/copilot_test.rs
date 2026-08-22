@@ -18,13 +18,18 @@ fn test_event_map_supported_events() {
     assert_eq!(map.map_event("SessionStart"), Some("sessionStart"));
     assert_eq!(map.map_event("PreToolUse"), Some("preToolUse"));
     assert_eq!(map.map_event("PostToolUse"), Some("postToolUse"));
+    assert_eq!(
+        map.map_event("PostToolUseFailure"),
+        Some("postToolUseFailure")
+    );
+    assert_eq!(map.map_event("PreCompact"), Some("preCompact"));
+    assert_eq!(map.map_event("SubagentStart"), Some("subagentStart"));
     assert_eq!(map.map_event("Stop"), Some("agentStop"));
 }
 
 #[test]
 fn test_event_map_unsupported_event() {
     let map = CopilotEventMap;
-    assert_eq!(map.map_event("PreCompact"), None);
     assert_eq!(map.map_event("UnknownEvent"), None);
 }
 
@@ -206,6 +211,72 @@ fn test_generate_command_script_with_matcher() {
     assert!(info.content.contains("matcher filter"));
     assert!(info.content.contains("Bash"));
     assert_eq!(info.matcher, Some("Bash".to_string()));
+}
+
+#[test]
+/// `postToolUseFailure` wrapper がツール入力を Claude Code 形式へ正規化することを検証する。
+///
+/// # Parameters
+/// パラメータはない。
+///
+/// # Returns
+/// 戻り値はない。
+fn test_generate_post_tool_use_failure_script_normalizes_input() {
+    let gen = CopilotScriptGenerator;
+    let hook_value = json!({"type": "command", "command": "cat"});
+    let hook_obj = hook_value.as_object().unwrap();
+    let cmd = CommandHook::new(hook_obj, &hook_value).unwrap();
+    let info = gen.generate_command_script(&cmd, "postToolUseFailure", None, 0);
+
+    assert!(info.content.contains("$in.toolName"));
+    assert!(info.content.contains("$in.toolArgs"));
+    assert!(info
+        .content
+        .contains("del(.toolName, .toolArgs, .sessionId)"));
+}
+
+#[test]
+/// `preCompact` wrapper が圧縮情報を Claude Code 形式へ正規化することを検証する。
+///
+/// # Parameters
+/// パラメータはない。
+///
+/// # Returns
+/// 戻り値はない。
+fn test_generate_pre_compact_script_normalizes_input() {
+    let gen = CopilotScriptGenerator;
+    let hook_value = json!({"type": "command", "command": "cat"});
+    let hook_obj = hook_value.as_object().unwrap();
+    let cmd = CommandHook::new(hook_obj, &hook_value).unwrap();
+    let info = gen.generate_command_script(&cmd, "preCompact", None, 0);
+
+    assert!(info
+        .content
+        .contains(".transcript_path = $in.transcriptPath"));
+    assert!(info
+        .content
+        .contains(".custom_instructions = $in.customInstructions"));
+}
+
+#[test]
+/// `subagentStart` wrapper がサブエージェント情報を Claude Code 形式へ正規化することを検証する。
+///
+/// # Parameters
+/// パラメータはない。
+///
+/// # Returns
+/// 戻り値はない。
+fn test_generate_subagent_start_script_normalizes_input() {
+    let gen = CopilotScriptGenerator;
+    let hook_value = json!({"type": "command", "command": "cat"});
+    let hook_obj = hook_value.as_object().unwrap();
+    let cmd = CommandHook::new(hook_obj, &hook_value).unwrap();
+    let info = gen.generate_command_script(&cmd, "subagentStart", None, 0);
+
+    assert!(info
+        .content
+        .contains(".transcript_path = $in.transcriptPath"));
+    assert!(info.content.contains(".agent_type = $in.agentName"));
 }
 
 #[test]

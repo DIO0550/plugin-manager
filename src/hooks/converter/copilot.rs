@@ -319,6 +319,10 @@ exit 0
 /// # Arguments
 ///
 /// * `event` - Hook event name (e.g. `preToolUse`, `postToolUse`, `sessionStart`).
+///
+/// # Returns
+///
+/// Copilot の入力を Claude Code 形式へ変換するシェルコードを返す。
 fn build_env_bridge(event: &str) -> String {
     let base_jq = r#"    . as $in | $in
     # Remove Copilot-specific timestamp
@@ -349,6 +353,14 @@ fn build_env_bridge(event: &str) -> String {
         else null end
       )"#;
 
+    let pre_compact_jq = r#"
+    | .transcript_path = $in.transcriptPath
+    | .custom_instructions = $in.customInstructions"#;
+
+    let subagent_start_jq = r#"
+    | .transcript_path = $in.transcriptPath
+    | .agent_type = $in.agentName"#;
+
     let jq_body = match event {
         "preToolUse" => format!(
             "{}{}\n    # Clean up Copilot-specific keys that have been normalized\n    | del(.toolName, .toolArgs, .sessionId)",
@@ -357,6 +369,18 @@ fn build_env_bridge(event: &str) -> String {
         "postToolUse" => format!(
             "{}{}{}\n    # Clean up Copilot-specific keys that have been normalized\n    | del(.toolName, .toolArgs, .toolResult, .sessionId)",
             base_jq, tool_common_jq, tool_response_jq
+        ),
+        "postToolUseFailure" => format!(
+            "{}{}\n    | del(.toolName, .toolArgs, .sessionId)",
+            base_jq, tool_common_jq
+        ),
+        "preCompact" => format!(
+            "{}{}\n    | del(.transcriptPath, .customInstructions, .sessionId)",
+            base_jq, pre_compact_jq
+        ),
+        "subagentStart" => format!(
+            "{}{}\n    | del(.transcriptPath, .agentName, .sessionId)",
+            base_jq, subagent_start_jq
         ),
         _ => format!(
             "{}\n    # Clean up Copilot-specific keys\n    | del(.sessionId)",

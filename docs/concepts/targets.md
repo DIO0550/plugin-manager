@@ -154,8 +154,8 @@ VSCode Copilot Agent Modeでは、エージェントセッションのライフ�
 | `SubagentStart` | サブエージェント開始時 | 追跡 |
 | `SubagentStop` | サブエージェント終了時 | クリーンアップ |
 
-> **TODO（2026-08-20 調査）**: `PostToolUseFailure`（Copilot CLI の `errorOccurred`）/ `PreCompact` / `SubagentStart` が
-> PLM のイベントマップに無く、変換時に除外される（[#458](https://github.com/DIO0550/plugin-manager/issues/458)）。
+> **対応済み（[#458](https://github.com/DIO0550/plugin-manager/issues/458)）**: `PostToolUseFailure` / `PreCompact` / `SubagentStart` を
+> Copilot CLI の `postToolUseFailure` / `preCompact` / `subagentStart` へ変換する。
 > Personal スコープの Skills パス `~/.copilot/skills/` も上流で追加済み（[#457](https://github.com/DIO0550/plugin-manager/issues/457)）。
 
 #### 設定形式

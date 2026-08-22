@@ -182,9 +182,12 @@ fn test_convert_supported_events() {
             "SessionEnd": [{ "hooks": [{ "type": "command", "command": "echo 2" }] }],
             "PreToolUse": [{ "hooks": [{ "type": "command", "command": "echo 3" }] }],
             "PostToolUse": [{ "hooks": [{ "type": "command", "command": "echo 4" }] }],
+            "PostToolUseFailure": [{ "hooks": [{ "type": "command", "command": "echo failure" }] }],
             "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "echo 5" }] }],
             "Stop": [{ "hooks": [{ "type": "command", "command": "echo 6" }] }],
-            "SubagentStop": [{ "hooks": [{ "type": "command", "command": "echo 7" }] }]
+            "SubagentStart": [{ "hooks": [{ "type": "command", "command": "echo start" }] }],
+            "SubagentStop": [{ "hooks": [{ "type": "command", "command": "echo 7" }] }],
+            "PreCompact": [{ "hooks": [{ "type": "command", "command": "echo compact" }] }]
         }
     }"#;
     let result = convert(input, TargetKind::Copilot).unwrap();
@@ -193,17 +196,19 @@ fn test_convert_supported_events() {
     assert!(hooks.contains_key("sessionEnd"));
     assert!(hooks.contains_key("preToolUse"));
     assert!(hooks.contains_key("postToolUse"));
+    assert!(hooks.contains_key("postToolUseFailure"));
     assert!(hooks.contains_key("userPromptSubmitted"));
     assert!(hooks.contains_key("agentStop"));
+    assert!(hooks.contains_key("subagentStart"));
     assert!(hooks.contains_key("subagentStop"));
-    assert_eq!(hooks.len(), 7);
+    assert!(hooks.contains_key("preCompact"));
+    assert_eq!(hooks.len(), 10);
 }
 
 #[test]
 fn test_exclude_unsupported_events() {
     let input = r#"{
         "hooks": {
-            "PreCompact": [{ "hooks": [{ "type": "command", "command": "echo 1" }] }],
             "PostCompact": [{ "hooks": [{ "type": "command", "command": "echo 2" }] }],
             "Notification": [{ "hooks": [{ "type": "command", "command": "echo 3" }] }]
         }
@@ -217,7 +222,7 @@ fn test_exclude_unsupported_events() {
             .iter()
             .filter(|w| matches!(w, ConversionWarning::UnsupportedEvent { .. }))
             .count(),
-        3
+        2
     );
 }
 
@@ -963,10 +968,10 @@ fn test_full_conversion_scenario() {
     assert!(hooks.contains_key("preToolUse"));
     assert!(hooks.contains_key("postToolUse"));
     assert!(hooks.contains_key("agentStop"));
+    assert!(hooks.contains_key("preCompact"));
 
-    // Unsupported event excluded
+    // Unsupported event names are absent.
     assert!(!hooks.contains_key("PreCompact"));
-    assert!(!hooks.contains_key("preCompact"));
 
     // PreToolUse has 2 hooks (from 2 matcher groups, matchers moved to wrapper scripts)
     let pre_tool = hooks["preToolUse"].as_array().unwrap();
@@ -1002,12 +1007,9 @@ fn test_full_conversion_scenario() {
     // prompt hook -> stub
     assert!(result.scripts.iter().any(|s| s.content.contains("STUB")));
 
-    // Warnings: disableAllHooks removed + PreCompact unsupported + prompt stub
+    // Warnings: disableAllHooks removed + prompt stub
     assert!(result.warnings.iter().any(
         |w| matches!(w, ConversionWarning::RemovedField { field, .. } if field == "disableAllHooks")
-    ));
-    assert!(result.warnings.iter().any(
-        |w| matches!(w, ConversionWarning::UnsupportedEvent { event } if event == "PreCompact")
     ));
     assert!(result
         .warnings
