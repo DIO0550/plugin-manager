@@ -131,19 +131,20 @@ Antigravity の詳細は [セクション 10](#10-google-antigravity)（実装 I
 | `SessionEnd` | `sessionEnd` | `reason` フィールドの値域が異なる |
 | `PreToolUse` | `preToolUse` | stdin/stdout 構造が異なる |
 | `PostToolUse` | `postToolUse` | `toolResult` の型が異なる |
+| `PostToolUseFailure` | `postToolUseFailure` | 失敗したツールの入力フィールドを変換 |
 | `UserPromptSubmit` | `userPromptSubmitted` | イベント名の末尾が異なる (`Submit` vs `Submitted`) |
 | `Stop` | `agentStop` | Claude Code は `Stop`、Copilot CLI は `agentStop` |
 | `SubagentStop` | `subagentStop` | ほぼ同等 |
+| `SubagentStart` | `subagentStart` | エージェント識別フィールドが異なる |
+| `PreCompact` | `preCompact` | 圧縮関連フィールドが異なる |
 
 ### Claude Code 固有（Copilot CLI に対応なし）
 
 | Claude Code | 近似手段 |
 |-------------|---------|
-| `PostToolUseFailure` | `postToolUse` で `toolResult.resultType === "failure"` を判定 |
-| `PreCompact` / `PostCompact` | なし |
+| `PostCompact` | なし |
 | `PermissionRequest` | `preToolUse` で部分的に代替 |
 | `Notification` | なし |
-| `SubagentStart` | なし |
 | `TeammateIdle` | なし |
 | `TaskCompleted` | なし |
 | `InstructionsLoaded` | なし |
@@ -155,7 +156,7 @@ Antigravity の詳細は [セクション 10](#10-google-antigravity)（実装 I
 
 | Copilot CLI | 近似手段 |
 |-------------|---------|
-| `errorOccurred` | `PostToolUseFailure` で部分的に代替 |
+| `errorOccurred` | なし（ツール失敗に限定されない実行時エラー） |
 
 ### Codex CLI（Claude Code と 1:1 対応）
 
@@ -246,7 +247,8 @@ PLM は Codex hook を配置すると同時に、scope に応じた `config.toml
 | `Stop` | `agentStop` | `Stop` | `Stop` |
 | `SubagentStop` | `subagentStop` | `SubagentStop` | × |
 | `PermissionRequest` | （`preToolUse` 近似） | `PermissionRequest` | ×（`ask` / `force_ask` で部分代替） |
-| `PreCompact` / `PostCompact` | × | ○ | × |
+| `PreCompact` | `preCompact` | ○ | × |
+| `PostCompact` | × | ○ | × |
 | `Notification` | × | × | × |
 | — | — | — | `PreInvocation` / `PostInvocation`（Antigravity 固有） |
 
@@ -342,7 +344,7 @@ PLM は Codex hook を配置すると同時に、scope に応じた `config.toml
 
 **注意:**
 - Claude Code の `tool_response` はツール固有のオブジェクト、Copilot CLI の `toolResult` は `resultType` + `textResultForLlm` の固定構造
-- Claude Code の `PostToolUseFailure` は別イベントだが、Copilot CLI では `postToolUse` の `resultType: "failure"` で表現
+- Claude Code の `PostToolUseFailure` は Copilot CLI の `postToolUseFailure` へ変換し、`toolName` / `toolArgs` を正規化する
 
 ### SessionStart / sessionStart
 
@@ -440,7 +442,7 @@ PLM は Codex hook を配置すると同時に、scope に応じた `config.toml
 }
 ```
 
-Claude Code には対応イベントなし。`PostToolUseFailure` で部分的に代替可能。
+Claude Code には対応イベントなし。ツール実行失敗には専用の `PostToolUseFailure` / `postToolUseFailure` を使用する。
 
 ---
 

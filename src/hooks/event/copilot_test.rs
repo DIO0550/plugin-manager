@@ -4,7 +4,7 @@ use super::copilot::CopilotEventMap;
 use crate::hooks::converter::EventMap;
 
 // ============================================================================
-// Supported events (7)
+// Supported events (10)
 // ============================================================================
 
 #[test]
@@ -15,27 +15,30 @@ fn test_copilot_event_map_all_supported() {
     assert_eq!(map.map_event("PreToolUse"), Some("preToolUse"));
     assert_eq!(map.map_event("PostToolUse"), Some("postToolUse"));
     assert_eq!(
+        map.map_event("PostToolUseFailure"),
+        Some("postToolUseFailure")
+    );
+    assert_eq!(
         map.map_event("UserPromptSubmit"),
         Some("userPromptSubmitted")
     );
     assert_eq!(map.map_event("Stop"), Some("agentStop"));
+    assert_eq!(map.map_event("SubagentStart"), Some("subagentStart"));
     assert_eq!(map.map_event("SubagentStop"), Some("subagentStop"));
+    assert_eq!(map.map_event("PreCompact"), Some("preCompact"));
 }
 
 // ============================================================================
-// Excluded events (14)
+// Excluded events (11)
 // ============================================================================
 
 #[test]
 fn test_copilot_event_map_excluded() {
     let map = CopilotEventMap;
     let excluded = [
-        "PostToolUseFailure",
-        "PreCompact",
         "PostCompact",
         "PermissionRequest",
         "Notification",
-        "SubagentStart",
         "TeammateIdle",
         "TaskCompleted",
         "InstructionsLoaded",

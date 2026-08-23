@@ -19,6 +19,10 @@ const COPILOT_EVENT_ENTRIES: &[EventBridge] = &[
         target: "postToolUse",
     },
     EventBridge {
+        event: HookEvent::PostToolUseFailure,
+        target: "postToolUseFailure",
+    },
+    EventBridge {
         event: HookEvent::UserPromptSubmit,
         target: "userPromptSubmitted",
     },
@@ -27,8 +31,16 @@ const COPILOT_EVENT_ENTRIES: &[EventBridge] = &[
         target: "agentStop",
     },
     EventBridge {
+        event: HookEvent::SubagentStart,
+        target: "subagentStart",
+    },
+    EventBridge {
         event: HookEvent::SubagentStop,
         target: "subagentStop",
+    },
+    EventBridge {
+        event: HookEvent::PreCompact,
+        target: "preCompact",
     },
 ];
 
