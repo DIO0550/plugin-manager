@@ -495,6 +495,18 @@ Claude Code 形式を入力とする PLM の Cursor Hooks 変換対象には追�
 「公式仕様確認済み・実機未検証」として残す。Claude Code に対応イベントが存在しないため、
 この結果も PLM の変換対象には影響しない。
 
+#### PLM の実装判断
+
+この検証に伴うイベント変換の実装変更は**不要**。PLM の Hooks 変換は Claude Code 形式を入力とし、
+Claude Code のイベントを Cursor の対応イベントへ写像する。`afterAgentThought`、`beforeTabFileRead`、
+`afterTabFileEdit`、`workspaceOpen` はいずれも Claude Code 側に変換元イベントがないため、Cursor の
+イベントマップへ追加しても到達不能であり、推測による別イベントからの変換も行わない。
+
+なお、`version: 1` を持つ Cursor ネイティブ形式の `hooks.json` は変換対象ではなく、そのまま配置する。
+したがって Cursor ネイティブ形式で上記イベントを記述する利用方法を PLM が削除または改名することはない。
+今回の対応範囲は実機検証結果と変換対象外である理由の文書化のみであり、「イベントが発火した」ことを
+根拠に Claude Code → Cursor の新しい変換規則を実装した、という意味ではない。
+
 ## OpenCode
 
 > **実装状況**: Skills / Agents / Commands / Instructions 配置は実装済み（Epic [#416](https://github.com/DIO0550/plugin-manager/issues/416)）。Hooks / Plugins（JS/TS）は対象外。計画: [`docs/architecture/opencode-target-plan.md`](../architecture/opencode-target-plan.md)。
