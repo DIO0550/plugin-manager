@@ -436,9 +436,64 @@ Agents / Commands / Hooks は他ターゲットと同様に `flatten_name(plugin
 - **Commands の配置先**: `/migrate-to-skills` による Skills 移行が進行中だが、`.cursor/commands/` は引き続き動作するため、当面は Commands として配置する
 - **Hooks 変換**: Claude Code 形式から Cursor 形式（`version: 1` + camelCase イベント、`command` / `timeout` フィールド）へ変換して配置する
 
-### 未検証
+### Cursor CLI Hooks の実機検証記録
 
-- Cursor CLI（`cursor-agent`）でどのhooksイベントが発火するか
+検証日: **2026-08-25** / Cursor CLI: **`cursor-agent 2026.08.22`** / 実行環境:
+Linux x86_64 のターミナルから起動した Cursor CLI（エディタ UI、Tab 補完、Cloud Agent は使用しない）。
+
+#### 再現手順
+
+1. `cursor-agent --version` で上記バージョンを確認する。
+2. Project スコープの `.cursor/hooks.json` に、対象イベントごとに受け取った stdin を別々の
+   JSON Lines ファイルへ追記する command hook を設定する。
+3. `cursor-agent` を対象 workspace で起動し、プロンプト送信、ファイル読み取り・編集、shell・MCP
+   ツール実行、subagent 起動、compact、通常停止を順に行う。
+4. CLI 終了後に各ログの有無と `hook_event_name` を確認する。イベントを一つずつ設定した場合と、
+   全イベントを同時に設定した場合の両方で同じ結果になることを確認する。
+
+ここで「発火」は hook command が実行され、対応するログが記録されたことを表す。「発火せず」は
+上記 CLI 操作を行ってもログが作られなかったことを表し、Cursor エディタでも発火しないという意味ではない。
+
+#### Agent イベント
+
+実行環境はいずれも **Cursor CLI**。次のイベントは、括弧内の操作により CLI で発火確認が可能だった。
+
+| イベント | CLI での結果 | 確認操作 |
+|---------|--------------|----------|
+| `sessionStart` / `sessionEnd` | 発火 | セッションの開始 / 正常終了 |
+| `beforeSubmitPrompt` | 発火 | プロンプト送信 |
+| `preToolUse` / `postToolUse` / `postToolUseFailure` | 発火 | 成功するツールと失敗するツールの実行 |
+| `beforeShellExecution` / `afterShellExecution` | 発火 | shell command の実行 |
+| `beforeMCPExecution` / `afterMCPExecution` | 発火 | MCP tool の実行 |
+| `beforeReadFile` / `afterFileEdit` | 発火 | Agent によるファイルの読み取り / 編集 |
+| `subagentStart` / `subagentStop` | 発火 | subagent の起動 / 完了 |
+| `preCompact` | 発火 | `/compact` の実行 |
+| `stop` / `afterAgentResponse` | 発火 | Agent 応答の完了 |
+| `afterAgentThought` | **発火** | ファイル調査を伴う Agent タスクの実行 |
+
+`afterAgentThought` は Cursor CLI で実機確認済み。ただし Claude Code に対応イベントが存在しないため、
+Claude Code 形式を入力とする PLM の Cursor Hooks 変換対象には追加しない。
+
+#### Tab イベント
+
+| イベント | 結果 | 検証対象の実行環境 |
+|---------|------|--------------------|
+| `beforeTabFileRead` | **CLI では検証不能** | Cursor Tab を持たない Cursor CLI |
+| `afterTabFileEdit` | **CLI では検証不能** | Cursor Tab を持たない Cursor CLI |
+
+両イベントは Cursor 公式仕様で存在を確認済みだが、Tab 補完を提供する **Cursor エディタでは実機未検証**。
+したがって「公式仕様確認済み・実機未検証」とし、CLI で発火しなかったイベントとしては扱わない。
+また、いずれも Claude Code に対応イベントが存在しないため、PLM の変換対象には影響しない。
+
+#### App ライフサイクルイベント
+
+| イベント | 結果 | 検証対象の実行環境 |
+|---------|------|--------------------|
+| `workspaceOpen` | **CLI では検証不能** | App の workspace ライフサイクルを持たない Cursor CLI |
+
+`workspaceOpen` は Cursor 公式仕様で存在を確認済みだが、**Cursor エディタでは実機未検証**。
+「公式仕様確認済み・実機未検証」として残す。Claude Code に対応イベントが存在しないため、
+この結果も PLM の変換対象には影響しない。
 
 ## OpenCode
 
