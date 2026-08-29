@@ -18,7 +18,7 @@ PLM 側で対応が必要な項目を TODO として管理するドキュメン�
 | Gemini CLI | ⚠️ GA 化・`.agents/skills` エイリアス・管理コマンド拡張 | 非対応（変更なし） | 非対応（変更なし） | [#461](https://github.com/DIO0550/plugin-manager/issues/461) |
 | Cursor | ⚠️ frontmatter に `icon` / `color` 追加 | 変更なし（ネスト・model パラメータは情報のみ） | ⚠️ 新イベント・新フィールド追加 | [#459](https://github.com/DIO0550/plugin-manager/issues/459) |
 | OpenCode | 変更なし | 変更なし | 対象外（JS/TS Plugin モデル） | — |
-| Claude Code（変換元） | ⚠️ frontmatter 大幅拡張・commands が skills へ統合 | — | ⚠️ イベント 30 種超へ拡張・`mcp_tool` type 追加 | [#462](https://github.com/DIO0550/plugin-manager/issues/462) |
+| Claude Code（変換元） | ⚠️ frontmatter 大幅拡張・commands が skills へ統合 | — | ⚠️ イベント 30 種超へ拡張・`mcp_tool` type 追加 | [#462](https://github.com/DIO0550/plugin-manager/issues/462) / [frontmatter hooks 独立 Issue 定義](../architecture/skill-subagent-frontmatter-hooks-issue.md) |
 
 ## TODO
 
@@ -44,7 +44,10 @@ PLM 側で対応が必要な項目を TODO として管理するドキュメン�
 - [ ] **Claude Code hooks 仕様拡張への追随** — [#462](https://github.com/DIO0550/plugin-manager/issues/462)
   - 変換元のイベントが 30 種超へ拡張。PLM の `HookEvent` は 10 種のまま
   - `mcp_tool` type が未知のため全ターゲットで除外される
-  - Skill / Subagent frontmatter 内の `hooks` は PLM のスキャン対象外
+  - 対象は `hooks/hooks.json` 経路のイベント、type、フィールド追随に限定する
+- [ ] **Skill / Subagent frontmatter hooks 供給経路** — [独立機能 Issue 定義](../architecture/skill-subagent-frontmatter-hooks-issue.md)
+  - `hooks/hooks.json` とは別に、所属コンポーネントへスコープした解析・配置・診断を追加する
+  - 順序、重複、競合および統合テストの受け入れ条件は Issue 定義を正とする
 
 ### 優先度: 低（ドキュメント整備）
 

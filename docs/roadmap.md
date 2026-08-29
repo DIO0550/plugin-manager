@@ -146,6 +146,7 @@ Skills / Agents / Commands / Instructions を対応。Hooks / Plugins（JS/TS）
 | Antigravity Skills | 公式既定パス（`~/.gemini/config/skills` / `.agents/skills`）へ移行 | [#460](https://github.com/DIO0550/plugin-manager/issues/460) | 未着手 |
 | Gemini CLI | Skills GA 化・`.agents/skills` エイリアス・管理コマンド更新 | [#461](https://github.com/DIO0550/plugin-manager/issues/461) | 未着手 |
 | Claude Code（変換元） | 新イベント群・`mcp_tool` type・新フィールドへの追随 | [#462](https://github.com/DIO0550/plugin-manager/issues/462) | 未着手 |
+| Claude Code（変換元） | Skill / Subagent frontmatter hooks の component-local 配置 | [独立機能 Issue 定義](./architecture/skill-subagent-frontmatter-hooks-issue.md) | 仕様確定 |
 | ドキュメント | 公式ドキュメント URL 移行（Codex → learn.chatgpt.com） | [#463](https://github.com/DIO0550/plugin-manager/issues/463) | 未着手 |
 
 ## 将来の拡張
