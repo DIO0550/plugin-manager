@@ -262,7 +262,7 @@ Google Antigravityはエージェント指向の開発プラットフォーム�
 | Skills | `SKILL.md` | `~/.gemini/config/skills/<original_name>/` | `.agents/skills/<original_name>/` |
 | Hooks | `hooks.json` | `~/.gemini/config/hooks.json` | `.agents/hooks.json` |
 
-> Skills は公式の1階層構造に合わせて `original_name` で配置する。同名の未管理 Skill は上書きしない。旧パス（`~/.gemini/antigravity/skills/` / `.agent/skills/`）は `list_placed` の対象外とし、disable / uninstall 時の削除フォールバックとして扱う（[#460](https://github.com/DIO0550/plugin-manager/issues/460)）。
+> Skills は公式の1階層構造に合わせて `original_name` で配置する。同名の未管理 Skill は上書きしない。旧パス（`~/.gemini/antigravity/skills/` / `.agent/skills/`）は `list_placed` の対象外とし、新パスへの配置成功時および disable / uninstall 時に削除する（[#460](https://github.com/DIO0550/plugin-manager/issues/460)）。
 >
 > Hooks は Claude Code 形式から命名フックマップへ変換して単一 `hooks.json` に配置する（[#309](https://github.com/DIO0550/plugin-manager/issues/309)）。非管理ファイルの上書きと複数 Hook 同時配置は拒否。スキーマ詳細は [hooks-schema-mapping.md](../reference/hooks-schema-mapping.md)。
 

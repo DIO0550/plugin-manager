@@ -33,7 +33,7 @@ PLM 側で対応が必要な項目を TODO として管理するドキュメン�
   - `PostToolUseFailure` / `PreCompact` / `SubagentStart` が Copilot だけ未マップ（Cursor では対応済み）
 - [x] **Antigravity Skills の配置パス移行** — [#460](https://github.com/DIO0550/plugin-manager/issues/460)
   - `~/.gemini/config/skills/<original_name>/`・`.agents/skills/<original_name>/` へ1階層で配置する
-  - 旧パスは列挙せず、disable / uninstall 時の削除フォールバックとして維持する
+  - 旧パスは列挙せず、新パスへの配置成功時と disable / uninstall 時に削除する
 
 ### 優先度: 中（機能追加・仕様確認）
 

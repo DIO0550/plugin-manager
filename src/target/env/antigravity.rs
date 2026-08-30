@@ -90,6 +90,30 @@ impl AntigravityTarget {
             .join(flattened_name)
     }
 
+    fn remove_legacy_skill_dir(
+        scope: Scope,
+        project_root: &Path,
+        flattened_name: &str,
+        current_path: &Path,
+    ) -> bool {
+        let legacy_path = Self::legacy_skill_path(scope, project_root, flattened_name);
+        if !legacy_path.exists() || legacy_path == current_path {
+            return false;
+        }
+
+        match std::fs::remove_dir_all(&legacy_path) {
+            Ok(()) => true,
+            Err(error) => {
+                eprintln!(
+                    "Warning: failed to remove legacy Antigravity skill path {}: {}",
+                    legacy_path.display(),
+                    error
+                );
+                false
+            }
+        }
+    }
+
     /// Antigravity は 1 スコープにつき単一の `hooks.json` を読むため、複数 Hook を拒否する。
     pub fn hook_component_conflict_error(components: &[Component]) -> Option<String> {
         let hook_count = components
@@ -230,6 +254,12 @@ impl Target for AntigravityTarget {
                     plugin_root,
                     deployed_path,
                     "antigravity",
+                );
+                Self::remove_legacy_skill_dir(
+                    context.scope(),
+                    context.project_root(),
+                    context.name(),
+                    deployed_path,
                 );
             }
             _ => {}

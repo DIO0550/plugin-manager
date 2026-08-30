@@ -376,6 +376,35 @@ fn test_antigravity_post_place_records_skill_ownership() {
 }
 
 #[test]
+fn test_antigravity_post_place_removes_legacy_skill_after_successful_deploy() {
+    let target = AntigravityTarget::new();
+    let project_root = TempDir::new().unwrap();
+    let plugin_root = TempDir::new().unwrap();
+    let deployed_path = project_root.path().join(".agents/skills/my-skill");
+    let legacy_path = project_root.path().join(".agent/skills/my-plugin_my-skill");
+    std::fs::create_dir_all(&deployed_path).unwrap();
+    std::fs::create_dir_all(&legacy_path).unwrap();
+
+    let origin = PluginOrigin::from_marketplace("official", "my-plugin");
+    let ctx = PlacementContext {
+        component: ComponentRef::with_names(
+            ComponentKind::Skill,
+            "my-plugin_my-skill",
+            "my-skill",
+            "my-plugin",
+        ),
+        origin: &origin,
+        scope: PlacementScope::new(Scope::Project),
+        project: ProjectContext::new(project_root.path()),
+    };
+
+    target.post_place(&ctx, &deployed_path, plugin_root.path(), false);
+
+    assert!(!legacy_path.exists());
+    assert!(deployed_path.exists());
+}
+
+#[test]
 fn test_antigravity_list_placed_agent_returns_empty() {
     let target = AntigravityTarget::new();
     let temp_dir = TempDir::new().unwrap();
