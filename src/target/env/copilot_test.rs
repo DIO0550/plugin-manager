@@ -20,18 +20,51 @@ fn test_copilot_supported_components() {
 }
 
 #[test]
-fn test_copilot_skill_personal_not_supported() {
+fn test_copilot_skill_supports_both_scopes() {
+    let target = CopilotTarget::new();
+    assert!(target.supports_scope(ComponentKind::Skill, Scope::Personal));
+    assert!(target.supports_scope(ComponentKind::Skill, Scope::Project));
+}
+
+#[test]
+fn test_copilot_placement_location_skill_personal() {
     let target = CopilotTarget::new();
     let project_root = Path::new("/project");
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
-    // Personal scope for skills is not supported
     let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Skill, "my-skill"),
+        component: ComponentRef::with_names(
+            ComponentKind::Skill,
+            "my-plugin_my-skill",
+            "my-skill",
+            "my-plugin",
+        ),
         origin: &origin,
         scope: PlacementScope::new(Scope::Personal),
         project: ProjectContext::new(project_root),
     };
+    let location = target.placement_location(&ctx).unwrap();
+
+    assert!(location.is_dir());
+    let expected = crate::target::paths::home_dir()
+        .join(".copilot")
+        .join("skills")
+        .join("my-skill");
+    assert_eq!(location.as_path(), expected.as_path());
+}
+
+#[test]
+fn test_copilot_placement_location_skill_personal_without_original_name_returns_none() {
+    let target = CopilotTarget::new();
+    let project_root = Path::new("/project");
+    let origin = PluginOrigin::from_marketplace("official", "my-plugin");
+    let ctx = PlacementContext {
+        component: ComponentRef::new(ComponentKind::Skill, "my-plugin_my-skill"),
+        origin: &origin,
+        scope: PlacementScope::new(Scope::Personal),
+        project: ProjectContext::new(project_root),
+    };
+
     assert!(target.placement_location(&ctx).is_none());
 }
 
@@ -344,4 +377,67 @@ fn test_copilot_filter_component_skill_requires_skill_md() {
         .unwrap();
     assert_eq!(result.len(), 1);
     assert_eq!(result[0], "plugin_my-skill");
+}
+
+#[test]
+fn personal_skill_overwrite_error_rejects_unmanaged_existing_skill() {
+    use std::fs;
+    use tempfile::TempDir;
+
+    let target_root = TempDir::new().unwrap();
+    let target_path = target_root.path().join("skills").join("my-skill");
+    fs::create_dir_all(&target_path).unwrap();
+    fs::write(target_path.join("SKILL.md"), "# Skill").unwrap();
+
+    let plugin_root = TempDir::new().unwrap();
+    let error = CopilotTarget::personal_skill_overwrite_error(&target_path, plugin_root.path());
+
+    assert!(error.is_some());
+    assert!(error.unwrap().contains("already exists"));
+}
+
+#[test]
+fn personal_skill_overwrite_error_allows_owned_skill() {
+    use std::fs;
+    use tempfile::TempDir;
+
+    let target_root = TempDir::new().unwrap();
+    let target_path = target_root.path().join("skills").join("my-skill");
+    fs::create_dir_all(&target_path).unwrap();
+
+    let plugin_root = TempDir::new().unwrap();
+    let mut meta = crate::plugin::meta::PluginMeta::default();
+    meta.add_managed_file("copilot", &target_path);
+    crate::plugin::meta::write_meta(plugin_root.path(), &meta).unwrap();
+
+    assert!(
+        CopilotTarget::personal_skill_overwrite_error(&target_path, plugin_root.path()).is_none()
+    );
+}
+
+#[test]
+fn post_place_records_personal_skill_ownership() {
+    use tempfile::TempDir;
+
+    let target = CopilotTarget::new();
+    let plugin_root = TempDir::new().unwrap();
+    let deployed_root = TempDir::new().unwrap();
+    let deployed_path = deployed_root.path().join("skills").join("my-skill");
+    let origin = PluginOrigin::from_marketplace("official", "my-plugin");
+    let ctx = PlacementContext {
+        component: ComponentRef::with_names(
+            ComponentKind::Skill,
+            "my-plugin_my-skill",
+            "my-skill",
+            "my-plugin",
+        ),
+        origin: &origin,
+        scope: PlacementScope::new(Scope::Personal),
+        project: ProjectContext::new(Path::new("/project")),
+    };
+
+    target.post_place(&ctx, &deployed_path, plugin_root.path(), false);
+
+    let meta = crate::plugin::meta::load_meta(plugin_root.path()).unwrap();
+    assert!(meta.manages_file("copilot", &deployed_path));
 }

@@ -211,13 +211,15 @@ plm init my-plugin --type skill
 | 環境 | Skills | Agents | Prompts | Instructions |
 |------|:------:|:------:|:-------:|:------------:|
 | OpenAI Codex | 対応 | - | - | 対応 |
-| VSCode Copilot | 対応 | 対応 | 対応 | 対応 |
+| VSCode Copilot | 対応† | 対応 | 対応 | 対応 |
 | Google Antigravity | 対応 | -\* | -\* | -\* |
 | Gemini CLI | 対応 | - | - | 対応 |
 | Cursor | 対応 | 対応 | 対応 | 対応 |
 | OpenCode | 対応 | 対応 | 対応 | 対応 |
 
 \* Antigravity 公式は Agents（`agent.md`）/ Workflows（スラッシュコマンド）/ Rules・`AGENTS.md`・`GEMINI.md` をサポート。PLM 実装は未着手（[#400](https://github.com/DIO0550/plugin-manager/issues/400)）。OpenCode は opt-in（`plm target add opencode`）。Hooks/Plugins（JS/TS）は対象外。詳細は [`docs/concepts/targets.md`](docs/concepts/targets.md) / Epic [#416](https://github.com/DIO0550/plugin-manager/issues/416)。
+
+† Copilot Skills は Personal（`~/.copilot/skills/`）と Project（`.github/skills/`）の両スコープに対応します。
 
 ## 設定
 

@@ -234,13 +234,15 @@ plm init my-plugin --type skill
 | Environment | Skills | Agents | Prompts | Instructions |
 |-------------|:------:|:------:|:-------:|:------------:|
 | OpenAI Codex | Yes | - | - | Yes |
-| VSCode Copilot | Yes | Yes | Yes | Yes |
+| VSCode Copilot | Yes† | Yes | Yes | Yes |
 | Google Antigravity | Yes | -* | -* | -* |
 | Gemini CLI | Yes | - | - | Yes |
 | Cursor | Yes | Yes | Yes | Yes |
 | OpenCode | Yes | Yes | Yes | Yes |
 
 \* Antigravity officially supports Agents (`agent.md`), Workflows (slash commands), and Rules / `AGENTS.md` / `GEMINI.md`. PLM support is not implemented yet ([#400](https://github.com/DIO0550/plugin-manager/issues/400)). OpenCode is opt-in (`plm target add opencode`); Hooks/Plugins (JS/TS) are out of scope. Details: [`docs/concepts/targets.md`](docs/concepts/targets.md) / Epic [#416](https://github.com/DIO0550/plugin-manager/issues/416).
+
+† Copilot Skills support both personal (`~/.copilot/skills/`) and project (`.github/skills/`) scopes.
 
 ## Configuration
 
