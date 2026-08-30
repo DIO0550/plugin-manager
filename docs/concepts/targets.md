@@ -387,10 +387,13 @@ CursorはAnysphere社のAIコードエディタ。エディタに加えてター
 
 ### 重要な特徴
 
-- **SKILL.md形式**: frontmatterは `name`（必須、小文字・数字・ハイフンのみ、フォルダ名と一致）と `description`（必須）に加え、`paths`（globで適用範囲を制限）、`disable-model-invocation`（trueで明示的スラッシュコマンド専用化）、`metadata` をサポート
-  - **TODO（2026-08-20 調査）**: 上流に `icon` / `color`（Custom Mode 表示用）が追加済み（[#459](https://github.com/DIO0550/plugin-manager/issues/459)）
+- **SKILL.md形式**: frontmatterは `name`（必須、小文字・数字・ハイフンのみ、フォルダ名と一致）と `description`（必須）に加え、`paths`（globで適用範囲を制限）、`disable-model-invocation`（trueで明示的スラッシュコマンド専用化）、`icon`、`color`、`metadata` をサポート
+  - `icon` は Custom Mode のバッジ用アイコン（既定は lightning）、`color` はバッジ色（`default` / `green` / `cyan` / `blue` / `purple` / `magenta` / `orange` / `yellow` / `red` / `brand`）
+  - PLM は Cursor 向け Skill の frontmatter フィールドを除去しないため、入力済みの `icon` / `color` をそのまま保持する。PLM 側から値の補完・生成は行わない
 - **skillsルートの再帰走査**: ネストしたディレクトリ内の `SKILL.md` も発見されるため、PLMの `<marketplace>/<plugin>/<skill>/` 階層はそのまま読み込まれる見込み
 - **Agents（サブエージェント）**: YAMLフロントマター（`name`, `description`, `model`, `readonly`, `is_background`）付きMarkdown。エディタ・CLI・Cloud Agentsで利用可能
+  - サブエージェントのネストは 2 段まで（メイン → 直接サブエージェント → 子サブエージェント）。子からの追加ネストは不可
+  - `model` は `claude-opus-5[effort=high,context=300k]` のようなブラケット記法でモデル固有パラメータを指定できる。frontmatter のフィールド自体に変更はないため、PLM の変換変更は不要
 - **CommandsはSkillsへ移行中**: `/migrate-to-skills` により既存のCommandsは `disable-model-invocation: true` 付きSkillsへ変換される方向。`.cursor/commands/` 自体は引き続き動作する
 - **Claude Code互換**: `.claude/skills/` / `.claude/agents/` を互換パスとして読むため、コンポーネントのフォーマット変換はほぼ不要（`CommandFormat::ClaudeCode` / `AgentFormat::ClaudeCode`）
 
@@ -398,11 +401,36 @@ CursorはAnysphere社のAIコードエディタ。エディタに加えてター
 
 設定は単一の `hooks.json`（`{"version": 1, "hooks": {"<event>": [{"command": "..."}]}}`）。イベント名は**camelCase**で、Copilot CLI形式（camelCase + `"version": 1`）に近い。
 
-主なイベント: `sessionStart`, `sessionEnd`, `preToolUse`, `postToolUse`, `postToolUseFailure`, `subagentStart`, `subagentStop`, `beforeShellExecution`, `afterShellExecution`, `beforeMCPExecution`, `afterMCPExecution`, `beforeReadFile`, `afterFileEdit`, `beforeSubmitPrompt`, `preCompact`, `stop`, `afterAgentResponse` など。
+イベントは用途ごとに 3 種類へ分かれる。
 
-> **TODO（2026-08-20 調査）**: 上流に `afterAgentThought`・Tab hooks（`beforeTabFileRead` / `afterTabFileEdit`）・`workspaceOpen` が追加され、
-> hook 単位のフィールドにも `type`（`command` / `prompt`）・`loop_limit`・`failClosed`・`matcher` が加わった。
-> 設定スコープの優先順位も Enterprise → Team → Project → User へ拡張されている（[#459](https://github.com/DIO0550/plugin-manager/issues/459)）。
+| 分類 | イベント |
+|------|----------|
+| Agent | `sessionStart`, `sessionEnd`, `preToolUse`, `postToolUse`, `postToolUseFailure`, `subagentStart`, `subagentStop`, `beforeShellExecution`, `afterShellExecution`, `beforeMCPExecution`, `afterMCPExecution`, `beforeReadFile`, `afterFileEdit`, `beforeSubmitPrompt`, `preCompact`, `stop`, `afterAgentResponse`, `afterAgentThought` |
+| Tab | `beforeTabFileRead`, `afterTabFileEdit` |
+| App ライフサイクル | `workspaceOpen` |
+
+hook 定義は次の共通フィールドを持つ。
+
+| フィールド | 既定値 / 用途 | PLM の扱い |
+|-----------|---------------|------------|
+| `type` | `command`（`command` / `prompt`） | command と prompt を inline で保持 |
+| `loop_limit` | `5`。`stop` / `subagentStop` の自動 follow-up 回数上限（`null` は無制限） | 生成しない |
+| `failClosed` | `false`。hook の異常終了・timeout・不正 JSON 時に対象操作をブロックするか | 生成しない |
+| `matcher` | hook の実行条件 | entry 単位で保持 |
+
+`loop_limit` / `failClosed` は Claude Code 形式の変換元に対応する設定がなく、利用者の意図を推測して値を付与すると
+Cursor の実行制御を変えてしまう。このため PLM は意図的に生成せず、Cursor の既定値（`5` / `false`）に委ねる。
+`version: 1` の Cursor ネイティブ形式を配置する場合は、これらの明示値を含めてそのまま保持する。
+
+Hooks の設定スコープと優先順位は次のとおり。PLM が配置対象とするのは User / Project のみで、
+MDM または Cursor の Web dashboard から配布される Enterprise / Team 設定は管理しない。
+
+| 優先順位 | スコープ | 配置・配布元 |
+|---------|----------|------------|
+| 1（最高） | Enterprise | MDM 管理（macOS `/Library/Application Support/Cursor/hooks.json`、Linux/WSL `/etc/cursor/hooks.json`、Windows `C:\\ProgramData\\Cursor\\hooks.json`） |
+| 2 | Team | Cursor Web dashboard からクラウド配布（Enterprise のみ） |
+| 3 | Project | `<project-root>/.cursor/hooks.json` |
+| 4 | User | `~/.cursor/hooks.json` |
 
 Claude Code側に対応イベントがないもの（`beforeShellExecution` 等のCursor固有イベント）は変換対象外。PLM は Claude Code → Cursor 変換（camelCase + `version: 1`）を行い、単一の `hooks.json` として配置する。既存の非管理 `hooks.json` の上書きと、同一インストール内の複数 Hook コンポーネントは拒否する（フルマージは将来対応）。
 
