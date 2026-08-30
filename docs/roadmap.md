@@ -142,7 +142,7 @@ Skills / Agents / Commands / Instructions を対応。Hooks / Plugins（JS/TS）
 | Codex Hooks | 有効化フラグ見直し（`codex_hooks` は deprecated alias・既定で有効） | [#456](https://github.com/DIO0550/plugin-manager/issues/456) | 未着手 |
 | Copilot Skills | Personal スコープ（`~/.copilot/skills/`）対応 | [#457](https://github.com/DIO0550/plugin-manager/issues/457) | 未着手 |
 | Copilot Hooks | 未マップイベント追随（`errorOccurred` / `preCompact` / `subagentStart`） | [#458](https://github.com/DIO0550/plugin-manager/issues/458) | 未着手 |
-| Cursor | Skills frontmatter `icon` / `color`・Hooks 新イベント/新フィールド | [#459](https://github.com/DIO0550/plugin-manager/issues/459) | 未着手 |
+| Cursor | Skills frontmatter `icon` / `color`・Subagents・Hooks 新イベント/新フィールド | [#459](https://github.com/DIO0550/plugin-manager/issues/459) | ✅ 完了 |
 | Antigravity Skills | 公式既定パス（`~/.gemini/config/skills` / `.agents/skills`）へ移行 | [#460](https://github.com/DIO0550/plugin-manager/issues/460) | 未着手 |
 | Gemini CLI | Skills GA 化・`.agents/skills` エイリアス・管理コマンド更新 | [#461](https://github.com/DIO0550/plugin-manager/issues/461) | 未着手 |
 | Claude Code（変換元） | 新イベント群・`mcp_tool` type・新フィールドへの追随 | [#462](https://github.com/DIO0550/plugin-manager/issues/462) | 未着手 |
