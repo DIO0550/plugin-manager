@@ -7,6 +7,7 @@ use crate::hooks::converter::EventMap;
 fn test_codex_event_map_keeps_supported_events() {
     let map = CodexEventMap;
     assert_eq!(map.map_event("SessionStart"), Some("SessionStart"));
+    assert_eq!(map.map_event("SessionEnd"), Some("SessionEnd"));
     assert_eq!(map.map_event("PreToolUse"), Some("PreToolUse"));
     assert_eq!(map.map_event("PostToolUse"), Some("PostToolUse"));
     assert_eq!(map.map_event("UserPromptSubmit"), Some("UserPromptSubmit"));

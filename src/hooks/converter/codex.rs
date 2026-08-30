@@ -27,10 +27,6 @@ impl KeyMap for CodexKeyMap {
 
         for (key, value) in hook_obj {
             match key.as_str() {
-                "async" => warnings.push(ConversionWarning::RemovedField {
-                    field: "async".to_string(),
-                    reason: "Codex hooks do not support async hooks".to_string(),
-                }),
                 "once" => warnings.push(ConversionWarning::RemovedField {
                     field: "once".to_string(),
                     reason: "Codex hooks do not support once hooks".to_string(),

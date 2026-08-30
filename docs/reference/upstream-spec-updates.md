@@ -12,7 +12,7 @@ PLM 側で対応が必要な項目を TODO として管理するドキュメン�
 
 | ターゲット | Skills | Agents | Hooks | 起票 Issue |
 |-----------|--------|--------|-------|-----------|
-| OpenAI Codex | 変更なし | 変更なし | ⚠️ `SessionEnd` 追加・`async` サポート・有効化フラグ仕様変更 | [#455](https://github.com/DIO0550/plugin-manager/issues/455) / [#456](https://github.com/DIO0550/plugin-manager/issues/456) |
+| OpenAI Codex | 変更なし | 変更なし | ✅ `SessionEnd`・`async` 対応済み / ⚠️ 有効化フラグ仕様変更 | [#455](https://github.com/DIO0550/plugin-manager/issues/455) / [#456](https://github.com/DIO0550/plugin-manager/issues/456) |
 | VSCode Copilot | ⚠️ Personal スコープ（`~/.copilot/skills/`）追加 | 変更なし | ⚠️ 未マップイベントあり（`errorOccurred` / `preCompact` / `subagentStart`） | [#457](https://github.com/DIO0550/plugin-manager/issues/457) / [#458](https://github.com/DIO0550/plugin-manager/issues/458) |
 | Google Antigravity | ⚠️ 公式既定パスが `.agents/skills` / `~/.gemini/config/skills` へ | 変更なし（PLM 未実装は [#400](https://github.com/DIO0550/plugin-manager/issues/400)） | 変更なし（5 イベント） | [#460](https://github.com/DIO0550/plugin-manager/issues/460) |
 | Gemini CLI | ⚠️ GA 化・`.agents/skills` エイリアス・管理コマンド拡張 | 非対応（変更なし） | 非対応（変更なし） | [#461](https://github.com/DIO0550/plugin-manager/issues/461) |
@@ -24,9 +24,8 @@ PLM 側で対応が必要な項目を TODO として管理するドキュメン�
 
 ### 優先度: 高（変換結果が実機と食い違う）
 
-- [ ] **Codex hooks の `SessionEnd` / `async` 対応** — [#455](https://github.com/DIO0550/plugin-manager/issues/455)
-  - `CodexEventMap` に `SessionEnd` が無く、Claude Code の `SessionEnd` hook が変換時に除外される
-  - `CodexKeyMap` が `async` を「未サポート」として削除しているが、上流はサポート済み
+- [x] **Codex hooks の `SessionEnd` / `async` 対応** — [#455](https://github.com/DIO0550/plugin-manager/issues/455)
+  - `CodexEventMap` で `SessionEnd` を 1:1 マップし、`CodexKeyMap` で `async` を保持する
 - [ ] **Codex hooks 有効化フラグの見直し** — [#456](https://github.com/DIO0550/plugin-manager/issues/456)
   - 上流では hooks が既定で有効。正式キーは `hooks` で `codex_hooks` は deprecated alias
   - PLM は Hook 配置のたびにユーザーの `config.toml` へ deprecated キーを追記している

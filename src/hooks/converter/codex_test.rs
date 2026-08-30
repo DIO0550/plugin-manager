@@ -14,6 +14,7 @@ use crate::target::TargetKind;
 fn test_codex_event_map_keeps_supported_events() {
     let map = CodexEventMap;
     assert_eq!(map.map_event("SessionStart"), Some("SessionStart"));
+    assert_eq!(map.map_event("SessionEnd"), Some("SessionEnd"));
     assert_eq!(map.map_event("PreToolUse"), Some("PreToolUse"));
     assert_eq!(map.map_event("PostToolUse"), Some("PostToolUse"));
     assert_eq!(map.map_event("UserPromptSubmit"), Some("UserPromptSubmit"));
@@ -38,12 +39,22 @@ fn test_codex_key_map_keeps_command_fields() {
 }
 
 #[test]
+fn test_codex_key_map_preserves_async() {
+    let map = CodexKeyMap;
+    let hook = json!({"type": "command", "command": "echo hi", "async": true});
+
+    let (mapped, warnings) = map.map_keys(&hook, "command");
+
+    assert_eq!(mapped, hook);
+    assert!(warnings.is_empty());
+}
+
+#[test]
 fn test_codex_key_map_removes_unsupported_fields() {
     let map = CodexKeyMap;
     let hook = json!({
         "type": "command",
         "command": "echo hi",
-        "async": true,
         "once": true,
         "bash": "./wrappers/hook.sh",
         "timeoutSec": 3,
@@ -56,10 +67,9 @@ fn test_codex_key_map_removes_unsupported_fields() {
     assert_eq!(mapped["command"], "echo hi");
     assert_eq!(mapped["timeout"], 3);
     assert_eq!(mapped["statusMessage"], "checking");
-    assert!(mapped.get("async").is_none());
     assert!(mapped.get("once").is_none());
     assert!(mapped.get("bash").is_none());
-    assert_eq!(warnings.len(), 3);
+    assert_eq!(warnings.len(), 2);
 }
 
 #[test]
@@ -240,7 +250,7 @@ fn test_codex_convert_keeps_command_hook_inline() {
                 {
                     "matcher": "Bash",
                     "hooks": [
-                        {"type": "command", "command": "echo hi", "timeout": 5}
+                        {"type": "command", "command": "echo hi", "timeout": 5, "async": true}
                     ]
                 }
             ]
@@ -259,9 +269,35 @@ fn test_codex_convert_keeps_command_hook_inline() {
         result.json["hooks"]["PreToolUse"][0]["hooks"][0]["command"],
         "echo hi"
     );
+    assert_eq!(
+        result.json["hooks"]["PreToolUse"][0]["hooks"][0]["async"],
+        true
+    );
     assert!(result.json["hooks"]["PreToolUse"][0]["hooks"][0]
         .get("bash")
         .is_none());
+}
+
+#[test]
+fn test_codex_convert_keeps_session_end_hook_inline() {
+    let input = r#"{
+        "hooks": {
+            "SessionEnd": [
+                {
+                    "hooks": [
+                        {"type": "command", "command": "echo done"}
+                    ]
+                }
+            ]
+        }
+    }"#;
+
+    let result = convert(input, TargetKind::Codex).unwrap();
+
+    let hook = &result.json["hooks"]["SessionEnd"][0]["hooks"][0];
+    assert_eq!(hook["type"], "command");
+    assert_eq!(hook["command"], "echo done");
+    assert!(result.warnings.is_empty());
 }
 
 #[test]
