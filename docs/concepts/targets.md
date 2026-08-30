@@ -234,8 +234,8 @@ Google Antigravityはエージェント指向の開発プラットフォーム�
 | 種別 | スコープ | パス | 自動読み込み | 備考 |
 |------|---------|------|--------------|------|
 | Skills | Global（推奨） | `~/.gemini/config/skills/` | ✅ | AGY / IDE / CLI 共通で認識 |
-| Skills | Global（IDE 互換） | `~/.gemini/antigravity/skills/` | ✅* | *AGY CLI では非認識。PLM 現状パス |
-| Skills | Workspace | `.agents/skills/` | ✅ | `.agent/skills` は後方互換。PLM 現状は `.agent/skills/` |
+| Skills | Global（旧 IDE 互換） | `~/.gemini/antigravity/skills/` | ✅* | *AGY CLI では非認識。PLM は削除時の移行フォールバックのみ対応 |
+| Skills | Workspace | `.agents/skills/` | ✅ | `.agent/skills` は後方互換。PLM は削除時の移行フォールバックのみ対応 |
 | Agents | Global | `~/.gemini/config/agents/<name>/agent.md` | ✅ | Custom Subagents |
 | Agents | Workspace | `.agents/agents/<name>/agent.md` | ✅ | または `.agents/agents/<name>.md` |
 | Workflows（Commands 相当） | Global | `~/.gemini/config/global_workflows/<name>.md` | ✅ | `/name` で呼び出し。公式 docs 未記載パスは実機検証で確定 |
@@ -259,11 +259,10 @@ Google Antigravityはエージェント指向の開発プラットフォーム�
 
 | 種別 | ファイル形式 | Personal | Project |
 |------|-------------|----------|---------|
-| Skills | `SKILL.md` | `~/.gemini/antigravity/skills/<marketplace>/<plugin>/<skill>/` | `.agent/skills/<marketplace>/<plugin>/<skill>/` |
+| Skills | `SKILL.md` | `~/.gemini/config/skills/<original_name>/` | `.agents/skills/<original_name>/` |
 | Hooks | `hooks.json` | `~/.gemini/config/hooks.json` | `.agents/hooks.json` |
 
-> Skills の公式推奨パスは Personal `~/.gemini/config/skills/`、Project `.agents/skills/`。PLM 現状パスは IDE 互換だが CLI 非対応のため、パス移行は別 feature（[#460](https://github.com/DIO0550/plugin-manager/issues/460)、[#402](https://github.com/DIO0550/plugin-manager/issues/402) 連携）で扱う。
-> **TODO（2026-08-20 調査）**: 上流は `.agents/skills` を既定とし `.agent/skills` は後方互換扱いになった（[#460](https://github.com/DIO0550/plugin-manager/issues/460)）。
+> Skills は公式の1階層構造に合わせて `original_name` で配置する。同名の未管理 Skill は上書きしない。旧パス（`~/.gemini/antigravity/skills/` / `.agent/skills/`）は `list_placed` の対象外とし、disable / uninstall 時の削除フォールバックとして扱う（[#460](https://github.com/DIO0550/plugin-manager/issues/460)）。
 >
 > Hooks は Claude Code 形式から命名フックマップへ変換して単一 `hooks.json` に配置する（[#309](https://github.com/DIO0550/plugin-manager/issues/309)）。非管理ファイルの上書きと複数 Hook 同時配置は拒否。スキーマ詳細は [hooks-schema-mapping.md](../reference/hooks-schema-mapping.md)。
 
@@ -645,7 +644,7 @@ Agents / Commands は他ターゲットと同様に `flatten_name(plugin, origin
 |-----------|----------------------|----------------|
 | Codex | `~/.codex/` に配置 | Hook 配置時のみ `~/.codex/config.toml` に `[features] codex_hooks = true` を自動追記（`--no-enable-flag` で抑止可、`codex_hooks = false` 既設定時は警告のみでスキップ） |
 | Copilot | Skills は `~/.copilot/skills/` へ配置。その他の Personal コンポーネントは既存仕様に従う | Skills は自動読み込み。Instructions / Prompts は `settings.json` への参照追加が必要 |
-| Antigravity | Skills: `~/.gemini/antigravity/`。Hooks: `~/.gemini/config/hooks.json`（実装済み・[#309](https://github.com/DIO0550/plugin-manager/issues/309)）。Agents / Workflows / Instructions は未実装（[#400](https://github.com/DIO0550/plugin-manager/issues/400)） | Skills / Hooks は自動読み込み。Hooks は単一 `hooks.json`（上書きガードあり） |
+| Antigravity | Skills: `~/.gemini/config/skills/`。Hooks: `~/.gemini/config/hooks.json`（実装済み・[#309](https://github.com/DIO0550/plugin-manager/issues/309)）。Agents / Workflows / Instructions は未実装（[#400](https://github.com/DIO0550/plugin-manager/issues/400)） | Skills / Hooks は自動読み込み。Skills は1階層の元名配置（上書きガードあり）、Hooks は単一 `hooks.json`（上書きガードあり） |
 | Gemini CLI | `~/.gemini/skills/` に配置 | 不要（自動読み込み、要Settings有効化） |
 | Cursor | `~/.cursor/` に配置（Skills / Agents / Commands / Hooks） | 不要（自動読み込み）。Hooksは単一 `hooks.json` へ変換配置（上書きガードあり） |
 | OpenCode | `~/.config/opencode/` に配置（Skills / Agents / Commands / Instructions） | 不要（自動読み込み）。Hooks/Plugins は対象外 |

@@ -98,3 +98,52 @@ fn test_plugin_intent_expand_skips_cursor_legacy_cleanup_when_legacy_dir_missing
         matches!(op, FileOperation::RemoveDir { path } if path.as_path().ends_with("test-plugin_review"))
     }));
 }
+
+#[test]
+fn test_plugin_intent_disable_adds_antigravity_legacy_cleanup_operation() {
+    let project_root = TempDir::new().unwrap();
+    let source_root = TempDir::new().unwrap();
+    let skill_dir = source_root.path().join("skills").join("review");
+    std::fs::create_dir_all(&skill_dir).unwrap();
+    std::fs::write(skill_dir.join("SKILL.md"), "---\nname: review\n---\n").unwrap();
+
+    let legacy = project_root
+        .path()
+        .join(".agent")
+        .join("skills")
+        .join("test-plugin_review");
+    std::fs::create_dir_all(&legacy).unwrap();
+
+    let intent = PluginIntent::with_target_filter(
+        PluginAction::Disable {
+            plugin_name: "test-plugin".to_string(),
+            marketplace: None,
+        },
+        vec![Component::flattened(
+            ComponentKind::Skill,
+            "test-plugin",
+            "review",
+            &skill_dir,
+        )],
+        project_root.path().to_path_buf(),
+        Some("antigravity"),
+    );
+
+    let result = intent.expand();
+
+    assert!(
+        result.validation_errors.is_empty(),
+        "{:?}",
+        result.validation_errors
+    );
+    assert_eq!(result.operations.len(), 2);
+    assert!(result.operations.iter().any(|(kind, op)| {
+        *kind == crate::target::TargetKind::Antigravity
+            && matches!(op, FileOperation::RemoveDir { path } if path.as_path() == legacy)
+    }));
+    assert!(result.operations.iter().any(|(kind, op)| {
+        *kind == crate::target::TargetKind::Antigravity
+            && matches!(op, FileOperation::RemoveDir { path }
+                if path.as_path() == project_root.path().join(".agents/skills/review"))
+    }));
+}

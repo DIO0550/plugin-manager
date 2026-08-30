@@ -4,8 +4,9 @@
 
 use crate::component::{ComponentKind, Scope};
 use crate::placement_names::{
-    self, ALL_INSTRUCTION_FILENAMES, ANTIGRAVITY_PROJECT_SUBDIR, COPILOT_COMMAND_SUBDIR,
-    INSTRUCTION_AGENTS, INSTRUCTION_COPILOT, INSTRUCTION_GEMINI,
+    self, ALL_INSTRUCTION_FILENAMES, ANTIGRAVITY_PROJECT_SUBDIR, ANTIGRAVITY_SKILLS_PERSONAL_CHILD,
+    ANTIGRAVITY_SKILLS_PROJECT_SUBDIR, COPILOT_COMMAND_SUBDIR, INSTRUCTION_AGENTS,
+    INSTRUCTION_COPILOT, INSTRUCTION_GEMINI,
 };
 use crate::target::TargetKind;
 use std::path::{Path, PathBuf};
@@ -66,6 +67,27 @@ impl TargetKind {
         home: Option<&Path>,
         project_root: &Path,
     ) -> Vec<(PathBuf, &'static str)> {
+        if self == TargetKind::Antigravity {
+            let mut specs = Vec::new();
+            if let Some(h) = home {
+                specs.push((
+                    h.join(placement_names::ANTIGRAVITY_PERSONAL_PARENT)
+                        .join(ANTIGRAVITY_SKILLS_PERSONAL_CHILD),
+                    ComponentKind::Skill.plural(),
+                ));
+                specs.push((self.personal_base(h), ComponentKind::Skill.plural()));
+            }
+            specs.push((
+                project_root.join(ANTIGRAVITY_SKILLS_PROJECT_SUBDIR),
+                ComponentKind::Skill.plural(),
+            ));
+            specs.push((
+                self.project_base(project_root),
+                ComponentKind::Skill.plural(),
+            ));
+            return specs;
+        }
+
         let mut specs = Vec::new();
 
         if let Some(h) = home {

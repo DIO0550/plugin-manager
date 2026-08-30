@@ -71,14 +71,17 @@ fn test_antigravity_supports_scope_skill_project() {
 
 #[test]
 fn test_antigravity_placement_location_skill_personal() {
-    // インストール経路では `Component.name` が `flatten_name(plugin, original)
-    // = "{plugin}_{original}"` に平坦化されるため、テストもその形を使う。
     let target = AntigravityTarget::new();
     let project_root = Path::new("/project");
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Skill, "my-plugin_my-skill"),
+        component: ComponentRef::with_names(
+            ComponentKind::Skill,
+            "my-plugin_my-skill",
+            "my-skill",
+            "my-plugin",
+        ),
         origin: &origin,
         scope: PlacementScope::new(Scope::Personal),
         project: ProjectContext::new(project_root),
@@ -86,26 +89,29 @@ fn test_antigravity_placement_location_skill_personal() {
     let location = target.placement_location(&ctx).unwrap();
 
     assert!(location.is_dir());
-    // Personal scope uses ~/.gemini/antigravity/skills/
+    // Personal scope uses ~/.gemini/config/skills/<original_name>/
     let home = std::env::var("HOME").unwrap();
     let expected = std::path::PathBuf::from(home)
         .join(".gemini")
-        .join("antigravity")
+        .join("config")
         .join("skills")
-        .join("my-plugin_my-skill");
+        .join("my-skill");
     assert_eq!(location.as_path(), expected.as_path());
 }
 
 #[test]
 fn test_antigravity_placement_location_skill_project() {
-    // インストール経路では `Component.name` が `flatten_name(plugin, original)
-    // = "{plugin}_{original}"` に平坦化されるため、テストもその形を使う。
     let target = AntigravityTarget::new();
     let project_root = Path::new("/project");
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Skill, "my-plugin_my-skill"),
+        component: ComponentRef::with_names(
+            ComponentKind::Skill,
+            "my-plugin_my-skill",
+            "my-skill",
+            "my-plugin",
+        ),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -113,11 +119,26 @@ fn test_antigravity_placement_location_skill_project() {
     let location = target.placement_location(&ctx).unwrap();
 
     assert!(location.is_dir());
-    // Project scope uses .agent/skills/
+    // Project scope uses .agents/skills/<original_name>/
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.agent/skills/my-plugin_my-skill")
+        Path::new("/project/.agents/skills/my-skill")
     );
+}
+
+#[test]
+fn test_antigravity_placement_location_skill_without_original_name_returns_none() {
+    let target = AntigravityTarget::new();
+    let project_root = Path::new("/project");
+    let origin = PluginOrigin::from_marketplace("official", "my-plugin");
+    let ctx = PlacementContext {
+        component: ComponentRef::new(ComponentKind::Skill, "my-plugin_my-skill"),
+        origin: &origin,
+        scope: PlacementScope::new(Scope::Project),
+        project: ProjectContext::new(project_root),
+    };
+
+    assert!(target.placement_location(&ctx).is_none());
 }
 
 #[test]
@@ -137,15 +158,17 @@ fn test_antigravity_placement_location_agent_returns_none() {
 
 #[test]
 fn test_antigravity_placement_with_hierarchy() {
-    // インストール経路では `Component.name` が `flatten_name(plugin, original)
-    // = "{plugin}_{original}"` に平坦化されるため、origin が GitHub でも
-    // テストはその形を使う。
     let target = AntigravityTarget::new();
     let project_root = Path::new("/project");
     let origin = PluginOrigin::from_github("owner", "repo");
 
     let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Skill, "my-plugin_my-skill"),
+        component: ComponentRef::with_names(
+            ComponentKind::Skill,
+            "my-plugin_my-skill",
+            "my-skill",
+            "my-plugin",
+        ),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
@@ -155,7 +178,7 @@ fn test_antigravity_placement_with_hierarchy() {
     assert!(location.is_dir());
     assert_eq!(
         location.as_path(),
-        Path::new("/project/.agent/skills/my-plugin_my-skill")
+        Path::new("/project/.agents/skills/my-skill")
     );
 }
 
@@ -166,16 +189,18 @@ fn test_antigravity_placement_location_skill_with_prefixed_name() {
     let origin = PluginOrigin::from_marketplace("official", "my-plugin");
 
     let ctx = PlacementContext {
-        component: ComponentRef::new(ComponentKind::Skill, "myplugin_foo"),
+        component: ComponentRef::with_names(
+            ComponentKind::Skill,
+            "myplugin_foo",
+            "foo",
+            "myplugin",
+        ),
         origin: &origin,
         scope: PlacementScope::new(Scope::Project),
         project: ProjectContext::new(project_root),
     };
     let location = target.placement_location(&ctx).unwrap();
-    assert_eq!(
-        location.as_path(),
-        Path::new("/project/.agent/skills/myplugin_foo")
-    );
+    assert_eq!(location.as_path(), Path::new("/project/.agents/skills/foo"));
 }
 
 #[test]
@@ -184,7 +209,7 @@ fn test_antigravity_list_placed_empty_dir() {
     let temp_dir = TempDir::new().unwrap();
     let project_root = temp_dir.path();
 
-    // No .agent directory exists
+    // No .agents directory exists
     let result = target
         .list_placed(ComponentKind::Skill, Scope::Project, project_root)
         .unwrap();
@@ -197,11 +222,8 @@ fn test_antigravity_list_placed_with_skills() {
     let temp_dir = TempDir::new().unwrap();
     let project_root = temp_dir.path();
 
-    // フラット 2 階層: .agent/skills/<flattened_name>/SKILL.md
-    let skill_path = project_root
-        .join(".agent")
-        .join("skills")
-        .join("plugin_skill-1");
+    // 公式 1 階層: .agents/skills/<original_name>/SKILL.md
+    let skill_path = project_root.join(".agents").join("skills").join("skill-1");
     std::fs::create_dir_all(&skill_path).unwrap();
     std::fs::write(skill_path.join("SKILL.md"), "# Skill 1").unwrap();
 
@@ -209,8 +231,7 @@ fn test_antigravity_list_placed_with_skills() {
         .list_placed(ComponentKind::Skill, Scope::Project, project_root)
         .unwrap();
     assert_eq!(result.len(), 1);
-    // フラット化された name (= flattened_name) を返す。
-    assert_eq!(result[0], "plugin_skill-1");
+    assert_eq!(result[0], "skill-1");
 }
 
 #[test]
@@ -221,15 +242,137 @@ fn test_antigravity_list_placed_no_skill_md() {
 
     // SKILL.md 不在のディレクトリは無視される（フラット構造）
     let skill_path = project_root
-        .join(".agent")
+        .join(".agents")
         .join("skills")
-        .join("plugin_empty-skill");
+        .join("empty-skill");
     std::fs::create_dir_all(&skill_path).unwrap();
 
     let result = target
         .list_placed(ComponentKind::Skill, Scope::Project, project_root)
         .unwrap();
     assert!(result.is_empty());
+}
+
+#[test]
+fn test_antigravity_list_placed_ignores_legacy_skill_path() {
+    let target = AntigravityTarget::new();
+    let temp_dir = TempDir::new().unwrap();
+    let project_root = temp_dir.path();
+
+    let legacy_skill = project_root
+        .join(".agent")
+        .join("skills")
+        .join("plugin_old-skill");
+    std::fs::create_dir_all(&legacy_skill).unwrap();
+    std::fs::write(legacy_skill.join("SKILL.md"), "# Legacy").unwrap();
+
+    let result = target
+        .list_placed(ComponentKind::Skill, Scope::Project, project_root)
+        .unwrap();
+    assert!(result.is_empty());
+}
+
+#[test]
+fn test_antigravity_legacy_cleanup_removes_old_project_skill_path() {
+    let target = AntigravityTarget::new();
+    let temp_dir = TempDir::new().unwrap();
+    let project_root = temp_dir.path();
+    let legacy_path = project_root
+        .join(".agent")
+        .join("skills")
+        .join("my-plugin_my-skill");
+    std::fs::create_dir_all(&legacy_path).unwrap();
+
+    let origin = PluginOrigin::from_marketplace("official", "my-plugin");
+    let ctx = PlacementContext {
+        component: ComponentRef::with_names(
+            ComponentKind::Skill,
+            "my-plugin_my-skill",
+            "my-skill",
+            "my-plugin",
+        ),
+        origin: &origin,
+        scope: PlacementScope::new(Scope::Project),
+        project: ProjectContext::new(project_root),
+    };
+
+    let operations = target.legacy_cleanup_operations(&ctx).unwrap();
+    assert_eq!(operations.len(), 1);
+    assert!(matches!(
+        &operations[0],
+        FileOperation::RemoveDir { path } if path.as_path() == legacy_path
+    ));
+}
+
+#[test]
+fn test_antigravity_legacy_cleanup_is_empty_when_old_path_is_missing() {
+    let target = AntigravityTarget::new();
+    let temp_dir = TempDir::new().unwrap();
+    let origin = PluginOrigin::from_marketplace("official", "my-plugin");
+    let ctx = PlacementContext {
+        component: ComponentRef::with_names(
+            ComponentKind::Skill,
+            "my-plugin_my-skill",
+            "my-skill",
+            "my-plugin",
+        ),
+        origin: &origin,
+        scope: PlacementScope::new(Scope::Project),
+        project: ProjectContext::new(temp_dir.path()),
+    };
+
+    assert!(target.legacy_cleanup_operations(&ctx).unwrap().is_empty());
+}
+
+#[test]
+fn test_antigravity_skill_overwrite_error_rejects_unmanaged_existing_skill() {
+    let target_root = TempDir::new().unwrap();
+    let target_path = target_root.path().join("skills").join("my-skill");
+    std::fs::create_dir_all(&target_path).unwrap();
+
+    let plugin_root = TempDir::new().unwrap();
+    let error = AntigravityTarget::skill_overwrite_error(&target_path, plugin_root.path());
+    assert!(error.is_some());
+    assert!(error.unwrap().contains("already exists"));
+}
+
+#[test]
+fn test_antigravity_skill_overwrite_error_allows_owned_skill() {
+    let target_root = TempDir::new().unwrap();
+    let target_path = target_root.path().join("skills").join("my-skill");
+    std::fs::create_dir_all(&target_path).unwrap();
+
+    let plugin_root = TempDir::new().unwrap();
+    let mut meta = crate::plugin::meta::PluginMeta::default();
+    meta.add_managed_file("antigravity", &target_path);
+    crate::plugin::meta::write_meta(plugin_root.path(), &meta).unwrap();
+
+    assert!(AntigravityTarget::skill_overwrite_error(&target_path, plugin_root.path()).is_none());
+}
+
+#[test]
+fn test_antigravity_post_place_records_skill_ownership() {
+    let target = AntigravityTarget::new();
+    let plugin_root = TempDir::new().unwrap();
+    let deployed_root = TempDir::new().unwrap();
+    let deployed_path = deployed_root.path().join("skills").join("my-skill");
+    let origin = PluginOrigin::from_marketplace("official", "my-plugin");
+    let ctx = PlacementContext {
+        component: ComponentRef::with_names(
+            ComponentKind::Skill,
+            "my-plugin_my-skill",
+            "my-skill",
+            "my-plugin",
+        ),
+        origin: &origin,
+        scope: PlacementScope::new(Scope::Project),
+        project: ProjectContext::new(Path::new("/project")),
+    };
+
+    target.post_place(&ctx, &deployed_path, plugin_root.path(), false);
+
+    let meta = crate::plugin::meta::load_meta(plugin_root.path()).unwrap();
+    assert!(meta.manages_file("antigravity", &deployed_path));
 }
 
 #[test]

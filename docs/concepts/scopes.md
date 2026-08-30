@@ -32,7 +32,8 @@ PLMのインストールスコープについて説明します。
 
 | 種別 | Personal | Project |
 |------|----------|---------|
-| Skills | `~/.gemini/antigravity/skills/` | `.agent/skills/` |
+| Skills | `~/.gemini/config/skills/` | `.agents/skills/` |
+| Hooks | `~/.gemini/config/hooks.json` | `.agents/hooks.json` |
 
 ### Gemini CLI
 

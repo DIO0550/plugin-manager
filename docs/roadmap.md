@@ -143,7 +143,7 @@ Skills / Agents / Commands / Instructions を対応。Hooks / Plugins（JS/TS）
 | Copilot Skills | Personal スコープ（`~/.copilot/skills/`）対応 | [#457](https://github.com/DIO0550/plugin-manager/issues/457) | ✅ 完了 |
 | Copilot Hooks | 未マップイベント追随（`errorOccurred` / `preCompact` / `subagentStart`） | [#458](https://github.com/DIO0550/plugin-manager/issues/458) | 未着手 |
 | Cursor | Skills frontmatter `icon` / `color`・Subagents・Hooks 新イベント/新フィールド | [#459](https://github.com/DIO0550/plugin-manager/issues/459) | ✅ 完了 |
-| Antigravity Skills | 公式既定パス（`~/.gemini/config/skills` / `.agents/skills`）へ移行 | [#460](https://github.com/DIO0550/plugin-manager/issues/460) | 未着手 |
+| Antigravity Skills | 公式既定パス（`~/.gemini/config/skills` / `.agents/skills`）へ移行 | [#460](https://github.com/DIO0550/plugin-manager/issues/460) | ✅ 完了 |
 | Gemini CLI | Skills GA 化・`.agents/skills` エイリアス・管理コマンド更新 | [#461](https://github.com/DIO0550/plugin-manager/issues/461) | 未着手 |
 | Claude Code（変換元） | 新イベント群・`mcp_tool` type・新フィールドへの追随 | [#462](https://github.com/DIO0550/plugin-manager/issues/462) | 未着手 |
 | Claude Code（変換元） | Skill / Subagent frontmatter hooks の component-local 配置 | [独立機能 Issue 定義](./architecture/skill-subagent-frontmatter-hooks-issue.md) | 仕様確定 |

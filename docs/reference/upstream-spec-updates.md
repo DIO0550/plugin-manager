@@ -14,7 +14,7 @@ PLM 側で対応が必要な項目を TODO として管理するドキュメン�
 |-----------|--------|--------|-------|-----------|
 | OpenAI Codex | 変更なし | 変更なし | ✅ `SessionEnd`・`async` 対応済み / ⚠️ 有効化フラグ仕様変更 | [#455](https://github.com/DIO0550/plugin-manager/issues/455) / [#456](https://github.com/DIO0550/plugin-manager/issues/456) |
 | VSCode Copilot | ✅ Personal スコープ（`~/.copilot/skills/`）対応済み | 変更なし | ⚠️ 未マップイベントあり（`errorOccurred` / `preCompact` / `subagentStart`） | [#457](https://github.com/DIO0550/plugin-manager/issues/457) / [#458](https://github.com/DIO0550/plugin-manager/issues/458) |
-| Google Antigravity | ⚠️ 公式既定パスが `.agents/skills` / `~/.gemini/config/skills` へ | 変更なし（PLM 未実装は [#400](https://github.com/DIO0550/plugin-manager/issues/400)） | 変更なし（5 イベント） | [#460](https://github.com/DIO0550/plugin-manager/issues/460) |
+| Google Antigravity | ✅ 公式既定パス `.agents/skills` / `~/.gemini/config/skills` へ移行済み | 変更なし（PLM 未実装は [#400](https://github.com/DIO0550/plugin-manager/issues/400)） | 変更なし（5 イベント） | [#460](https://github.com/DIO0550/plugin-manager/issues/460) |
 | Gemini CLI | ⚠️ GA 化・`.agents/skills` エイリアス・管理コマンド拡張 | 非対応（変更なし） | 非対応（変更なし） | [#461](https://github.com/DIO0550/plugin-manager/issues/461) |
 | Cursor | ✅ `icon` / `color` を記載済み | ✅ ネスト・model パラメータを記載済み | ✅ 新イベント・新フィールド・スコープを記載済み | [#459](https://github.com/DIO0550/plugin-manager/issues/459) |
 | OpenCode | 変更なし | 変更なし | 対象外（JS/TS Plugin モデル） | — |
@@ -31,9 +31,9 @@ PLM 側で対応が必要な項目を TODO として管理するドキュメン�
   - PLM は Hook 配置のたびにユーザーの `config.toml` へ deprecated キーを追記している
 - [ ] **Copilot hooks の未マップイベント追随** — [#458](https://github.com/DIO0550/plugin-manager/issues/458)
   - `PostToolUseFailure` / `PreCompact` / `SubagentStart` が Copilot だけ未マップ（Cursor では対応済み）
-- [ ] **Antigravity Skills の配置パス移行** — [#460](https://github.com/DIO0550/plugin-manager/issues/460)
-  - 現行パス（`~/.gemini/antigravity/skills`・`.agent/skills`）は AGY CLI から認識されない
-  - Hooks はすでに新パスへ配置済みで、Skills だけ世代が揃っていない
+- [x] **Antigravity Skills の配置パス移行** — [#460](https://github.com/DIO0550/plugin-manager/issues/460)
+  - `~/.gemini/config/skills/<original_name>/`・`.agents/skills/<original_name>/` へ1階層で配置する
+  - 旧パスは列挙せず、disable / uninstall 時の削除フォールバックとして維持する
 
 ### 優先度: 中（機能追加・仕様確認）
 

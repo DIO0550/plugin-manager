@@ -140,6 +140,8 @@ fn cleanup_specs_antigravity_personal_nested() {
     let home = Path::new("/home/u");
     let root = Path::new("/proj");
     let specs = TargetKind::Antigravity.cleanup_specs(Some(home), root);
+    assert!(specs.contains(&(home.join(".gemini").join("config"), "skills")));
+    assert!(specs.contains(&(root.join(".agents"), "skills")));
     assert!(specs.contains(&(home.join(".gemini").join("antigravity"), "skills")));
     assert!(specs.contains(&(root.join(".agent"), "skills")));
 }
