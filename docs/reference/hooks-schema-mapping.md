@@ -160,11 +160,12 @@ Antigravity の詳細は [セクション 10](#10-google-antigravity)（実装 I
 
 ### Codex CLI（Claude Code と 1:1 対応）
 
-Codex hooks は Claude Code と同じ PascalCase 命名で 10 イベントをサポートし、PLM の `CodexEventMap` は変換時にイベント名をそのまま保持する。
+Codex hooks は Claude Code と同じ PascalCase 命名で 11 イベントをサポートし、PLM の `CodexEventMap` は変換時にイベント名をそのまま保持する。
 
 | Claude Code / Codex | scope | PLM 対応 |
 |---------------------|-------|----------|
 | `SessionStart` | thread | ✅ |
+| `SessionEnd` | thread | ✅ |
 | `PreToolUse` | turn | ✅ |
 | `PermissionRequest` | turn | ✅ |
 | `PostToolUse` | turn | ✅ |
@@ -185,6 +186,7 @@ Codex の command フックは POSIX シェル向けの `command` と Windows �
 |---|---|---|
 | `command_windows` | `command_windows` | command 型なら保持。command 型以外では削除して警告 |
 | `commandWindows` | `command_windows` | snake_case にリネーム。`command_windows` と併存時は snake_case を優先し camelCase 側を警告付きで破棄 |
+| `async` | `async` | 値をそのまま保持。`true` の場合はバックグラウンド実行（`SessionEnd` は常に同期実行） |
 
 **表記揺れ正規化の理由**: Codex 公式の `config.toml` は snake_case を採用するため、PLM は入力に `commandWindows`（camelCase）が含まれていれば自動で `command_windows` にリネームする。両キーが同時に存在する場合は仕様準拠側（snake_case）を優先し、`ConversionWarning::RemovedField` で重複を通知する。command 以外の hook 型（`http` など）に付与された Windows コマンドフィールドは意味を持たないため削除し警告する。
 
@@ -240,7 +242,7 @@ PLM は Codex hook を配置すると同時に、scope に応じた `config.toml
 | Claude Code | Copilot CLI | Codex CLI | Antigravity（公式） |
 |-------------|-------------|-----------|---------------------|
 | `SessionStart` | `sessionStart` | `SessionStart` | 〜 `PreInvocation` |
-| `SessionEnd` | `sessionEnd` | × | 〜 `Stop` |
+| `SessionEnd` | `sessionEnd` | `SessionEnd` | 〜 `Stop` |
 | `PreToolUse` | `preToolUse` | `PreToolUse` | `PreToolUse` |
 | `PostToolUse` | `postToolUse` | `PostToolUse` | `PostToolUse` |
 | `UserPromptSubmit` | `userPromptSubmitted` | `UserPromptSubmit` | 〜 `PreInvocation` |

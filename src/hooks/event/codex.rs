@@ -8,6 +8,7 @@ impl EventMap for CodexEventMap {
     fn map_event(&self, event: &str) -> Option<&'static str> {
         match event {
             "SessionStart" => Some("SessionStart"),
+            "SessionEnd" => Some("SessionEnd"),
             "PreToolUse" => Some("PreToolUse"),
             "PostToolUse" => Some("PostToolUse"),
             "UserPromptSubmit" => Some("UserPromptSubmit"),
