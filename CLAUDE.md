@@ -99,13 +99,14 @@ cargo deny check
 | 環境 | Skills | Agents | Commands | Instructions | Hooks |
 |------------|--------|--------|----------|--------------|-------|
 | OpenAI Codex | ○ | ○ | × | ○ | ○ |
-| VSCode Copilot | ○ | ○ | ○ | ○ | ○ |
+| VSCode Copilot | ○† | ○ | ○ | ○ | ○ |
 | Google Antigravity | ○ | × | × | × | ○ |
 | Gemini CLI | ○ | × | × | ○ | × |
 | Cursor | ○ | ○ | ○ | ○* | ○ |
 | OpenCode | ○ | ○ | ○ | ○** | ×*** |
 
 > \*Cursor の Instructions は Project スコープ（`AGENTS.md`）のみ。Personal（User Rules）は対象外。  
+> †Copilot の Skills は Personal（`~/.copilot/skills/`）と Project（`.github/skills/`）の両スコープに対応。
 > \*\*OpenCode の Instructions は Personal + Project。Skills は `original_name` 配置。opt-in（`plm target add opencode`）。Epic [#416](https://github.com/DIO0550/plugin-manager/issues/416)。  
 > \*\*\*OpenCode の拡張は JS/TS Plugin モデルのため Hook コンポーネント対象外。
 

@@ -173,7 +173,7 @@ commands_project = ".github/prompts"
 instructions_project = ".github/copilot-instructions.md"
 ```
 
-> 注: CopilotはPersonalスコープでのSkillsをサポートしていません。
+> 注: Copilot Skills の Personal スコープは、公式の固定パス `~/.copilot/skills/` を使用します。
 
 ### [targets.gemini]
 

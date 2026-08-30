@@ -3,7 +3,7 @@
 各ターゲット環境（CLI / IDE）の公式 Hooks / Skills / Agents 仕様の更新を定期的に調査し、
 PLM 側で対応が必要な項目を TODO として管理するドキュメント。
 
-- **最終調査日**: 2026-08-20
+- **最終調査日**: 2026-08-30
 - **前回同期**: 2026-07〜08（`docs/concepts/targets.md` 最終更新）
 - **調査方法**: 各ターゲットの公式ドキュメントを参照し、`docs/concepts/targets.md` の記載および
   `src/hooks/` / `src/target/env/` の実装と突き合わせる
@@ -13,7 +13,7 @@ PLM 側で対応が必要な項目を TODO として管理するドキュメン�
 | ターゲット | Skills | Agents | Hooks | 起票 Issue |
 |-----------|--------|--------|-------|-----------|
 | OpenAI Codex | 変更なし | 変更なし | ✅ `SessionEnd`・`async` 対応済み / ⚠️ 有効化フラグ仕様変更 | [#455](https://github.com/DIO0550/plugin-manager/issues/455) / [#456](https://github.com/DIO0550/plugin-manager/issues/456) |
-| VSCode Copilot | ⚠️ Personal スコープ（`~/.copilot/skills/`）追加 | 変更なし | ⚠️ 未マップイベントあり（`errorOccurred` / `preCompact` / `subagentStart`） | [#457](https://github.com/DIO0550/plugin-manager/issues/457) / [#458](https://github.com/DIO0550/plugin-manager/issues/458) |
+| VSCode Copilot | ✅ Personal スコープ（`~/.copilot/skills/`）対応済み | 変更なし | ⚠️ 未マップイベントあり（`errorOccurred` / `preCompact` / `subagentStart`） | [#457](https://github.com/DIO0550/plugin-manager/issues/457) / [#458](https://github.com/DIO0550/plugin-manager/issues/458) |
 | Google Antigravity | ⚠️ 公式既定パスが `.agents/skills` / `~/.gemini/config/skills` へ | 変更なし（PLM 未実装は [#400](https://github.com/DIO0550/plugin-manager/issues/400)） | 変更なし（5 イベント） | [#460](https://github.com/DIO0550/plugin-manager/issues/460) |
 | Gemini CLI | ⚠️ GA 化・`.agents/skills` エイリアス・管理コマンド拡張 | 非対応（変更なし） | 非対応（変更なし） | [#461](https://github.com/DIO0550/plugin-manager/issues/461) |
 | Cursor | ✅ `icon` / `color` を記載済み | ✅ ネスト・model パラメータを記載済み | ✅ 新イベント・新フィールド・スコープを記載済み | [#459](https://github.com/DIO0550/plugin-manager/issues/459) |
@@ -37,9 +37,9 @@ PLM 側で対応が必要な項目を TODO として管理するドキュメン�
 
 ### 優先度: 中（機能追加・仕様確認）
 
-- [ ] **Copilot Skills の Personal スコープ対応** — [#457](https://github.com/DIO0550/plugin-manager/issues/457)
-  - `~/.copilot/skills/` が公式パスになったが、PLM は `ScopeSupport::ProjectOnly` のまま
-  - Agents / Hooks は Personal 対応済みで、Skills だけ非対称
+- [x] **Copilot Skills の Personal スコープ対応** — [#457](https://github.com/DIO0550/plugin-manager/issues/457)
+  - `~/.copilot/skills/<original_name>/` へ配置し、1 階層探索と frontmatter 名に合わせる
+  - 同名 Skill の未管理パスは上書きせず、配置成功時は所有権を記録する
 - [ ] **Claude Code hooks 仕様拡張への追随** — [#462](https://github.com/DIO0550/plugin-manager/issues/462)
   - 変換元のイベントが 30 種超へ拡張。PLM の `HookEvent` は 10 種のまま
   - `mcp_tool` type が未知のため全ターゲットで除外される

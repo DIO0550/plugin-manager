@@ -20,13 +20,14 @@ PLMがサポートするAI開発環境（ターゲット）について説明し
 
 | コンポーネント | Codex | Copilot | Antigravity | Gemini CLI | Cursor | OpenCode |
 |----------------|-------|---------|-------------|------------|--------|----------|
-| Skills | ✅ | ✅ | ✅ | ✅ | ✅ | ✅******* |
+| Skills | ✅ | ✅† | ✅ | ✅ | ✅ | ✅******* |
 | Agents | ✅ | ✅ | ❌* | ❌ | ✅ | ✅******* |
 | Commands | ❌ | ✅ | ❌* | ❌ | ✅ | ✅******* |
 | Instructions | ✅ | ✅ | ❌* | ✅** | ✅*** | ✅******** |
 | Hooks | ✅ | ✅ | ✅**** | ❌****** | ✅***** | ❌********* |
 
 > *Antigravity は公式に Agents（`agent.md`）/ Workflows（Commands 相当）/ Rules・`GEMINI.md`・`AGENTS.md`（Instructions 相当）をサポートする。PLM 実装は未着手（調査: [#400](https://github.com/DIO0550/plugin-manager/issues/400)）。
+> †Copilot の Skills は Personal（`~/.copilot/skills/`）と Project（`.github/skills/`）の両方に対応する。
 > **Gemini CLIは`GEMINI.md`による階層的な指示システムを持ちます。
 > ***CursorのInstructionsはProjectスコープ（`AGENTS.md`）のみ。Personalスコープの指示（User Rules）はアプリ設定画面で管理されるため対象外。
 > ****Antigravity（IDE / CLI 共通）Hooks は公式 5 イベント対応の変換・配置を実装済み。単一 `hooks.json`・複数 Hook 同時配置は拒否（フルマージ未実装）。stdin/stdout ラッパーは未生成（インライン command）。
@@ -96,7 +97,7 @@ Codex CLI は PascalCase 命名の hooks イベントを 11 種サポートし�
 
 ### 読み込みパスと優先順位
 
-公式ドキュメント: [Use custom instructions in VS Code](https://code.visualstudio.com/docs/copilot/customization/custom-instructions)
+公式ドキュメント: [Use custom instructions in VS Code](https://code.visualstudio.com/docs/copilot/customization/custom-instructions) / [Use Agent Skills in VS Code](https://code.visualstudio.com/docs/agent-customization/agent-skills)
 
 | スコープ | パス | 自動読み込み | 備考 |
 |---------|------|--------------|------|
@@ -107,8 +108,9 @@ Codex CLI は PascalCase 命名の hooks イベントを 11 種サポートし�
 
 ### 重要な制約
 
-- **Copilotはグローバルファイル（`~/.copilot/`等）を直接読み込まない**（Instructions / Prompts の話。Skills は上流で `~/.copilot/skills/` が追加済み → [#457](https://github.com/DIO0550/plugin-manager/issues/457)）
-- Personal スコープは VSCode 設定経由で外部ファイルを参照する形式
+- **Instructions / Prompts は `~/.copilot/` 配下を直接読み込まない**。Personal は VS Code 設定経由で外部ファイルを参照する
+- **Skills は例外として Personal を直接読み込む**。`~/.copilot/skills/<original_name>/SKILL.md` の 1 階層構造で配置する
+- Personal Skills はプラグイン名で名前空間化できないため、別プラグインの同名 Skill がすでにあれば上書きせずエラーにする
 - Issue: [Global files outside workspace の要望](https://github.com/microsoft/vscode-copilot-release/issues/3129)
 
 ### VSCode設定での外部ファイル参照
@@ -129,7 +131,7 @@ Codex CLI は PascalCase 命名の hooks イベントを 11 種サポートし�
 
 | 種別 | ファイル形式 | Personal | Project |
 |------|-------------|----------|---------|
-| Skills | `SKILL.md` | -（TODO: [#457](https://github.com/DIO0550/plugin-manager/issues/457)） | `.github/skills/<marketplace>/<plugin>/<skill>/` |
+| Skills | `SKILL.md` | `~/.copilot/skills/<original_name>/` | `.github/skills/<flattened_name>/` |
 | Agents | `*.agent.md` | `~/.copilot/agents/<marketplace>/<plugin>/` | `.github/agents/<marketplace>/<plugin>/` |
 | Prompts | `*.prompt.md` | - | `.github/prompts/<marketplace>/<plugin>/` |
 | Instructions | `AGENTS.md` | - | `AGENTS.md` |
@@ -157,7 +159,7 @@ VSCode Copilot Agent Modeでは、エージェントセッションのライフ�
 
 > **対応済み（[#458](https://github.com/DIO0550/plugin-manager/issues/458)）**: `PostToolUseFailure` / `PreCompact` / `SubagentStart` を
 > Copilot CLI の `postToolUseFailure` / `preCompact` / `subagentStart` へ変換する。
-> Personal スコープの Skills パス `~/.copilot/skills/` も上流で追加済み（[#457](https://github.com/DIO0550/plugin-manager/issues/457)）。
+> Personal スコープの Skills パス `~/.copilot/skills/` は [#457](https://github.com/DIO0550/plugin-manager/issues/457) で対応済み。
 
 #### 設定形式
 
@@ -642,7 +644,7 @@ Agents / Commands は他ターゲットと同様に `flatten_name(plugin, origin
 | ターゲット | Personal インストール | 追加アクション |
 |-----------|----------------------|----------------|
 | Codex | `~/.codex/` に配置 | Hook 配置時のみ `~/.codex/config.toml` に `[features] codex_hooks = true` を自動追記（`--no-enable-flag` で抑止可、`codex_hooks = false` 既設定時は警告のみでスキップ） |
-| Copilot | ファイル配置 + VSCode設定追記 | `settings.json` への参照追加が必要 |
+| Copilot | Skills は `~/.copilot/skills/` へ配置。その他の Personal コンポーネントは既存仕様に従う | Skills は自動読み込み。Instructions / Prompts は `settings.json` への参照追加が必要 |
 | Antigravity | Skills: `~/.gemini/antigravity/`。Hooks: `~/.gemini/config/hooks.json`（実装済み・[#309](https://github.com/DIO0550/plugin-manager/issues/309)）。Agents / Workflows / Instructions は未実装（[#400](https://github.com/DIO0550/plugin-manager/issues/400)） | Skills / Hooks は自動読み込み。Hooks は単一 `hooks.json`（上書きガードあり） |
 | Gemini CLI | `~/.gemini/skills/` に配置 | 不要（自動読み込み、要Settings有効化） |
 | Cursor | `~/.cursor/` に配置（Skills / Agents / Commands / Hooks） | 不要（自動読み込み）。Hooksは単一 `hooks.json` へ変換配置（上書きガードあり） |
