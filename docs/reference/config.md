@@ -40,8 +40,8 @@ default_scope = "personal"  # personal | project
 enabled = ["antigravity", "codex", "copilot", "gemini"]
 
 [targets.antigravity]
-skills_personal = "~/.gemini/antigravity/skills"
-skills_project = ".agent/skills"
+skills_personal = "~/.gemini/config/skills"
+skills_project = ".agents/skills"
 
 [targets.codex]
 skills_personal = "~/.codex/skills"
@@ -118,13 +118,13 @@ Antigravityターゲットのパス設定。
 
 | キー | 型 | デフォルト |
 |------|-----|------------|
-| `skills_personal` | string | `"~/.gemini/antigravity/skills"` |
-| `skills_project` | string | `".agent/skills"` |
+| `skills_personal` | string | `"~/.gemini/config/skills"` |
+| `skills_project` | string | `".agents/skills"` |
 
 ```toml
 [targets.antigravity]
-skills_personal = "~/.gemini/antigravity/skills"
-skills_project = ".agent/skills"
+skills_personal = "~/.gemini/config/skills"
+skills_project = ".agents/skills"
 ```
 
 > 注: Antigravity の PLM 実装は現状 Skills のみ。Agents / Commands（Workflows）/ Instructions は公式サポート確認済み・未実装（[#400](https://github.com/DIO0550/plugin-manager/issues/400)）。

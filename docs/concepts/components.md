@@ -56,7 +56,7 @@ skills/skill-name/
 |------------|----------|---------|
 | Codex | `~/.codex/skills/<marketplace>/<plugin>/<skill>/` | `.codex/skills/<marketplace>/<plugin>/<skill>/` |
 | Copilot | - | `.github/skills/<marketplace>/<plugin>/<skill>/` |
-| Antigravity | `~/.gemini/antigravity/skills/<marketplace>/<plugin>/<skill>/` | `.agent/skills/<marketplace>/<plugin>/<skill>/` |
+| Antigravity | `~/.gemini/config/skills/<original_name>/` | `.agents/skills/<original_name>/` |
 | Gemini CLI | `~/.gemini/skills/<marketplace>/<plugin>/<skill>/` | `.gemini/skills/<marketplace>/<plugin>/<skill>/` |
 | Cursor | `~/.cursor/skills/<flattened_name>/` | `.cursor/skills/<flattened_name>/` |
 | OpenCode | `~/.config/opencode/skills/<original_name>/` | `.opencode/skills/<original_name>/` |

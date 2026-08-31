@@ -1,10 +1,14 @@
 //! Google Antigravity ターゲット実装（Skills / Hooks）
 
-use crate::component::{Component, ComponentKind, PlacementContext, PlacementLocation, Scope};
+use crate::component::{
+    Component, ComponentKind, FileOperation, PlacementContext, PlacementLocation, Scope, ScopedPath,
+};
 use crate::error::Result;
 use crate::placement_names::{
     ANTIGRAVITY_HOOKS_FILE, ANTIGRAVITY_HOOKS_PERSONAL_CHILD, ANTIGRAVITY_HOOKS_PROJECT_SUBDIR,
-    ANTIGRAVITY_PERSONAL_CHILD, ANTIGRAVITY_PERSONAL_PARENT, ANTIGRAVITY_PROJECT_SUBDIR,
+    ANTIGRAVITY_LEGACY_PERSONAL_CHILD, ANTIGRAVITY_LEGACY_PROJECT_SUBDIR,
+    ANTIGRAVITY_PERSONAL_PARENT, ANTIGRAVITY_SKILLS_PERSONAL_CHILD,
+    ANTIGRAVITY_SKILLS_PROJECT_SUBDIR,
 };
 use crate::target::filter::{filter_exact_file, filter_skill_dir};
 use crate::target::list_helpers::{scan_and_filter, scan_and_filter_in};
@@ -20,6 +24,8 @@ struct AntigravityLayout {
     personal_parent: &'static str,
     skills_personal_child: &'static str,
     skills_project_subdir: &'static str,
+    legacy_skills_personal_child: &'static str,
+    legacy_skills_project_subdir: &'static str,
     hooks_personal_child: &'static str,
     hooks_project_subdir: &'static str,
     hooks_file: &'static str,
@@ -27,8 +33,10 @@ struct AntigravityLayout {
 
 const LAYOUT: AntigravityLayout = AntigravityLayout {
     personal_parent: ANTIGRAVITY_PERSONAL_PARENT,
-    skills_personal_child: ANTIGRAVITY_PERSONAL_CHILD,
-    skills_project_subdir: ANTIGRAVITY_PROJECT_SUBDIR,
+    skills_personal_child: ANTIGRAVITY_SKILLS_PERSONAL_CHILD,
+    skills_project_subdir: ANTIGRAVITY_SKILLS_PROJECT_SUBDIR,
+    legacy_skills_personal_child: ANTIGRAVITY_LEGACY_PERSONAL_CHILD,
+    legacy_skills_project_subdir: ANTIGRAVITY_LEGACY_PROJECT_SUBDIR,
     hooks_personal_child: ANTIGRAVITY_HOOKS_PERSONAL_CHILD,
     hooks_project_subdir: ANTIGRAVITY_HOOKS_PROJECT_SUBDIR,
     hooks_file: ANTIGRAVITY_HOOKS_FILE,
@@ -67,6 +75,45 @@ impl AntigravityTarget {
         }
     }
 
+    fn legacy_skills_base_dir(scope: Scope, project_root: &Path) -> PathBuf {
+        match scope {
+            Scope::Personal => home_dir()
+                .join(LAYOUT.personal_parent)
+                .join(LAYOUT.legacy_skills_personal_child),
+            Scope::Project => project_root.join(LAYOUT.legacy_skills_project_subdir),
+        }
+    }
+
+    fn legacy_skill_path(scope: Scope, project_root: &Path, flattened_name: &str) -> PathBuf {
+        Self::legacy_skills_base_dir(scope, project_root)
+            .join(ComponentKind::Skill.plural())
+            .join(flattened_name)
+    }
+
+    fn remove_legacy_skill_dir(
+        scope: Scope,
+        project_root: &Path,
+        flattened_name: &str,
+        current_path: &Path,
+    ) -> bool {
+        let legacy_path = Self::legacy_skill_path(scope, project_root, flattened_name);
+        if !legacy_path.exists() || legacy_path == current_path {
+            return false;
+        }
+
+        match std::fs::remove_dir_all(&legacy_path) {
+            Ok(()) => true,
+            Err(error) => {
+                eprintln!(
+                    "Warning: failed to remove legacy Antigravity skill path {}: {}",
+                    legacy_path.display(),
+                    error
+                );
+                false
+            }
+        }
+    }
+
     /// Antigravity は 1 スコープにつき単一の `hooks.json` を読むため、複数 Hook を拒否する。
     pub fn hook_component_conflict_error(components: &[Component]) -> Option<String> {
         let hook_count = components
@@ -101,6 +148,17 @@ impl AntigravityTarget {
             .map(|meta| meta.manages_file("antigravity", target_path))
             .unwrap_or(false);
         !already_owned
+    }
+
+    fn skill_overwrite_error(target_path: &Path, plugin_root: &Path) -> Option<String> {
+        if !Self::path_conflicts_with_unowned(target_path, plugin_root) {
+            return None;
+        }
+        Some(format!(
+            "{} already exists and is not managed by this plugin. \
+             Refusing to overwrite; remove it or uninstall the owning plugin first.",
+            target_path.display()
+        ))
     }
 }
 
@@ -137,7 +195,10 @@ impl Target for AntigravityTarget {
         Some(match kind {
             ComponentKind::Skill => {
                 let base = Self::skills_base_dir(scope, context.project_root());
-                skill_dir(&base, context.name())
+                // Antigravity は `<skills>/<skill-folder>/SKILL.md` の 1 階層を読む。
+                // frontmatter の name と対応するスキャン時の元名で配置する。
+                let dir_name = context.original_name().filter(|name| !name.is_empty())?;
+                skill_dir(&base, dir_name)
             }
             ComponentKind::Hook => {
                 let base = Self::hooks_base_dir(scope, context.project_root());
@@ -157,10 +218,18 @@ impl Target for AntigravityTarget {
         target_path: &Path,
         plugin_root: &Path,
     ) -> std::result::Result<(), String> {
-        if context.kind() == ComponentKind::Hook {
-            if let Some(error) = Self::hook_overwrite_error(target_path, plugin_root) {
-                return Err(error);
+        match context.kind() {
+            ComponentKind::Hook => {
+                if let Some(error) = Self::hook_overwrite_error(target_path, plugin_root) {
+                    return Err(error);
+                }
             }
+            ComponentKind::Skill => {
+                if let Some(error) = Self::skill_overwrite_error(target_path, plugin_root) {
+                    return Err(error);
+                }
+            }
+            _ => {}
         }
         Ok(())
     }
@@ -172,10 +241,49 @@ impl Target for AntigravityTarget {
         plugin_root: &Path,
         _enable_feature_flag: bool,
     ) -> PostPlaceOutcome {
-        if context.kind() == ComponentKind::Hook {
-            crate::install::record_hook_file_ownership(plugin_root, deployed_path, "antigravity");
+        match context.kind() {
+            ComponentKind::Hook => {
+                crate::install::record_hook_file_ownership(
+                    plugin_root,
+                    deployed_path,
+                    "antigravity",
+                );
+            }
+            ComponentKind::Skill => {
+                crate::install::record_managed_file_ownership(
+                    plugin_root,
+                    deployed_path,
+                    "antigravity",
+                );
+                Self::remove_legacy_skill_dir(
+                    context.scope(),
+                    context.project_root(),
+                    context.name(),
+                    deployed_path,
+                );
+            }
+            _ => {}
         }
         PostPlaceOutcome::default()
+    }
+
+    fn legacy_cleanup_operations(
+        &self,
+        context: &PlacementContext,
+    ) -> std::result::Result<Vec<FileOperation>, String> {
+        if context.kind() != ComponentKind::Skill {
+            return Ok(vec![]);
+        }
+
+        let legacy_path =
+            Self::legacy_skill_path(context.scope(), context.project_root(), context.name());
+        if !legacy_path.exists() {
+            return Ok(vec![]);
+        }
+
+        let scoped = ScopedPath::new(legacy_path, context.project_root())
+            .map_err(|e| format!("Path validation failed: {}", e))?;
+        Ok(vec![FileOperation::RemoveDir { path: scoped }])
     }
 
     fn list_placed(

@@ -72,8 +72,8 @@ Codex:   展開対象外（未サポート）
 
 ```
 展開先:
-Antigravity (Personal): ~/.gemini/antigravity/skills/company-tools/code-formatter/formatter-skill/SKILL.md
-Antigravity (Project):  .agent/skills/company-tools/code-formatter/formatter-skill/SKILL.md
+Antigravity (Personal): ~/.gemini/config/skills/formatter-skill/SKILL.md
+Antigravity (Project):  .agents/skills/formatter-skill/SKILL.md
 ```
 
 ### Gemini CLI
@@ -240,7 +240,8 @@ Codex/Copilotがネストしたディレクトリを読み込むかは公式ド�
 
 | コンポーネント | Personal | Project |
 |----------------|----------|---------|
-| Skills | `~/.gemini/antigravity/skills/<marketplace>/<plugin>/<skill>/` | `.agent/skills/<marketplace>/<plugin>/<skill>/` |
+| Skills | `~/.gemini/config/skills/<original_name>/` | `.agents/skills/<original_name>/` |
+| Hooks | `~/.gemini/config/hooks.json` | `.agents/hooks.json` |
 
 ### Gemini CLI
 
