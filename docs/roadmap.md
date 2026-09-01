@@ -134,7 +134,7 @@ Skills / Agents / Commands / Instructions を対応。Hooks / Plugins（JS/TS）
 各ターゲットの公式 Hooks / Skills / Agents 仕様は継続的に更新されるため、定期的に調査して差分を追随する。
 調査結果と TODO の詳細は [`docs/reference/upstream-spec-updates.md`](./reference/upstream-spec-updates.md) を参照。
 
-**最終調査日: 2026-08-30**
+**最終調査日: 2026-09-01**
 
 | 対象 | 内容 | Issue | 状態 |
 |------|------|-------|------|
@@ -145,7 +145,7 @@ Skills / Agents / Commands / Instructions を対応。Hooks / Plugins（JS/TS）
 | Cursor | Skills frontmatter `icon` / `color`・Subagents・Hooks 新イベント/新フィールド | [#459](https://github.com/DIO0550/plugin-manager/issues/459) | ✅ 完了 |
 | Antigravity Skills | 公式既定パス（`~/.gemini/config/skills` / `.agents/skills`）へ移行 | [#460](https://github.com/DIO0550/plugin-manager/issues/460) | ✅ 完了 |
 | Gemini CLI | Skills GA 化・`.agents/skills` エイリアス・管理コマンド更新 | [#461](https://github.com/DIO0550/plugin-manager/issues/461) | 未着手 |
-| Claude Code（変換元） | 新イベント群・`mcp_tool` type・新フィールドへの追随 | [#462](https://github.com/DIO0550/plugin-manager/issues/462) | 未着手 |
+| Claude Code（変換元） | 33 イベント・`mcp_tool` type・新フィールドの変換方針 | [#462](https://github.com/DIO0550/plugin-manager/issues/462) | ✅ 調査完了（実装未着手） |
 | Claude Code（変換元） | Skill / Subagent frontmatter hooks の component-local 配置 | [独立機能 Issue 定義](./architecture/skill-subagent-frontmatter-hooks-issue.md) | 仕様確定 |
 | ドキュメント | 公式ドキュメント URL 移行（Codex → learn.chatgpt.com） | [#463](https://github.com/DIO0550/plugin-manager/issues/463) | 未着手 |
 

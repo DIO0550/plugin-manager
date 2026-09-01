@@ -1,21 +1,29 @@
 # Claude Code ↔ 各ターゲット Hooks スキーマ対応表
 
 PLM でフック変換ツールを実装する際のリファレンス。
-Claude Code を入力元とし、Copilot CLI / Codex CLI / Google Antigravity への変換仕様を対比する。
+Claude Code を入力元とし、Copilot CLI / Codex CLI / Cursor / Google Antigravity への変換仕様を対比する。
 
 各セクションでは **公式仕様** と **PLM 実装状況** を区別して記載する。
 Antigravity の詳細は [セクション 10](#10-google-antigravity)（実装 Issue [#309](https://github.com/DIO0550/plugin-manager/issues/309) の単一リファレンス）。
+Claude Code の 33 イベント、`mcp_tool`、追加フィールドに対する採否の根拠と実装受け入れ条件は
+[Issue #462 追随方針](../architecture/claude-code-hooks-upstream-follow-up.md)を正とする。
+
+> **実装状況（2026-09-01）:** 本文は最新公式仕様と確定した変換方針を記載する。
+> `HookEvent` 33 種化、Codex `mcp_tool` passthrough、Copilot native HTTP、追加フィールドの
+> allowlist 化は未実装であり、現行バイナリの挙動とは一致しない箇所がある。
 
 ## 公式ドキュメント
 
 | 環境 | URL |
 |------|-----|
-| Claude Code Hooks | https://docs.anthropic.com/en/docs/claude-code/hooks |
-| Claude Code Plugins | https://docs.anthropic.com/en/docs/claude-code/plugins |
-| Copilot CLI Hooks 設定 | https://docs.github.com/en/copilot/reference/hooks-configuration |
+| Claude Code Hooks | https://code.claude.com/docs/en/hooks |
+| Claude Code Plugins | https://code.claude.com/docs/en/plugins |
+| Copilot CLI Hooks 設定 | https://docs.github.com/en/copilot/reference/hooks-reference |
 | Copilot CLI Hooks ガイド | https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/use-hooks |
 | Copilot CLI Hooks チュートリアル | https://docs.github.com/en/copilot/tutorials/copilot-cli-hooks |
-| Codex CLI Hooks | https://developers.openai.com/codex/hooks |
+| Codex CLI Hooks | https://learn.chatgpt.com/docs/hooks |
+| VS Code Agent Hooks | https://code.visualstudio.com/docs/agent-customization/hooks |
+| Cursor Hooks | https://cursor.com/docs/hooks |
 | Antigravity Hooks | https://antigravity.google/docs/hooks |
 | Antigravity Hooks フォーラム | https://discuss.ai.google.dev/t/hooks-in-antigravity/120458 |
 
@@ -35,6 +43,7 @@ Antigravity の詳細は [セクション 10](#10-google-antigravity)（実装 I
           {
             "type": "command",
             "command": "<shell command>",
+            "args": ["<arg>"],
             "timeout": 600,
             "statusMessage": "Processing..."
           }
@@ -64,8 +73,7 @@ Antigravity の詳細は [セクション 10](#10-google-antigravity)（実装 I
         "powershell": "<shell command>",
         "cwd": "<optional working directory>",
         "env": { "<KEY>": "<value>" },
-        "timeoutSec": 30,
-        "comment": "optional documentation"
+        "timeoutSec": 30
       }
     ]
   }
@@ -110,12 +118,12 @@ Antigravity の詳細は [セクション 10](#10-google-antigravity)（実装 I
 | タイムアウト | `"timeout"`（秒、デフォルト 600） | `"timeoutSec"`（秒、デフォルト 30） | `"timeout"`（秒、デフォルト 30） |
 | 作業ディレクトリ | なし（`CLAUDE_PROJECT_DIR`） | `"cwd"` | なし（stdin の `workspacePaths`） |
 | 環境変数 | `CLAUDE_*` | `"env"` オブジェクト | フック専用 env なし（stdin JSON） |
-| フック種別 | `command` / `http` / `prompt` / `agent` | `command` / `prompt` | **`command` のみ** |
+| フック種別 | `command` / `http` / `mcp_tool` / `prompt` / `agent` | `command` / `http` / `prompt` | **`command` のみ** |
 | 無効化 | `"disableAllHooks": true` | なし | 命名フック単位の `"enabled": false` |
 
 **変換時の注意:**
 - Claude Code の matcher グループ構造を Copilot CLI のフラット構造に展開する必要がある
-- Claude Code の `http` / `agent` フックは Copilot CLI に直接変換できない（`command` ラッパーが必要）
+- Claude Code の `http` は Copilot CLI の native HTTP hook へ変換できる。`mcp_tool` / `agent` は直接変換できない
 - Copilot CLI の `powershell` キーは Claude Code に対応がない
 - Antigravity はトップレベルを命名フックでラップし、非 ToolUse イベントは matcher グループではなくフラット handlers にする必要がある（詳細はセクション 10）
 
@@ -137,19 +145,20 @@ Antigravity の詳細は [セクション 10](#10-google-antigravity)（実装 I
 | `SubagentStop` | `subagentStop` | ほぼ同等 |
 | `SubagentStart` | `subagentStart` | エージェント識別フィールドが異なる |
 | `PreCompact` | `preCompact` | 圧縮関連フィールドが異なる |
+| `PermissionRequest` | `permissionRequest` | decision schema は変換が必要 |
+| `Notification` | `notification` | Copilot cloud agent では発火しない |
 
 ### Claude Code 固有（Copilot CLI に対応なし）
 
 | Claude Code | 近似手段 |
 |-------------|---------|
-| `PostCompact` | なし |
-| `PermissionRequest` | `preToolUse` で部分的に代替 |
-| `Notification` | なし |
-| `TeammateIdle` | なし |
-| `TaskCompleted` | なし |
-| `InstructionsLoaded` | なし |
-| `ConfigChange` | なし |
+| `Setup` / `UserPromptExpansion` | なし |
+| `PermissionDenied` / `PostToolBatch` | なし |
+| `MessageDisplay` / `StopFailure` | なし |
+| `TaskCreated` / `TaskCompleted` / `TeammateIdle` | なし |
+| `InstructionsLoaded` / `ConfigChange` / `CwdChanged` / `DirectoryAdded` / `FileChanged` | なし |
 | `WorktreeCreate` / `WorktreeRemove` | なし |
+| `PostCompact` / `PreModelSwitch` / `PostModelSwitch` | なし |
 | `Elicitation` / `ElicitationResult` | なし |
 
 ### Copilot CLI 固有（Claude Code に対応なし）
@@ -157,6 +166,10 @@ Antigravity の詳細は [セクション 10](#10-google-antigravity)（実装 I
 | Copilot CLI | 近似手段 |
 |-------------|---------|
 | `errorOccurred` | なし（ツール失敗に限定されない実行時エラー） |
+| `userPromptTransformed` | なし（`UserPromptExpansion` と発火条件・制御能力が異なる） |
+
+Claude Code 公式 33 イベントを含む全ターゲット棚卸しは
+[Issue #462 追随方針 §1](../architecture/claude-code-hooks-upstream-follow-up.md#1-イベント棚卸し)を参照。
 
 ### Codex CLI（Claude Code と 1:1 対応）
 
@@ -176,7 +189,7 @@ Codex hooks は Claude Code と同じ PascalCase 命名で 11 イベントをサ
 | `SubagentStop` | turn | ✅ |
 | `SubagentStart` | subagent-start | ✅ |
 
-出典: <https://developers.openai.com/codex/hooks>
+出典: <https://learn.chatgpt.com/docs/hooks>
 
 ### Codex CLI コマンドフックのフィールドマッピング
 
@@ -192,7 +205,9 @@ Codex の command フックは POSIX シェル向けの `command` と Windows �
 
 ### Codex CLI における prompt / agent ハンドラの扱い
 
-Codex CLI のフック実装は `type: "command"` のみ実行し、`type: "prompt"` / `type: "agent"` のハンドラはパースした上でスキップする（出典: <https://developers.openai.com/codex/hooks>）。
+Codex CLI のフック実装は `type: "command"` / `type: "mcp_tool"` を実行し、
+`type: "prompt"` / `type: "agent"` のハンドラはパースした上でスキップする
+（出典: <https://learn.chatgpt.com/docs/hooks>）。
 
 PLM が Claude Code 形式のプラグインを Codex 向けに変換する際の挙動:
 
@@ -204,6 +219,17 @@ PLM が Claude Code 形式のプラグインを Codex 向けに変換する際�
 | `agent` | **inline 保持**（元の `agent` エントリが hooks 配列にそのまま残り、Codex 実行時にスキップされる） | `ConversionWarning::PromptAgentHookStub { hook_type: "agent", event }` を**ハンドラごとに 1 件** |
 
 **設計判断**: prompt / agent ハンドラは Codex CLI 自身がスキップするため、変換結果から除外しても害は小さい。一方で inline 保持することで、利用者が後から手動で `command` ハンドラに書き換える際に元の設定を参照しやすく、警告とセットで「Codex では実行されない」事実を明確に伝えられる。同一イベント内に prompt/agent が複数ある場合や command と混在する場合も、command は通常変換され、prompt/agent はそれぞれ独立に警告 + inline 保持される。
+
+### Codex CLI における `mcp_tool` ハンドラの扱い
+
+Codex は Claude Code と同じ `type: "mcp_tool"` と `server` / `tool` / `input` をサポートする。
+PLM は Codex が対応するイベントでは inline 保持し、`${tool_input.file_path}` のような入力
+placeholder も runtime に委ねる。ただし Codex の `SessionEnd` は `mcp_tool` 非対応のため、
+イベント自体を残して当該 handler だけを警告付きで除外する。
+
+Copilot CLI / Cursor / Antigravity は同じ意味の hook type を持たない。接続済み MCP server、
+OAuth 状態、tool schema を shell command から再現できないため stub や command wrapper は生成しない。
+詳細は [Issue #462 追随方針 §2](../architecture/claude-code-hooks-upstream-follow-up.md#2-mcp_tool-の扱い)を参照。
 
 ### Codex CLI hooks の feature flag 自動有効化（実装メモ）
 
@@ -248,10 +274,10 @@ PLM は Codex hook を配置すると同時に、scope に応じた `config.toml
 | `UserPromptSubmit` | `userPromptSubmitted` | `UserPromptSubmit` | 〜 `PreInvocation` |
 | `Stop` | `agentStop` | `Stop` | `Stop` |
 | `SubagentStop` | `subagentStop` | `SubagentStop` | × |
-| `PermissionRequest` | （`preToolUse` 近似） | `PermissionRequest` | ×（`ask` / `force_ask` で部分代替） |
+| `PermissionRequest` | `permissionRequest` | `PermissionRequest` | ×（`ask` / `force_ask` で部分代替） |
 | `PreCompact` | `preCompact` | ○ | × |
 | `PostCompact` | × | ○ | × |
-| `Notification` | × | × | × |
+| `Notification` | `notification` | × | × |
 | — | — | — | `PreInvocation` / `PostInvocation`（Antigravity 固有） |
 
 > **注:** Issue #309 / 初期調査では Antigravity に `SessionStart` / `SessionEnd` / `SubagentStop` / `UserPromptSubmit` / `PreCompact` / `Notification` が列挙されていたが、**2026-07-26 時点の公式ドキュメント**（https://antigravity.google/docs/hooks）ではサポートイベントは `PreToolUse` / `PostToolUse` / `PreInvocation` / `PostInvocation` / `Stop` の 5 種。本表は公式を正とする。
@@ -578,6 +604,7 @@ Claude Code の exit code 2（ブロック）を Copilot CLI に変換する場�
 |--------|----------------|------|
 | `CLAUDE_PROJECT_DIR` | 全 command フック | プロジェクトルート |
 | `CLAUDE_PLUGIN_ROOT` | プラグインフック | プラグインのルートディレクトリ |
+| `CLAUDE_PLUGIN_DATA` | プラグインフック | 更新をまたいで保持される書き込み可能なデータディレクトリ |
 | `CLAUDE_FILE_PATHS` | ツール系イベント | 操作対象ファイルパス |
 | `CLAUDE_ENV_FILE` | `SessionStart` のみ | 環境変数永続化用ファイルパス |
 | `CLAUDE_CODE_REMOTE` | 全フック | リモート Web 環境では `"true"` |
@@ -644,9 +671,13 @@ Claude Code は PascalCase、Copilot CLI は小文字。
 | 種別 | Claude Code | Copilot CLI | Antigravity |
 |------|-------------|-------------|-------------|
 | `command` | 全イベントで使用可 | 全イベントで使用可 | **唯一のサポート種別**（省略時も `command`） |
-| `http` | HTTP POST。`headers` で `$VAR` 展開可 | **なし** | **なし** |
+| `http` | HTTP POST。`allowedEnvVars` に列挙した変数だけ `headers` で展開 | native HTTP POST をサポート | **なし** |
+| `mcp_tool` | 接続済み MCP server の tool を `server` / `tool` / `input` で呼び出す | **なし** | **なし** |
 | `prompt` | LLM 評価フック。`{ok, reason}` | `sessionStart` のみ（自動送信） | **なし** |
 | `agent` | サブエージェント調査。`{ok, reason}` | **なし** | **なし** |
+
+Codex は `command` / `mcp_tool` を実行し、`prompt` / `agent` を parse 後に skip する。`http` は
+非対応。`mcp_tool` は `SessionEnd` では使用できない。
 
 **`prompt` の意味の違い:**
 - Claude Code: LLM にフック入力を評価させ、`ok: false` でブロックする判定フック
@@ -663,8 +694,9 @@ Claude Code は PascalCase、Copilot CLI は小文字。
 3. matcher グループ構造をフラットに展開（matcher の条件はスクリプト内ロジックに移動）
 4. `"command"` → `"bash"` にキー名変更
 5. `"timeout"` → `"timeoutSec"` にキー名変更
-6. `http` / `agent` フックは `command` ラッパースクリプトに変換
-7. Copilot CLI に対応のないイベント（`Notification`, `PreCompact` 等）は除外または警告
+6. `http` は native HTTP handler として保持し、`allowedEnvVars` も保持
+7. `mcp_tool` / `agent` は除外 + handler 単位の警告
+8. Copilot CLI に対応のないイベントは除外 + イベント単位の警告
 
 ### Claude Code → Antigravity
 

@@ -3,7 +3,7 @@
 各ターゲット環境（CLI / IDE）の公式 Hooks / Skills / Agents 仕様の更新を定期的に調査し、
 PLM 側で対応が必要な項目を TODO として管理するドキュメント。
 
-- **最終調査日**: 2026-08-30
+- **最終調査日**: 2026-09-01
 - **前回同期**: 2026-07〜08（`docs/concepts/targets.md` 最終更新）
 - **調査方法**: 各ターゲットの公式ドキュメントを参照し、`docs/concepts/targets.md` の記載および
   `src/hooks/` / `src/target/env/` の実装と突き合わせる
@@ -18,7 +18,7 @@ PLM 側で対応が必要な項目を TODO として管理するドキュメン�
 | Gemini CLI | ⚠️ GA 化・`.agents/skills` エイリアス・管理コマンド拡張 | 非対応（変更なし） | 非対応（変更なし） | [#461](https://github.com/DIO0550/plugin-manager/issues/461) |
 | Cursor | ✅ `icon` / `color` を記載済み | ✅ ネスト・model パラメータを記載済み | ✅ 新イベント・新フィールド・スコープを記載済み | [#459](https://github.com/DIO0550/plugin-manager/issues/459) |
 | OpenCode | 変更なし | 変更なし | 対象外（JS/TS Plugin モデル） | — |
-| Claude Code（変換元） | ⚠️ frontmatter 大幅拡張・commands が skills へ統合 | — | ⚠️ イベント 30 種超へ拡張・`mcp_tool` type 追加 | [#462](https://github.com/DIO0550/plugin-manager/issues/462) / [frontmatter hooks 独立 Issue 定義](../architecture/skill-subagent-frontmatter-hooks-issue.md) |
+| Claude Code（変換元） | ⚠️ frontmatter 大幅拡張・commands が skills へ統合 | — | ✅ 33 イベント・`mcp_tool`・追加フィールドの変換方針を確定（実装未着手） | [#462](https://github.com/DIO0550/plugin-manager/issues/462) / [追随方針](../architecture/claude-code-hooks-upstream-follow-up.md) / [frontmatter hooks 独立 Issue 定義](../architecture/skill-subagent-frontmatter-hooks-issue.md) |
 
 ## TODO
 
@@ -40,10 +40,12 @@ PLM 側で対応が必要な項目を TODO として管理するドキュメン�
 - [x] **Copilot Skills の Personal スコープ対応** — [#457](https://github.com/DIO0550/plugin-manager/issues/457)
   - `~/.copilot/skills/<original_name>/` へ配置し、1 階層探索と frontmatter 名に合わせる
   - 同名 Skill の未管理パスは上書きせず、配置成功時は所有権を記録する
-- [ ] **Claude Code hooks 仕様拡張への追随** — [#462](https://github.com/DIO0550/plugin-manager/issues/462)
-  - 変換元のイベントが 30 種超へ拡張。PLM の `HookEvent` は 10 種のまま
-  - `mcp_tool` type が未知のため全ターゲットで除外される
-  - 対象は `hooks/hooks.json` 経路のイベント、type、フィールド追随に限定する
+- [x] **Claude Code hooks 仕様拡張の調査・変換方針確定** — [#462](https://github.com/DIO0550/plugin-manager/issues/462)
+  - 公式 33 イベントを全て既知化し、target 対応イベントだけ `EventBridge` へ登録する方針
+  - `mcp_tool` は Codex 対応イベントで inline 保持し、他ターゲットでは明示警告で除外する方針
+  - `args` / `if` 等は意味を変える field-only drop を禁止し、target 別 allowlist で変換する方針
+  - 実装と自動テストは未着手。詳細は [追随方針](../architecture/claude-code-hooks-upstream-follow-up.md)
+  - 対象は `hooks/hooks.json` 経路に限定し、frontmatter hooks は独立 Issue とする
 - [ ] **Skill / Subagent frontmatter hooks 供給経路** — [独立機能 Issue 定義](../architecture/skill-subagent-frontmatter-hooks-issue.md)
   - `hooks/hooks.json` とは別に、所属コンポーネントへスコープした解析・配置・診断を追加する
   - 順序、重複、競合および統合テストの受け入れ条件は Issue 定義を正とする
