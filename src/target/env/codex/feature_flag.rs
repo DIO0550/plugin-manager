@@ -1,7 +1,7 @@
 //! Codex `config.toml` の `[features] codex_hooks` 自動追記ロジック。
 //!
-//! 公式仕様: <https://developers.openai.com/codex/config-advanced>
-//! 確認日付: 2026-06-29
+//! 公式仕様: <https://learn.chatgpt.com/docs/hooks#turn-hooks-off>
+//! 確認日付: 2026-09-02
 //!
 //! 注: `features.codex_hooks` は公式ドキュメント上 deprecated alias と
 //! 明記されているため、将来 1 箇所差し替えで済むよう定数化する。

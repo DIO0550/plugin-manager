@@ -58,7 +58,7 @@ PLM 側で対応が必要な項目を TODO として管理するドキュメン�
   - Cursor CLI の発火状況とエディタ専用イベントの未検証範囲は [#466](https://github.com/DIO0550/plugin-manager/pull/466) で実機確認済み
 - [ ] **Gemini CLI Skills の GA 化等を反映** — [#461](https://github.com/DIO0550/plugin-manager/issues/461)
   - 「実験的機能・要 Settings 有効化」の記載が現状と不一致
-- [ ] **公式ドキュメント URL の移行追随** — [#463](https://github.com/DIO0550/plugin-manager/issues/463)
+- [x] **公式ドキュメント URL の移行追随** — [#463](https://github.com/DIO0550/plugin-manager/issues/463)
   - Codex: `developers.openai.com/codex/*` → `learn.chatgpt.com/docs/*`（308 リダイレクト）
 
 ## 変更なしと確認した項目

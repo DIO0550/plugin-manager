@@ -255,7 +255,7 @@ PLM は Codex hook を配置すると同時に、scope に応じた `config.toml
 - `plm install <pkg> --target codex --no-enable-flag` / `plm import <repo> --target codex --no-enable-flag`
 - スキップ時は手動で `[features] codex_hooks = true` を追記する必要がある
 
-注: `features.codex_hooks` は公式ドキュメント上 deprecated alias と明記されており、将来名前が変わる可能性がある（出典: <https://developers.openai.com/codex/config-advanced>、確認日付: 2026-06-29）。実装側は `src/target/env/codex/feature_flag.rs` でテーブル名・キー名を定数化しており、名前変更時は 1 箇所修正で済む。
+注: `features.codex_hooks` は公式ドキュメント上 deprecated alias と明記されており、将来名前が変わる可能性がある（出典: <https://learn.chatgpt.com/docs/hooks#turn-hooks-off>、確認日付: 2026-09-02）。実装側は `src/target/env/codex/feature_flag.rs` でテーブル名・キー名を定数化しており、名前変更時は 1 箇所修正で済む。
 
 ### 3 ターゲット横断のイベント対応表（要約）
 

@@ -700,9 +700,9 @@ plugins/spec-plugin/
 - [Custom Agents](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-custom-agents)
 
 ### Codex
-- [Custom Prompts](https://developers.openai.com/codex/custom-prompts/)
-- [Agent Skills](https://developers.openai.com/codex/skills/)
-- [AGENTS.md](https://developers.openai.com/codex/guides/agents-md)
+- [Custom Prompts](https://learn.chatgpt.com/docs/custom-prompts)
+- [Agent Skills](https://learn.chatgpt.com/docs/build-skills)
+- [AGENTS.md](https://learn.chatgpt.com/docs/agent-configuration/agents-md)
 
 ### Gemini CLI
 - [Agent Skills](https://geminicli.com/docs/cli/skills/)

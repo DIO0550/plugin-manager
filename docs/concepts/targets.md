@@ -41,7 +41,7 @@ PLMがサポートするAI開発環境（ターゲット）について説明し
 
 ### 読み込みパスと優先順位
 
-公式ドキュメント: [Custom instructions with AGENTS.md](https://developers.openai.com/codex/guides/agents-md/)
+公式ドキュメント: [Custom instructions with AGENTS.md](https://learn.chatgpt.com/docs/agent-configuration/agents-md)
 
 | スコープ | パス | 自動読み込み | 備考 |
 |---------|------|--------------|------|
@@ -70,7 +70,7 @@ PLMがサポートするAI開発環境（ターゲット）について説明し
 
 ### Hooks（11 イベント対応）
 
-公式ドキュメント: [Codex Hooks](https://developers.openai.com/codex/hooks)（現行 URL: [learn.chatgpt.com/docs/hooks](https://learn.chatgpt.com/docs/hooks)。URL 移行対応は [#463](https://github.com/DIO0550/plugin-manager/issues/463)）
+公式ドキュメント: [Codex Hooks](https://learn.chatgpt.com/docs/hooks)
 
 > **対応済み（[#455](https://github.com/DIO0550/plugin-manager/issues/455)）**: `SessionEnd` イベントと command hook の `async` フィールドを変換時に保持する。
 > **TODO（2026-08-20 調査）**: hooks は上流で既定有効になり `codex_hooks` は deprecated alias となったため、`[features] codex_hooks = true` の自動追記を見直す（[#456](https://github.com/DIO0550/plugin-manager/issues/456)）。

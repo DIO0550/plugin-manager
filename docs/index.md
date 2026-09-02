@@ -55,8 +55,8 @@ GitHubからAI開発環境向けのプラグインをダウンロードし、複
 
 ### OpenAI Codex
 
-- [Codex Skills](https://developers.openai.com/codex/skills/)
-- [AGENTS.md Guide](https://developers.openai.com/codex/guides/agents-md/)
+- [Codex Skills](https://learn.chatgpt.com/docs/build-skills)
+- [AGENTS.md Guide](https://learn.chatgpt.com/docs/agent-configuration/agents-md)
 
 ### VSCode Copilot
 
