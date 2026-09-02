@@ -5,8 +5,8 @@ Claude Code を入力元とし、Copilot CLI / Codex CLI / Cursor / Google Antig
 
 各セクションでは **公式仕様** と **PLM 実装状況** を区別して記載する。
 Antigravity の詳細は [セクション 10](#10-google-antigravity)（実装 Issue [#309](https://github.com/DIO0550/plugin-manager/issues/309) の単一リファレンス）。
-Claude Code の 33 イベント、`mcp_tool`、追加フィールドに対する採否の根拠と実装受け入れ条件は
-[Issue #462 追随方針](../architecture/claude-code-hooks-upstream-follow-up.md)を正とする。
+Claude Code の 33 イベント、`mcp_tool`、追加フィールドについては
+[Issue #462](https://github.com/DIO0550/plugin-manager/issues/462) の調査結果を本文へ反映している。
 
 > **実装状況（2026-09-01）:** 本文は最新公式仕様と確定した変換方針を記載する。
 > `HookEvent` 33 種化、Codex `mcp_tool` passthrough、Copilot native HTTP、追加フィールドの
@@ -168,9 +168,6 @@ Claude Code の 33 イベント、`mcp_tool`、追加フィールドに対する
 | `errorOccurred` | なし（ツール失敗に限定されない実行時エラー） |
 | `userPromptTransformed` | なし（`UserPromptExpansion` と発火条件・制御能力が異なる） |
 
-Claude Code 公式 33 イベントを含む全ターゲット棚卸しは
-[Issue #462 追随方針 §1](../architecture/claude-code-hooks-upstream-follow-up.md#1-イベント棚卸し)を参照。
-
 ### Codex CLI（Claude Code と 1:1 対応）
 
 Codex hooks は Claude Code と同じ PascalCase 命名で 11 イベントをサポートし、PLM の `CodexEventMap` は変換時にイベント名をそのまま保持する。
@@ -229,7 +226,6 @@ placeholder も runtime に委ねる。ただし Codex の `SessionEnd` は `mcp
 
 Copilot CLI / Cursor / Antigravity は同じ意味の hook type を持たない。接続済み MCP server、
 OAuth 状態、tool schema を shell command から再現できないため stub や command wrapper は生成しない。
-詳細は [Issue #462 追随方針 §2](../architecture/claude-code-hooks-upstream-follow-up.md#2-mcp_tool-の扱い)を参照。
 
 ### Codex CLI hooks の feature flag 自動有効化（実装メモ）
 

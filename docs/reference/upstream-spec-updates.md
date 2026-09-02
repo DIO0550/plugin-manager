@@ -18,7 +18,7 @@ PLM 側で対応が必要な項目を TODO として管理するドキュメン�
 | Gemini CLI | ⚠️ GA 化・`.agents/skills` エイリアス・管理コマンド拡張 | 非対応（変更なし） | 非対応（変更なし） | [#461](https://github.com/DIO0550/plugin-manager/issues/461) |
 | Cursor | ✅ `icon` / `color` を記載済み | ✅ ネスト・model パラメータを記載済み | ✅ 新イベント・新フィールド・スコープを記載済み | [#459](https://github.com/DIO0550/plugin-manager/issues/459) |
 | OpenCode | 変更なし | 変更なし | 対象外（JS/TS Plugin モデル） | — |
-| Claude Code（変換元） | ⚠️ frontmatter 大幅拡張・commands が skills へ統合 | — | ✅ 33 イベント・`mcp_tool`・追加フィールドの変換方針を確定（実装未着手） | [#462](https://github.com/DIO0550/plugin-manager/issues/462) / [追随方針](../architecture/claude-code-hooks-upstream-follow-up.md) / [frontmatter hooks 独立 Issue 定義](../architecture/skill-subagent-frontmatter-hooks-issue.md) |
+| Claude Code（変換元） | ⚠️ frontmatter 大幅拡張・commands が skills へ統合 | — | ✅ 33 イベント・`mcp_tool`・追加フィールドの変換方針を確定（実装未着手） | [#462](https://github.com/DIO0550/plugin-manager/issues/462) / [frontmatter hooks 独立 Issue 定義](../architecture/skill-subagent-frontmatter-hooks-issue.md) |
 
 ## TODO
 
@@ -44,7 +44,7 @@ PLM 側で対応が必要な項目を TODO として管理するドキュメン�
   - 公式 33 イベントを全て既知化し、target 対応イベントだけ `EventBridge` へ登録する方針
   - `mcp_tool` は Codex 対応イベントで inline 保持し、他ターゲットでは明示警告で除外する方針
   - `args` / `if` 等は意味を変える field-only drop を禁止し、target 別 allowlist で変換する方針
-  - 実装と自動テストは未着手。詳細は [追随方針](../architecture/claude-code-hooks-upstream-follow-up.md)
+  - 実装と自動テストは未着手。調査結果は [Hooks スキーマ対応表](./hooks-schema-mapping.md) に反映済み
   - 対象は `hooks/hooks.json` 経路に限定し、frontmatter hooks は独立 Issue とする
 - [ ] **Skill / Subagent frontmatter hooks 供給経路** — [独立機能 Issue 定義](../architecture/skill-subagent-frontmatter-hooks-issue.md)
   - `hooks/hooks.json` とは別に、所属コンポーネントへスコープした解析・配置・診断を追加する
