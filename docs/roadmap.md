@@ -147,7 +147,7 @@ Skills / Agents / Commands / Instructions を対応。Hooks / Plugins（JS/TS）
 | Gemini CLI | Skills GA 化・`.agents/skills` エイリアス・管理コマンド更新 | [#461](https://github.com/DIO0550/plugin-manager/issues/461) | 未着手 |
 | Claude Code（変換元） | 33 イベント・`mcp_tool` type・新フィールドの変換方針 | [#462](https://github.com/DIO0550/plugin-manager/issues/462) | ✅ 調査完了（実装未着手） |
 | Claude Code（変換元） | Skill / Subagent frontmatter hooks の component-local 配置 | [独立機能 Issue 定義](./architecture/skill-subagent-frontmatter-hooks-issue.md) | 仕様確定 |
-| ドキュメント | 公式ドキュメント URL 移行（Codex → learn.chatgpt.com） | [#463](https://github.com/DIO0550/plugin-manager/issues/463) | 未着手 |
+| ドキュメント | 公式ドキュメント URL 移行（Codex → learn.chatgpt.com） | [#463](https://github.com/DIO0550/plugin-manager/issues/463) | ✅ 完了 |
 
 ## 将来の拡張
 
@@ -203,11 +203,12 @@ impl GitRepo {
 
 ### OpenAI Codex
 
-- [Codex Skills](https://developers.openai.com/codex/skills/)
-- [AGENTS.md Guide](https://developers.openai.com/codex/guides/agents-md/)
+- [Codex Skills](https://learn.chatgpt.com/docs/build-skills)
+- [AGENTS.md Guide](https://learn.chatgpt.com/docs/agent-configuration/agents-md)
 
 ### VSCode Copilot
 
+- [Agent Skills](https://code.visualstudio.com/docs/agent-customization/agent-skills)
 - [Custom Instructions](https://code.visualstudio.com/docs/copilot/customization/custom-instructions)
 - [Custom Agents](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/create-custom-agents)
 - [Prompt Files](https://code.visualstudio.com/docs/copilot/customization/overview)
