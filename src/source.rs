@@ -16,7 +16,8 @@ pub use github_source::GitHubSource;
 pub use marketplace_source::MarketplaceSource;
 pub use search_source::SearchSource;
 
-use crate::error::Result;
+use crate::error::{PlmError, Result};
+use crate::marketplace::MarketplaceName;
 use crate::plugin::{CachedPackage, PackageCacheAccess};
 use crate::repo;
 use std::future::Future;
@@ -52,7 +53,8 @@ pub fn parse_source(input: &str) -> Result<Box<dyn PackageSource>> {
             return Ok(Box::new(GitHubSource::new(repo)));
         }
 
-        return Ok(Box::new(MarketplaceSource::new(left, right)));
+        let marketplace = MarketplaceName::parse(right).map_err(PlmError::InvalidArgument)?;
+        return Ok(Box::new(MarketplaceSource::new(left, marketplace)));
     }
 
     if input.contains('/') {

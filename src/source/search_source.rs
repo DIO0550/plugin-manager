@@ -1,7 +1,7 @@
 //! Marketplace 検索によるダウンロード
 
 use crate::error::{PlmError, Result};
-use crate::marketplace::{MarketplaceConfig, MarketplaceRegistry};
+use crate::marketplace::{MarketplaceConfig, MarketplaceName, MarketplaceRegistry};
 use crate::plugin::{CachedPackage, PackageCacheAccess};
 use std::future::Future;
 use std::pin::Pin;
@@ -85,7 +85,9 @@ impl PackageSource for SearchSource {
             }
 
             let plugin_match = &matches[0];
-            MarketplaceSource::new(&self.query, &plugin_match.marketplace)
+            let marketplace = MarketplaceName::parse(&plugin_match.marketplace)
+                .map_err(PlmError::InvalidArgument)?;
+            MarketplaceSource::new(&self.query, marketplace)
                 .download(cache, force)
                 .await
         })

@@ -27,7 +27,8 @@ pub async fn run(args: Args) -> Result<(), String> {
     let project_root =
         env::current_dir().map_err(|e| format!("Failed to get current dir: {}", e))?;
     // デフォルト解決（未指定 = github）は CLI 境界で 1 回だけ行う（enable/disable と同じ経路）
-    let marketplace = args.marketplace.marketplace_or_default();
+    let marketplace = args.marketplace.marketplace_or_default()?;
+    let marketplace = marketplace.as_str();
 
     let info = application::get_uninstall_info(&cache, &args.name, marketplace)?;
 

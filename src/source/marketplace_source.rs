@@ -2,7 +2,7 @@
 
 use crate::error::{PlmError, Result};
 use crate::marketplace::{
-    validate_plugin_names, MarketplaceManifest, MarketplaceRegistry,
+    validate_plugin_names, MarketplaceManifest, MarketplaceName, MarketplaceRegistry,
     PluginSource as MpPluginSource, PluginSourcePath,
 };
 use crate::plugin::{CachedPackage, LegacyCacheCleaner, PackageCacheAccess};
@@ -15,7 +15,7 @@ use super::{GitHubSource, PackageSource};
 /// 指定した Marketplace からプラグインをダウンロードするソース
 pub struct MarketplaceSource {
     plugin: String,
-    marketplace: String,
+    marketplace: MarketplaceName,
 }
 
 impl MarketplaceSource {
@@ -24,11 +24,11 @@ impl MarketplaceSource {
     /// # Arguments
     ///
     /// * `plugin` - Name of the plugin to resolve inside the marketplace.
-    /// * `marketplace` - Name of the registered marketplace to query.
-    pub fn new(plugin: &str, marketplace: &str) -> Self {
+    /// * `marketplace` - Normalized name of the registered marketplace to query.
+    pub fn new(plugin: &str, marketplace: MarketplaceName) -> Self {
         Self {
             plugin: plugin.to_string(),
-            marketplace: marketplace.to_string(),
+            marketplace,
         }
     }
 }
@@ -43,14 +43,14 @@ impl PackageSource for MarketplaceSource {
             let registry = MarketplaceRegistry::new()?;
 
             let mp_cache = registry
-                .get(&self.marketplace)?
-                .ok_or_else(|| PlmError::MarketplaceNotFound(self.marketplace.clone()))?;
+                .get(self.marketplace.as_str())?
+                .ok_or_else(|| PlmError::MarketplaceNotFound(self.marketplace.to_string()))?;
 
             // 取得した manifest の plugin name 群を再検証（保険）
             validate_plugin_names(&mp_cache.plugins)?;
 
             // 旧レイアウト残骸の自動掃除（ピンポイント。空 plugins / rename / 別形式は no-op）
-            LegacyCacheCleaner::clean_if_legacy(cache, &self.marketplace, &mp_cache)?;
+            LegacyCacheCleaner::clean_if_legacy(cache, self.marketplace.as_str(), &mp_cache)?;
 
             let plugin_entry = mp_cache
                 .plugins
@@ -74,7 +74,7 @@ impl PackageSource for MarketplaceSource {
 
                     GitHubSource::with_marketplace_plugin(
                         repo,
-                        self.marketplace.clone(),
+                        self.marketplace.to_string(),
                         Some(source_path.into()),
                         plugin_identifier.clone(),
                     )
@@ -85,7 +85,7 @@ impl PackageSource for MarketplaceSource {
                     let repo = repo::from_url(repo_url)?;
                     GitHubSource::with_marketplace_plugin(
                         repo,
-                        self.marketplace.clone(),
+                        self.marketplace.to_string(),
                         None,
                         plugin_identifier.clone(),
                     )

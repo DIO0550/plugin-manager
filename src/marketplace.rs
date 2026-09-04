@@ -1,5 +1,6 @@
 mod config;
 mod download;
+mod name;
 mod path;
 mod reference;
 mod registry;
@@ -8,6 +9,7 @@ mod source_ref;
 pub use config::{
     normalize_name, normalize_source_path, MarketplaceConfig, MarketplaceRegistration,
 };
+pub use name::MarketplaceName;
 pub use reference::{MarketplaceRef, DEFAULT_MARKETPLACE};
 // Re-exported for tests
 #[cfg(test)]

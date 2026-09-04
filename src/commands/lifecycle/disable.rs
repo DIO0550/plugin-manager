@@ -42,7 +42,8 @@ pub struct Args {
 /// * `args` - Parsed CLI arguments for `plm disable`.
 pub async fn run(args: Args) -> Result<(), String> {
     let cache = PackageCache::new().map_err(|e| format!("Failed to access cache: {}", e))?;
-    let marketplace = args.marketplace.marketplace_or_default();
+    let marketplace = args.marketplace.marketplace_or_default()?;
+    let marketplace = marketplace.as_str();
 
     // Cache is required to identify components to remove from the manifest.
     if !cache.is_cached(Some(marketplace), &args.name) {

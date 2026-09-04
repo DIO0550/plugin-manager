@@ -42,7 +42,8 @@ pub struct Args {
 /// * `args` - Parsed CLI arguments for `plm enable`.
 pub async fn run(args: Args) -> Result<(), String> {
     let cache = PackageCache::new().map_err(|e| format!("Failed to access cache: {}", e))?;
-    let marketplace = args.marketplace.marketplace_or_default();
+    let marketplace = args.marketplace.marketplace_or_default()?;
+    let marketplace = marketplace.as_str();
 
     if !cache.is_cached(Some(marketplace), &args.name) {
         return Err(format!(
