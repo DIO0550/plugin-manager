@@ -1,7 +1,7 @@
 use crate::error::{PlmError, Result};
+use crate::marketplace::MarketplaceName;
 #[cfg(test)]
 use crate::marketplace::{MarketplaceRegistry, PluginSourcePath};
-use crate::marketplace::MarketplaceName;
 use crate::plugin::{MarketplaceContent, PackageCacheAccess};
 #[cfg(test)]
 use crate::source::GitHubSource;
@@ -23,7 +23,8 @@ pub async fn download_marketplace_plugin_with_cache(
     force: bool,
     cache: &dyn PackageCacheAccess,
 ) -> Result<MarketplaceContent> {
-    let marketplace = MarketplaceName::parse(marketplace_name).map_err(PlmError::InvalidArgument)?;
+    let marketplace =
+        MarketplaceName::parse(marketplace_name).map_err(PlmError::InvalidArgument)?;
     let source = MarketplaceSource::new(plugin_name, marketplace);
     let cached = source.download(cache, force).await?;
     MarketplaceContent::try_from(cached)
@@ -42,7 +43,8 @@ async fn download_marketplace_plugin_with_registry(
 ) -> Result<MarketplaceContent> {
     use crate::marketplace::PluginSource as MpPluginSource;
 
-    let marketplace = MarketplaceName::parse(marketplace_name).map_err(PlmError::InvalidArgument)?;
+    let marketplace =
+        MarketplaceName::parse(marketplace_name).map_err(PlmError::InvalidArgument)?;
     let mp_cache = registry
         .get(marketplace.as_str())?
         .ok_or_else(|| PlmError::MarketplaceNotFound(marketplace.to_string()))?;

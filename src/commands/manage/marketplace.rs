@@ -204,10 +204,7 @@ async fn run_remove(name: String) -> Result<(), String> {
 ///
 /// * `name` - Specific marketplace to update, or `None` to update all.
 async fn run_update(name: Option<String>) -> Result<(), String> {
-    let name = name
-        .as_deref()
-        .map(MarketplaceName::parse)
-        .transpose()?;
+    let name = name.as_deref().map(MarketplaceName::parse).transpose()?;
     let config = MarketplaceConfig::load()?;
     let registry = MarketplaceRegistry::new().map_err(|e| e.to_string())?;
     let factory = HostClientFactory::with_defaults();
