@@ -8,7 +8,7 @@ use crate::component::Scope;
 use crate::host::HostClientFactory;
 use crate::install::{self, PlaceRequest};
 use crate::marketplace::{
-    download_marketplace_plugin_with_cache, MarketplaceCache, MarketplaceConfig,
+    download_marketplace_plugin_with_cache, MarketplaceCache, MarketplaceConfig, MarketplaceName,
     MarketplaceRegistration, MarketplaceRegistry, MarketplaceSourceRef,
 };
 use crate::plugin::{PackageCache, PackageCacheAccess};
@@ -35,6 +35,7 @@ pub fn add_marketplace(
     name: &str,
     source_path: Option<&str>,
 ) -> Result<MarketplaceAddOutcome, String> {
+    let name = MarketplaceName::parse(name)?;
     let handle = tokio::runtime::Handle::try_current()
         .map_err(|_| "No Tokio runtime available".to_string())?;
 
@@ -43,7 +44,7 @@ pub fn add_marketplace(
 
     let mut config = MarketplaceConfig::load()?;
 
-    if config.exists(name) {
+    if config.exists(name.as_str()) {
         return Err(format!("Marketplace '{}' already exists", name));
     }
 
@@ -59,7 +60,7 @@ pub fn add_marketplace(
     let client = factory.create(repo.host());
     let registry = MarketplaceRegistry::new().map_err(|e| e.to_string())?;
     let cache = tokio::task::block_in_place(|| {
-        handle.block_on(registry.fetch_cache(&*client, name, &repo, source_path))
+        handle.block_on(registry.fetch_cache(&*client, &name, &repo, source_path))
     })
     .map_err(|e| e.to_string())?;
 
@@ -85,13 +86,14 @@ pub fn add_marketplace(
 ///
 /// * `name` - Local marketplace name to remove.
 pub fn remove_marketplace(name: &str) -> Result<(), String> {
+    let name = MarketplaceName::parse(name)?;
     let mut config = MarketplaceConfig::load()?;
-    config.remove(name)?;
+    config.remove(name.as_str())?;
     config.save()?;
 
     // キャッシュ削除（失敗しても続行）
     if let Ok(registry) = MarketplaceRegistry::new() {
-        let _ = registry.remove(name);
+        let _ = registry.remove(&name);
     }
 
     Ok(())
@@ -103,9 +105,10 @@ pub fn remove_marketplace(name: &str) -> Result<(), String> {
 ///
 /// * `name` - Local marketplace name to refresh.
 pub fn update_marketplace(name: &str) -> Result<MarketplaceItem, String> {
+    let name = MarketplaceName::parse(name)?;
     let config = MarketplaceConfig::load()?;
     let entry = config
-        .get(name)
+        .get(name.as_str())
         .ok_or_else(|| format!("Marketplace '{}' not found", name))?
         .clone();
 
@@ -120,6 +123,7 @@ pub fn update_marketplace(name: &str) -> Result<MarketplaceItem, String> {
 fn update_marketplace_registration(
     entry: &MarketplaceRegistration,
 ) -> Result<MarketplaceItem, String> {
+    let name = MarketplaceName::parse(&entry.name)?;
     let handle = tokio::runtime::Handle::try_current()
         .map_err(|_| "No Tokio runtime available".to_string())?;
 
@@ -129,12 +133,7 @@ fn update_marketplace_registration(
     let client = factory.create(repo.host());
     let registry = MarketplaceRegistry::new().map_err(|e| e.to_string())?;
     let cache = tokio::task::block_in_place(|| {
-        handle.block_on(registry.fetch_cache(
-            &*client,
-            &entry.name,
-            &repo,
-            entry.source_path.as_deref(),
-        ))
+        handle.block_on(registry.fetch_cache(&*client, &name, &repo, entry.source_path.as_deref()))
     })
     .map_err(|e| e.to_string())?;
 
@@ -172,12 +171,16 @@ pub fn update_all_marketplaces() -> Vec<(String, Result<MarketplaceItem, String>
 ///
 /// * `name` - Local marketplace name to query.
 pub fn get_marketplace_plugins(name: &str) -> Vec<(String, Option<String>)> {
+    let name = match MarketplaceName::parse(name) {
+        Ok(name) => name,
+        Err(_) => return Vec::new(),
+    };
     let registry = match MarketplaceRegistry::new() {
         Ok(r) => r,
         Err(_) => return Vec::new(),
     };
 
-    match registry.get(name) {
+    match registry.get(&name) {
         Ok(Some(cache)) => cache
             .plugins
             .iter()
@@ -217,7 +220,12 @@ fn get_browse_plugins_with_registry(
     marketplace_name: &str,
     installed_plugins: &[InstalledPlugin],
 ) -> Vec<BrowsePlugin> {
-    match registry.get(marketplace_name) {
+    let marketplace_name = match MarketplaceName::parse(marketplace_name) {
+        Ok(name) => name,
+        Err(_) => return Vec::new(),
+    };
+
+    match registry.get(&marketplace_name) {
         Ok(Some(cache)) => build_browse_plugins(&cache, installed_plugins),
         _ => Vec::new(),
     }

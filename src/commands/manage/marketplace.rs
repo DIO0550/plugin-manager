@@ -96,7 +96,8 @@ async fn run_list() -> Result<(), String> {
 
     for entry in entries {
         let source_display = entry.source.full_name();
-        let (plugins_count, last_updated) = match registry.get(&entry.name) {
+        let marketplace_name = MarketplaceName::parse(&entry.name)?;
+        let (plugins_count, last_updated) = match registry.get(&marketplace_name) {
             Ok(Some(cache)) => {
                 let count = cache.plugins.len().to_string();
                 let updated = cache.fetched_at.format("%Y-%m-%d %H:%M").to_string();
@@ -152,7 +153,7 @@ async fn run_add(source: String, name: Option<String>, path: Option<String>) -> 
     let cache = registry
         .fetch_cache(
             &*client,
-            normalized_name.as_str(),
+            &normalized_name,
             &parsed_repo,
             source_path.as_deref(),
         )
@@ -192,7 +193,7 @@ async fn run_remove(name: String) -> Result<(), String> {
     config.save()?;
 
     let registry = MarketplaceRegistry::new().map_err(|e| e.to_string())?;
-    if let Err(e) = registry.remove(name.as_str()) {
+    if let Err(e) = registry.remove(&name) {
         eprintln!("Warning: Failed to remove cache file: {}", e);
     }
 
@@ -230,10 +231,23 @@ async fn run_update(name: Option<String>) -> Result<(), String> {
     for entry in entries {
         print!("Updating '{}'... ", entry.name);
         let repo = entry.source.to_repo();
+        let marketplace_name = match MarketplaceName::parse(&entry.name) {
+            Ok(name) => name,
+            Err(e) => {
+                println!("FAILED");
+                failures.push((entry.name.clone(), e));
+                continue;
+            }
+        };
 
         let client = factory.create(repo.host());
         match registry
-            .fetch_cache(&*client, &entry.name, &repo, entry.source_path.as_deref())
+            .fetch_cache(
+                &*client,
+                &marketplace_name,
+                &repo,
+                entry.source_path.as_deref(),
+            )
             .await
         {
             Ok(cache) => {
@@ -285,7 +299,7 @@ async fn run_show(name: String) -> Result<(), String> {
     println!("Source: {}", entry.source.full_name());
     println!("Path: {}", entry.source_path.as_deref().unwrap_or("(root)"));
 
-    match registry.get(name.as_str()) {
+    match registry.get(&name) {
         Ok(Some(cache)) => {
             if let Some(owner) = &cache.owner {
                 let email = owner
