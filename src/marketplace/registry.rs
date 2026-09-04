@@ -1,7 +1,7 @@
 use crate::error::{PlmError, Result};
 use crate::host::HostClient;
 use crate::marketplace::config::normalize_name;
-use crate::marketplace::MarketplaceSourceRef;
+use crate::marketplace::{MarketplaceName, MarketplaceSourceRef};
 use crate::repo::Repo;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -162,8 +162,8 @@ impl MarketplaceRegistry {
     ///
     /// # Arguments
     ///
-    /// * `name` - Marketplace name whose cache path is requested.
-    fn cache_path(&self, name: &str) -> PathBuf {
+    /// * `name` - Validated marketplace name whose cache path is requested.
+    fn cache_path(&self, name: &MarketplaceName) -> PathBuf {
         self.cache_dir.join(format!("{}.json", name))
     }
 
@@ -171,8 +171,8 @@ impl MarketplaceRegistry {
     ///
     /// # Arguments
     ///
-    /// * `name` - Marketplace name whose cache should be loaded.
-    pub fn get(&self, name: &str) -> Result<Option<MarketplaceCache>> {
+    /// * `name` - Validated marketplace name whose cache should be loaded.
+    pub fn get(&self, name: &MarketplaceName) -> Result<Option<MarketplaceCache>> {
         let path = self.cache_path(name);
         if !path.exists() {
             return Ok(None);
@@ -191,7 +191,8 @@ impl MarketplaceRegistry {
     /// * `cache` - Marketplace cache entry to persist to disk.
     pub fn store(&self, cache: &MarketplaceCache) -> Result<()> {
         validate_plugin_names(&cache.plugins)?;
-        let path = self.cache_path(&cache.name);
+        let name = MarketplaceName::parse(&cache.name).map_err(PlmError::InvalidArgument)?;
+        let path = self.cache_path(&name);
         let content = serde_json::to_string_pretty(cache)?;
         fs::write(path, content)?;
         Ok(())
@@ -201,8 +202,8 @@ impl MarketplaceRegistry {
     ///
     /// # Arguments
     ///
-    /// * `name` - Marketplace name whose cache file should be removed.
-    pub fn remove(&self, name: &str) -> Result<()> {
+    /// * `name` - Validated marketplace name whose cache file should be removed.
+    pub fn remove(&self, name: &MarketplaceName) -> Result<()> {
         let path = self.cache_path(name);
         if path.exists() {
             fs::remove_file(path)?;
@@ -211,7 +212,7 @@ impl MarketplaceRegistry {
     }
 
     /// 全マーケットプレイス一覧
-    pub fn list(&self) -> Result<Vec<String>> {
+    pub fn list(&self) -> Result<Vec<MarketplaceName>> {
         let mut marketplaces = Vec::new();
 
         if self.cache_dir.exists() {
@@ -220,7 +221,9 @@ impl MarketplaceRegistry {
                 let path = entry.path();
                 if path.is_file() && path.extension().is_some_and(|e| e == "json") {
                     if let Some(name) = path.file_stem() {
-                        marketplaces.push(name.to_string_lossy().to_string());
+                        if let Ok(name) = MarketplaceName::parse(&name.to_string_lossy()) {
+                            marketplaces.push(name);
+                        }
                     }
                 }
             }
@@ -241,7 +244,7 @@ impl MarketplaceRegistry {
             if let Some(cache) = self.get(&marketplace_name)? {
                 for plugin in cache.plugins {
                     if plugin.name == plugin_name {
-                        return Ok(Some((marketplace_name, plugin)));
+                        return Ok(Some((marketplace_name.to_string(), plugin)));
                     }
                 }
             }
@@ -264,7 +267,7 @@ impl MarketplaceRegistry {
                 for plugin in cache.plugins {
                     if plugin.name == plugin_name {
                         matches.push(PluginMatch {
-                            marketplace: marketplace_name.clone(),
+                            marketplace: marketplace_name.to_string(),
                             plugin,
                         });
                     }
@@ -292,7 +295,7 @@ impl MarketplaceRegistry {
     /// # Arguments
     ///
     /// * `client` - HTTP クライアント。`HostClientFactory::create()` などで生成された実装を渡す。
-    /// * `name` - 登録するマーケットプレイス名（`MarketplaceCache.name` に設定される）。
+    /// * `name` - 登録する検証済みマーケットプレイス名（`MarketplaceCache.name` に設定される）。
     /// * `repo` - 取得元リポジトリ。`source = "github:{repo_owner}/{repo_name}"` に反映される。
     /// * `source_path` - サブディレクトリパス。`Some(dir)` の場合は、互換性のため
     ///   正規化の有無にかかわらず入力値をそのまま
@@ -303,7 +306,7 @@ impl MarketplaceRegistry {
     pub async fn fetch_cache(
         &self,
         client: &dyn HostClient,
-        name: &str,
+        name: &MarketplaceName,
         repo: &Repo,
         source_path: Option<&str>,
     ) -> Result<MarketplaceCache> {
@@ -317,7 +320,11 @@ impl MarketplaceRegistry {
             PlmError::InvalidManifest(format!("Failed to parse marketplace.json: {}", e))
         })?;
 
-        Ok(MarketplaceCache::from_manifest(manifest, name, repo))
+        Ok(MarketplaceCache::from_manifest(
+            manifest,
+            name.as_str(),
+            repo,
+        ))
     }
 }
 

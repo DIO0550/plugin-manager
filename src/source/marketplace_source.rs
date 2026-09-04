@@ -43,7 +43,7 @@ impl PackageSource for MarketplaceSource {
             let registry = MarketplaceRegistry::new()?;
 
             let mp_cache = registry
-                .get(self.marketplace.as_str())?
+                .get(&self.marketplace)?
                 .ok_or_else(|| PlmError::MarketplaceNotFound(self.marketplace.to_string()))?;
 
             // 取得した manifest の plugin name 群を再検証（保険）

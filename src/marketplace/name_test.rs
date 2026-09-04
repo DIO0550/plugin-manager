@@ -13,6 +13,11 @@ fn parse_rejects_invalid_name() {
 }
 
 #[test]
+fn parse_rejects_path_traversal_name() {
+    assert!(MarketplaceName::parse("../../../outside").is_err());
+}
+
+#[test]
 fn display_uses_normalized_name() {
     let name = MarketplaceName::parse("My-MP").unwrap();
 

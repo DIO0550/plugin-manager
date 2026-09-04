@@ -5,7 +5,7 @@
 
 use crate::application::{list_installed_plugins, InstalledPlugin};
 use crate::component::ComponentKind;
-use crate::marketplace::{MarketplaceConfig, MarketplaceRegistry};
+use crate::marketplace::{MarketplaceConfig, MarketplaceName, MarketplaceRegistry};
 use crate::plugin::PackageCache;
 use std::io;
 
@@ -252,12 +252,15 @@ fn load_marketplaces() -> LoadMarketplacesOutcome {
         .list()
         .iter()
         .map(|entry| {
-            let (plugin_count, last_updated) = match registry.get(&entry.name) {
-                Ok(Some(cache)) => (
-                    Some(cache.plugins.len()),
-                    Some(cache.fetched_at.format("%Y-%m-%d %H:%M").to_string()),
-                ),
-                _ => (None, None),
+            let (plugin_count, last_updated) = match MarketplaceName::parse(&entry.name) {
+                Ok(name) => match registry.get(&name) {
+                    Ok(Some(cache)) => (
+                        Some(cache.plugins.len()),
+                        Some(cache.fetched_at.format("%Y-%m-%d %H:%M").to_string()),
+                    ),
+                    _ => (None, None),
+                },
+                Err(_) => (None, None),
             };
             MarketplaceItem {
                 name: entry.name.clone(),
