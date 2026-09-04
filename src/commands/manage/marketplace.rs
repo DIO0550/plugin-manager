@@ -1,6 +1,6 @@
 use crate::host::HostClientFactory;
 use crate::marketplace::{
-    normalize_name, normalize_source_path, MarketplaceConfig, MarketplaceRegistration,
+    normalize_source_path, MarketplaceConfig, MarketplaceName, MarketplaceRegistration,
     MarketplaceRegistry, MarketplaceSourceRef,
 };
 use crate::repo;
@@ -127,10 +127,10 @@ async fn run_add(source: String, name: Option<String>, path: Option<String>) -> 
 
     let raw_name = name.unwrap_or_else(|| parsed_repo.name().to_string());
 
-    let normalized_name = normalize_name(&raw_name)?;
+    let normalized_name = MarketplaceName::parse(&raw_name)?;
 
     let mut config = MarketplaceConfig::load()?;
-    if config.exists(&normalized_name) {
+    if config.exists(normalized_name.as_str()) {
         return Err(format!(
             "Marketplace '{}' already exists. Use --name to specify a different name.",
             normalized_name
@@ -152,7 +152,7 @@ async fn run_add(source: String, name: Option<String>, path: Option<String>) -> 
     let cache = registry
         .fetch_cache(
             &*client,
-            &normalized_name,
+            normalized_name.as_str(),
             &parsed_repo,
             source_path.as_deref(),
         )
@@ -162,7 +162,7 @@ async fn run_add(source: String, name: Option<String>, path: Option<String>) -> 
     let plugin_count = cache.plugins.len();
 
     let entry = MarketplaceRegistration {
-        name: normalized_name.clone(),
+        name: normalized_name.to_string(),
         source: MarketplaceSourceRef::from_repo(&parsed_repo),
         source_path,
     };
@@ -182,16 +182,17 @@ async fn run_add(source: String, name: Option<String>, path: Option<String>) -> 
 ///
 /// * `name` - Marketplace name to remove.
 async fn run_remove(name: String) -> Result<(), String> {
+    let name = MarketplaceName::parse(&name)?;
     let mut config = MarketplaceConfig::load()?;
-    if !config.exists(&name) {
+    if !config.exists(name.as_str()) {
         return Err(format!("Marketplace '{}' not found.", name));
     }
 
-    config.remove(&name)?;
+    config.remove(name.as_str())?;
     config.save()?;
 
     let registry = MarketplaceRegistry::new().map_err(|e| e.to_string())?;
-    if let Err(e) = registry.remove(&name) {
+    if let Err(e) = registry.remove(name.as_str()) {
         eprintln!("Warning: Failed to remove cache file: {}", e);
     }
 
@@ -203,6 +204,10 @@ async fn run_remove(name: String) -> Result<(), String> {
 ///
 /// * `name` - Specific marketplace to update, or `None` to update all.
 async fn run_update(name: Option<String>) -> Result<(), String> {
+    let name = name
+        .as_deref()
+        .map(MarketplaceName::parse)
+        .transpose()?;
     let config = MarketplaceConfig::load()?;
     let registry = MarketplaceRegistry::new().map_err(|e| e.to_string())?;
     let factory = HostClientFactory::with_defaults();
@@ -210,7 +215,7 @@ async fn run_update(name: Option<String>) -> Result<(), String> {
     let entries: Vec<_> = match &name {
         Some(n) => {
             let entry = config
-                .get(n)
+                .get(n.as_str())
                 .ok_or_else(|| format!("Marketplace '{}' not found.", n))?;
             vec![entry.clone()]
         }
@@ -271,18 +276,19 @@ async fn run_update(name: Option<String>) -> Result<(), String> {
 ///
 /// * `name` - Marketplace name whose details should be displayed.
 async fn run_show(name: String) -> Result<(), String> {
+    let name = MarketplaceName::parse(&name)?;
     let config = MarketplaceConfig::load()?;
     let registry = MarketplaceRegistry::new().map_err(|e| e.to_string())?;
 
     let entry = config
-        .get(&name)
+        .get(name.as_str())
         .ok_or_else(|| format!("Marketplace '{}' not found.", name))?;
 
     println!("Marketplace: {}", entry.name);
     println!("Source: {}", entry.source.full_name());
     println!("Path: {}", entry.source_path.as_deref().unwrap_or("(root)"));
 
-    match registry.get(&name) {
+    match registry.get(name.as_str()) {
         Ok(Some(cache)) => {
             if let Some(owner) = &cache.owner {
                 let email = owner
@@ -326,3 +332,7 @@ async fn run_show(name: String) -> Result<(), String> {
 
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "marketplace_test.rs"]
+mod tests;

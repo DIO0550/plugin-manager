@@ -1,8 +1,7 @@
-#[cfg(test)]
-use crate::error::PlmError;
-use crate::error::Result;
+use crate::error::{PlmError, Result};
 #[cfg(test)]
 use crate::marketplace::{MarketplaceRegistry, PluginSourcePath};
+use crate::marketplace::MarketplaceName;
 use crate::plugin::{MarketplaceContent, PackageCacheAccess};
 #[cfg(test)]
 use crate::source::GitHubSource;
@@ -24,7 +23,8 @@ pub async fn download_marketplace_plugin_with_cache(
     force: bool,
     cache: &dyn PackageCacheAccess,
 ) -> Result<MarketplaceContent> {
-    let source = MarketplaceSource::new(plugin_name, marketplace_name);
+    let marketplace = MarketplaceName::parse(marketplace_name).map_err(PlmError::InvalidArgument)?;
+    let source = MarketplaceSource::new(plugin_name, marketplace);
     let cached = source.download(cache, force).await?;
     MarketplaceContent::try_from(cached)
 }
@@ -42,9 +42,10 @@ async fn download_marketplace_plugin_with_registry(
 ) -> Result<MarketplaceContent> {
     use crate::marketplace::PluginSource as MpPluginSource;
 
+    let marketplace = MarketplaceName::parse(marketplace_name).map_err(PlmError::InvalidArgument)?;
     let mp_cache = registry
-        .get(marketplace_name)?
-        .ok_or_else(|| PlmError::MarketplaceNotFound(marketplace_name.to_string()))?;
+        .get(marketplace.as_str())?
+        .ok_or_else(|| PlmError::MarketplaceNotFound(marketplace.to_string()))?;
 
     let plugin_entry = mp_cache
         .plugins
@@ -59,7 +60,7 @@ async fn download_marketplace_plugin_with_registry(
 
             GitHubSource::with_marketplace_plugin(
                 repo,
-                marketplace_name.to_string(),
+                marketplace.to_string(),
                 Some(source_path.into()),
                 plugin_entry.name.clone(),
             )
@@ -70,7 +71,7 @@ async fn download_marketplace_plugin_with_registry(
             let repo = crate::repo::from_url(repo_url)?;
             GitHubSource::with_marketplace_plugin(
                 repo,
-                marketplace_name.to_string(),
+                marketplace.to_string(),
                 None,
                 plugin_entry.name.clone(),
             )

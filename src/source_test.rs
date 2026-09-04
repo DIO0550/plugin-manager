@@ -47,9 +47,9 @@ fn test_parse_whitespace_only() {
 
 #[test]
 fn test_parse_plugin_at_empty() {
-    // "plugin@" は plugin="" の MarketplaceSource
+    // marketplace 名は空にできない
     let source = parse_source("plugin@");
-    assert!(source.is_ok());
+    assert!(source.is_err());
 }
 
 #[test]
@@ -68,9 +68,9 @@ fn test_parse_owner_repo_at_empty_ref() {
 
 #[test]
 fn test_parse_multiple_at_symbols() {
-    // "a@b@c" は左側に "/" がないので MarketplaceSource(left="a", right="b@c")
+    // marketplace 名に `@` は使用できない
     let source = parse_source("a@b@c");
-    assert!(source.is_ok());
+    assert!(source.is_err());
 }
 
 #[test]
@@ -82,9 +82,19 @@ fn test_parse_owner_repo_multiple_at() {
 
 #[test]
 fn test_parse_at_only() {
-    // "@" のみは MarketplaceSource(left="", right="")
+    // marketplace 名は空にできない
     let source = parse_source("@");
-    assert!(source.is_ok());
+    assert!(source.is_err());
+}
+
+#[test]
+fn test_parse_marketplace_with_uppercase_name() {
+    assert!(parse_source("plugin@My-MP").is_ok());
+}
+
+#[test]
+fn test_parse_marketplace_with_invalid_name() {
+    assert!(parse_source("plugin@my marketplace").is_err());
 }
 
 #[test]

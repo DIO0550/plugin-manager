@@ -1,6 +1,6 @@
 //! `--marketplace` オプション用の共通 Args 部品。
 
-use crate::marketplace::DEFAULT_MARKETPLACE;
+use crate::marketplace::{MarketplaceName, DEFAULT_MARKETPLACE};
 use clap::Args as ClapArgs;
 
 #[derive(Debug, Clone, ClapArgs)]
@@ -15,8 +15,8 @@ impl MarketplaceArgs {
     ///
     /// 「未指定 = github」の解決はここで 1 回だけ行い、ドメイン層には
     /// 確定値を渡す。
-    pub fn marketplace_or_default(&self) -> &str {
-        self.marketplace.as_deref().unwrap_or(DEFAULT_MARKETPLACE)
+    pub fn marketplace_or_default(&self) -> Result<MarketplaceName, String> {
+        MarketplaceName::parse(self.marketplace.as_deref().unwrap_or(DEFAULT_MARKETPLACE))
     }
 }
 

@@ -47,7 +47,7 @@ async fn test_download_with_registry_plugin_not_found() {
 
     let result = download_marketplace_plugin_with_registry(
         "nonexistent-plugin",
-        "test-marketplace",
+        "Test-Marketplace",
         false,
         &cache,
         &registry,
