@@ -8,7 +8,7 @@ use crate::error::{PlmError, Result};
 use crate::host::{HostClient, HostClientFactory, HostKind};
 use crate::http::with_retry;
 use crate::marketplace::{
-    MarketplaceCache, MarketplaceRef, MarketplaceRegistry, MarketplaceSourceRef,
+    MarketplaceCache, MarketplaceName, MarketplaceRef, MarketplaceRegistry, MarketplaceSourceRef,
     PluginSource as MpPluginSource,
 };
 use crate::plugin::lifecycle::plugin_resolver::{find_by_plugin_name, ResolvedPlugin};
@@ -412,7 +412,11 @@ async fn update_marketplace_plugin(
         Ok(r) => r,
         Err(e) => return UpdateOutcome::failed(display_name, e.to_string()),
     };
-    let mp_cache = match registry.get(marketplace) {
+    let marketplace_name = match MarketplaceName::parse(marketplace) {
+        Ok(name) => name,
+        Err(e) => return UpdateOutcome::failed(display_name, e),
+    };
+    let mp_cache = match registry.get(&marketplace_name) {
         Ok(Some(c)) => c,
         Ok(None) => {
             return UpdateOutcome::failed(
@@ -616,8 +620,9 @@ impl RegistryResolver {
 
 impl MarketplaceResolver for RegistryResolver {
     fn resolve(&self, marketplace: &str) -> Result<Option<MarketplaceCache>> {
+        let marketplace = MarketplaceName::parse(marketplace).map_err(PlmError::InvalidArgument)?;
         match &self.registry {
-            Some(r) => r.get(marketplace),
+            Some(r) => r.get(&marketplace),
             None => Ok(None),
         }
     }

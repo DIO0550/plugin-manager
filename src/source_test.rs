@@ -98,6 +98,11 @@ fn test_parse_marketplace_with_invalid_name() {
 }
 
 #[test]
+fn test_parse_marketplace_with_path_traversal_name() {
+    assert!(parse_source("plugin@../../../outside").is_err());
+}
+
+#[test]
 fn test_parse_slash_only() {
     // "/" のみはGitHubリポジトリとして処理されるがエラー
     let source = parse_source("/");

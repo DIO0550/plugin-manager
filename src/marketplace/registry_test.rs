@@ -95,6 +95,10 @@ fn sample_repo() -> Repo {
     Repo::new(HostKind::GitHub, "acme", "catalog", None)
 }
 
+fn marketplace_name(name: &str) -> MarketplaceName {
+    MarketplaceName::parse(name).unwrap()
+}
+
 fn sample_manifest() -> MarketplaceManifest {
     MarketplaceManifest {
         name: "catalog".to_string(),
@@ -188,7 +192,7 @@ async fn fetch_cache_happy_path_with_none_source_path() {
     let client = MockHostClient::with_body(&sample_manifest_json());
 
     let cache = registry
-        .fetch_cache(&client, "catalog", &sample_repo(), None)
+        .fetch_cache(&client, &marketplace_name("catalog"), &sample_repo(), None)
         .await
         .expect("fetch_cache should succeed");
 
@@ -206,7 +210,12 @@ async fn fetch_cache_uses_subdir_path() {
     let client = MockHostClient::with_body(&sample_manifest_json());
 
     registry
-        .fetch_cache(&client, "catalog", &sample_repo(), Some("subdir"))
+        .fetch_cache(
+            &client,
+            &marketplace_name("catalog"),
+            &sample_repo(),
+            Some("subdir"),
+        )
         .await
         .expect("fetch_cache should succeed");
 
@@ -222,7 +231,7 @@ async fn fetch_cache_propagates_owner_and_plugins_into_cache() {
     let client = MockHostClient::with_body(&sample_manifest_json());
 
     let cache = registry
-        .fetch_cache(&client, "catalog", &sample_repo(), None)
+        .fetch_cache(&client, &marketplace_name("catalog"), &sample_repo(), None)
         .await
         .expect("fetch_cache should succeed");
 
@@ -240,7 +249,7 @@ async fn fetch_cache_returns_invalid_manifest_on_malformed_json() {
     let client = MockHostClient::with_body("{not json");
 
     let err = registry
-        .fetch_cache(&client, "catalog", &sample_repo(), None)
+        .fetch_cache(&client, &marketplace_name("catalog"), &sample_repo(), None)
         .await
         .expect_err("malformed JSON should fail");
 
@@ -261,7 +270,7 @@ async fn fetch_cache_propagates_host_client_error() {
     let client = MockHostClient::with_error(404, "not found");
 
     let err = registry
-        .fetch_cache(&client, "catalog", &sample_repo(), None)
+        .fetch_cache(&client, &marketplace_name("catalog"), &sample_repo(), None)
         .await
         .expect_err("host client error should propagate");
 
@@ -277,12 +286,15 @@ async fn fetch_cache_does_not_persist_anything() {
     let client = MockHostClient::with_body(&sample_manifest_json());
 
     let _cache = registry
-        .fetch_cache(&client, "catalog", &sample_repo(), None)
+        .fetch_cache(&client, &marketplace_name("catalog"), &sample_repo(), None)
         .await
         .expect("fetch_cache should succeed");
 
     assert!(
-        registry.get("catalog").unwrap().is_none(),
+        registry
+            .get(&marketplace_name("catalog"))
+            .unwrap()
+            .is_none(),
         "fetch_cache must not persist the cache"
     );
 }
@@ -293,7 +305,12 @@ async fn fetch_cache_with_empty_source_path_preserves_legacy_path() {
     let client = MockHostClient::with_body(&sample_manifest_json());
 
     registry
-        .fetch_cache(&client, "catalog", &sample_repo(), Some(""))
+        .fetch_cache(
+            &client,
+            &marketplace_name("catalog"),
+            &sample_repo(),
+            Some(""),
+        )
         .await
         .expect("fetch_cache should succeed");
 
@@ -309,7 +326,12 @@ async fn fetch_cache_with_trailing_slash_preserves_legacy_path() {
     let client = MockHostClient::with_body(&sample_manifest_json());
 
     registry
-        .fetch_cache(&client, "catalog", &sample_repo(), Some("subdir/"))
+        .fetch_cache(
+            &client,
+            &marketplace_name("catalog"),
+            &sample_repo(),
+            Some("subdir/"),
+        )
         .await
         .expect("fetch_cache should succeed");
 
@@ -334,6 +356,34 @@ fn parse_legacy_cache_with_original_manifest_ignores_unknown_field() {
     assert_eq!(cache.name, "legacy");
     assert_eq!(cache.source.to_string(), "github:o/n");
     assert!(cache.plugins.is_empty());
+}
+
+#[test]
+fn store_rejects_traversal_name_without_writing_outside_cache_dir() {
+    let tmp = TempDir::new().unwrap();
+    let registry =
+        MarketplaceRegistry::with_cache_dir(tmp.path().join("cache")).expect("registry init");
+    let cache = MarketplaceCache::from_manifest(sample_manifest(), "../outside", &sample_repo());
+
+    let err = registry
+        .store(&cache)
+        .expect_err("traversal name must fail");
+
+    assert!(matches!(err, PlmError::InvalidArgument(_)));
+    assert!(!tmp.path().join("outside.json").exists());
+}
+
+#[test]
+fn get_and_remove_use_validated_marketplace_name() {
+    let (registry, _tmp) = temp_registry();
+    let cache = MarketplaceCache::from_manifest(sample_manifest(), "catalog", &sample_repo());
+    let name = marketplace_name("catalog");
+
+    registry.store(&cache).unwrap();
+    assert!(registry.get(&name).unwrap().is_some());
+
+    registry.remove(&name).unwrap();
+    assert!(registry.get(&name).unwrap().is_none());
 }
 
 // ---- PLM_HOME path resolution (#344) ----

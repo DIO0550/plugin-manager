@@ -57,7 +57,9 @@ impl PackageSource for SearchSource {
             if matches.is_empty() {
                 let mut uncached: Vec<&str> = Vec::new();
                 for name in &registered_names {
-                    if registry.get(name)?.is_none() {
+                    let marketplace =
+                        MarketplaceName::parse(name).map_err(PlmError::InvalidArgument)?;
+                    if registry.get(&marketplace)?.is_none() {
                         uncached.push(name);
                     }
                 }

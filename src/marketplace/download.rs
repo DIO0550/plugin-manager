@@ -46,7 +46,7 @@ async fn download_marketplace_plugin_with_registry(
     let marketplace =
         MarketplaceName::parse(marketplace_name).map_err(PlmError::InvalidArgument)?;
     let mp_cache = registry
-        .get(marketplace.as_str())?
+        .get(&marketplace)?
         .ok_or_else(|| PlmError::MarketplaceNotFound(marketplace.to_string()))?;
 
     let plugin_entry = mp_cache
