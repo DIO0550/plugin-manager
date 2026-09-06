@@ -12,7 +12,9 @@ fn direct_source_saves_github_metadata() {
     let dir = tempdir().unwrap();
     let source = GitHubSource::new(sample_repo());
 
-    source.save_source_meta(dir.path(), "main", "abc123").unwrap();
+    source
+        .save_source_meta(dir.path(), "main", "abc123")
+        .unwrap();
 
     let saved = meta::load_meta(dir.path()).unwrap();
     assert_eq!(saved.marketplace.as_deref(), Some("github"));
@@ -63,7 +65,9 @@ fn saving_source_preserves_existing_install_metadata() {
         "example-plugin".to_string(),
     );
 
-    source.save_source_meta(dir.path(), "main", "abc123").unwrap();
+    source
+        .save_source_meta(dir.path(), "main", "abc123")
+        .unwrap();
 
     let saved = meta::load_meta(dir.path()).unwrap();
     assert_eq!(saved.installed_at, existing.installed_at);
