@@ -5,6 +5,7 @@ use crate::host::HostClientFactory;
 use crate::plugin::{meta, CachedPackage, GithubCacheId, PackageCacheAccess};
 use crate::repo::Repo;
 use std::future::Future;
+use std::path::Path;
 use std::pin::Pin;
 
 use super::PackageSource;
@@ -100,6 +101,19 @@ impl GitHubSource {
             } => plugin_identifier.clone(),
         }
     }
+
+    /// キャッシュ作成時のメタデータを保持し、取得元の情報を更新する。
+    fn save_source_meta(&self, plugin_path: &Path, git_ref: &str, commit_sha: &str) -> Result<()> {
+        let mut plugin_meta = meta::load_meta(plugin_path).unwrap_or_default();
+        plugin_meta.set_source_repo(self.repo.owner(), self.repo.name());
+        plugin_meta.set_git_info(git_ref, commit_sha);
+        plugin_meta.marketplace = Some(
+            self.marketplace_name()
+                .unwrap_or(crate::marketplace::DEFAULT_MARKETPLACE)
+                .to_string(),
+        );
+        meta::write_meta(plugin_path, &plugin_meta)
+    }
 }
 
 impl PackageSource for GitHubSource {
@@ -145,11 +159,7 @@ impl PackageSource for GitHubSource {
             let manifest = cache.load_manifest(marketplace, &cache_name)?;
 
             // store_from_archive で installedAt は既に書き込まれているので、追加フィールドのみ更新
-            let mut plugin_meta = meta::load_meta(&plugin_path).unwrap_or_default();
-            plugin_meta.set_source_repo(self.repo.owner(), self.repo.name());
-            plugin_meta.set_git_info(&git_ref, &commit_sha);
-            plugin_meta.marketplace = Some(crate::marketplace::DEFAULT_MARKETPLACE.to_string());
-            if let Err(e) = meta::write_meta(&plugin_path, &plugin_meta) {
+            if let Err(e) = self.save_source_meta(&plugin_path, &git_ref, &commit_sha) {
                 eprintln!("Warning: Failed to save plugin metadata: {}", e);
             }
 
@@ -166,3 +176,7 @@ impl PackageSource for GitHubSource {
         })
     }
 }
+
+#[cfg(test)]
+#[path = "github_source_test.rs"]
+mod tests;
