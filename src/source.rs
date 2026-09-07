@@ -45,8 +45,16 @@ pub trait PackageSource: Send + Sync {
 ///
 /// # Arguments
 ///
-/// * `input` - Source specifier such as `owner/repo`, `owner/repo@ref`, `plugin@marketplace`, or a bare plugin name.
+/// * `input` - Source specifier such as a repository URL (including SCP format),
+///   `owner/repo`, `owner/repo@ref`, `plugin@marketplace`, or a bare plugin name.
 pub fn parse_source(input: &str) -> Result<Box<dyn PackageSource>> {
+    // URL/SCP の認証ユーザー部分の `@` を marketplace 区切りと解釈しない。
+    let locator = input.trim();
+    if locator.contains("://") || (locator.starts_with("git@") && locator.contains(':')) {
+        let repo = repo::from_url(input)?;
+        return Ok(Box::new(GitHubSource::new(repo)));
+    }
+
     if let Some((left, right)) = input.split_once('@') {
         if left.contains('/') {
             let repo = repo::from_url(input)?;
