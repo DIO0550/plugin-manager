@@ -77,7 +77,7 @@ pub struct PluginMeta {
     )]
     pub source_repo: Option<String>,
 
-    /// マーケットプレイス（"github" 固定、将来拡張用）
+    /// 取得元のマーケットプレイス名（直接 Git インストールの場合は "github"）
     #[serde(
         default,
         rename = "marketplace",
