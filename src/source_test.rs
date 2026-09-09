@@ -1,6 +1,48 @@
 use super::*;
 
 #[test]
+fn test_parse_repository_locators() {
+    for input in [
+        "git@github.com:owner/repo",
+        "git@github.com:owner/repo.git",
+        "git@github.com:owner/repo@v1.0.0",
+        "git@github.com:owner/repo.git@feature/test",
+        "  git@github.com:owner/repo  ",
+        "ssh://git@github.com/owner/repo.git@v1.0.0",
+        "https://github.com/owner/repo.git@v1.0.0",
+    ] {
+        assert!(parse_source(input).is_ok(), "failed to parse {input}");
+    }
+}
+
+#[test]
+fn test_invalid_repository_locators_return_repo_errors() {
+    for input in [
+        "git@unknown.example:owner/repo",
+        "git@github.com:owner",
+        "git@github.com:",
+        "git@github.com:owner/repo@",
+        "ssh://git@github.com",
+        "https://github.com",
+        "ftp://git@github.com/owner/repo",
+    ] {
+        assert!(
+            matches!(parse_source(input), Err(PlmError::InvalidRepoFormat(_))),
+            "expected a repository format error for {input}"
+        );
+    }
+}
+
+#[test]
+fn test_git_plugin_marketplace_is_not_scp() {
+    assert!(parse_source("git@marketplace").is_ok());
+    assert!(matches!(
+        parse_source("git@"),
+        Err(PlmError::InvalidArgument(_))
+    ));
+}
+
+#[test]
 fn test_parse_github_repo() {
     assert!(parse_source("owner/repo").is_ok());
 }

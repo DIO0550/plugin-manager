@@ -132,6 +132,16 @@ pub fn from_url(input: &str) -> Result<Repo> {
     Ok(Repo::new(host, owner, name, git_ref))
 }
 
+/// URL/SCP 形式としてリポジトリパーサーに渡すべき入力かを判定する。
+///
+/// 未対応スキームも対象に含め、`from_url` でリポジトリ形式エラーにする。
+pub(crate) fn looks_like_url_or_scp(input: &str) -> bool {
+    !matches!(
+        detect_source_locator_kind(input.trim()),
+        Ok(SourceLocatorKind::Shorthand)
+    )
+}
+
 /// 入力形式を判定
 ///
 /// # Arguments
