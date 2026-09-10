@@ -16,17 +16,19 @@ pub(crate) fn filter_skill_dir(c: &ScannedComponent) -> Option<String> {
 
 /// `ends_with(suffix)` のファイルから suffix を除いた名前を返す。
 pub(crate) fn filter_suffix_file(c: &ScannedComponent, suffix: &str) -> Option<String> {
-    if !c.is_dir && c.name.ends_with(suffix) {
-        Some(c.name.trim_end_matches(suffix).to_string())
-    } else {
-        None
+    if c.is_dir {
+        return None;
     }
+    c.name
+        .strip_suffix(suffix)
+        .filter(|name| !name.is_empty())
+        .map(str::to_string)
 }
 
 /// プレーン `.md`（`.agent.md` / `.prompt.md` 除外）→ `.md` 除去名（Cursor）。
 pub(crate) fn filter_plain_markdown(c: &ScannedComponent) -> Option<String> {
     if !c.is_dir && is_plain_markdown(&c.name) {
-        Some(c.name.trim_end_matches(".md").to_string())
+        filter_suffix_file(c, ".md")
     } else {
         None
     }

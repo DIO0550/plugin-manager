@@ -602,3 +602,49 @@ fn test_endpoint_source_dispatch_invalid_name_matches_newtype() {
 
     assert_eq!(direct, via_endpoint);
 }
+
+#[test]
+fn test_placed_components_preserves_repeated_suffix_paths_and_skips_empty_names() {
+    for (target, kind, subdir, filename, empty_filename, expected) in [
+        (
+            TargetKind::Copilot,
+            SyncableKind::Agent,
+            ".github/agents",
+            "x.agent.md.agent.md",
+            ".agent.md",
+            "x.agent.md",
+        ),
+        (
+            TargetKind::Copilot,
+            SyncableKind::Hook,
+            ".github/hooks",
+            "a.json.json",
+            ".json",
+            "a.json",
+        ),
+        (
+            TargetKind::Cursor,
+            SyncableKind::Agent,
+            ".cursor/agents",
+            "guide.md.md",
+            ".md",
+            "guide.md",
+        ),
+    ] {
+        let dir = tempfile::tempdir().unwrap();
+        let component_dir = dir.path().join(subdir);
+        std::fs::create_dir_all(&component_dir).unwrap();
+        let path = component_dir.join(filename);
+        std::fs::write(&path, "test").unwrap();
+        std::fs::write(component_dir.join(empty_filename), "test").unwrap();
+        let source = SyncSource::new(target, dir.path()).unwrap();
+        let options = SyncOptions::default()
+            .with_component_type(kind)
+            .with_scope(Scope::Project);
+        let components = source.placed_components(&options).unwrap();
+        assert_eq!(components.len(), 1);
+        assert_eq!(components[0].name(), expected);
+        assert_eq!(components[0].path, path);
+        assert_eq!(source.path_for(&components[0]).unwrap(), path);
+    }
+}

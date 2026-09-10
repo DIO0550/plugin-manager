@@ -805,3 +805,17 @@ fn test_list_command_names_multi_level_nested() {
     assert_eq!(result.len(), 1);
     assert_eq!(result[0].0, "foo");
 }
+
+#[test]
+fn test_list_markdown_names_preserves_repeated_suffix_and_skips_empty_name() {
+    let dir = TempDir::new().unwrap();
+    for filename in ["guide.md", "guide.md.md", ".md", ".md.md"] {
+        fs::write(dir.path().join(filename), "# instruction").unwrap();
+    }
+    let mut entries = list_markdown_names(dir.path());
+    entries.sort();
+    assert_eq!(names(entries.clone()), vec![".md", "guide", "guide.md"]);
+    for (name, path) in entries {
+        assert_eq!(path, dir.path().join(format!("{name}.md")));
+    }
+}
