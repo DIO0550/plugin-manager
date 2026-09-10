@@ -615,14 +615,6 @@ fn test_placed_components_preserves_repeated_suffix_paths_and_skips_empty_names(
             "x.agent.md",
         ),
         (
-            TargetKind::Copilot,
-            SyncableKind::Hook,
-            ".github/hooks",
-            "a.json.json",
-            ".json",
-            "a.json",
-        ),
-        (
             TargetKind::Cursor,
             SyncableKind::Agent,
             ".cursor/agents",
@@ -647,4 +639,26 @@ fn test_placed_components_preserves_repeated_suffix_paths_and_skips_empty_names(
         assert_eq!(components[0].path, path);
         assert_eq!(source.path_for(&components[0]).unwrap(), path);
     }
+}
+
+#[test]
+fn test_copilot_hook_listing_preserves_repeated_suffix_path() {
+    let dir = tempfile::tempdir().unwrap();
+    let hooks = dir.path().join(".github/hooks");
+    std::fs::create_dir_all(&hooks).unwrap();
+    let path = hooks.join("a.json.json");
+    std::fs::write(&path, "{}").unwrap();
+    std::fs::write(hooks.join(".json"), "{}").unwrap();
+    let binding = super::TargetBinding::new(TargetKind::Copilot, dir.path()).unwrap();
+    let names = binding
+        .target()
+        .list_placed(ComponentKind::Hook, Scope::Project, dir.path())
+        .unwrap();
+    assert_eq!(names, vec!["a.json"]);
+    assert_eq!(
+        binding
+            .resolve_path(ComponentKind::Hook, &names[0], Scope::Project)
+            .unwrap(),
+        path
+    );
 }
