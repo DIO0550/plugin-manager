@@ -247,12 +247,11 @@ pub fn list_markdown_names(dir: &Path) -> Vec<(String, PathBuf)> {
         .filter(|path| path.is_file())
         .filter_map(|path| {
             let file_name = path.file_name()?.to_str()?;
-            if file_name.ends_with(MARKDOWN_SUFFIX) {
-                let name = file_name.trim_end_matches(MARKDOWN_SUFFIX).to_string();
-                Some((name, path))
-            } else {
-                None
+            let name = file_name.strip_suffix(MARKDOWN_SUFFIX)?;
+            if name.is_empty() {
+                return None;
             }
+            Some((name.to_string(), path))
         })
         .collect()
 }
