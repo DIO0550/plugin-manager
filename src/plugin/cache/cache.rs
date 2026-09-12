@@ -445,6 +445,15 @@ impl PackageCacheAccess for PackageCache {
                 .and_then(|n| n.to_str())
                 .map(String::from);
 
+            // `.backup` / `.temp` は cache 直下の作業用名前空間であり marketplace ではない。
+            // 除外しないと update --all が幻の load 失敗を出し、cache_id 完全一致と衝突する。
+            if marketplace_name
+                .as_deref()
+                .is_some_and(|name| name.starts_with('.'))
+            {
+                continue;
+            }
+
             // marketplace 内のプラグインを走査
             for plugin_entry in fs.read_dir(mp_path)? {
                 if plugin_entry.is_dir() {
