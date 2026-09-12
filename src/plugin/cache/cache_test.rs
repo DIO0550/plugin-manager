@@ -29,6 +29,44 @@ fn test_trait_list_via_dyn() {
 }
 
 #[test]
+fn test_list_excludes_backup_and_temp_namespaces() {
+    let temp_dir = TempDir::new().unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+    fs::create_dir_all(temp_dir.path().join("github").join("owner--repo")).unwrap();
+    fs::create_dir_all(temp_dir.path().join("my-market").join("formatter")).unwrap();
+
+    // 更新失敗などで残った作業用名前空間。marketplace として列挙してはいけない
+    fs::create_dir_all(
+        temp_dir
+            .path()
+            .join(".backup")
+            .join("github")
+            .join("owner--repo"),
+    )
+    .unwrap();
+    fs::create_dir_all(
+        temp_dir
+            .path()
+            .join(".temp")
+            .join("github")
+            .join("owner--repo"),
+    )
+    .unwrap();
+
+    let mut plugins = cache.list().unwrap();
+    plugins.sort();
+
+    assert_eq!(
+        plugins,
+        vec![
+            (None, "owner--repo".to_string()),
+            (Some("my-market".to_string()), "formatter".to_string()),
+        ]
+    );
+}
+
+#[test]
 fn test_trait_is_cached_via_dyn() {
     let temp_dir = TempDir::new().unwrap();
     let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
