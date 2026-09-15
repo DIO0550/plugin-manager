@@ -476,6 +476,16 @@ fn test_escape_yaml_string_backslash_with_special_char() {
     assert_eq!(escape_yaml_string("path\\to: file"), "\"path\\\\to: file\"");
 }
 
+#[test]
+fn test_escape_yaml_string_with_brackets() {
+    assert_eq!(escape_yaml_string("[message]"), "\"[message]\"");
+}
+
+#[test]
+fn test_escape_yaml_string_with_braces() {
+    assert_eq!(escape_yaml_string("{foo}"), "\"{foo}\"");
+}
+
 // ============================================================================
 // to_format conversion tests
 // ============================================================================

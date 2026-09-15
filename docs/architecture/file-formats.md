@@ -51,6 +51,8 @@ Use $1 for the first argument, $2 for the second.
 | `disable-model-invocation` | bool | - | モデルからの自動呼び出しを禁止（デフォルト: false） |
 | `user-invocable` | bool | - | ユーザーから呼び出し可能か（デフォルト: true） |
 
+> Note: Anthropic 公式例は `argument-hint: [message]` や `argument-hint: [filename] [format]` のように非クオートで書く。YAML ではシーケンス、または隣接フローシーケンスとして壊れるため、PLM は表示文字列として受理する。再出力は妥当な YAML にするため `argument-hint: "[message]"` とクオートする。
+
 #### 本文内変数
 
 | 変数 | 説明 |

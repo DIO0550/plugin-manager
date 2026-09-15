@@ -38,6 +38,81 @@ Commit the staged changes with the message: $ARGUMENTS"#;
 }
 
 #[test]
+fn parse_command_unquoted_argument_hint_sequence() {
+    let content = r#"---
+name: commit-helper
+description: Create a git commit with conventional message
+argument-hint: [message]
+---
+
+Commit the staged changes with the message: $ARGUMENTS"#;
+
+    let cmd = ClaudeCodeCommand::parse(content).unwrap();
+
+    assert_eq!(cmd.argument_hint, Some("[message]".to_string()));
+}
+
+#[test]
+fn parse_command_unquoted_multi_argument_hint() {
+    let content = r#"---
+description: Convert a file
+argument-hint: [filename] [format]
+---
+
+Convert $ARGUMENTS."#;
+
+    let cmd = ClaudeCodeCommand::parse(content).unwrap();
+
+    assert_eq!(cmd.argument_hint, Some("[filename] [format]".to_string()));
+}
+
+#[test]
+fn parse_command_unquoted_argument_hint_with_spaces() {
+    let content = r#"---
+description: Commit helper
+argument-hint: [commit message]
+---
+
+Commit with $ARGUMENTS."#;
+
+    let cmd = ClaudeCodeCommand::parse(content).unwrap();
+
+    assert_eq!(cmd.argument_hint, Some("[commit message]".to_string()));
+}
+
+#[test]
+fn parse_command_plain_argument_hint_without_brackets() {
+    let content = r#"---
+description: Commit helper
+argument-hint: message
+---
+
+Commit with $ARGUMENTS."#;
+
+    let cmd = ClaudeCodeCommand::parse(content).unwrap();
+
+    assert_eq!(cmd.argument_hint, Some("message".to_string()));
+}
+
+#[test]
+fn parse_to_markdown_round_trip_preserves_unquoted_argument_hint() {
+    let content = r#"---
+description: Create a commit
+argument-hint: [message]
+---
+
+Commit body"#;
+
+    let parsed = ClaudeCodeCommand::parse(content).unwrap();
+    let markdown = parsed.to_markdown();
+    let reparsed = ClaudeCodeCommand::parse(&markdown).unwrap();
+
+    assert_eq!(parsed.argument_hint, Some("[message]".to_string()));
+    assert_eq!(reparsed.argument_hint, parsed.argument_hint);
+    assert!(markdown.contains("argument-hint: \"[message]\""));
+}
+
+#[test]
 fn parse_minimal_command() {
     let content = r#"---
 description: A minimal command
@@ -237,6 +312,23 @@ fn parse_command_description_examples_does_not_absorb_unknown_invalid_yaml() {
     assert!(ClaudeCodeCommand::parse(content).is_err());
 }
 
+#[test]
+fn parse_command_description_examples_with_unquoted_argument_hint() {
+    let content = r#"---
+description: Explains a command.
+<example>
+user: Explain rebase.
+assistant: I will provide a safe example.
+</example>
+argument-hint: [topic]
+---
+
+Explain $ARGUMENTS."#;
+
+    let command = ClaudeCodeCommand::parse(content).unwrap();
+    assert_eq!(command.argument_hint.as_deref(), Some("[topic]"));
+}
+
 // ============================================================================
 // to_markdown tests
 // ============================================================================
@@ -260,7 +352,7 @@ fn to_markdown_full_command() {
     assert!(md.contains("name: commit"));
     assert!(md.contains("description: Create a commit")); // No quotes needed
     assert!(md.contains("allowed-tools: \"Bash(git:*)\"")); // Has colon
-    assert!(md.contains("argument-hint: [message]")); // Brackets don't need quotes
+    assert!(md.contains("argument-hint: \"[message]\""));
     assert!(md.contains("model: haiku"));
     assert!(md.contains("disable-model-invocation: false"));
     assert!(md.contains("user-invocable: true"));

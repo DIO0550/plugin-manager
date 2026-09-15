@@ -338,6 +338,8 @@ pub fn format_allowed_tools(tools: &[String]) -> String {
 /// Escape YAML string value.
 ///
 /// Wraps in double quotes and escapes special characters if needed.
+/// Flow indicators (`[`, `]`, `{`, `}`) are quoted so values like `[message]`
+/// round-trip as strings instead of YAML sequences.
 ///
 /// # Arguments
 ///
@@ -347,6 +349,10 @@ pub fn escape_yaml_string(s: &str) -> String {
         || s.contains('"')
         || s.contains('#')
         || s.contains('\n')
+        || s.contains('[')
+        || s.contains(']')
+        || s.contains('{')
+        || s.contains('}')
         || s.starts_with(' ')
         || s.ends_with(' ');
 
