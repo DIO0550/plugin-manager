@@ -47,11 +47,11 @@ Use $1 for the first argument, $2 for the second.
 | `description` | string | ○ | コマンドの説明 |
 | `allowed-tools` | string | - | 使用可能ツール（例: `Bash(git:*), Read, Write`） |
 | `argument-hint` | string | - | 引数のヒント（例: `[message]`） |
-
-> Note: Anthropic 公式例は `argument-hint: [message]` や `argument-hint: [filename] [format]` のように非クオートで書く。YAML ではシーケンス、または隣接フローシーケンスとして壊れるため、PLM は表示文字列として受理する。再出力は妥当な YAML にするため `argument-hint: "[message]"` とクオートする。Skill の Codex / Gemini CLI 向け削除は行単位のまま（不正 YAML でも該当行だけ落とす）。
 | `model` | string | - | 使用モデル（`haiku`, `sonnet`, `opus`） |
 | `disable-model-invocation` | bool | - | モデルからの自動呼び出しを禁止（デフォルト: false） |
 | `user-invocable` | bool | - | ユーザーから呼び出し可能か（デフォルト: true） |
+
+> Note: Anthropic 公式例は `argument-hint: [message]` や `argument-hint: [filename] [format]` のように非クオートで書く。YAML ではシーケンス、または隣接フローシーケンスとして壊れるため、PLM は表示文字列として受理する。再出力は妥当な YAML にするため `argument-hint: "[message]"` とクオートする。
 
 #### 本文内変数
 
