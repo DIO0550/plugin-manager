@@ -140,6 +140,90 @@ fn test_claude_code_to_codex() {
     assert!(!content.contains("allowed-tools:"));
 }
 
+fn sample_claude_code_unquoted_argument_hint() -> &'static str {
+    r#"---
+name: commit
+description: Generate a commit message
+allowed-tools: Bash(git:*), Read
+argument-hint: [message]
+model: sonnet
+---
+
+Please generate a commit message for $ARGUMENTS.
+"#
+}
+
+#[test]
+fn test_claude_code_unquoted_argument_hint_to_copilot() {
+    let tmp = TempDir::new().unwrap();
+    let source = tmp.path().join("source.md");
+    let dest = tmp.path().join("dest.prompt.md");
+
+    fs::write(&source, sample_claude_code_unquoted_argument_hint()).unwrap();
+
+    let result = convert_and_write(
+        &source,
+        &dest,
+        CommandFormat::ClaudeCode,
+        CommandFormat::Copilot,
+    )
+    .unwrap();
+
+    assert!(result.converted);
+    let content = fs::read_to_string(&dest).unwrap();
+    assert!(content.contains("hint: Enter message"));
+    assert!(content.contains("${arguments}"));
+}
+
+#[test]
+fn test_claude_code_unquoted_argument_hint_to_codex() {
+    let tmp = TempDir::new().unwrap();
+    let source = tmp.path().join("source.md");
+    let dest = tmp.path().join("dest.md");
+
+    fs::write(&source, sample_claude_code_unquoted_argument_hint()).unwrap();
+
+    let result = convert_and_write(
+        &source,
+        &dest,
+        CommandFormat::ClaudeCode,
+        CommandFormat::Codex,
+    )
+    .unwrap();
+
+    assert!(result.converted);
+    let content = fs::read_to_string(&dest).unwrap();
+    assert!(content.contains("description: Generate a commit message"));
+    assert!(!content.contains("argument-hint"));
+}
+
+#[test]
+fn test_claude_code_unquoted_multi_argument_hint_to_copilot() {
+    let tmp = TempDir::new().unwrap();
+    let source = tmp.path().join("source.md");
+    let dest = tmp.path().join("dest.prompt.md");
+    let content = r#"---
+description: Convert a file
+argument-hint: [filename] [format]
+---
+
+Convert $ARGUMENTS.
+"#;
+
+    fs::write(&source, content).unwrap();
+
+    let result = convert_and_write(
+        &source,
+        &dest,
+        CommandFormat::ClaudeCode,
+        CommandFormat::Copilot,
+    )
+    .unwrap();
+
+    assert!(result.converted);
+    assert!(dest.exists());
+}
+
 #[test]
 fn test_copilot_to_claude_code_unsupported() {
     let tmp = TempDir::new().unwrap();

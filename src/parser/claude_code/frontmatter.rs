@@ -45,6 +45,20 @@ pub(super) const COMMAND_FRONTMATTER_SCHEMA: FrontmatterSchema = FrontmatterSche
 };
 
 impl FrontmatterSchema {
+    /// Normalizes Claude Code frontmatter so serde_yaml can parse official shapes.
+    ///
+    /// Runs description example repair first, then quotes unquoted `argument-hint`
+    /// values so flow sequences such as `[message]` and adjacent pairs such as
+    /// `[filename] [format]` deserialize as display strings.
+    ///
+    /// # Arguments
+    ///
+    /// * `yaml` - Claude Code frontmatter without `---` delimiter lines.
+    pub(super) fn normalize(&self, yaml: &str) -> String {
+        let yaml = self.normalize_description_examples(yaml);
+        self.quote_unquoted_argument_hint(&yaml)
+    }
+
     /// Normalizes a malformed plain-scalar description containing example blocks.
     ///
     /// Only a `description:` whose following line is `Examples:` or `<example>` is
@@ -117,6 +131,68 @@ impl FrontmatterSchema {
                 value.as_bytes()[0],
                 b'\'' | b'"' | b'[' | b'{' | b'|' | b'>'
             )
+    }
+
+    /// Quotes an unquoted `argument-hint` so official Claude Code examples parse.
+    ///
+    /// Official docs write `argument-hint: [message]` and
+    /// `argument-hint: [filename] [format]`. YAML treats the former as a sequence
+    /// and the latter as invalid or a sequence, so `Option<String>` fails. The
+    /// remainder of the line is wrapped as a double-quoted scalar. Already quoted
+    /// or block-scalar values are left unchanged.
+    ///
+    /// # Arguments
+    ///
+    /// * `yaml` - Frontmatter YAML, typically after description normalization.
+    fn quote_unquoted_argument_hint(&self, yaml: &str) -> String {
+        if !self.argument_hint {
+            return yaml.to_string();
+        }
+        yaml.lines()
+            .map(|line| self.quote_argument_hint_line(line))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    /// Quotes one top-level `argument-hint:` line when the value is unquoted.
+    ///
+    /// # Arguments
+    ///
+    /// * `line` - A single frontmatter line.
+    fn quote_argument_hint_line(&self, line: &str) -> String {
+        if line.starts_with(char::is_whitespace) {
+            return line.to_string();
+        }
+        let Some(rest) = line.strip_prefix("argument-hint:") else {
+            return line.to_string();
+        };
+        let value = rest.trim();
+        if value.is_empty() || Self::is_quoted_or_block_scalar(value) {
+            return line.to_string();
+        }
+        format!("argument-hint: {}", Self::double_quote_yaml(value))
+    }
+
+    /// Returns whether a YAML value is already quoted or a block scalar indicator.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - Trimmed text after `argument-hint:`.
+    fn is_quoted_or_block_scalar(value: &str) -> bool {
+        matches!(value.as_bytes()[0], b'\'' | b'"' | b'|' | b'>')
+    }
+
+    /// Wraps `value` as a double-quoted YAML scalar.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - Raw argument-hint text to embed as a string.
+    fn double_quote_yaml(value: &str) -> String {
+        let escaped = value
+            .replace('\\', "\\\\")
+            .replace('"', "\\\"")
+            .replace('\n', "\\n");
+        format!("\"{}\"", escaped)
     }
 
     /// Determines whether a line starts a top-level metadata field.

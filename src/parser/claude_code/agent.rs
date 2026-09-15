@@ -63,9 +63,7 @@ impl ClaudeCodeAgent {
     pub fn parse(content: &str) -> Result<Self> {
         let ExtractedFrontmatter { yaml, body } = extract_frontmatter(content);
         let fm = match yaml {
-            Some(yaml) => deserialize_frontmatter(
-                &AGENT_FRONTMATTER_SCHEMA.normalize_description_examples(&yaml),
-            )?,
+            Some(yaml) => deserialize_frontmatter(&AGENT_FRONTMATTER_SCHEMA.normalize(&yaml))?,
             None => ClaudeCodeAgentFrontmatter::default(),
         };
 
