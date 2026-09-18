@@ -144,7 +144,7 @@ Skills / Agents / Commands / Instructions を対応。Hooks / Plugins（JS/TS）
 | Copilot Hooks | 未マップイベント追随（`errorOccurred` / `preCompact` / `subagentStart`） | [#458](https://github.com/DIO0550/plugin-manager/issues/458) | 未着手 |
 | Cursor | Skills frontmatter `icon` / `color`・Subagents・Hooks 新イベント/新フィールド | [#459](https://github.com/DIO0550/plugin-manager/issues/459) | ✅ 完了 |
 | Antigravity Skills | 公式既定パス（`~/.gemini/config/skills` / `.agents/skills`）へ移行 | [#460](https://github.com/DIO0550/plugin-manager/issues/460) | ✅ 完了 |
-| Gemini CLI | Skills GA 化・`.agents/skills` エイリアス・管理コマンド更新 | [#461](https://github.com/DIO0550/plugin-manager/issues/461) | 未着手 |
+| Gemini CLI | Skills GA 化・`.agents/skills` エイリアス・管理コマンド更新 | [#461](https://github.com/DIO0550/plugin-manager/issues/461) | ✅ 完了 |
 | Claude Code（変換元） | 33 イベント・`mcp_tool` type・新フィールドの変換方針 | [#462](https://github.com/DIO0550/plugin-manager/issues/462) | ✅ 調査完了（実装未着手） |
 | Claude Code（変換元） | Skill / Subagent frontmatter hooks の component-local 配置 | [独立機能 Issue 定義](./architecture/skill-subagent-frontmatter-hooks-issue.md) | 仕様確定 |
 | ドキュメント | 公式ドキュメント URL 移行（Codex → learn.chatgpt.com） | [#463](https://github.com/DIO0550/plugin-manager/issues/463) | ✅ 完了 |

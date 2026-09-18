@@ -15,7 +15,7 @@ PLM 側で対応が必要な項目を TODO として管理するドキュメン�
 | OpenAI Codex | 変更なし | 変更なし | ✅ `SessionEnd`・`async` 対応済み / ⚠️ 有効化フラグ仕様変更 | [#455](https://github.com/DIO0550/plugin-manager/issues/455) / [#456](https://github.com/DIO0550/plugin-manager/issues/456) |
 | VSCode Copilot | ✅ Personal スコープ（`~/.copilot/skills/`）対応済み | 変更なし | ⚠️ 未マップイベントあり（`errorOccurred` / `preCompact` / `subagentStart`） | [#457](https://github.com/DIO0550/plugin-manager/issues/457) / [#458](https://github.com/DIO0550/plugin-manager/issues/458) |
 | Google Antigravity | ✅ 公式既定パス `.agents/skills` / `~/.gemini/config/skills` へ移行済み | 変更なし（PLM 未実装は [#400](https://github.com/DIO0550/plugin-manager/issues/400)） | 変更なし（5 イベント） | [#460](https://github.com/DIO0550/plugin-manager/issues/460) |
-| Gemini CLI | ⚠️ GA 化・`.agents/skills` エイリアス・管理コマンド拡張 | 非対応（変更なし） | 非対応（変更なし） | [#461](https://github.com/DIO0550/plugin-manager/issues/461) |
+| Gemini CLI | ✅ GA 化・`.agents/skills` エイリアス・管理コマンドをドキュメント反映済み | 非対応（変更なし） | 非対応（変更なし） | [#461](https://github.com/DIO0550/plugin-manager/issues/461) |
 | Cursor | ✅ `icon` / `color` を記載済み | ✅ ネスト・model パラメータを記載済み | ✅ 新イベント・新フィールド・スコープを記載済み | [#459](https://github.com/DIO0550/plugin-manager/issues/459) |
 | OpenCode | 変更なし | 変更なし | 対象外（JS/TS Plugin モデル） | — |
 | Claude Code（変換元） | ⚠️ frontmatter 大幅拡張・commands が skills へ統合 | — | ✅ 33 イベント・`mcp_tool`・追加フィールドの変換方針を確定（実装未着手） | [#462](https://github.com/DIO0550/plugin-manager/issues/462) / [frontmatter hooks 独立 Issue 定義](../architecture/skill-subagent-frontmatter-hooks-issue.md) |
@@ -56,8 +56,9 @@ PLM 側で対応が必要な項目を TODO として管理するドキュメン�
   - Skills frontmatter の `icon` / `color`、Subagents のネスト・model パラメータ、Hooks の新イベント・新フィールド・設定スコープ優先順位を記載
   - `loop_limit` / `failClosed` は変換元に対応設定がないため意図的に生成せず、Cursor の既定値に委ねる
   - Cursor CLI の発火状況とエディタ専用イベントの未検証範囲は [#466](https://github.com/DIO0550/plugin-manager/pull/466) で実機確認済み
-- [ ] **Gemini CLI Skills の GA 化等を反映** — [#461](https://github.com/DIO0550/plugin-manager/issues/461)
-  - 「実験的機能・要 Settings 有効化」の記載が現状と不一致
+- [x] **Gemini CLI Skills の GA 化等を反映** — [#461](https://github.com/DIO0550/plugin-manager/issues/461)
+  - 「実験的機能・要 Settings 有効化」を削除し、GA（production-ready）・`.agents/skills` エイリアス・Built-in tier・管理コマンドを記載
+  - PLM の配置パス（`~/.gemini/skills/` / `.gemini/skills/`）は上流でも有効なため実装変更なし
 - [x] **公式ドキュメント URL の移行追随** — [#463](https://github.com/DIO0550/plugin-manager/issues/463)
   - Codex: `developers.openai.com/codex/*` → `learn.chatgpt.com/docs/*`（308 リダイレクト）
 
