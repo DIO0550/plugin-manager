@@ -174,6 +174,44 @@ Body with --- dashes in text."#;
 }
 
 #[test]
+fn parse_crlf_frontmatter_keeps_body_intact() {
+    let content = "---\r\nname: foo\r\n---\r\nBody text";
+
+    let result = parse_frontmatter::<TestFrontmatter>(content).unwrap();
+
+    assert_eq!(
+        result.frontmatter.as_ref().and_then(|fm| fm.name.clone()),
+        Some("foo".to_string())
+    );
+    assert_eq!(result.body, "Body text");
+}
+
+#[test]
+fn parse_crlf_frontmatter_with_multibyte_yaml_keeps_body() {
+    // 8 CRLF 行（開始/終了デリミタ含む）だと、旧オフセットが
+    // 「f: あいう」の UTF-8 途中を指し `content.get` が None → body が空になる。
+    let content = "---\r\na: 1\r\nb: 2\r\nc: 3\r\nd: 4\r\ne: 5\r\nf: あいう\r\n---\r\nBody";
+
+    let result = parse_frontmatter::<TestFrontmatter>(content).unwrap();
+
+    assert!(result.frontmatter.is_some());
+    assert_eq!(result.body, "Body");
+}
+
+#[test]
+fn parse_crlf_frontmatter_preserves_body_newlines() {
+    let content = "---\r\nname: demo\r\n---\r\n\r\nline1\r\nline2\r\n";
+
+    let result = parse_frontmatter::<TestFrontmatter>(content).unwrap();
+
+    assert_eq!(
+        result.frontmatter.as_ref().and_then(|fm| fm.name.clone()),
+        Some("demo".to_string())
+    );
+    assert_eq!(result.body, "\r\nline1\r\nline2\r\n");
+}
+
+#[test]
 fn stem_without_suffixes_prefers_longer_agent_suffix() {
     let path = Path::new("/tmp/code-reviewer.agent.md");
     assert_eq!(

@@ -27,6 +27,11 @@ pub(crate) struct ExtractedFrontmatter {
 
 /// Extracts optional YAML frontmatter without deserializing it.
 ///
+/// Body slicing uses `split_inclusive('\n')` so the byte offset counts the real
+/// terminator (`\n` or `\r\n`). `str::lines()` would drop `\r` and under-count
+/// CRLF files by one byte per line, which can splice the closing delimiter into
+/// the body or land inside a multibyte character and silently drop the body.
+///
 /// # Arguments
 ///
 /// * `content` - Document text whose frontmatter and body should be separated.
@@ -37,9 +42,12 @@ pub(crate) struct ExtractedFrontmatter {
 /// frontmatter envelope.
 pub(crate) fn extract_frontmatter(content: &str) -> ExtractedFrontmatter {
     let content = content.strip_prefix('\u{feff}').unwrap_or(content);
-    let lines: Vec<&str> = content.lines().collect();
+    let segments: Vec<&str> = content.split_inclusive('\n').collect();
 
-    let first_line = lines.first().map(|s| s.trim()).unwrap_or("");
+    let first_line = segments
+        .first()
+        .map(|segment| line_without_terminator(segment).trim())
+        .unwrap_or("");
     if !first_line.starts_with("---") {
         return ExtractedFrontmatter {
             yaml: None,
@@ -47,11 +55,11 @@ pub(crate) fn extract_frontmatter(content: &str) -> ExtractedFrontmatter {
         };
     }
 
-    let closing_index = lines
+    let closing_index = segments
         .iter()
         .enumerate()
         .skip(1)
-        .find(|(_, line)| line.trim().starts_with("---"))
+        .find(|(_, segment)| line_without_terminator(segment).trim().starts_with("---"))
         .map(|(i, _)| i);
 
     let Some(closing_index) = closing_index else {
@@ -61,12 +69,15 @@ pub(crate) fn extract_frontmatter(content: &str) -> ExtractedFrontmatter {
         };
     };
 
-    let yaml = lines[1..closing_index].join("\n");
-    let body = if closing_index + 1 < lines.len() {
-        let offset = lines
+    let yaml = segments[1..closing_index]
+        .iter()
+        .map(|segment| line_without_terminator(segment))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let body = if closing_index + 1 < segments.len() {
+        let offset = segments[..=closing_index]
             .iter()
-            .take(closing_index + 1)
-            .map(|line| line.len() + 1)
+            .map(|segment| segment.len())
             .sum::<usize>();
         content.get(offset..).unwrap_or_default().to_string()
     } else {
@@ -77,6 +88,12 @@ pub(crate) fn extract_frontmatter(content: &str) -> ExtractedFrontmatter {
         yaml: Some(yaml),
         body,
     }
+}
+
+/// Text of a `split_inclusive('\n')` segment without the trailing LF or CRLF.
+fn line_without_terminator(segment: &str) -> &str {
+    let without_lf = segment.strip_suffix('\n').unwrap_or(segment);
+    without_lf.strip_suffix('\r').unwrap_or(without_lf)
 }
 
 /// Deserializes an extracted YAML frontmatter string into a requested type.
@@ -116,7 +133,8 @@ pub(crate) fn deserialize_frontmatter<T: DeserializeOwned + Default>(yaml: &str)
 /// - UTF-8 BOM (`\u{feff}`) at the start is removed
 /// - First line must start with `---` (after trimming)
 /// - Closing `---` must be on its own line
-/// - Body includes everything after the closing `---` (leading newlines preserved)
+/// - Body includes everything after the closing `---` (leading newlines preserved,
+///   including CRLF as-is)
 /// - If no frontmatter is present, the entire content is treated as body
 /// - Empty frontmatter (`---\n---`) uses `T::default()`
 ///
