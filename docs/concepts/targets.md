@@ -289,25 +289,34 @@ Google Antigravityはエージェント指向の開発プラットフォーム�
 
 ### 概要
 
-Gemini CLIはGoogleのターミナルベースAIエージェントツール。v0.23.0（2026年1月7日）でAgent Skills（実験的機能）が追加された。Claude Code Skillsと同じ`SKILL.md`形式を採用しており、既存のSkillsをそのまま再利用可能。
+Gemini CLIはGoogleのターミナルベースAIエージェントツール。v0.23.0（2026年1月7日）で Agent Skills が追加され、その後 **GA（production-ready）** となった。Settings での実験フラグ有効化は不要で、既定で有効。Claude Code Skillsと同じ`SKILL.md`形式を採用しており、既存のSkillsをそのまま再利用可能。
 
 公式ドキュメント:
 - [Agent Skills | Gemini CLI](https://geminicli.com/docs/cli/skills/)
+- [Managing Agent Skills](https://geminicli.com/docs/cli/using-agent-skills/)
 - [Getting Started with Agent Skills](https://geminicli.com/docs/cli/tutorials/skills-getting-started/)
+- [Creating Agent Skills](https://geminicli.com/docs/cli/creating-skills/)
+
+> 無償ティアおよび Google One 利用者向けには、公式ページで「Gemini CLI will be replaced by Antigravity CLI on June 18th」と告知されている（2026-06-18 以降は Antigravity CLI へ移行済み）。Enterprise 向け `gemini` ターゲットはレガシーとして維持する（[#402](https://github.com/DIO0550/plugin-manager/issues/402)）。
 
 ### 読み込みパスと優先順位
 
 | スコープ | パス | 自動読み込み | 備考 |
 |---------|------|--------------|------|
-| Workspace | `.gemini/skills/` | ✅ | プロジェクト固有、VCS管理推奨 |
-| User | `~/.gemini/skills/` | ✅ | 個人用、全ワークスペースで利用可能 |
+| Workspace | `.gemini/skills/` | ✅ | プロジェクト固有、VCS管理推奨。**PLM の配置先** |
+| Workspace（エイリアス） | `.agents/skills/` | ✅ | 同一階層では `.gemini/skills/` より優先。PLM は配置しない（Antigravity の Project Skills と衝突しうる） |
+| User | `~/.gemini/skills/` | ✅ | 個人用、全ワークスペースで利用可能。**PLM の配置先** |
+| User（エイリアス） | `~/.agents/skills/` | ✅ | 同一階層では `~/.gemini/skills/` より優先。PLM は配置しない |
 | Extension | 拡張機能に同梱 | ✅ | 拡張機能パッケージ内 |
+| Built-in | Gemini CLI 同梱 | ✅ | 基盤スキル。`/skills list all` または `gemini skills list --all` で表示 |
 | Instructions (Global) | `~/.gemini/GEMINI.md` | ✅ | 全プロジェクト共通の指示 |
 | Instructions (Project) | `./GEMINI.md` | ✅ | 親ディレクトリまで走査 |
 
 ### 優先順位
 
-同名Skillが複数スコープに存在する場合: Workspace > User > Extension
+同名Skillが複数スコープに存在する場合（高 → 低）: **Workspace > User > Extension > Built-in**
+
+同一階層（Workspace または User）では `.agents/skills/` エイリアスが `.gemini/skills/` より優先する。PLM の配置パス（`~/.gemini/skills/` / `.gemini/skills/`）は上流でも有効なため、実装変更は不要（[#461](https://github.com/DIO0550/plugin-manager/issues/461)）。
 
 ### Skills のアクティベーション
 
@@ -322,16 +331,23 @@ Gemini CLI SkillsはProgressive Disclosure方式を採用:
 ### 管理コマンド
 
 **セッション内** (`/skills`):
-- `/skills list` - 発見されたSkill一覧
-- `/skills disable <name>` - Skillを無効化
+- `/skills list [all] [nodesc]` - 発見されたSkill一覧。`all` で Built-in を含む、`nodesc` で説明を非表示
+- `/skills link <path> [--scope user|workspace]` - ローカルディレクトリの Skill をリンク
+- `/skills disable <name>` - Skillを無効化（既定スコープは `user`。`--scope workspace` でプロジェクト単位）
 - `/skills enable <name>` - Skillを再有効化
-- `/skills reload` - Skill検出を再実行
+- `/skills reload`（別名 `/skills refresh`） - Skill検出を再実行
 
 **ターミナル** (`gemini skills`):
-- `gemini skills list` - 全Skill表示
-- `gemini skills install <source>` - Skill追加（Gitリポジトリ、ローカルパス、`.skill`ファイル対応）
-- `gemini skills uninstall <name>` - Skill削除
-- `gemini skills enable/disable <name>` - 有効/無効切替
+- `gemini skills list [--all]` - 全Skill表示。`--all` で Built-in を含む
+- `gemini skills install <source> [--consent] [--scope user|workspace] [--path <subdir>]` - Skill追加（Gitリポジトリ、ローカルパス、`.skill`ファイル対応）
+- `gemini skills uninstall <name> [--scope user|workspace]` - Skill削除
+- `gemini skills enable/disable <name> [--scope user|workspace]` - 有効/無効切替
+- `gemini skills link <path> [--scope user|workspace]` - 開発中のローカル Skill をリンク
+
+共通フラグ:
+- `--scope`: `user`（既定、グローバル）または `workspace`（プロジェクト）
+- `--path`: Git リポジトリ内の Skill サブディレクトリ
+- `--consent`: インストール時のセキュリティ確認をスキップ
 
 ### Instructions システム（GEMINI.md）
 
@@ -349,10 +365,11 @@ Gemini CLIは `GEMINI.md` ファイルによる階層的な指示システムを
 | Skills | `SKILL.md` | `~/.gemini/skills/<marketplace>/<plugin>/<skill>/` | `.gemini/skills/<marketplace>/<plugin>/<skill>/` |
 | Instructions | `GEMINI.md` | `~/.gemini/GEMINI.md` | `GEMINI.md` |
 
+> 公式の探索エイリアス（`~/.agents/skills/` / `.agents/skills/`）には配置しない。PLM の配置先は上表のまま。
+
 ### 制約事項
 
-- ~~**実験的機能**: `/settings` で Agent Skills を `true` に設定して有効化が必要~~
-  → **TODO（2026-08-20 調査）**: 上流で GA 済み。`.agents/skills` エイリアスや管理コマンドの追加も含めて記載を更新する（[#461](https://github.com/DIO0550/plugin-manager/issues/461)）
+- **GA 済み**: Agent Skills は production-ready。`/settings` での実験フラグ有効化は不要（既定有効）。実験マークが付くのは Model steering / Notifications 等の別機能
 - **Agents非対応**: `.agent.md` 形式はサポートしない
 - **Prompts非対応**: `.prompt.md` 形式はサポートしない
 - **Hooks 非対応**: Gemini CLI 単体の hooks 公式仕様は追わず、Antigravity（IDE / CLI）共通仕様へ一本化する。一般向け製品移行の詳細は [Transitioning Gemini CLI to Antigravity CLI](https://github.com/google-gemini/gemini-cli/discussions/27274) を参照
@@ -645,7 +662,7 @@ Agents / Commands は他ターゲットと同様に `flatten_name(plugin, origin
 | Codex | `~/.codex/` に配置 | Hook 配置時のみ `~/.codex/config.toml` に `[features] codex_hooks = true` を自動追記（`--no-enable-flag` で抑止可、`codex_hooks = false` 既設定時は警告のみでスキップ） |
 | Copilot | Skills は `~/.copilot/skills/` へ配置。その他の Personal コンポーネントは既存仕様に従う | Skills は自動読み込み。Instructions / Prompts は `settings.json` への参照追加が必要 |
 | Antigravity | Skills: `~/.gemini/config/skills/`。Hooks: `~/.gemini/config/hooks.json`（実装済み・[#309](https://github.com/DIO0550/plugin-manager/issues/309)）。Agents / Workflows / Instructions は未実装（[#400](https://github.com/DIO0550/plugin-manager/issues/400)） | Skills / Hooks は自動読み込み。Skills は1階層の元名配置（上書きガードあり）、Hooks は単一 `hooks.json`（上書きガードあり） |
-| Gemini CLI | `~/.gemini/skills/` に配置 | 不要（自動読み込み、要Settings有効化） |
+| Gemini CLI | `~/.gemini/skills/` に配置 | 不要（自動読み込み。Skills は GA 済みで既定有効） |
 | Cursor | `~/.cursor/` に配置（Skills / Agents / Commands / Hooks） | 不要（自動読み込み）。Hooksは単一 `hooks.json` へ変換配置（上書きガードあり） |
 | OpenCode | `~/.config/opencode/` に配置（Skills / Agents / Commands / Instructions） | 不要（自動読み込み）。Hooks/Plugins は対象外 |
 
