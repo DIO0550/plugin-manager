@@ -255,11 +255,13 @@ Codexは現時点で`.agent.md`形式を公式サポートしていない。
 
 ## Gemini CLI
 
-v0.23.0（2026年1月）でAgent Skills（実験的機能）が追加。Claude Code Skillsと同じ`SKILL.md`形式を採用。
+v0.23.0（2026年1月）で Agent Skills が追加され、その後 GA（production-ready）となった。Claude Code Skillsと同じ`SKILL.md`形式を採用。Settings での実験フラグ有効化は不要。
 
 ### Skills
 
 **パス:** `.gemini/skills/<marketplace>/<plugin>/<skill>/SKILL.md`（Workspace） / `~/.gemini/skills/<marketplace>/<plugin>/<skill>/SKILL.md`（User）
+
+> 公式は同一階層のエイリアスとして `.agents/skills/`（Workspace）と `~/.agents/skills/`（User）も探索する。同一階層では `.agents/skills/` が優先。Built-in（Gemini CLI 同梱）も探索対象。PLM の配置先は `.gemini/skills/` / `~/.gemini/skills/` のまま（[#461](https://github.com/DIO0550/plugin-manager/issues/461)）。
 
 ```yaml
 ---
@@ -708,7 +710,9 @@ plugins/spec-plugin/
 
 ### Gemini CLI
 - [Agent Skills](https://geminicli.com/docs/cli/skills/)
+- [Managing Agent Skills](https://geminicli.com/docs/cli/using-agent-skills/)
 - [Getting Started with Agent Skills](https://geminicli.com/docs/cli/tutorials/skills-getting-started/)
+- [Creating Agent Skills](https://geminicli.com/docs/cli/creating-skills/)
 - [GEMINI.md Context Files](https://geminicli.com/docs/cli/gemini-md/)
 - [Configuration](https://geminicli.com/docs/get-started/configuration/)
 

@@ -42,6 +42,8 @@ PLMのインストールスコープについて説明します。
 | Skills | `~/.gemini/skills/` | `.gemini/skills/` |
 | Instructions | `~/.gemini/GEMINI.md` | `GEMINI.md` |
 
+> 公式は User `~/.agents/skills/` / Workspace `.agents/skills/` エイリアスも探索する（同一階層では `.agents/` が優先）。PLM の配置先は上表のまま。
+
 ### Cursor
 
 | 種別 | Personal | Project |

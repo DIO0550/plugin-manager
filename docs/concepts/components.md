@@ -61,6 +61,8 @@ skills/skill-name/
 | Cursor | `~/.cursor/skills/<flattened_name>/` | `.cursor/skills/<flattened_name>/` |
 | OpenCode | `~/.config/opencode/skills/<original_name>/` | `.opencode/skills/<original_name>/` |
 
+> Gemini CLI 公式は User `~/.agents/skills/` / Workspace `.agents/skills/` エイリアスと Built-in tier も探索する。PLM の配置先は `.gemini/skills/` / `~/.gemini/skills/` のまま（[#461](https://github.com/DIO0550/plugin-manager/issues/461)）。
+
 ## Agents
 
 カスタムエージェントを定義するコンポーネントです。

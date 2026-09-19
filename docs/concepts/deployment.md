@@ -250,6 +250,8 @@ Codex/Copilotがネストしたディレクトリを読み込むかは公式ド�
 | Skills | `~/.gemini/skills/<marketplace>/<plugin>/<skill>/` | `.gemini/skills/<marketplace>/<plugin>/<skill>/` |
 | Instructions | `~/.gemini/GEMINI.md` | `GEMINI.md` |
 
+> 公式は `~/.agents/skills/` / `.agents/skills/` エイリアスも探索するが、PLM の配置先は上表のまま。
+
 ### Cursor
 
 | コンポーネント | Personal | Project |
