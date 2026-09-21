@@ -135,13 +135,23 @@ fn create_test_archive(entries: &[(&str, &str)]) -> Vec<u8> {
     buf
 }
 
-/// symlink エントリ付きのテスト用 zip を作成する
-fn create_test_archive_with_symlink(name: &str, target: &str) -> Vec<u8> {
+/// 通常ファイルと symlink エントリを含むテスト用 zip を作成する
+fn create_test_archive_with_symlink(
+    entries: &[(&str, &str)],
+    symlink_name: &str,
+    symlink_target: &str,
+) -> Vec<u8> {
+    use std::io::Write;
     let mut buf = Vec::new();
     {
         let mut zip = zip::ZipWriter::new(std::io::Cursor::new(&mut buf));
         let options = zip::write::SimpleFileOptions::default();
-        zip.add_symlink(name, target, options).unwrap();
+        for (path, content) in entries {
+            zip.start_file(*path, options).unwrap();
+            zip.write_all(content.as_bytes()).unwrap();
+        }
+        zip.add_symlink(symlink_name, symlink_target, options)
+            .unwrap();
         zip.finish().unwrap();
     }
     buf
@@ -476,18 +486,58 @@ fn test_store_from_archive_rejects_absolute_entry_path_without_source_path() {
 }
 
 #[test]
-fn test_store_from_archive_rejects_symlink_entry_without_source_path() {
-    // source_path 未指定でも symlink エントリを展開しない
+fn test_store_from_archive_skips_symlink_without_failing_direct_install() {
+    // 直接インストール（source_path = None）では symlink は展開しないが、
+    // 正規ファイルの展開は成功させる（GitHub zipball に symlink が混ざる想定）
     let temp_dir = TempDir::new().unwrap();
     let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
 
-    let archive = create_test_archive_with_symlink("repo-main/link-to-secret", "/etc/passwd");
+    let archive = create_test_archive_with_symlink(
+        &[(
+            "repo-main/plugin.json",
+            r#"{"name":"test","version":"1.0.0"}"#,
+        )],
+        "repo-main/link-to-secret",
+        "/etc/passwd",
+    );
 
     let result = cache.store_from_archive(None, "test-plugin", &archive, None);
 
     assert!(
+        result.is_ok(),
+        "direct install should succeed when only symlink entries are skipped, got {:?}",
+        result
+    );
+    let plugin_dir = result.unwrap();
+    assert!(plugin_dir.join("plugin.json").exists());
+    assert!(
+        !plugin_dir.join("link-to-secret").exists(),
+        "symlink zip entry should not be extracted"
+    );
+}
+
+#[test]
+fn test_store_from_archive_with_source_path_rejects_symlink_entry() {
+    // source_path 指定時は従来どおり symlink を fail-closed にする
+    let temp_dir = TempDir::new().unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+    let archive = create_test_archive_with_symlink(
+        &[("repo-main/plugins/foo/plugin.json", r#"{"name":"foo"}"#)],
+        "repo-main/plugins/foo/link-to-secret",
+        "/etc/passwd",
+    );
+
+    let result = cache.store_from_archive(
+        Some("test-marketplace"),
+        "foo-plugin",
+        &archive,
+        Some("plugins/foo"),
+    );
+
+    assert!(
         result.is_err(),
-        "expected symlink zip entry to be rejected, got {:?}",
+        "expected symlink under source_path to be rejected, got {:?}",
         result
     );
     match result.unwrap_err() {
@@ -501,7 +551,7 @@ fn test_store_from_archive_rejects_symlink_entry_without_source_path() {
         e => panic!("Expected InvalidSource error, got: {:?}", e),
     }
 
-    let plugin_dir = cache.plugin_path(None, "test-plugin");
+    let plugin_dir = cache.plugin_path(Some("test-marketplace"), "foo-plugin");
     assert!(
         !plugin_dir.join("link-to-secret").exists(),
         "symlink zip entry should not be extracted"

@@ -745,8 +745,9 @@ fn get_archive_prefix(zip: &mut ZipArchive<Cursor<&[u8]>>) -> Result<String> {
 
 /// アーカイブを展開（source_path 指定対応）
 ///
-/// zip-slip / symlink 防御は `source_path` の有無に関わらず適用する。
-/// 1件でも拒否したら fail-closed で `InvalidSource` を返す。
+/// zip-slip は `source_path` の有無に関わらず fail-closed。
+/// symlink は直接インストール（`source_path = None`）では展開せず警告スキップし、
+/// `source_path` 指定時は従来どおり fail-closed にする。
 ///
 /// # Arguments
 ///
@@ -765,6 +766,7 @@ fn extract_archive_with_source_path(
 
     let mut source_path_hit = false;
     let mut entries_skipped_for_security = 0usize;
+    let mut entries_skipped_symlinks = 0usize;
 
     for i in 0..zip.len() {
         let mut file = zip.by_index(i)?;
@@ -792,8 +794,19 @@ fn extract_archive_with_source_path(
 
         // prefix / source_path 除去後に検証する。除去前は dest 内に見える `..` が、
         // 除去後に zip-slip になるため（`enclosed_name` だけでは足りない）。
-        if is_unsafe_zip_extract(&final_path, &file) {
+        if is_zip_slip_path(&final_path) {
             entries_skipped_for_security += 1;
+            continue;
+        }
+        if file.is_symlink() {
+            // GitHub zipball には正規リポジトリ由来の symlink が混ざることがある。
+            // 直接インストールを fail-closed にするとインストール自体が失敗するため、
+            // 展開せずスキップする。source_path 抽出は従来どおり拒否する。
+            if source_path.is_some() {
+                entries_skipped_for_security += 1;
+            } else {
+                entries_skipped_symlinks += 1;
+            }
             continue;
         }
 
@@ -812,6 +825,12 @@ fn extract_archive_with_source_path(
             entries_skipped_for_security
         )));
     }
+    if entries_skipped_symlinks > 0 {
+        eprintln!(
+            "Warning: skipped {} symlink entries in archive (not extracted)",
+            entries_skipped_symlinks
+        );
+    }
     if let Some(sp) = source_path {
         if !source_path_hit {
             return Err(PlmError::InvalidSource(format!(
@@ -827,7 +846,7 @@ fn extract_archive_with_source_path(
 /// source_path フィルタを適用し、展開すべきパスを返す（None = スキップ）
 ///
 /// パス安全性の判定は行わない。呼び出し側が prefix/source_path 除去後の
-/// パスに対して `is_unsafe_zip_extract` を適用すること。
+/// パスに対して zip-slip / symlink 検証を適用すること。
 ///
 /// # Arguments
 ///
@@ -852,15 +871,10 @@ fn extract_with_source_path_filter(
     Some(stripped.to_path_buf())
 }
 
-/// zip エントリを dest 配下へ書いてよいか。
-///
-/// `..` / 絶対パス / Windows prefix 等の非 Normal 成分、および zip 内の
-/// symlink エントリを拒否する。`source_path` の有無に依存しない。
-fn is_unsafe_zip_extract(path: &Path, file: &zip::read::ZipFile) -> bool {
-    let has_unsafe_component = path
-        .components()
-        .any(|c| !matches!(c, PathComponent::Normal(_)));
-    has_unsafe_component || file.is_symlink()
+/// zip エントリパスが zip-slip（`..` / 絶対パス / prefix / `.`）か。
+fn is_zip_slip_path(path: &Path) -> bool {
+    path.components()
+        .any(|c| !matches!(c, PathComponent::Normal(_)))
 }
 
 /// zipエントリをファイルシステムに書き込み
