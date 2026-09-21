@@ -714,6 +714,15 @@ fn validate_source_path(source_path: Option<&str>) -> Result<()> {
     Ok(())
 }
 
+/// zip エントリ名の区切りを `/` に揃える。
+///
+/// Windows 由来の zip は `\` 区切りを含むことがある。ただしこの置換は
+/// `foo\..\bar` を `foo/../bar` に変えて zip-slip を**作り出す**ため、
+/// 呼び出し側は正規化後のパスを必ず検証すること。
+fn normalize_zip_entry_name(name: &str) -> String {
+    name.replace('\\', "/")
+}
+
 /// zipアーカイブのプレフィックス（トップディレクトリ）を取得
 ///
 /// # Arguments
@@ -725,15 +734,20 @@ fn get_archive_prefix(zip: &mut ZipArchive<Cursor<&[u8]>>) -> Result<String> {
     }
 
     let first = zip.by_index(0)?;
-    let first_name = first.name();
+    let first_name = normalize_zip_entry_name(first.name());
     Ok(first_name
         .split('/')
         .next()
+        .filter(|s| !s.is_empty())
         .map(|s| format!("{}/", s))
         .unwrap_or_default())
 }
 
 /// アーカイブを展開（source_path 指定対応）
+///
+/// zip-slip と symlink は `source_path` の有無に関わらず fail-closed。
+/// 検証は prefix / `source_path` 除去の後に行う。除去前は dest 内に見える `..` が、
+/// 除去後に zip-slip になるため（`enclosed_name` だけでは足りない）。
 ///
 /// # Arguments
 ///
@@ -755,11 +769,9 @@ fn extract_archive_with_source_path(
 
     for i in 0..zip.len() {
         let mut file = zip.by_index(i)?;
-        let file_path = file.name();
-
-        // Windows zip の区切りを揃える。Linux で合法な `..\..\evil` もここで
-        // `../../evil` になるため、直後の安全性チェックが必須（#436）。
-        let file_path_normalized = file_path.replace('\\', "/");
+        // Linux で合法な `..\..\evil` もここで `../../evil` になるため、
+        // 直後の安全性チェックが必須（#436）。
+        let file_path_normalized = normalize_zip_entry_name(file.name());
 
         let relative_path = if !prefix.is_empty() && file_path_normalized.starts_with(&prefix) {
             &file_path_normalized[prefix.len()..]
@@ -793,7 +805,7 @@ fn extract_archive_with_source_path(
 
     if entries_skipped_for_security > 0 {
         return Err(PlmError::InvalidSource(format!(
-            "{} entries were skipped for security reasons (possible zip-slip or symlink)",
+            "{} archive entries were skipped for security reasons (possible zip-slip or symlink)",
             entries_skipped_for_security
         )));
     }
@@ -833,7 +845,7 @@ fn resolve_extract_path(
         None => PathBuf::from(relative_path),
     };
 
-    if !is_safe_zip_entry_path(&candidate) || file.is_symlink() {
+    if is_zip_slip_path(&candidate) || file.is_symlink() {
         *entries_skipped += 1;
         return None;
     }
@@ -842,6 +854,9 @@ fn resolve_extract_path(
 }
 
 /// source_path 配下の相対パスへ落とす（一致しなければ None）。安全性検査は呼び出し側。
+///
+/// パス安全性の判定は行わない。呼び出し側が prefix/source_path 除去後の
+/// パスに対して zip-slip / symlink 検証を適用すること。
 ///
 /// # Arguments
 ///
@@ -865,14 +880,10 @@ fn extract_with_source_path_filter(
     Some(stripped.to_path_buf())
 }
 
-/// zip-slip 対策: Normal コンポーネントのみ許容（絶対パス・`..`・`.` を拒否）
-///
-/// # Arguments
-///
-/// * `path` - candidate path after prefix / source_path stripping
-fn is_safe_zip_entry_path(path: &Path) -> bool {
+/// zip エントリパスが zip-slip（`..` / 絶対パス / prefix / `.`）か。
+fn is_zip_slip_path(path: &Path) -> bool {
     path.components()
-        .all(|c| matches!(c, PathComponent::Normal(_)))
+        .any(|c| !matches!(c, PathComponent::Normal(_)))
 }
 
 /// zipエントリをファイルシステムに書き込み
