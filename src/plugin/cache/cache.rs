@@ -757,6 +757,8 @@ fn extract_archive_with_source_path(
         let mut file = zip.by_index(i)?;
         let file_path = file.name();
 
+        // Windows zip の区切りを揃える。Linux で合法な `..\..\evil` もここで
+        // `../../evil` になるため、直後の安全性チェックが必須（#436）。
         let file_path_normalized = file_path.replace('\\', "/");
 
         let relative_path = if !prefix.is_empty() && file_path_normalized.starts_with(&prefix) {
@@ -769,32 +771,33 @@ fn extract_archive_with_source_path(
             continue;
         }
 
-        let final_path = match source_path {
-            Some(sp) => {
-                match extract_with_source_path_filter(
-                    relative_path,
-                    sp,
-                    &file,
-                    &mut source_path_hit,
-                    &mut entries_skipped_for_security,
-                ) {
-                    Some(path) => path,
-                    None => continue,
-                }
-            }
-            None => PathBuf::from(relative_path),
+        let Some(final_path) = resolve_extract_path(
+            relative_path,
+            source_path,
+            &file,
+            &mut source_path_hit,
+            &mut entries_skipped_for_security,
+        ) else {
+            continue;
         };
 
-        write_zip_entry(&mut file, &dest.join(&final_path))?;
+        let target = dest.join(&final_path);
+        // dest.join は絶対パスを渡すと dest を置き換えるため、正規化後も配下か再確認する
+        if !target.starts_with(dest) {
+            entries_skipped_for_security += 1;
+            continue;
+        }
+
+        write_zip_entry(&mut file, &target)?;
     }
 
+    if entries_skipped_for_security > 0 {
+        return Err(PlmError::InvalidSource(format!(
+            "{} entries were skipped for security reasons (possible zip-slip or symlink)",
+            entries_skipped_for_security
+        )));
+    }
     if let Some(sp) = source_path {
-        if entries_skipped_for_security > 0 {
-            return Err(PlmError::InvalidSource(format!(
-                "{} entries in source_path were skipped for security reasons (possible zip-slip or symlink)",
-                entries_skipped_for_security
-            )));
-        }
         if !source_path_hit {
             return Err(PlmError::InvalidSource(format!(
                 "source_path not found in archive: {}",
@@ -806,56 +809,70 @@ fn extract_archive_with_source_path(
     Ok(())
 }
 
-/// source_path フィルタを適用し、展開すべきパスを返す（None = スキップ）
+/// 展開先の相対パスを決定する。`source_path` の有無に関わらず同じ安全性検査を適用する。
+///
+/// `None` を返すのは (1) source_path に一致しない (2) source_path 自身のディレクトリエントリ
+/// (3) zip-slip / symlink でスキップ、のいずれか。
+///
+/// # Arguments
+///
+/// * `relative_path` - archive entry path after prefix removal
+/// * `source_path` - optional normalized sub-path being extracted
+/// * `file` - current zip entry (used for symlink inspection)
+/// * `source_path_hit` - updated to `true` when a matching filtered entry is seen
+/// * `entries_skipped` - incremented when an entry is skipped for security
+fn resolve_extract_path(
+    relative_path: &str,
+    source_path: Option<&str>,
+    file: &zip::read::ZipFile,
+    source_path_hit: &mut bool,
+    entries_skipped: &mut usize,
+) -> Option<PathBuf> {
+    let candidate = match source_path {
+        Some(sp) => extract_with_source_path_filter(relative_path, sp, source_path_hit)?,
+        None => PathBuf::from(relative_path),
+    };
+
+    if !is_safe_zip_entry_path(&candidate) || file.is_symlink() {
+        *entries_skipped += 1;
+        return None;
+    }
+
+    Some(candidate)
+}
+
+/// source_path 配下の相対パスへ落とす（一致しなければ None）。安全性検査は呼び出し側。
 ///
 /// # Arguments
 ///
 /// * `relative_path` - archive entry path after prefix removal
 /// * `source_path` - normalized sub-path being extracted
-/// * `file` - current zip entry (used for unix mode inspection)
 /// * `source_path_hit` - updated to `true` when a matching entry is seen
-/// * `entries_skipped` - incremented when an entry is skipped for security
 fn extract_with_source_path_filter(
     relative_path: &str,
     source_path: &str,
-    file: &zip::read::ZipFile,
     source_path_hit: &mut bool,
-    entries_skipped: &mut usize,
 ) -> Option<PathBuf> {
-    let relative_path_obj = Path::new(relative_path);
-    let source_path_obj = Path::new(source_path);
-
-    let stripped = relative_path_obj.strip_prefix(source_path_obj).ok()?;
+    let stripped = Path::new(relative_path)
+        .strip_prefix(Path::new(source_path))
+        .ok()?;
     *source_path_hit = true;
 
     if stripped.as_os_str().is_empty() {
         return None;
     }
 
-    // zip-slip 対策: Normal コンポーネントのみ許容
-    let has_unsafe_component = stripped
-        .components()
-        .any(|c| !matches!(c, PathComponent::Normal(_)));
-    if has_unsafe_component {
-        *entries_skipped += 1;
-        return None;
-    }
-
-    // symlink 対策（source_path 抽出時のみ）
-    #[cfg(unix)]
-    {
-        if let Some(mode) = file.unix_mode() {
-            // S_IFLNK = 0o120000
-            if (mode & 0o170000) == 0o120000 {
-                *entries_skipped += 1;
-                return None;
-            }
-        }
-    }
-    #[cfg(not(unix))]
-    let _ = file;
-
     Some(stripped.to_path_buf())
+}
+
+/// zip-slip 対策: Normal コンポーネントのみ許容（絶対パス・`..`・`.` を拒否）
+///
+/// # Arguments
+///
+/// * `path` - candidate path after prefix / source_path stripping
+fn is_safe_zip_entry_path(path: &Path) -> bool {
+    path.components()
+        .all(|c| matches!(c, PathComponent::Normal(_)))
 }
 
 /// zipエントリをファイルシステムに書き込み
