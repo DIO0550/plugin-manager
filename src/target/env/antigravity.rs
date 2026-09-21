@@ -1,53 +1,40 @@
 //! Google Antigravity ターゲット実装（Skills / Hooks）
 
 use crate::component::{
-    Component, ComponentKind, FileOperation, PlacementContext, PlacementLocation, Scope, ScopedPath,
+    Component, ComponentKind, FileOperation, PlacementContext, Scope, ScopedPath,
 };
-use crate::error::Result;
 use crate::placement_names::{
-    ANTIGRAVITY_HOOKS_FILE, ANTIGRAVITY_HOOKS_PERSONAL_CHILD, ANTIGRAVITY_HOOKS_PROJECT_SUBDIR,
-    ANTIGRAVITY_LEGACY_PERSONAL_CHILD, ANTIGRAVITY_LEGACY_PROJECT_SUBDIR,
+    ANTIGRAVITY_HOOKS_FILE, ANTIGRAVITY_LEGACY_PERSONAL_CHILD, ANTIGRAVITY_LEGACY_PROJECT_SUBDIR,
     ANTIGRAVITY_PERSONAL_PARENT, ANTIGRAVITY_SKILLS_PERSONAL_CHILD,
     ANTIGRAVITY_SKILLS_PROJECT_SUBDIR,
 };
-use crate::target::filter::{filter_exact_file, filter_skill_dir};
-use crate::target::list_helpers::{scan_and_filter, scan_and_filter_in};
 use crate::target::paths::home_dir;
-use crate::target::placement_helpers::skill_dir;
-use crate::target::scope_support::{allows_scope, ScopeSupport};
-use crate::target::{PostPlaceOutcome, Target, TargetKind};
+use crate::target::scope_support::capabilities;
+use crate::target::{
+    impl_target_layout, HookLayout, PersonalRoot, PostPlaceOutcome, SkillDirName, Target,
+    TargetKind, TargetLayout,
+};
 use std::path::{Path, PathBuf};
 
-/// Antigravity のパス定数（#339: placement_names を正とする）。
-/// Skills と Hooks でルートが異なる（公式仕様）。
-struct AntigravityLayout {
-    personal_parent: &'static str,
-    skills_personal_child: &'static str,
-    skills_project_subdir: &'static str,
-    legacy_skills_personal_child: &'static str,
-    legacy_skills_project_subdir: &'static str,
-    hooks_personal_child: &'static str,
-    hooks_project_subdir: &'static str,
-    hooks_file: &'static str,
-}
-
-const LAYOUT: AntigravityLayout = AntigravityLayout {
-    personal_parent: ANTIGRAVITY_PERSONAL_PARENT,
-    skills_personal_child: ANTIGRAVITY_SKILLS_PERSONAL_CHILD,
-    skills_project_subdir: ANTIGRAVITY_SKILLS_PROJECT_SUBDIR,
-    legacy_skills_personal_child: ANTIGRAVITY_LEGACY_PERSONAL_CHILD,
-    legacy_skills_project_subdir: ANTIGRAVITY_LEGACY_PROJECT_SUBDIR,
-    hooks_personal_child: ANTIGRAVITY_HOOKS_PERSONAL_CHILD,
-    hooks_project_subdir: ANTIGRAVITY_HOOKS_PROJECT_SUBDIR,
-    hooks_file: ANTIGRAVITY_HOOKS_FILE,
+pub(crate) const LAYOUT: TargetLayout = TargetLayout {
+    kind: TargetKind::Antigravity,
+    capabilities: capabilities!(
+        Skill => Both,
+        Hook => Both,
+    ),
+    personal_root: PersonalRoot::HomeNested {
+        parent: ANTIGRAVITY_PERSONAL_PARENT,
+        child: ANTIGRAVITY_SKILLS_PERSONAL_CHILD,
+    },
+    project_subdir: ANTIGRAVITY_SKILLS_PROJECT_SUBDIR,
+    skill_dir_name: SkillDirName::Original,
+    agent_files: None,
+    command_files: None,
+    instruction_at: None,
+    hooks: HookLayout::SingleFile {
+        filename: ANTIGRAVITY_HOOKS_FILE,
+    },
 };
-
-const SUPPORTED: &[ComponentKind] = &[ComponentKind::Skill, ComponentKind::Hook];
-
-const CAPABILITIES: &[(ComponentKind, ScopeSupport)] = &[
-    (ComponentKind::Skill, ScopeSupport::Both),
-    (ComponentKind::Hook, ScopeSupport::Both),
-];
 
 /// Google Antigravity ターゲット
 pub struct AntigravityTarget;
@@ -57,30 +44,12 @@ impl AntigravityTarget {
         Self
     }
 
-    fn skills_base_dir(scope: Scope, project_root: &Path) -> PathBuf {
-        match scope {
-            Scope::Personal => home_dir()
-                .join(LAYOUT.personal_parent)
-                .join(LAYOUT.skills_personal_child),
-            Scope::Project => project_root.join(LAYOUT.skills_project_subdir),
-        }
-    }
-
-    fn hooks_base_dir(scope: Scope, project_root: &Path) -> PathBuf {
-        match scope {
-            Scope::Personal => home_dir()
-                .join(LAYOUT.personal_parent)
-                .join(LAYOUT.hooks_personal_child),
-            Scope::Project => project_root.join(LAYOUT.hooks_project_subdir),
-        }
-    }
-
     fn legacy_skills_base_dir(scope: Scope, project_root: &Path) -> PathBuf {
         match scope {
             Scope::Personal => home_dir()
-                .join(LAYOUT.personal_parent)
-                .join(LAYOUT.legacy_skills_personal_child),
-            Scope::Project => project_root.join(LAYOUT.legacy_skills_project_subdir),
+                .join(ANTIGRAVITY_PERSONAL_PARENT)
+                .join(ANTIGRAVITY_LEGACY_PERSONAL_CHILD),
+            Scope::Project => project_root.join(ANTIGRAVITY_LEGACY_PROJECT_SUBDIR),
         }
     }
 
@@ -177,36 +146,7 @@ impl Target for AntigravityTarget {
         TargetKind::Antigravity
     }
 
-    fn supported_components(&self) -> &[ComponentKind] {
-        SUPPORTED
-    }
-
-    fn can_place_scope(&self, kind: ComponentKind, scope: Scope) -> bool {
-        allows_scope(CAPABILITIES, kind, scope)
-    }
-
-    fn placement_location(&self, context: &PlacementContext) -> Option<PlacementLocation> {
-        let kind = context.kind();
-        let scope = context.scope();
-        if !self.can_place_scope(kind, scope) {
-            return None;
-        }
-
-        Some(match kind {
-            ComponentKind::Skill => {
-                let base = Self::skills_base_dir(scope, context.project_root());
-                // Antigravity は `<skills>/<skill-folder>/SKILL.md` の 1 階層を読む。
-                // frontmatter の name と対応するスキャン時の元名で配置する。
-                let dir_name = context.original_name().filter(|name| !name.is_empty())?;
-                skill_dir(&base, dir_name)
-            }
-            ComponentKind::Hook => {
-                let base = Self::hooks_base_dir(scope, context.project_root());
-                PlacementLocation::file(base.join(LAYOUT.hooks_file))
-            }
-            _ => return None,
-        })
-    }
+    impl_target_layout!(LAYOUT);
 
     fn component_conflict_error(&self, components: &[Component]) -> Option<String> {
         Self::hook_component_conflict_error(components)
@@ -284,31 +224,6 @@ impl Target for AntigravityTarget {
         let scoped = ScopedPath::new(legacy_path, context.project_root())
             .map_err(|e| format!("Path validation failed: {}", e))?;
         Ok(vec![FileOperation::RemoveDir { path: scoped }])
-    }
-
-    fn list_placed(
-        &self,
-        kind: ComponentKind,
-        scope: Scope,
-        project_root: &Path,
-    ) -> Result<Vec<String>> {
-        if !self.can_place_scope(kind, scope) {
-            return Ok(vec![]);
-        }
-
-        match kind {
-            ComponentKind::Skill => {
-                let base = Self::skills_base_dir(scope, project_root);
-                scan_and_filter(&base, ComponentKind::Skill.plural(), filter_skill_dir)
-            }
-            ComponentKind::Hook => {
-                let base = Self::hooks_base_dir(scope, project_root);
-                scan_and_filter_in(&base, |c| {
-                    filter_exact_file(c, LAYOUT.hooks_file, ComponentKind::Hook.plural())
-                })
-            }
-            _ => Ok(vec![]),
-        }
     }
 }
 

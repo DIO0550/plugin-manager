@@ -4,44 +4,35 @@ mod feature_flag;
 
 pub use feature_flag::{apply_codex_hooks_flag, FeatureFlagOutcome};
 
-use crate::component::{Component, ComponentKind, PlacementContext, PlacementLocation, Scope};
-use crate::error::Result;
-use crate::placement_names::{CODEX_SUBDIR, INSTRUCTION_AGENTS};
-use crate::target::filter::{filter_exact_file, filter_skill_dir, filter_suffix_file};
-use crate::target::list_helpers::{list_instruction_at, scan_and_filter, scan_and_filter_in};
-use crate::target::paths::base_dir;
-use crate::target::placement_helpers::{agent_file, instruction_file, skill_dir};
-use crate::target::scope_support::{allows_scope, ScopeSupport};
-use crate::target::{PostPlaceOutcome, Target, TargetKind};
+use crate::component::{Component, ComponentKind, PlacementContext, Scope};
+use crate::placement_names::CODEX_SUBDIR;
+use crate::target::scope_support::capabilities;
+use crate::target::{
+    impl_target_layout, FileSuffixStyle, HookLayout, InstructionPlacement, PersonalRoot,
+    PostPlaceOutcome, SkillDirName, Target, TargetKind, TargetLayout,
+};
 use std::path::{Path, PathBuf};
 
-struct CodexLayout {
-    subdir: &'static str,
-    config_file: &'static str,
-    instruction_file: &'static str,
-    hooks_file: &'static str,
-}
-
-const LAYOUT: CodexLayout = CodexLayout {
-    subdir: CODEX_SUBDIR,
-    config_file: "config.toml",
-    instruction_file: INSTRUCTION_AGENTS,
-    hooks_file: "hooks.json",
+pub(crate) const LAYOUT: TargetLayout = TargetLayout {
+    kind: TargetKind::Codex,
+    capabilities: capabilities!(
+        Skill => Both,
+        Agent => Both,
+        Instruction => Both,
+        Hook => Both,
+    ),
+    personal_root: PersonalRoot::HomeSubdir(CODEX_SUBDIR),
+    project_subdir: CODEX_SUBDIR,
+    skill_dir_name: SkillDirName::Flattened,
+    agent_files: Some(FileSuffixStyle::KindSuffix),
+    command_files: None,
+    instruction_at: Some(InstructionPlacement::ProjectRootOrEnvRoot),
+    hooks: HookLayout::SingleFile {
+        filename: "hooks.json",
+    },
 };
 
-const SUPPORTED: &[ComponentKind] = &[
-    ComponentKind::Skill,
-    ComponentKind::Agent,
-    ComponentKind::Instruction,
-    ComponentKind::Hook,
-];
-
-const CAPABILITIES: &[(ComponentKind, ScopeSupport)] = &[
-    (ComponentKind::Skill, ScopeSupport::Both),
-    (ComponentKind::Agent, ScopeSupport::Both),
-    (ComponentKind::Instruction, ScopeSupport::Both),
-    (ComponentKind::Hook, ScopeSupport::Both),
-];
+const CONFIG_FILE: &str = "config.toml";
 
 /// OpenAI Codex ターゲット
 pub struct CodexTarget;
@@ -51,24 +42,9 @@ impl CodexTarget {
         Self
     }
 
-    fn base_dir(scope: Scope, project_root: &Path) -> PathBuf {
-        base_dir(scope, project_root, LAYOUT.subdir, LAYOUT.subdir)
-    }
-
     /// スコープに応じた `config.toml` のフルパスを返す。
     pub(crate) fn config_toml_path(scope: Scope, project_root: &Path) -> PathBuf {
-        Self::base_dir(scope, project_root).join(LAYOUT.config_file)
-    }
-
-    fn instruction_path(scope: Scope, project_root: &Path) -> PathBuf {
-        instruction_file(
-            scope,
-            project_root,
-            &Self::base_dir(scope, project_root),
-            LAYOUT.instruction_file,
-        )
-        .as_path()
-        .to_path_buf()
+        LAYOUT.env_root(scope, project_root).join(CONFIG_FILE)
     }
 
     /// Codex は 1 スコープにつき単一の `hooks.json` を読むため、複数 Hook を
@@ -124,35 +100,7 @@ impl Target for CodexTarget {
         TargetKind::Codex
     }
 
-    fn supported_components(&self) -> &[ComponentKind] {
-        SUPPORTED
-    }
-
-    fn can_place_scope(&self, kind: ComponentKind, scope: Scope) -> bool {
-        allows_scope(CAPABILITIES, kind, scope)
-    }
-
-    fn placement_location(&self, context: &PlacementContext) -> Option<PlacementLocation> {
-        let kind = context.kind();
-        let scope = context.scope();
-        if !self.can_place_scope(kind, scope) {
-            return None;
-        }
-
-        let project_root = context.project_root();
-        let base = Self::base_dir(scope, project_root);
-        let name = context.name();
-
-        Some(match kind {
-            ComponentKind::Skill => skill_dir(&base, name),
-            ComponentKind::Agent => agent_file(&base, name),
-            ComponentKind::Instruction => {
-                instruction_file(scope, project_root, &base, LAYOUT.instruction_file)
-            }
-            ComponentKind::Hook => PlacementLocation::file(base.join(LAYOUT.hooks_file)),
-            ComponentKind::Command => return None,
-        })
-    }
+    impl_target_layout!(LAYOUT);
 
     fn component_conflict_error(&self, components: &[Component]) -> Option<String> {
         Self::hook_component_conflict_error(components)
@@ -203,43 +151,6 @@ impl Target for CodexTarget {
         }
 
         outcome
-    }
-
-    fn list_placed(
-        &self,
-        kind: ComponentKind,
-        scope: Scope,
-        project_root: &Path,
-    ) -> Result<Vec<String>> {
-        if !self.can_place_scope(kind, scope) {
-            return Ok(vec![]);
-        }
-
-        if kind == ComponentKind::Instruction {
-            return Ok(list_instruction_at(
-                &Self::instruction_path(scope, project_root),
-                LAYOUT.instruction_file,
-            ));
-        }
-
-        let base = Self::base_dir(scope, project_root);
-        match kind {
-            ComponentKind::Skill => {
-                scan_and_filter(&base, ComponentKind::Skill.plural(), filter_skill_dir)
-            }
-            ComponentKind::Agent => {
-                let suffix = ComponentKind::Agent
-                    .file_suffix()
-                    .expect("Agent always has a file suffix");
-                scan_and_filter(&base, ComponentKind::Agent.plural(), |c| {
-                    filter_suffix_file(c, suffix)
-                })
-            }
-            ComponentKind::Hook => scan_and_filter_in(&base, |c| {
-                filter_exact_file(c, LAYOUT.hooks_file, ComponentKind::Hook.plural())
-            }),
-            _ => Ok(vec![]),
-        }
     }
 }
 

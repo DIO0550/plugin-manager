@@ -16,4 +16,13 @@ pub use cursor::CursorTarget;
 pub use gemini_cli::GeminiCliTarget;
 pub use opencode::OpenCodeTarget;
 
-pub(crate) use opencode::personal_root_from_env;
+pub(crate) fn all_layouts() -> [&'static crate::target::TargetLayout; 6] {
+    [
+        &antigravity::LAYOUT,
+        &codex::LAYOUT,
+        &copilot::LAYOUT,
+        &cursor::LAYOUT,
+        &gemini_cli::LAYOUT,
+        &opencode::LAYOUT,
+    ]
+}

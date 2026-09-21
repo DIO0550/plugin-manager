@@ -1,46 +1,35 @@
 //! Cursor ターゲット実装（Skills / Agents / Commands / Instructions / Hooks）
 
 use crate::component::{
-    Component, ComponentKind, FileOperation, PlacementContext, PlacementLocation, Scope, ScopedPath,
+    Component, ComponentKind, FileOperation, PlacementContext, Scope, ScopedPath,
 };
-use crate::error::Result;
-use crate::placement_names::{CURSOR_SUBDIR, INSTRUCTION_AGENTS};
-use crate::target::filter::{filter_exact_file, filter_plain_markdown, filter_skill_dir};
-use crate::target::list_helpers::{list_instruction_at, scan_and_filter, scan_and_filter_in};
-use crate::target::paths::base_dir;
-use crate::target::placement_helpers::{named_file, skill_dir};
-use crate::target::scope_support::{allows_scope, ScopeSupport};
-use crate::target::{PostPlaceOutcome, Target, TargetKind};
+use crate::placement_names::CURSOR_SUBDIR;
+use crate::target::scope_support::capabilities;
+use crate::target::{
+    impl_target_layout, FileSuffixStyle, HookLayout, InstructionPlacement, PersonalRoot,
+    PostPlaceOutcome, SkillDirName, Target, TargetKind, TargetLayout,
+};
 use std::path::{Path, PathBuf};
 
-struct CursorLayout {
-    subdir: &'static str,
-    instruction_file: &'static str,
-    hooks_file: &'static str,
-}
-
-const LAYOUT: CursorLayout = CursorLayout {
-    subdir: CURSOR_SUBDIR,
-    instruction_file: INSTRUCTION_AGENTS,
-    hooks_file: "hooks.json",
+pub(crate) const LAYOUT: TargetLayout = TargetLayout {
+    kind: TargetKind::Cursor,
+    capabilities: capabilities!(
+        Skill => Both,
+        Agent => Both,
+        Command => Both,
+        Instruction => ProjectOnly,
+        Hook => Both,
+    ),
+    personal_root: PersonalRoot::HomeSubdir(CURSOR_SUBDIR),
+    project_subdir: CURSOR_SUBDIR,
+    skill_dir_name: SkillDirName::Original,
+    agent_files: Some(FileSuffixStyle::PlainMarkdown),
+    command_files: Some(FileSuffixStyle::PlainMarkdown),
+    instruction_at: Some(InstructionPlacement::ProjectRootOrEnvRoot),
+    hooks: HookLayout::SingleFile {
+        filename: "hooks.json",
+    },
 };
-
-const SUPPORTED: &[ComponentKind] = &[
-    ComponentKind::Skill,
-    ComponentKind::Agent,
-    ComponentKind::Command,
-    ComponentKind::Instruction,
-    ComponentKind::Hook,
-];
-
-/// Instructions は Project のみ。それ以外は両スコープ。
-const CAPABILITIES: &[(ComponentKind, ScopeSupport)] = &[
-    (ComponentKind::Skill, ScopeSupport::Both),
-    (ComponentKind::Agent, ScopeSupport::Both),
-    (ComponentKind::Command, ScopeSupport::Both),
-    (ComponentKind::Instruction, ScopeSupport::ProjectOnly),
-    (ComponentKind::Hook, ScopeSupport::Both),
-];
 
 /// Cursor ターゲット
 pub struct CursorTarget;
@@ -48,10 +37,6 @@ pub struct CursorTarget;
 impl CursorTarget {
     pub fn new() -> Self {
         Self
-    }
-
-    fn base_dir(scope: Scope, project_root: &Path) -> PathBuf {
-        base_dir(scope, project_root, LAYOUT.subdir, LAYOUT.subdir)
     }
 
     /// Cursor は 1 スコープにつき単一の `hooks.json` を読むため、複数 Hook を拒否する。
@@ -106,7 +91,8 @@ impl CursorTarget {
         project_root: &Path,
         flattened_name: &str,
     ) -> PathBuf {
-        Self::base_dir(scope, project_root)
+        LAYOUT
+            .env_root(scope, project_root)
             .join(ComponentKind::Skill.plural())
             .join(flattened_name)
     }
@@ -150,42 +136,7 @@ impl Target for CursorTarget {
         TargetKind::Cursor
     }
 
-    fn supported_components(&self) -> &[ComponentKind] {
-        SUPPORTED
-    }
-
-    fn can_place_scope(&self, kind: ComponentKind, scope: Scope) -> bool {
-        allows_scope(CAPABILITIES, kind, scope)
-    }
-
-    fn placement_location(&self, context: &PlacementContext) -> Option<PlacementLocation> {
-        let kind = context.kind();
-        let scope = context.scope();
-        if !self.can_place_scope(kind, scope) {
-            return None;
-        }
-
-        let project_root = context.project_root();
-        let base = Self::base_dir(scope, project_root);
-        let name = context.name();
-
-        Some(match kind {
-            // Cursor は frontmatter `name` と親フォルダ名の一致を要求するため、
-            // Skill のみ元名で配置する（Issue #377）。`original_name` 未設定なら配置不可。
-            ComponentKind::Skill => {
-                let dir_name = context.original_name().filter(|n| !n.is_empty())?;
-                skill_dir(&base, dir_name)
-            }
-            ComponentKind::Agent => named_file(&base, ComponentKind::Agent.plural(), name, ".md"),
-            ComponentKind::Command => {
-                named_file(&base, ComponentKind::Command.plural(), name, ".md")
-            }
-            ComponentKind::Instruction => {
-                PlacementLocation::file(project_root.join(LAYOUT.instruction_file))
-            }
-            ComponentKind::Hook => PlacementLocation::file(base.join(LAYOUT.hooks_file)),
-        })
-    }
+    impl_target_layout!(LAYOUT);
 
     fn component_conflict_error(&self, components: &[Component]) -> Option<String> {
         Self::hook_component_conflict_error(components)
@@ -271,43 +222,6 @@ impl Target for CursorTarget {
             .map_err(|e| format!("Path validation failed: {}", e))?;
 
         Ok(vec![FileOperation::RemoveDir { path: scoped }])
-    }
-
-    fn list_placed(
-        &self,
-        kind: ComponentKind,
-        scope: Scope,
-        project_root: &Path,
-    ) -> Result<Vec<String>> {
-        if !self.can_place_scope(kind, scope) {
-            return Ok(vec![]);
-        }
-
-        if kind == ComponentKind::Instruction {
-            return Ok(list_instruction_at(
-                &project_root.join(LAYOUT.instruction_file),
-                LAYOUT.instruction_file,
-            ));
-        }
-
-        let base = Self::base_dir(scope, project_root);
-        match kind {
-            ComponentKind::Skill => {
-                scan_and_filter(&base, ComponentKind::Skill.plural(), filter_skill_dir)
-            }
-            ComponentKind::Agent => {
-                scan_and_filter(&base, ComponentKind::Agent.plural(), filter_plain_markdown)
-            }
-            ComponentKind::Command => scan_and_filter(
-                &base,
-                ComponentKind::Command.plural(),
-                filter_plain_markdown,
-            ),
-            ComponentKind::Hook => scan_and_filter_in(&base, |c| {
-                filter_exact_file(c, LAYOUT.hooks_file, ComponentKind::Hook.plural())
-            }),
-            _ => Ok(vec![]),
-        }
     }
 }
 

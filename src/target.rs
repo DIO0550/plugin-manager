@@ -24,6 +24,10 @@ mod effect;
 mod env;
 mod placed;
 
+pub(crate) use core::descriptor::{
+    impl_target_layout, FileSuffixStyle, HookLayout, InstructionPlacement, PersonalRoot,
+    SkillDirName, TargetLayout,
+};
 pub(crate) use core::paths;
 pub use core::{AddOutcome, RemoveOutcome, TargetRegistry};
 pub use effect::{AffectedTargets, OperationOutcome};
@@ -245,6 +249,8 @@ pub trait Target: Send + Sync {
     }
 
     /// サポートするコンポーネント種別
+    ///
+    /// 実ターゲットは宣言的レイアウト（`TargetLayout` / `Capabilities`）から導出する。
     fn supported_components(&self) -> &[ComponentKind];
 
     /// 指定コンポーネント種別をサポートするか
@@ -258,8 +264,9 @@ pub trait Target: Send + Sync {
 
     /// kind × scope で配置可能か（サポート判定の単一真実源）。
     ///
-    /// デフォルトは `supported_components` に含まれていれば両スコープ可。
-    /// Copilot / Cursor などスコープ制約があるターゲットは override する。
+    /// 実ターゲットは宣言的レイアウトの `Capabilities` から導出する。
+    /// デフォルトは `supported_components` に含まれていれば両スコープ可
+    ///（テスト用ダミー実装向け）。
     ///
     /// # Arguments
     ///

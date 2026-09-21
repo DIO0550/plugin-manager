@@ -1,7 +1,9 @@
 //! OpenCodeTarget unit tests（Skills / Agents / Commands / Instructions）
 
 use super::*;
-use crate::component::{ComponentRef, PlacementScope, ProjectContext};
+use crate::component::{
+    ComponentKind, ComponentRef, PlacementContext, PlacementScope, ProjectContext, Scope,
+};
 use crate::target::{CodexTarget, CursorTarget, PluginOrigin};
 use std::ffi::OsStr;
 use std::path::Path;
