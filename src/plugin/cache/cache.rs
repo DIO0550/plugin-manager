@@ -745,9 +745,9 @@ fn get_archive_prefix(zip: &mut ZipArchive<Cursor<&[u8]>>) -> Result<String> {
 
 /// アーカイブを展開（source_path 指定対応）
 ///
-/// zip-slip は `source_path` の有無に関わらず fail-closed。
-/// symlink は直接インストール（`source_path = None`）では展開せず警告スキップし、
-/// `source_path` 指定時は従来どおり fail-closed にする。
+/// zip-slip と symlink は `source_path` の有無に関わらず fail-closed。
+/// 検証は prefix / `source_path` 除去の後に行う。除去前は dest 内に見える `..` が、
+/// 除去後に zip-slip になるため（`enclosed_name` だけでは足りない）。
 ///
 /// # Arguments
 ///
@@ -766,10 +766,11 @@ fn extract_archive_with_source_path(
 
     let mut source_path_hit = false;
     let mut entries_skipped_for_security = 0usize;
-    let mut entries_skipped_symlinks = 0usize;
 
     for i in 0..zip.len() {
         let mut file = zip.by_index(i)?;
+        // Linux で合法な `..\..\evil` もここで `../../evil` になるため、
+        // 直後の安全性チェックが必須（#436）。
         let file_path_normalized = normalize_zip_entry_name(file.name());
 
         let relative_path = if !prefix.is_empty() && file_path_normalized.starts_with(&prefix) {
@@ -782,41 +783,24 @@ fn extract_archive_with_source_path(
             continue;
         }
 
-        let final_path = match source_path {
-            Some(sp) => {
-                match extract_with_source_path_filter(relative_path, sp, &mut source_path_hit) {
-                    Some(path) => path,
-                    None => continue,
-                }
-            }
-            None => PathBuf::from(relative_path),
+        let Some(final_path) = resolve_extract_path(
+            relative_path,
+            source_path,
+            &file,
+            &mut source_path_hit,
+            &mut entries_skipped_for_security,
+        ) else {
+            continue;
         };
 
-        // prefix / source_path 除去後に検証する。除去前は dest 内に見える `..` が、
-        // 除去後に zip-slip になるため（`enclosed_name` だけでは足りない）。
-        if is_zip_slip_path(&final_path) {
-            entries_skipped_for_security += 1;
-            continue;
-        }
-        if file.is_symlink() {
-            // GitHub zipball には正規リポジトリ由来の symlink が混ざることがある。
-            // 直接インストールを fail-closed にするとインストール自体が失敗するため、
-            // 展開せずスキップする。source_path 抽出は従来どおり拒否する。
-            if source_path.is_some() {
-                entries_skipped_for_security += 1;
-            } else {
-                entries_skipped_symlinks += 1;
-            }
-            continue;
-        }
-
-        let target_path = dest.join(&final_path);
-        if !target_path.starts_with(dest) {
+        let target = dest.join(&final_path);
+        // dest.join は絶対パスを渡すと dest を置き換えるため、正規化後も配下か再確認する
+        if !target.starts_with(dest) {
             entries_skipped_for_security += 1;
             continue;
         }
 
-        write_zip_entry(&mut file, &target_path)?;
+        write_zip_entry(&mut file, &target)?;
     }
 
     if entries_skipped_for_security > 0 {
@@ -824,12 +808,6 @@ fn extract_archive_with_source_path(
             "{} archive entries were skipped for security reasons (possible zip-slip or symlink)",
             entries_skipped_for_security
         )));
-    }
-    if entries_skipped_symlinks > 0 {
-        eprintln!(
-            "Warning: skipped {} symlink entries in archive (not extracted)",
-            entries_skipped_symlinks
-        );
     }
     if let Some(sp) = source_path {
         if !source_path_hit {
@@ -843,7 +821,39 @@ fn extract_archive_with_source_path(
     Ok(())
 }
 
-/// source_path フィルタを適用し、展開すべきパスを返す（None = スキップ）
+/// 展開先の相対パスを決定する。`source_path` の有無に関わらず同じ安全性検査を適用する。
+///
+/// `None` を返すのは (1) source_path に一致しない (2) source_path 自身のディレクトリエントリ
+/// (3) zip-slip / symlink でスキップ、のいずれか。
+///
+/// # Arguments
+///
+/// * `relative_path` - archive entry path after prefix removal
+/// * `source_path` - optional normalized sub-path being extracted
+/// * `file` - current zip entry (used for symlink inspection)
+/// * `source_path_hit` - updated to `true` when a matching filtered entry is seen
+/// * `entries_skipped` - incremented when an entry is skipped for security
+fn resolve_extract_path(
+    relative_path: &str,
+    source_path: Option<&str>,
+    file: &zip::read::ZipFile,
+    source_path_hit: &mut bool,
+    entries_skipped: &mut usize,
+) -> Option<PathBuf> {
+    let candidate = match source_path {
+        Some(sp) => extract_with_source_path_filter(relative_path, sp, source_path_hit)?,
+        None => PathBuf::from(relative_path),
+    };
+
+    if is_zip_slip_path(&candidate) || file.is_symlink() {
+        *entries_skipped += 1;
+        return None;
+    }
+
+    Some(candidate)
+}
+
+/// source_path 配下の相対パスへ落とす（一致しなければ None）。安全性検査は呼び出し側。
 ///
 /// パス安全性の判定は行わない。呼び出し側が prefix/source_path 除去後の
 /// パスに対して zip-slip / symlink 検証を適用すること。
@@ -858,10 +868,9 @@ fn extract_with_source_path_filter(
     source_path: &str,
     source_path_hit: &mut bool,
 ) -> Option<PathBuf> {
-    let relative_path_obj = Path::new(relative_path);
-    let source_path_obj = Path::new(source_path);
-
-    let stripped = relative_path_obj.strip_prefix(source_path_obj).ok()?;
+    let stripped = Path::new(relative_path)
+        .strip_prefix(Path::new(source_path))
+        .ok()?;
     *source_path_hit = true;
 
     if stripped.as_os_str().is_empty() {
