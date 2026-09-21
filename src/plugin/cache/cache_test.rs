@@ -326,6 +326,143 @@ fn test_store_from_archive_without_source_path_extracts_all() {
     assert!(plugin_dir.join("other/file.txt").exists());
 }
 
+/// zip-slip で上書きされる位置にセンチネルを置き、展開が dest 外へ漏れないことを検証する
+fn assert_zip_slip_rejected(cache_root: &std::path::Path, result: Result<PathBuf>) {
+    assert!(
+        result.is_err(),
+        "zip-slip archive must be rejected, got: {:?}",
+        result
+    );
+    match result.unwrap_err() {
+        PlmError::InvalidSource(msg) => {
+            assert!(
+                msg.contains("security") || msg.contains("zip-slip") || msg.contains("symlink"),
+                "unexpected InvalidSource message: {}",
+                msg
+            );
+        }
+        e => panic!("Expected InvalidSource error, got: {:?}", e),
+    }
+
+    let sentinel = cache_root.join("pwned.txt");
+    assert_eq!(
+        fs::read_to_string(&sentinel).unwrap(),
+        "safe",
+        "zip-slip must not overwrite files outside the plugin cache dir"
+    );
+    assert!(
+        !cache_root.join("github").join("pwned.txt").exists(),
+        "zip-slip must not write a sibling of the plugin dir"
+    );
+}
+
+#[test]
+fn test_store_from_archive_without_source_path_rejects_dotdot_traversal() {
+    // #436: source_path = None でも ../ トラバーサルを拒否し、キャッシュ外へ書き込まない
+    let temp_dir = TempDir::new().unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+    let sentinel = temp_dir.path().join("pwned.txt");
+    fs::write(&sentinel, "safe").unwrap();
+
+    // dest = <cache>/github/test-plugin なので ../../pwned.txt はキャッシュルートへ逃げる
+    let archive = create_test_archive(&[
+        (
+            "repo-main/plugin.json",
+            r#"{"name":"test","version":"1.0.0"}"#,
+        ),
+        ("repo-main/../../pwned.txt", "pwned"),
+    ]);
+
+    let result = cache.store_from_archive(None, "test-plugin", &archive, None);
+    assert_zip_slip_rejected(temp_dir.path(), result);
+}
+
+#[test]
+fn test_store_from_archive_without_source_path_rejects_backslash_normalized_traversal() {
+    // #436: Linux で合法な `..\..\pwned.txt` が '\' → '/' 正規化でトラバーサルになる経路
+    let temp_dir = TempDir::new().unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+    let sentinel = temp_dir.path().join("pwned.txt");
+    fs::write(&sentinel, "safe").unwrap();
+
+    let archive = create_test_archive(&[
+        (
+            "repo-main/plugin.json",
+            r#"{"name":"test","version":"1.0.0"}"#,
+        ),
+        ("repo-main/..\\..\\pwned.txt", "pwned"),
+    ]);
+
+    let result = cache.store_from_archive(None, "test-plugin", &archive, None);
+    assert_zip_slip_rejected(temp_dir.path(), result);
+}
+
+fn create_test_archive_with_symlink(
+    regular: &[(&str, &str)],
+    link_name: &str,
+    link_target: &str,
+) -> Vec<u8> {
+    use std::io::Write;
+    let mut buf = Vec::new();
+    {
+        let mut zip = zip::ZipWriter::new(std::io::Cursor::new(&mut buf));
+        let options = zip::write::SimpleFileOptions::default();
+
+        for (path, content) in regular {
+            zip.start_file(*path, options).unwrap();
+            zip.write_all(content.as_bytes()).unwrap();
+        }
+        zip.add_symlink(link_name, link_target, options).unwrap();
+        zip.finish().unwrap();
+    }
+    buf
+}
+
+#[test]
+fn test_store_from_archive_without_source_path_rejects_symlink_entries() {
+    // #436: source_path = None でも symlink エントリを展開しない
+    let temp_dir = TempDir::new().unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+    let archive = create_test_archive_with_symlink(
+        &[(
+            "repo-main/plugin.json",
+            r#"{"name":"test","version":"1.0.0"}"#,
+        )],
+        "repo-main/link",
+        "/tmp/evil",
+    );
+
+    let result = cache.store_from_archive(None, "test-plugin", &archive, None);
+    assert!(
+        result.is_err(),
+        "symlink entries must be rejected when source_path is None, got: {:?}",
+        result
+    );
+    match result.unwrap_err() {
+        PlmError::InvalidSource(msg) => {
+            assert!(
+                msg.contains("security") || msg.contains("symlink"),
+                "unexpected InvalidSource message: {}",
+                msg
+            );
+        }
+        e => panic!("Expected InvalidSource error, got: {:?}", e),
+    }
+
+    let plugin_dir = cache.plugin_path(None, "test-plugin");
+    let link_path = plugin_dir.join("link");
+    if link_path.exists() {
+        let meta = fs::symlink_metadata(&link_path).unwrap();
+        assert!(
+            !meta.file_type().is_symlink(),
+            "zip symlink must not be materialized on disk"
+        );
+    }
+}
+
 #[test]
 fn test_store_from_archive_handles_backslash_entries() {
     // テストケース20: zip内の \ 区切りエントリを / に正規化後一致
