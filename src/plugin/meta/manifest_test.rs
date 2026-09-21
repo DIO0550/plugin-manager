@@ -104,12 +104,9 @@ fn test_skills_dir_with_dot_slash() {
 
 #[test]
 fn test_skills_dir_absolute_path() {
-    // 絶対パス指定
+    // 絶対パスは拒否される（パストラバーサル対策）
     let json = r#"{"name": "test", "version": "1.0.0", "skills": "/absolute/path"}"#;
-    let manifest = PluginManifest::parse(json).unwrap();
-    let base = Path::new("/plugin");
-    // 絶対パスは base を置換する（Path::join の仕様）
-    assert_eq!(manifest.skills_dir(base), Path::new("/absolute/path"));
+    assert!(PluginManifest::parse(json).is_err());
 }
 
 #[test]
@@ -192,4 +189,50 @@ fn parse_legacy_manifest_with_installed_at_ignores_unknown_field() {
     let manifest = PluginManifest::parse(json).expect("parse must not fail");
     assert_eq!(manifest.name, "legacy-plugin");
     assert_eq!(manifest.version, "1.0.0");
+}
+
+// === セキュリティテスト: パストラバーサル拒否 ===
+
+#[test]
+fn test_parse_skills_traversal_dotdot() {
+    // .. によるパスエスケープは拒否される
+    let json = r#"{"name": "test", "version": "1.0.0", "skills": "../../etc"}"#;
+    assert!(PluginManifest::parse(json).is_err());
+}
+
+#[test]
+fn test_parse_instructions_absolute_path() {
+    // 絶対パスは拒否される
+    let json = r#"{"name": "test", "version": "1.0.0", "instructions": "/home/user/.ssh/id_rsa"}"#;
+    assert!(PluginManifest::parse(json).is_err());
+}
+
+#[test]
+fn test_parse_agents_traversal_leading_dotdot() {
+    // ../ で始まるパスは拒否される
+    let json = r#"{"name": "test", "version": "1.0.0", "agents": "../outside"}"#;
+    assert!(PluginManifest::parse(json).is_err());
+}
+
+#[test]
+fn test_parse_commands_traversal_middle() {
+    // 中間に .. があるパスは拒否される
+    let json = r#"{"name": "test", "version": "1.0.0", "commands": "sub/../../../etc"}"#;
+    assert!(PluginManifest::parse(json).is_err());
+}
+
+#[test]
+fn test_parse_hooks_absolute_path() {
+    // 絶対パスは拒否される
+    let json = r#"{"name": "test", "version": "1.0.0", "hooks": "/etc/passwd"}"#;
+    assert!(PluginManifest::parse(json).is_err());
+}
+
+#[test]
+fn test_parse_valid_nested_relative_path() {
+    // 有効な相対パス（サブディレクトリ含む）は許可される
+    let json = r#"{"name": "test", "version": "1.0.0", "skills": "sub/skills"}"#;
+    let manifest = PluginManifest::parse(json).unwrap();
+    let base = Path::new("/plugin");
+    assert_eq!(manifest.skills_dir(base), Path::new("/plugin/sub/skills"));
 }
