@@ -160,6 +160,20 @@ PLMのキャッシュ設計について説明します。
 | **永続化** | `sourceRepo` + `gitRef`からソース参照を復元可能 |
 | **marketplace追跡** | どのmarketplaceからインストールしたかを記録 |
 
+## アーカイブ展開時のパス検証
+
+`extract_archive_with_source_path` は GitHub zipball 等をキャッシュへ展開する。zip-slip と symlink を防ぐため、次を適用する。
+
+1. エントリ名の `\` を `/` に正規化する（Windows 由来 zip 対応）。この置換は `foo\..\bar` を `foo/../bar` に変えてパストラバーサルを作り出し得る。
+2. トップレベル prefix（GitHub zipball の `repo-ref/`）を除去する。
+3. `source_path` 指定時はその配下だけを残す。
+4. 残った相対パスの component が全て `Normal` であること（`..` / 絶対パス / Windows prefix / `.` を拒否）。
+5. zip エントリが symlink（`S_IFLNK`）なら展開しない。直接インストール（`source_path` 未指定）では警告してスキップし、インストール自体は継続する。`source_path` 指定時は `InvalidSource` で失敗する。
+6. 最終ターゲットが展開先ディレクトリ配下であること。
+7. zip-slip（手順 4 / 6）を 1 件でも検出したら `InvalidSource` で失敗する（fail-closed）。
+
+検証は prefix / `source_path` 除去の**後**に行う。除去前は展開先内に見える `..` が、除去後に zip-slip になるため、zip crate の `enclosed_name()` だけでは足りない。
+
 ## キャッシュ操作
 
 - **ルート解決**: キャッシュルートは `{PLM_HOME|$HOME}/.plm/cache/plugins/`（`PLM_HOME` は `$HOME` の代替。未設定時は `$HOME/.plm/cache/plugins/`）。
