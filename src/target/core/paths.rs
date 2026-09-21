@@ -1,6 +1,8 @@
 //! Target 共通のパス計算ユーティリティ
 
 use crate::component::Scope;
+use crate::env::EnvVar;
+use crate::placement_names::OPENCODE_PERSONAL_PARENT;
 use std::path::{Path, PathBuf};
 
 /// ホームディレクトリを返す。
@@ -41,6 +43,14 @@ pub(crate) fn base_dir(
         Scope::Personal => home_dir().join(personal_subdir),
         Scope::Project => project_root.join(project_subdir),
     }
+}
+
+/// `$XDG_CONFIG_HOME/<child>`。未設定・空・空白のみなら `home/.config/<child>`。
+pub(crate) fn xdg_config_child(home: &Path, child: &str) -> PathBuf {
+    if let Some(xdg) = EnvVar::get("XDG_CONFIG_HOME").filter(|s| !s.trim().is_empty()) {
+        return PathBuf::from(xdg.trim()).join(child);
+    }
+    home.join(OPENCODE_PERSONAL_PARENT).join(child)
 }
 
 #[cfg(test)]

@@ -45,7 +45,10 @@ impl TargetKind {
             TargetKind::GeminiCli => home.join(placement_names::GEMINI_SUBDIR),
             TargetKind::Cursor => home.join(placement_names::CURSOR_SUBDIR),
             // XDG_CONFIG_HOME を尊重（#418）
-            TargetKind::OpenCode => crate::target::env::personal_root_from_env(home),
+            TargetKind::OpenCode => super::paths::xdg_config_child(
+                home,
+                crate::placement_names::OPENCODE_PERSONAL_CHILD,
+            ),
         }
     }
 

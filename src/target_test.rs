@@ -1,4 +1,5 @@
 use super::*;
+use crate::component::{ComponentRef, PlacementScope, ProjectContext};
 
 #[test]
 fn test_parse_target_codex() {
@@ -148,6 +149,42 @@ fn test_can_place_scope_matches_supports_and_supported_components() {
                 target.name(),
                 kind
             );
+        }
+    }
+}
+
+#[test]
+fn test_placement_location_none_iff_cannot_place_scope() {
+    // original_name を付けて Skill の「元名必須」経路も配置可にする。
+    // can_place_scope が false なら placement_location は必ず None。
+    // true なら（データ不足以外の理由で）Some。両者の乖離を禁止する。
+    let origin = PluginOrigin::from_marketplace("official", "plugin");
+    let project_root = Path::new("/project");
+    for target in all_targets() {
+        for &kind in ComponentKind::all() {
+            for &scope in &[Scope::Personal, Scope::Project] {
+                let ctx = PlacementContext {
+                    component: ComponentRef::with_names(kind, "plugin_comp", "comp", "plugin"),
+                    origin: &origin,
+                    scope: PlacementScope::new(scope),
+                    project: ProjectContext::new(project_root),
+                };
+                let can_place = target.can_place_scope(kind, scope);
+                let location = target.placement_location(&ctx);
+                assert_eq!(
+                    location.is_some(),
+                    can_place,
+                    "{} {:?} {:?} can_place_scope={} placement={}",
+                    target.name(),
+                    kind,
+                    scope,
+                    can_place,
+                    location
+                        .as_ref()
+                        .map(|loc| loc.as_path().display().to_string())
+                        .unwrap_or_else(|| "None".to_string()),
+                );
+            }
         }
     }
 }

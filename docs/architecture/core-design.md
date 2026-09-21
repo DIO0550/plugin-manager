@@ -304,16 +304,16 @@ fn open_browser(url: &str) -> Result<()> {
 
 ## Target 配置ヘルパ（#338）
 
-`target/env/` の同型コピペを解消するため、配置・列挙の共通骨格を `src/target/placed/` に抽出している。
+`target/env/` の同型コピペを解消するため、配置差分は宣言的な `TargetLayout`（`src/target/core/descriptor.rs`）に集約する。
 
-| モジュール | 役割 |
-|------------|------|
-| `filter` | `filter_skill_dir` 等のスキャン結果フィルタ |
-| `list_helpers` | `scan_and_filter` / `list_instruction_at` |
-| `placement_helpers` | `skill_dir` / `agent_file` / `instruction_file` |
-| `scope_support` | kind × scope の薄い `ScopeSupport` 表 |
+| 層 | 役割 |
+|----|------|
+| `TargetLayout` | ケイパビリティ表・環境ルート・Skill 命名・ファイルサフィックス・Instruction / Hook 形状 |
+| `Capabilities` / `capabilities!` | kind × scope の単一真実源。`supported_components` と `can_place_scope` を同時生成 |
+| `filter` / `list_helpers` / `placement_helpers` | スキャン・パス組み立ての共通部品 |
+| 各 env `impl Target` | `impl_target_layout!(LAYOUT)` で委譲。Hook 上書きガード等の振る舞いだけ残す |
 
-サポート判定の単一真実源は `Target::can_place_scope`（`supports_scope` はこれを呼ぶ）。各 env は `CAPABILITIES` 定数とパス用 `LAYOUT` 定数を持ち、振る舞いフック（Hook 上書きガード等）は各 `impl` に残す。
+サポート判定の単一真実源は `TargetLayout.capabilities`。`supported_components` / `can_place_scope` / `placement_location` / `list_placed` はそこから導出するため、スライスと `can_place` が乖離してもコンパイルが通る状態には戻らない。ダミー `PlacementContext` プロービングは使わない。
 
 ### 配置リテラル（#339）
 
