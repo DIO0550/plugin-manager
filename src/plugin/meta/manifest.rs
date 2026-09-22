@@ -101,8 +101,9 @@ impl PluginManifest {
     ///
     /// * `content` - JSON string representing the plugin manifest.
     pub fn parse(content: &str) -> Result<Self> {
-        let manifest: Self = serde_json::from_str(content)
-            .map_err(|e| PlmError::InvalidManifest(format!("Failed to parse plugin.json: {}", e)))?;
+        let manifest: Self = serde_json::from_str(content).map_err(|e| {
+            PlmError::InvalidManifest(format!("Failed to parse plugin.json: {}", e))
+        })?;
         manifest.validate_paths()?;
         Ok(manifest)
     }
