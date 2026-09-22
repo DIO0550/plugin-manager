@@ -1013,6 +1013,56 @@ fn test_atomic_update_cleans_up_temp_on_failure() {
 }
 
 // =============================================================================
+// atomic_update_with_source_path: source_path validation tests
+// =============================================================================
+
+#[test]
+fn test_atomic_update_with_source_path_rejects_backslash() {
+    let temp_dir = TempDir::new().unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+    let archive = create_test_archive(&[("repo-main/plugins/foo/plugin.json", r#"{"name":"p"}"#)]);
+
+    let result = cache.atomic_update_with_source_path(
+        Some("github"),
+        "test-plugin",
+        &archive,
+        Some("plugins\\foo"),
+    );
+
+    assert!(result.is_err());
+    match result.unwrap_err() {
+        PlmError::InvalidSource(msg) => {
+            assert!(msg.contains("not normalized"));
+        }
+        e => panic!("Expected InvalidSource error, got: {:?}", e),
+    }
+}
+
+#[test]
+fn test_atomic_update_with_source_path_rejects_dot_dot() {
+    let temp_dir = TempDir::new().unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+    let archive = create_test_archive(&[("repo-main/plugin.json", r#"{"name":"p"}"#)]);
+
+    let result = cache.atomic_update_with_source_path(
+        Some("github"),
+        "test-plugin",
+        &archive,
+        Some("../escape"),
+    );
+
+    assert!(result.is_err());
+    match result.unwrap_err() {
+        PlmError::InvalidSource(msg) => {
+            assert!(msg.contains("not normalized"));
+        }
+        e => panic!("Expected InvalidSource error, got: {:?}", e),
+    }
+}
+
+// =============================================================================
 // staging API tests: stage_from_archive / commit_staged / discard_staged
 // =============================================================================
 
