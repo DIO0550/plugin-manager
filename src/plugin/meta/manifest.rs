@@ -2,11 +2,52 @@ use crate::component::ComponentKind;
 use crate::error::{PlmError, Result};
 use crate::path_ext::PathExt;
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::path::{Component as PathComponent, Path, PathBuf};
 
 /// プラグインパッケージ内のデフォルト instruction ファイル名。
 /// ターゲット配置の `AGENTS.md` 等とは別概念。
 const DEFAULT_INSTRUCTIONS_FILE: &str = "instructions.md";
+
+/// マニフェストのコンポーネントパスフィールドを検証する。
+///
+/// 以下の場合にエラーを返す:
+/// - 絶対パス（`/foo`, `C:\foo` 等）
+/// - `..` を含むパス（ディレクトリトラバーサル）
+/// - `\0` を含むパス
+///
+/// 空文字と有効な相対パスは通過させる。
+pub(crate) fn validate_manifest_path_field(field: &str, value: &str) -> Result<()> {
+    let p = Path::new(value);
+    if p.is_absolute() {
+        return Err(PlmError::InvalidManifest(format!(
+            "manifest field '{}': absolute path '{}' is not allowed; \
+             specify a relative path within the plugin root",
+            field, value
+        )));
+    }
+    for component in p.components() {
+        match component {
+            PathComponent::ParentDir => {
+                return Err(PlmError::InvalidManifest(format!(
+                    "manifest field '{}': path '{}' must not contain '..' \
+                     (directory traversal is not allowed)",
+                    field, value
+                )));
+            }
+            PathComponent::Normal(s) => {
+                let s = s.to_string_lossy();
+                if s.contains('\0') {
+                    return Err(PlmError::InvalidManifest(format!(
+                        "manifest field '{}': path '{}' must not contain null bytes",
+                        field, value
+                    )));
+                }
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
 
 /// プラグイン作者情報
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -60,8 +101,30 @@ impl PluginManifest {
     ///
     /// * `content` - JSON string representing the plugin manifest.
     pub fn parse(content: &str) -> Result<Self> {
-        serde_json::from_str(content)
-            .map_err(|e| PlmError::InvalidManifest(format!("Failed to parse plugin.json: {}", e)))
+        let manifest: Self = serde_json::from_str(content).map_err(|e| {
+            PlmError::InvalidManifest(format!("Failed to parse plugin.json: {}", e))
+        })?;
+        manifest.validate_paths()?;
+        Ok(manifest)
+    }
+
+    /// コンポーネントパスフィールドを一括検証する
+    fn validate_paths(&self) -> Result<()> {
+        let path_fields: &[(&str, Option<&str>)] = &[
+            ("skills", self.skills.as_deref()),
+            ("agents", self.agents.as_deref()),
+            ("commands", self.commands.as_deref()),
+            ("instructions", self.instructions.as_deref()),
+            ("hooks", self.hooks.as_deref()),
+            ("mcpServers", self.mcp_servers.as_deref()),
+            ("lspServers", self.lsp_servers.as_deref()),
+        ];
+        for (field, value) in path_fields {
+            if let Some(v) = value {
+                validate_manifest_path_field(field, v)?;
+            }
+        }
+        Ok(())
     }
 
     /// ファイルから読み込み

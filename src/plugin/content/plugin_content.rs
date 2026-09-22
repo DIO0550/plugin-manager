@@ -4,6 +4,7 @@
 
 use crate::component::{Component, ComponentKind};
 use crate::error::{PlmError, Result};
+use crate::plugin::meta::manifest::validate_manifest_path_field;
 use crate::plugin::PluginManifest;
 use crate::scan::{
     file_stem_name, list_agent_names, list_command_names, list_hook_names, list_markdown_names,
@@ -151,7 +152,7 @@ impl Plugin {
             components.extend(flattened);
         }
 
-        Self::build_instructions(path, manifest, &mut components);
+        Self::build_instructions(path, manifest, &mut components)?;
 
         Ok(components)
     }
@@ -163,25 +164,30 @@ impl Plugin {
     /// * `path` - Plugin root directory used to resolve instruction paths.
     /// * `manifest` - Plugin manifest that optionally specifies an instructions path.
     /// * `components` - Output buffer that receives discovered instruction components.
-    fn build_instructions(path: &Path, manifest: &PluginManifest, components: &mut Vec<Component>) {
+    fn build_instructions(
+        path: &Path,
+        manifest: &PluginManifest,
+        components: &mut Vec<Component>,
+    ) -> Result<()> {
         if let Some(path_str) = &manifest.instructions {
+            validate_manifest_path_field("instructions", path_str)?;
             let instr_path = path.join(path_str);
 
             if instr_path.is_file() {
                 if let Some(name) = file_stem_name(&instr_path) {
                     components.push(Component::new(ComponentKind::Instruction, name, instr_path));
                 }
-                return;
+                return Ok(());
             }
 
             if instr_path.is_dir() {
                 for (name, p) in list_markdown_names(&instr_path) {
                     components.push(Component::new(ComponentKind::Instruction, name, p));
                 }
-                return;
+                return Ok(());
             }
 
-            return;
+            return Ok(());
         }
 
         for (name, p) in list_markdown_names(&manifest.instructions_dir(path)) {
@@ -196,6 +202,7 @@ impl Plugin {
                 agents_md,
             ));
         }
+        Ok(())
     }
 
     /// スキルディレクトリのパスを解決
