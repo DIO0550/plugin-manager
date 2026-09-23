@@ -566,7 +566,12 @@ async fn do_safe_update(
         for t in &failed {
             updated_meta.set_status(t, TargetStatus::Disabled);
         }
-        let _ = meta::write_meta(&plugin_path, &updated_meta);
+        if let Err(e) = meta::write_meta(&plugin_path, &updated_meta) {
+            eprintln!(
+                "  Warning: failed to update metadata after partial deploy failure: {}",
+                e
+            );
+        }
     }
 
     let _ = cache.remove_backup(marketplace, cache_id);
