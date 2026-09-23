@@ -490,8 +490,10 @@ async fn update_marketplace_plugin(
 
 /// 安全更新フローの共通実装
 ///
-/// `backup → fetch → atomic_update_with_source_path → redeploy → meta merge → write_meta → remove_backup`
+/// `backup → fetch → atomic_update_with_source_path → meta merge → write_meta → redeploy → remove_backup`
 /// の順で実行し、各失敗ポイントで `cache.restore` による rollback を行う。
+/// write_meta を redeploy より前に行うことで、write_meta 失敗時に
+/// デプロイ先と旧キャッシュが不整合になることを防ぐ。
 #[allow(clippy::too_many_arguments)]
 async fn do_safe_update(
     cache: &dyn PackageCacheAccess,
@@ -537,23 +539,34 @@ async fn do_safe_update(
             }
         };
 
-    println!("  Deploying...");
     let enabled = old_meta.enabled_targets();
     let targets: Vec<&str> = match target_filter {
         Some(f) => enabled.into_iter().filter(|t| *t == f).collect(),
         None => enabled,
     };
-    let (deployed, failed) =
-        redeploy_to_targets(cache, cache_id, marketplace, &targets, project_root);
 
+    // write_meta を redeploy より先に行うことで、
+    // write_meta 失敗時にキャッシュのみを旧版へ戻せば整合性が保たれる。
+    // redeploy 後に write_meta が失敗すると、デプロイ先は新版のままキャッシュだけ
+    // 旧版へ巻き戻る不整合が生じるため、この順序が重要。
     let mut new_meta = old_meta.clone();
     new_meta.set_git_info(git_ref, &archive_sha);
-    for t in &failed {
-        new_meta.set_status(t, TargetStatus::Disabled);
-    }
     if let Err(e) = meta::write_meta(&plugin_path, &new_meta) {
         let _ = cache.restore(marketplace, cache_id);
         return UpdateOutcome::failed(display_name, format!("Failed to write metadata: {}", e));
+    }
+
+    println!("  Deploying...");
+    let (deployed, failed) =
+        redeploy_to_targets(cache, cache_id, marketplace, &targets, project_root);
+
+    // redeploy 失敗ターゲットのステータスを更新して meta を再書き込み
+    if !failed.is_empty() {
+        let mut updated_meta = new_meta.clone();
+        for t in &failed {
+            updated_meta.set_status(t, TargetStatus::Disabled);
+        }
+        let _ = meta::write_meta(&plugin_path, &updated_meta);
     }
 
     let _ = cache.remove_backup(marketplace, cache_id);
