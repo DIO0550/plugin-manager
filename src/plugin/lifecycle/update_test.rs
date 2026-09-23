@@ -1013,3 +1013,451 @@ mod batch {
         assert_eq!(read_data_in(&cache_dir, "mymarket", "foo"), "v1");
     }
 }
+
+// =============================================================================
+// 単独更新 (do_safe_update) テスト
+// =============================================================================
+
+mod single {
+    use super::super::*;
+    use crate::host::HostKind;
+    use crate::plugin::{meta, PackageCache, PackageCacheAccess, PluginManifest};
+    use crate::repo::Repo;
+    use std::fs;
+    use std::future::Future;
+    use std::io::Write;
+    use std::path::{Path, PathBuf};
+    use std::pin::Pin;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use tempfile::TempDir;
+
+    const OLD_SHA: &str = "oldsha_single";
+
+    fn make_zip(entries: &[(&str, &str)]) -> Vec<u8> {
+        let mut buf = Vec::new();
+        {
+            let mut zip = zip::ZipWriter::new(std::io::Cursor::new(&mut buf));
+            let options = zip::write::SimpleFileOptions::default();
+            for (path, content) in entries {
+                zip.start_file(*path, options).unwrap();
+                zip.write_all(content.as_bytes()).unwrap();
+            }
+            zip.finish().unwrap();
+        }
+        buf
+    }
+
+    fn valid_archive(name: &str) -> Vec<u8> {
+        let manifest = format!(r#"{{"name":"{}","version":"2.0.0"}}"#, name);
+        make_zip(&[
+            ("pkg-main/plugin.json", manifest.as_str()),
+            ("pkg-main/data.txt", "v2"),
+        ])
+    }
+
+    fn setup_plugin(cache_dir: &Path, cache_id: &str, installed_sha: &str, enabled: &[&str]) {
+        let dir = cache_dir.join("github").join(cache_id);
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(
+            dir.join("plugin.json"),
+            format!(r#"{{"name":"{}","version":"1.0.0"}}"#, cache_id),
+        )
+        .unwrap();
+        fs::write(dir.join("data.txt"), "v1").unwrap();
+
+        let status_json = if enabled.is_empty() {
+            String::new()
+        } else {
+            let entries: Vec<String> = enabled
+                .iter()
+                .map(|t| format!(r#""{}":"enabled""#, t))
+                .collect();
+            format!(r#","statusByTarget":{{{}}}"#, entries.join(","))
+        };
+        let meta_str = format!(
+            r#"{{"gitRef":"main","commitSha":"{}","sourceRepo":"owner/{}"{}}}"#,
+            installed_sha, cache_id, status_json
+        );
+        fs::write(dir.join(".plm-meta.json"), meta_str).unwrap();
+    }
+
+    fn read_data(cache_dir: &Path, cache_id: &str) -> String {
+        fs::read_to_string(
+            cache_dir
+                .join("github")
+                .join(cache_id)
+                .join("data.txt"),
+        )
+        .unwrap_or_default()
+    }
+
+    fn read_commit_sha(cache_dir: &Path, cache_id: &str) -> Option<String> {
+        let path = cache_dir
+            .join("github")
+            .join(cache_id)
+            .join(".plm-meta.json");
+        let content = fs::read_to_string(path).ok()?;
+        let v: serde_json::Value = serde_json::from_str(&content).ok()?;
+        v.get("commitSha")
+            .and_then(|s| s.as_str())
+            .map(String::from)
+    }
+
+    fn backup_exists(cache_dir: &Path, cache_id: &str) -> bool {
+        cache_dir
+            .join(".backup")
+            .join("github")
+            .join(cache_id)
+            .exists()
+    }
+
+    // ── モッククライアント（単独更新テスト用） ─────────────────────────
+
+    struct MockClient {
+        archive: Vec<u8>,
+        sha: String,
+    }
+
+    impl MockClient {
+        fn valid(name: &str) -> Self {
+            Self {
+                archive: valid_archive(name),
+                sha: format!("commit-{}", name),
+            }
+        }
+    }
+
+    impl HostClient for MockClient {
+        fn get_default_branch<'a>(
+            &'a self,
+            _repo: &'a Repo,
+        ) -> Pin<Box<dyn Future<Output = crate::error::Result<String>> + Send + 'a>> {
+            Box::pin(async { Ok("main".to_string()) })
+        }
+
+        fn get_commit_sha<'a>(
+            &'a self,
+            _repo: &'a Repo,
+            _git_ref: &'a str,
+        ) -> Pin<Box<dyn Future<Output = crate::error::Result<String>> + Send + 'a>> {
+            let sha = self.sha.clone();
+            Box::pin(async move { Ok(sha) })
+        }
+
+        fn download_archive<'a>(
+            &'a self,
+            _repo: &'a Repo,
+        ) -> Pin<Box<dyn Future<Output = crate::error::Result<Vec<u8>>> + Send + 'a>> {
+            Box::pin(async { Ok(vec![]) })
+        }
+
+        fn download_archive_with_sha<'a>(
+            &'a self,
+            _repo: &'a Repo,
+        ) -> Pin<Box<dyn Future<Output = crate::error::Result<(Vec<u8>, String, String)>> + Send + 'a>>
+        {
+            let archive = self.archive.clone();
+            let sha = self.sha.clone();
+            Box::pin(async move { Ok((archive, "main".to_string(), sha)) })
+        }
+
+        fn fetch_file<'a>(
+            &'a self,
+            _repo: &'a Repo,
+            _path: &'a str,
+        ) -> Pin<Box<dyn Future<Output = crate::error::Result<String>> + Send + 'a>> {
+            Box::pin(async { Ok(String::new()) })
+        }
+    }
+
+    // ── 障害注入キャッシュ ────────────────────────────────────────────
+
+    struct SingleCache {
+        inner: PackageCache,
+        /// `atomic_update_with_source_path` 成功後に `.plm-meta.json` ディレクトリを
+        /// 作成して後続の `write_meta` を EISDIR エラーで失敗させる
+        block_meta_write: bool,
+        /// `is_cached` を常に false にして `enable_plugin` を失敗させる
+        force_not_cached: bool,
+        /// `is_cached` 呼び出し回数（redeploy の有無を確認するためのスパイ）
+        is_cached_calls: AtomicUsize,
+    }
+
+    impl SingleCache {
+        fn new(cache_dir: PathBuf) -> Self {
+            Self {
+                inner: PackageCache::with_cache_dir(cache_dir).unwrap(),
+                block_meta_write: false,
+                force_not_cached: false,
+                is_cached_calls: AtomicUsize::new(0),
+            }
+        }
+    }
+
+    impl PackageCacheAccess for SingleCache {
+        fn plugin_path(&self, marketplace: Option<&str>, name: &str) -> PathBuf {
+            self.inner.plugin_path(marketplace, name)
+        }
+
+        fn is_cached(&self, marketplace: Option<&str>, name: &str) -> bool {
+            self.is_cached_calls.fetch_add(1, Ordering::SeqCst);
+            if self.force_not_cached {
+                return false;
+            }
+            self.inner.is_cached(marketplace, name)
+        }
+
+        fn store_from_archive(
+            &self,
+            marketplace: Option<&str>,
+            name: &str,
+            archive: &[u8],
+            source_path: Option<&str>,
+        ) -> crate::error::Result<PathBuf> {
+            self.inner
+                .store_from_archive(marketplace, name, archive, source_path)
+        }
+
+        fn load_manifest(
+            &self,
+            marketplace: Option<&str>,
+            name: &str,
+        ) -> crate::error::Result<PluginManifest> {
+            self.inner.load_manifest(marketplace, name)
+        }
+
+        fn remove(&self, marketplace: Option<&str>, name: &str) -> crate::error::Result<()> {
+            self.inner.remove(marketplace, name)
+        }
+
+        fn list(&self) -> crate::error::Result<Vec<(Option<String>, String)>> {
+            self.inner.list()
+        }
+
+        fn backup(
+            &self,
+            marketplace: Option<&str>,
+            name: &str,
+        ) -> crate::error::Result<PathBuf> {
+            self.inner.backup(marketplace, name)
+        }
+
+        fn restore(&self, marketplace: Option<&str>, name: &str) -> crate::error::Result<()> {
+            self.inner.restore(marketplace, name)
+        }
+
+        fn remove_backup(
+            &self,
+            marketplace: Option<&str>,
+            name: &str,
+        ) -> crate::error::Result<()> {
+            self.inner.remove_backup(marketplace, name)
+        }
+
+        fn atomic_update(
+            &self,
+            marketplace: Option<&str>,
+            name: &str,
+            archive: &[u8],
+        ) -> crate::error::Result<PathBuf> {
+            self.inner.atomic_update(marketplace, name, archive)
+        }
+
+        fn atomic_update_with_source_path(
+            &self,
+            marketplace: Option<&str>,
+            name: &str,
+            archive: &[u8],
+            source_path: Option<&str>,
+        ) -> crate::error::Result<PathBuf> {
+            let path = self
+                .inner
+                .atomic_update_with_source_path(marketplace, name, archive, source_path)?;
+            if self.block_meta_write {
+                // `.plm-meta.json` をディレクトリとして作成し、後続の write_meta で
+                // rename 先がディレクトリになるため EISDIR エラーを発生させる。
+                // restore は remove_dir_all で当該ディレクトリを含め削除するため問題ない。
+                fs::create_dir_all(path.join(".plm-meta.json")).unwrap();
+            }
+            Ok(path)
+        }
+
+        fn stage_from_archive(
+            &self,
+            marketplace: Option<&str>,
+            name: &str,
+            archive: &[u8],
+            source_path: Option<&str>,
+        ) -> crate::error::Result<PathBuf> {
+            self.inner
+                .stage_from_archive(marketplace, name, archive, source_path)
+        }
+
+        fn commit_staged(
+            &self,
+            marketplace: Option<&str>,
+            name: &str,
+        ) -> crate::error::Result<PathBuf> {
+            self.inner.commit_staged(marketplace, name)
+        }
+
+        fn discard_staged(
+            &self,
+            marketplace: Option<&str>,
+            name: &str,
+        ) -> crate::error::Result<()> {
+            self.inner.discard_staged(marketplace, name)
+        }
+
+        fn has_marketplace_entry(
+            &self,
+            marketplace: &str,
+            entry: &str,
+        ) -> crate::error::Result<bool> {
+            self.inner.has_marketplace_entry(marketplace, entry)
+        }
+
+        fn remove_marketplace_entry(
+            &self,
+            marketplace: &str,
+            entry: &str,
+        ) -> crate::error::Result<()> {
+            self.inner.remove_marketplace_entry(marketplace, entry)
+        }
+
+        fn list_marketplace_entries(
+            &self,
+            marketplace: &str,
+        ) -> crate::error::Result<Vec<String>> {
+            self.inner.list_marketplace_entries(marketplace)
+        }
+    }
+
+    // ── テスト ────────────────────────────────────────────────────────
+
+    /// write_meta 失敗時はキャッシュを復元し redeploy を行わないこと
+    ///
+    /// 修正前の挙動: redeploy → write_meta → 失敗 → cache.restore
+    ///   デプロイ先が新版のままキャッシュだけ旧版へ巻き戻る不整合が生じる。
+    /// 修正後の挙動: write_meta → 失敗 → cache.restore （redeploy は一切呼ばれない）
+    ///   is_cached_calls == 0 で redeploy が実行されなかったことを検証する。
+    #[tokio::test]
+    async fn test_write_meta_failure_restores_cache_and_skips_deploy() {
+        let tmp = TempDir::new().unwrap();
+        let cache_dir = tmp.path().to_path_buf();
+        // "codex" を enabled ターゲットとして登録
+        // （redeploy が呼ばれると enable_plugin → is_cached が呼ばれカウントが増える）
+        setup_plugin(&cache_dir, "repoA", OLD_SHA, &["codex"]);
+
+        let mut cache = SingleCache::new(cache_dir.clone());
+        cache.block_meta_write = true;
+
+        let old_meta = meta::load_meta(&cache_dir.join("github").join("repoA"))
+            .unwrap_or_default();
+        let client = MockClient::valid("repoA");
+        let repo = Repo::new(HostKind::GitHub, "owner", "repoA", Some("main".to_string()));
+
+        let outcome = super::super::do_safe_update(
+            &cache,
+            None,
+            "repoA",
+            "repoA",
+            &old_meta,
+            &client,
+            &repo,
+            None,
+            tmp.path(),
+            None,
+        )
+        .await;
+
+        // write_meta 失敗 → Outcome は Failed
+        assert!(
+            matches!(outcome.status, UpdateStatus::Failed),
+            "expected Failed, got {:?}",
+            outcome.status
+        );
+        // cache.restore により旧版へ戻っていること
+        assert_eq!(
+            read_data(&cache_dir, "repoA"),
+            "v1",
+            "cache data should be restored to v1"
+        );
+        assert_eq!(
+            read_commit_sha(&cache_dir, "repoA").as_deref(),
+            Some(OLD_SHA),
+            "commit_sha should be restored to old value"
+        );
+        // backup は restore により削除されていること
+        assert!(
+            !backup_exists(&cache_dir, "repoA"),
+            "backup should be removed after restore"
+        );
+        // redeploy（enable_plugin）が一切呼ばれなかったこと
+        assert_eq!(
+            cache.is_cached_calls.load(Ordering::SeqCst),
+            0,
+            "deploy must not be attempted when write_meta fails before redeploy"
+        );
+    }
+
+    /// 部分 redeploy 失敗時に失敗ターゲットを Disabled としてメタに永続化すること
+    #[tokio::test]
+    async fn test_partial_redeploy_failure_persists_disabled() {
+        let tmp = TempDir::new().unwrap();
+        let cache_dir = tmp.path().to_path_buf();
+        setup_plugin(&cache_dir, "repoA", OLD_SHA, &["codex"]);
+
+        let mut cache = SingleCache::new(cache_dir.clone());
+        // force_not_cached = true: enable_plugin が "Plugin not found" を返し
+        // "codex" が redeploy 失敗ターゲットとして記録される
+        cache.force_not_cached = true;
+
+        let old_meta = meta::load_meta(&cache_dir.join("github").join("repoA"))
+            .unwrap_or_default();
+        let client = MockClient::valid("repoA");
+        let repo = Repo::new(HostKind::GitHub, "owner", "repoA", Some("main".to_string()));
+
+        let outcome = super::super::do_safe_update(
+            &cache,
+            None,
+            "repoA",
+            "repoA",
+            &old_meta,
+            &client,
+            &repo,
+            None,
+            tmp.path(),
+            None,
+        )
+        .await;
+
+        // キャッシュは新版に更新されていること
+        assert_eq!(
+            read_data(&cache_dir, "repoA"),
+            "v2",
+            "cache data should be updated to v2"
+        );
+        // Outcome は Updated（redeploy 失敗でもキャッシュ更新は成功）
+        assert!(
+            matches!(outcome.status, UpdateStatus::Updated { .. }),
+            "expected Updated, got {:?}",
+            outcome.status
+        );
+        assert_eq!(
+            outcome.failed_targets,
+            vec!["codex".to_string()],
+            "codex should be in failed_targets"
+        );
+        // メタに "codex" が Disabled として永続化されていること
+        // force_not_cached は write_meta（ファイルシステム直書き）に影響しないため
+        // 2 回目の write_meta が正常に完了するはず
+        let written_meta = meta::load_meta(&cache_dir.join("github").join("repoA"))
+            .expect("meta should be written after update");
+        assert_eq!(
+            written_meta.get_status("codex"),
+            Some(crate::plugin::meta::TargetStatus::Disabled),
+            "failed target codex must be persisted as Disabled in meta"
+        );
+    }
+}
