@@ -547,6 +547,10 @@ impl PackageCacheAccess for PackageCache {
         source_path: Option<&str>,
     ) -> Result<PathBuf> {
         let fs = RealFs;
+
+        // source_path の防御的検証（store_from_archive・stage_from_archive と同等）
+        validate_source_path(source_path)?;
+
         let target = self.plugin_path(marketplace, name);
         let temp_dir = self.temp_path(marketplace, name);
 
