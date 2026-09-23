@@ -1082,13 +1082,8 @@ mod single {
     }
 
     fn read_data(cache_dir: &Path, cache_id: &str) -> String {
-        fs::read_to_string(
-            cache_dir
-                .join("github")
-                .join(cache_id)
-                .join("data.txt"),
-        )
-        .unwrap_or_default()
+        fs::read_to_string(cache_dir.join("github").join(cache_id).join("data.txt"))
+            .unwrap_or_default()
     }
 
     fn read_commit_sha(cache_dir: &Path, cache_id: &str) -> Option<String> {
@@ -1154,8 +1149,9 @@ mod single {
         fn download_archive_with_sha<'a>(
             &'a self,
             _repo: &'a Repo,
-        ) -> Pin<Box<dyn Future<Output = crate::error::Result<(Vec<u8>, String, String)>> + Send + 'a>>
-        {
+        ) -> Pin<
+            Box<dyn Future<Output = crate::error::Result<(Vec<u8>, String, String)>> + Send + 'a>,
+        > {
             let archive = self.archive.clone();
             let sha = self.sha.clone();
             Box::pin(async move { Ok((archive, "main".to_string(), sha)) })
@@ -1234,11 +1230,7 @@ mod single {
             self.inner.list()
         }
 
-        fn backup(
-            &self,
-            marketplace: Option<&str>,
-            name: &str,
-        ) -> crate::error::Result<PathBuf> {
+        fn backup(&self, marketplace: Option<&str>, name: &str) -> crate::error::Result<PathBuf> {
             self.inner.backup(marketplace, name)
         }
 
@@ -1246,11 +1238,7 @@ mod single {
             self.inner.restore(marketplace, name)
         }
 
-        fn remove_backup(
-            &self,
-            marketplace: Option<&str>,
-            name: &str,
-        ) -> crate::error::Result<()> {
+        fn remove_backup(&self, marketplace: Option<&str>, name: &str) -> crate::error::Result<()> {
             self.inner.remove_backup(marketplace, name)
         }
 
@@ -1270,9 +1258,12 @@ mod single {
             archive: &[u8],
             source_path: Option<&str>,
         ) -> crate::error::Result<PathBuf> {
-            let path = self
-                .inner
-                .atomic_update_with_source_path(marketplace, name, archive, source_path)?;
+            let path = self.inner.atomic_update_with_source_path(
+                marketplace,
+                name,
+                archive,
+                source_path,
+            )?;
             if self.block_meta_write {
                 // `.plm-meta.json` をディレクトリとして作成し、後続の write_meta で
                 // rename 先がディレクトリになるため EISDIR エラーを発生させる。
@@ -1325,10 +1316,7 @@ mod single {
             self.inner.remove_marketplace_entry(marketplace, entry)
         }
 
-        fn list_marketplace_entries(
-            &self,
-            marketplace: &str,
-        ) -> crate::error::Result<Vec<String>> {
+        fn list_marketplace_entries(&self, marketplace: &str) -> crate::error::Result<Vec<String>> {
             self.inner.list_marketplace_entries(marketplace)
         }
     }
@@ -1352,8 +1340,7 @@ mod single {
         let mut cache = SingleCache::new(cache_dir.clone());
         cache.block_meta_write = true;
 
-        let old_meta = meta::load_meta(&cache_dir.join("github").join("repoA"))
-            .unwrap_or_default();
+        let old_meta = meta::load_meta(&cache_dir.join("github").join("repoA")).unwrap_or_default();
         let client = MockClient::valid("repoA");
         let repo = Repo::new(HostKind::GitHub, "owner", "repoA", Some("main".to_string()));
 
@@ -1413,8 +1400,7 @@ mod single {
         // "codex" が redeploy 失敗ターゲットとして記録される
         cache.force_not_cached = true;
 
-        let old_meta = meta::load_meta(&cache_dir.join("github").join("repoA"))
-            .unwrap_or_default();
+        let old_meta = meta::load_meta(&cache_dir.join("github").join("repoA")).unwrap_or_default();
         let client = MockClient::valid("repoA");
         let repo = Repo::new(HostKind::GitHub, "owner", "repoA", Some("main".to_string()));
 
