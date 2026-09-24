@@ -52,6 +52,35 @@ fn xdg_config_child_falls_back_to_home_config() {
 }
 
 #[test]
+fn xdg_config_child_ignores_relative_xdg_config_home() {
+    use std::sync::{Mutex, OnceLock};
+    fn env_lock() -> &'static Mutex<()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+    }
+    let _lock = env_lock().lock().unwrap();
+    let prev = std::env::var_os("XDG_CONFIG_HOME");
+    let home = Path::new("/home/u");
+
+    std::env::set_var("XDG_CONFIG_HOME", "tmp");
+    assert_eq!(
+        xdg_config_child(home, "opencode"),
+        home.join(".config").join("opencode")
+    );
+
+    std::env::set_var("XDG_CONFIG_HOME", "  ./config  ");
+    assert_eq!(
+        xdg_config_child(home, "opencode"),
+        home.join(".config").join("opencode")
+    );
+
+    match prev {
+        Some(v) => std::env::set_var("XDG_CONFIG_HOME", v),
+        None => std::env::remove_var("XDG_CONFIG_HOME"),
+    }
+}
+
+#[test]
 fn home_dir_ignores_plm_home() {
     use std::sync::{Mutex, OnceLock};
     use tempfile::TempDir;
