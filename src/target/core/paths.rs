@@ -45,10 +45,16 @@ pub(crate) fn base_dir(
     }
 }
 
-/// `$XDG_CONFIG_HOME/<child>`。未設定・空・空白のみなら `home/.config/<child>`。
+/// `$XDG_CONFIG_HOME/<child>`。未設定・空・空白のみ・相対パスなら `home/.config/<child>`。
+///
+/// XDG Base Directory では相対パスは無効なので無視する。相対値を受理すると
+/// cleanup がカレントディレクトリ配下を削除し得る。
 pub(crate) fn xdg_config_child(home: &Path, child: &str) -> PathBuf {
     if let Some(xdg) = EnvVar::get("XDG_CONFIG_HOME").filter(|s| !s.trim().is_empty()) {
-        return PathBuf::from(xdg.trim()).join(child);
+        let path = PathBuf::from(xdg.trim());
+        if path.is_absolute() {
+            return path.join(child);
+        }
     }
     home.join(OPENCODE_PERSONAL_PARENT).join(child)
 }
