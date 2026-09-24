@@ -1,5 +1,12 @@
 use super::*;
 use std::path::Path;
+use std::sync::{Mutex, OnceLock};
+
+/// `XDG_CONFIG_HOME` を書き換えるテストを直列化する。
+fn env_lock() -> &'static Mutex<()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(()))
+}
 
 #[test]
 fn base_dir_personal_uses_home_personal_subdir() {
@@ -24,11 +31,6 @@ fn base_dir_project_uses_project_root_with_project_subdir() {
 
 #[test]
 fn xdg_config_child_falls_back_to_home_config() {
-    use std::sync::{Mutex, OnceLock};
-    fn env_lock() -> &'static Mutex<()> {
-        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-        LOCK.get_or_init(|| Mutex::new(()))
-    }
     let _lock = env_lock().lock().unwrap();
     let prev = std::env::var_os("XDG_CONFIG_HOME");
     std::env::remove_var("XDG_CONFIG_HOME");
@@ -53,11 +55,6 @@ fn xdg_config_child_falls_back_to_home_config() {
 
 #[test]
 fn xdg_config_child_ignores_relative_xdg_config_home() {
-    use std::sync::{Mutex, OnceLock};
-    fn env_lock() -> &'static Mutex<()> {
-        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-        LOCK.get_or_init(|| Mutex::new(()))
-    }
     let _lock = env_lock().lock().unwrap();
     let prev = std::env::var_os("XDG_CONFIG_HOME");
     let home = Path::new("/home/u");
