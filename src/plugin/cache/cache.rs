@@ -366,6 +366,24 @@ impl PackageCache {
     }
 }
 
+/// `plugin.json` が無いときのエラー。
+///
+/// 直下に marketplace マニフェストだけあるリポジトリは、プラグインとして
+/// install したときの次の手順を案内する。
+fn missing_plugin_manifest(plugin_dir: &Path) -> PlmError {
+    let marketplace_manifest = plugin_dir
+        .join(crate::placement_names::CLAUDE_PLUGIN_DIR)
+        .join("marketplace.json");
+    if marketplace_manifest.is_file() {
+        return PlmError::InvalidManifest(format!(
+            "plugin.json not found in {:?}. This repository is a marketplace, not a plugin. \
+             Run: `plm marketplace add owner/repo` then `plm install <plugin>@<marketplace>`",
+            plugin_dir
+        ));
+    }
+    PlmError::InvalidManifest(format!("plugin.json not found in {:?}", plugin_dir))
+}
+
 impl PackageCacheAccess for PackageCache {
     fn plugin_path(&self, marketplace: Option<&str>, name: &str) -> PathBuf {
         self.entry_path(None, marketplace, name)
@@ -409,9 +427,8 @@ impl PackageCacheAccess for PackageCache {
 
     fn load_manifest(&self, marketplace: Option<&str>, name: &str) -> Result<PluginManifest> {
         let plugin_dir = self.plugin_path(marketplace, name);
-        let manifest_path = resolve_manifest_path(&plugin_dir).ok_or_else(|| {
-            PlmError::InvalidManifest(format!("plugin.json not found in {:?}", plugin_dir))
-        })?;
+        let manifest_path = resolve_manifest_path(&plugin_dir)
+            .ok_or_else(|| missing_plugin_manifest(&plugin_dir))?;
 
         PluginManifest::load(&manifest_path)
     }
