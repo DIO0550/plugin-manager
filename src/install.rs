@@ -315,17 +315,10 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
                     source: request.scanned.agent_format(),
                     dest: target.agent_format(),
                 },
-                ComponentKind::Hook
-                    if matches!(
-                        target.kind(),
-                        TargetKind::Codex | TargetKind::Copilot | TargetKind::Cursor
-                    ) =>
-                {
-                    ConversionConfig::Hook {
-                        target_kind: target.kind(),
-                        plugin_root: Some(request.scanned.plugin_root().to_path_buf()),
-                    }
-                }
+                ComponentKind::Hook => ConversionConfig::Hook {
+                    target_kind: target.kind(),
+                    plugin_root: Some(request.scanned.plugin_root().to_path_buf()),
+                },
                 ComponentKind::Skill => ConversionConfig::Skill {
                     target_kind: target.kind(),
                 },

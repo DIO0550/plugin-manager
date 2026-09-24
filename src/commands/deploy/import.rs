@@ -237,17 +237,10 @@ fn build_deployment(
             source: AgentFormat::ClaudeCode,
             dest: target.agent_format(),
         },
-        ComponentKind::Hook
-            if matches!(
-                target.kind(),
-                TargetKind::Codex | TargetKind::Copilot | TargetKind::Cursor
-            ) =>
-        {
-            ConversionConfig::Hook {
-                target_kind: target.kind(),
-                plugin_root: Some(ctx.plugin_root.to_path_buf()),
-            }
-        }
+        ComponentKind::Hook => ConversionConfig::Hook {
+            target_kind: target.kind(),
+            plugin_root: Some(ctx.plugin_root.to_path_buf()),
+        },
         ComponentKind::Skill => ConversionConfig::Skill {
             target_kind: target.kind(),
         },
