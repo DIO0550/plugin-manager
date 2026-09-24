@@ -558,6 +558,67 @@ fn test_place_plugin_codex_hook_installs_inline_hooks_json() {
 }
 
 #[test]
+fn test_place_plugin_antigravity_hook_converts_claude_code_json() {
+    let temp = TempDir::new().unwrap();
+    let project_dir = TempDir::new().unwrap();
+
+    let claude_code_hook = r#"{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'pre check'"
+          }
+        ]
+      }
+    ]
+  }
+}"#;
+    let cached = create_test_hook_package(temp.path(), "my-hook", claude_code_hook);
+    let package = MarketplaceContent::try_from(cached).unwrap();
+    let scanned = scan_plugin(&package, None).unwrap();
+
+    let targets: Vec<Box<dyn crate::target::Target>> =
+        vec![Box::new(crate::target::AntigravityTarget::new())];
+
+    let result = place_plugin(&PlaceRequest {
+        scanned: &scanned,
+        targets: &targets,
+        scope: crate::component::Scope::Project,
+        project_root: project_dir.path(),
+        enable_codex_hooks_flag: false,
+    });
+
+    assert_eq!(result.successes.len(), 1, "failures: {:?}", result.failures);
+    let success = &result.successes[0];
+    assert_eq!(success.target, "antigravity");
+    assert_eq!(success.component_name, "test-plugin_my-hook");
+    assert_eq!(
+        success.target_path,
+        project_dir.path().join(".agents/hooks.json")
+    );
+    assert_eq!(success.hook_source_format, Some(SourceFormat::ClaudeCode));
+
+    let rendered = fs::read_to_string(&success.target_path).unwrap();
+    let json: serde_json::Value = serde_json::from_str(&rendered).unwrap();
+    assert!(
+        json.get("hooks").is_none(),
+        "Antigravity hooks.json must not keep the Claude Code wrapper: {rendered}"
+    );
+    assert_eq!(
+        json["test-plugin_my-hook"]["PreToolUse"][0]["matcher"],
+        "run_command"
+    );
+    assert_eq!(
+        json["test-plugin_my-hook"]["PreToolUse"][0]["hooks"][0]["command"],
+        "echo 'pre check'"
+    );
+}
+
+#[test]
 fn test_place_plugin_codex_rejects_multiple_hook_components() {
     let temp = TempDir::new().unwrap();
     let project_dir = TempDir::new().unwrap();

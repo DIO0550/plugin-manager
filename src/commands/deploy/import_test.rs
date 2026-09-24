@@ -401,4 +401,60 @@ mod place_components_tests {
         let meta = crate::plugin::meta::load_meta(plugin_dir.path()).unwrap();
         assert!(meta.manages_file("cursor", &placed));
     }
+
+    #[test]
+    fn antigravity_hook_import_converts_claude_code_json() {
+        let source_dir = TempDir::new().unwrap();
+        let project_dir = TempDir::new().unwrap();
+        let plugin_dir = TempDir::new().unwrap();
+        let registry_dir = TempDir::new().unwrap();
+
+        let hook_path = source_dir.path().join("hooks").join("my-hook.json");
+        fs::create_dir_all(hook_path.parent().unwrap()).unwrap();
+        fs::write(
+            &hook_path,
+            r#"{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [{ "type": "command", "command": "echo 'pre check'" }]
+      }
+    ]
+  }
+}"#,
+        )
+        .unwrap();
+        let component = Component::new(ComponentKind::Hook, "my-hook", &hook_path);
+
+        let origin = PluginOrigin::from_marketplace("test-marketplace", "test-plugin");
+        let ctx = ImportContext {
+            origin: &origin,
+            scope: Scope::Project,
+            project_root: project_dir.path(),
+            plugin_root: plugin_dir.path(),
+            source_repo: "owner/repo",
+            git_ref: "main",
+            commit_sha: "abc123",
+            enable_codex_hooks_flag: false,
+            codex_flag_applied: std::cell::Cell::new(false),
+        };
+        let mut registry = ImportRegistry::with_path(registry_dir.path().join("imports.json"));
+
+        let result = place_components(
+            &["antigravity".to_string()],
+            &[component],
+            &ctx,
+            &mut registry,
+        );
+
+        assert_eq!(result.unwrap(), (1, 0));
+        let rendered = fs::read_to_string(project_dir.path().join(".agents/hooks.json")).unwrap();
+        let json: serde_json::Value = serde_json::from_str(&rendered).unwrap();
+        assert!(
+            json.get("hooks").is_none(),
+            "import must convert Antigravity hooks, got: {rendered}"
+        );
+        assert_eq!(json["my-hook"]["PreToolUse"][0]["matcher"], "run_command");
+    }
 }
