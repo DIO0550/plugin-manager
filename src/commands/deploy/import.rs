@@ -240,7 +240,10 @@ fn build_deployment(
         ComponentKind::Hook
             if matches!(
                 target.kind(),
-                TargetKind::Codex | TargetKind::Copilot | TargetKind::Cursor
+                TargetKind::Codex
+                    | TargetKind::Copilot
+                    | TargetKind::Cursor
+                    | TargetKind::Antigravity
             ) =>
         {
             ConversionConfig::Hook {

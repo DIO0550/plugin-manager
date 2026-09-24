@@ -318,7 +318,10 @@ pub fn place_plugin(request: &PlaceRequest) -> PlaceOutcome {
                 ComponentKind::Hook
                     if matches!(
                         target.kind(),
-                        TargetKind::Codex | TargetKind::Copilot | TargetKind::Cursor
+                        TargetKind::Codex
+                            | TargetKind::Copilot
+                            | TargetKind::Cursor
+                            | TargetKind::Antigravity
                     ) =>
                 {
                     ConversionConfig::Hook {
