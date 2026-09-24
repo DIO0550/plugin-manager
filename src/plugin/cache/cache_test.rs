@@ -1375,6 +1375,32 @@ fn test_load_package_missing_manifest_returns_error() {
     assert!(result.is_err());
 }
 
+#[test]
+fn test_load_manifest_marketplace_repo_explains_install_steps() {
+    let temp_dir = TempDir::new().unwrap();
+    let cache = PackageCache::with_cache_dir(temp_dir.path().to_path_buf()).unwrap();
+
+    let plugin_dir = temp_dir.path().join("github").join("d-market-spec");
+    fs::create_dir_all(plugin_dir.join(".claude-plugin")).unwrap();
+    fs::write(
+        plugin_dir.join(".claude-plugin").join("marketplace.json"),
+        r#"{"name":"d-market-spec","plugins":[]}"#,
+    )
+    .unwrap();
+
+    let err = cache.load_manifest(None, "d-market-spec").unwrap_err();
+    let PlmError::InvalidManifest(msg) = err else {
+        panic!("expected InvalidManifest");
+    };
+    assert!(msg.contains("plugin.json not found"), "{msg}");
+    assert!(
+        msg.contains("This repository is a marketplace, not a plugin."),
+        "{msg}"
+    );
+    assert!(msg.contains("plm marketplace add owner/repo"), "{msg}");
+    assert!(msg.contains("plm install <plugin>@<marketplace>"), "{msg}");
+}
+
 // ---- PLM_HOME path resolution (#344) ----
 
 use std::sync::{Mutex, OnceLock};
