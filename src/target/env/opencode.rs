@@ -64,7 +64,7 @@ impl OpenCodeTarget {
     }
 }
 
-/// `$XDG_CONFIG_HOME/opencode`（空・未設定時は `home/.config/opencode`）。
+/// `$XDG_CONFIG_HOME/opencode`（未設定・空・相対パス時は `home/.config/opencode`）。
 fn personal_root_from_env(home: &Path) -> PathBuf {
     xdg_config_child(home, OPENCODE_PERSONAL_CHILD)
 }
