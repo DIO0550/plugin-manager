@@ -109,6 +109,21 @@ mod batch {
         ])
     }
 
+    /// source_path サブディレクトリ付きの有効な更新後アーカイブ。
+    ///
+    /// Local ソース（`source_path = "plugins/foo"` 等）向けに、prefix の後ろに
+    /// `source_path/` を挟んだ構造を持つ zip を生成する。
+    fn valid_archive_with_source_path(name: &str, source_path: &str) -> Vec<u8> {
+        let manifest = format!(r#"{{"name":"{}","version":"2.0.0"}}"#, name);
+        make_zip(&[
+            (
+                &format!("pkg-main/{}/plugin.json", source_path),
+                manifest.as_str(),
+            ),
+            (&format!("pkg-main/{}/data.txt", source_path), "v2"),
+        ])
+    }
+
     /// plugin.json を含まない無効アーカイブ
     fn invalid_archive() -> Vec<u8> {
         make_zip(&[("pkg-main/readme.md", "no manifest here")])
@@ -299,6 +314,7 @@ mod batch {
     #[derive(Clone)]
     enum Download {
         Valid,
+        Custom(Vec<u8>),
         Invalid,
         Fail,
     }
@@ -372,6 +388,9 @@ mod batch {
                     "main".to_string(),
                     format!("commit-{}", name),
                 )),
+                Download::Custom(bytes) => {
+                    Ok((bytes, "main".to_string(), format!("commit-{}", name)))
+                }
                 Download::Invalid => Ok((invalid_archive(), "main".to_string(), "x".to_string())),
                 Download::Fail => Err(PlmError::RepoApi {
                     url: "https://api.github.com/test".to_string(),
@@ -964,6 +983,81 @@ mod batch {
         // 本番（mymarket 配下）が v2 に更新
         assert_eq!(read_data_in(&cache_dir, "mymarket", "plugM"), "v2");
         assert!(!temp_exists_in(&cache_dir, "mymarket", "plugM"));
+    }
+
+    /// `Local` パス（`./` プレフィックス付き）を持つ marketplace エントリが
+    /// 正常に更新されることを検証するリグレッションガード（issue #443）。
+    ///
+    /// `WithMarketplace` は `External` エントリのみを生成するため、`Local` ソース専用の
+    /// スタブ `WithLocalMarketplace` を使う。
+    /// `PluginSourcePath::parse` が `"./plugins/plugL"` を `"plugins/plugL"` へ正規化し、
+    /// `do_safe_update` に渡されることで更新が成功することを確認する。
+    struct WithLocalMarketplace {
+        market: String,
+        entries: Vec<(String, String)>, // (cache_id, local_path)
+    }
+    impl MarketplaceResolver for WithLocalMarketplace {
+        fn resolve(&self, marketplace: &str) -> Result<Option<MarketplaceCache>> {
+            if marketplace != self.market {
+                return Ok(None);
+            }
+            let plugins = self
+                .entries
+                .iter()
+                .map(|(cache_id, local_path)| crate::marketplace::MarketplacePlugin {
+                    name: cache_id.clone(),
+                    source: crate::marketplace::PluginSource::Local(local_path.clone()),
+                    description: None,
+                    version: None,
+                })
+                .collect();
+            Ok(Some(MarketplaceCache {
+                name: self.market.clone(),
+                fetched_at: chrono::Utc::now(),
+                source: format!("github:owner/{}", self.market).parse().unwrap(),
+                owner: None,
+                plugins,
+            }))
+        }
+    }
+
+    #[tokio::test]
+    async fn test_marketplace_local_source_update_commits() {
+        // Local("./plugins/plugL") を持つ marketplace エントリの更新が成功すること。
+        // PluginSourcePath::parse が "./" プレフィックスを除去して正規化し、
+        // do_safe_update に source_path = Some("plugins/plugL") として渡されることを確認する。
+        // Local ソースでは marketplace 自体のリポジトリからダウンロードするため（name = "mymarket"）、
+        // source_path 付き構造（pkg-main/plugins/plugL/...）を持つアーカイブを注入する。
+        let tmp = TempDir::new().unwrap();
+        let cache_dir = tmp.path().to_path_buf();
+        setup_mp_plugin(&cache_dir, "mymarket", "plugL", "plugL-disp", OLD_SHA);
+        let cache = PackageCache::with_cache_dir(cache_dir.clone()).unwrap();
+        let mut client = MockBatchClient::new();
+        client.download.insert(
+            "mymarket".to_string(),
+            Download::Custom(valid_archive_with_source_path("plugL", "plugins/plugL")),
+        );
+        // Local source: "./plugins/plugL"（"./" プレフィックス付き）
+        let resolver = WithLocalMarketplace {
+            market: "mymarket".to_string(),
+            entries: vec![("plugL".to_string(), "./plugins/plugL".to_string())],
+        };
+
+        let results =
+            update_all_plugins_with_deps(&cache, &client, &resolver, tmp.path(), None).await;
+
+        assert_eq!(results.len(), 1);
+        assert!(
+            matches!(
+                find(&results, "plugL-disp").status,
+                UpdateStatus::Updated { .. }
+            ),
+            "Local source with './' prefix should update successfully, got {:?}",
+            find(&results, "plugL-disp").status
+        );
+        // 本番（mymarket 配下）が v2 に更新されていること
+        assert_eq!(read_data_in(&cache_dir, "mymarket", "plugL"), "v2");
+        assert!(!temp_exists_in(&cache_dir, "mymarket", "plugL"));
     }
 
     // ---- 複数 marketplace 間の同名 cache_id 衝突（review A リグレッションガード）----

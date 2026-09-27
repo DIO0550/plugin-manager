@@ -9,7 +9,7 @@ use crate::host::{HostClient, HostClientFactory, HostKind};
 use crate::http::with_retry;
 use crate::marketplace::{
     MarketplaceCache, MarketplaceName, MarketplaceRef, MarketplaceRegistry, MarketplaceSourceRef,
-    PluginSource as MpPluginSource,
+    PluginSource as MpPluginSource, PluginSourcePath,
 };
 use crate::plugin::lifecycle::plugin_resolver::{find_by_plugin_name, ResolvedPlugin};
 use crate::plugin::version::needs_update;
@@ -468,8 +468,11 @@ async fn update_marketplace_plugin(
         );
     }
 
-    let source_path = match &entry.source {
-        MpPluginSource::Local(p) => Some(p.clone()),
+    let source_path: Option<String> = match &entry.source {
+        MpPluginSource::Local(p) => match p.parse::<PluginSourcePath>() {
+            Ok(parsed) => Some(parsed.into()),
+            Err(e) => return UpdateOutcome::failed(display_name, e.to_string()),
+        },
         MpPluginSource::External { .. } => None,
     };
 
@@ -861,8 +864,15 @@ async fn check_all(
                         continue;
                     }
                 };
-            let source_path = match &entry.source {
-                MpPluginSource::Local(p) => Some(p.clone()),
+            let source_path: Option<String> = match &entry.source {
+                MpPluginSource::Local(p) => match p.parse::<PluginSourcePath>() {
+                    Ok(parsed) => Some(parsed.into()),
+                    Err(e) => {
+                        error_count += 1;
+                        eprintln!("  {}: {}", display_name, e);
+                        continue;
+                    }
+                },
                 MpPluginSource::External { .. } => None,
             };
             (repo, source_path)
