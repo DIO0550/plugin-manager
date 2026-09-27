@@ -264,3 +264,80 @@ fn test_sync_with_fs_uses_destination_supports_for_unsupported_dry_run() {
     assert!(result.created.is_empty());
     assert!(result.failed.is_empty());
 }
+
+// ── Instruction クロスターゲット同期テスト ──────────────────────────────────
+
+fn instruction_target(base: &str, filename: &str) -> FakeTarget {
+    FakeTarget {
+        supported_components: vec![ComponentKind::Instruction],
+        supported_scopes: vec![(ComponentKind::Instruction, Scope::Project)],
+        placed: vec![(
+            ComponentKind::Instruction,
+            Scope::Project,
+            vec![filename.to_string()],
+        )],
+        base_path: PathBuf::from(base),
+        ..Default::default()
+    }
+}
+
+fn instruction_options() -> SyncOptions {
+    SyncOptions::default()
+        .with_component_type(SyncableKind::Instruction)
+        .with_scope(Scope::Project)
+}
+
+/// Codex (AGENTS.md) → Copilot (copilot-instructions.md) の同期で
+/// 既存の dest Instruction が削除されず更新されることを確認する。
+///
+/// 修正前は PlacedRef の name がファイル名依存だったため source と dest が
+/// 別コンポーネント扱いとなり「create 直後 delete」で dest ファイルが消えた。
+#[test]
+fn test_instruction_cross_target_sync_updates_not_creates_and_deletes() {
+    let source = fake_source(instruction_target("/tmp/src", "AGENTS.md"));
+    let dest = fake_destination(instruction_target("/tmp/dst", "copilot-instructions.md"));
+
+    let fs = MockFs::new();
+    fs.add_file("/tmp/src/instruction", "# Source instruction\n");
+    fs.add_file("/tmp/dst/instruction", "# Dest instruction\n");
+
+    let result = sync_with_fs(&source, &dest, &instruction_options(), &fs).unwrap();
+
+    assert_eq!(result.updated.len(), 1, "instruction should be updated");
+    assert!(
+        result.created.is_empty(),
+        "should not create (already exists in dest)"
+    );
+    assert!(
+        result.deleted.is_empty(),
+        "dest instruction must not be deleted"
+    );
+    assert!(result.failed.is_empty());
+}
+
+/// Codex (AGENTS.md) → Copilot（dest に Instruction なし）では create されること。
+#[test]
+fn test_instruction_cross_target_sync_creates_when_dest_has_no_instruction() {
+    let source = fake_source(instruction_target("/tmp/src", "AGENTS.md"));
+    let dest = fake_destination(FakeTarget {
+        supported_components: vec![ComponentKind::Instruction],
+        supported_scopes: vec![(ComponentKind::Instruction, Scope::Project)],
+        placed: vec![],
+        base_path: PathBuf::from("/tmp/dst"),
+        ..Default::default()
+    });
+
+    let fs = MockFs::new();
+    fs.add_file("/tmp/src/instruction", "# Source instruction\n");
+
+    let result = sync_with_fs(&source, &dest, &instruction_options(), &fs).unwrap();
+
+    assert_eq!(
+        result.created.len(),
+        1,
+        "instruction should be created on dest"
+    );
+    assert!(result.updated.is_empty());
+    assert!(result.deleted.is_empty());
+    assert!(result.failed.is_empty());
+}
