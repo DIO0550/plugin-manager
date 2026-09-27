@@ -1004,12 +1004,14 @@ mod batch {
             let plugins = self
                 .entries
                 .iter()
-                .map(|(cache_id, local_path)| crate::marketplace::MarketplacePlugin {
-                    name: cache_id.clone(),
-                    source: crate::marketplace::PluginSource::Local(local_path.clone()),
-                    description: None,
-                    version: None,
-                })
+                .map(
+                    |(cache_id, local_path)| crate::marketplace::MarketplacePlugin {
+                        name: cache_id.clone(),
+                        source: crate::marketplace::PluginSource::Local(local_path.clone()),
+                        description: None,
+                        version: None,
+                    },
+                )
                 .collect();
             Ok(Some(MarketplaceCache {
                 name: self.market.clone(),

@@ -1,6 +1,14 @@
 //! 配置済みコンポーネントの定義
 
 use crate::component::{ComponentKind, Scope};
+
+/// Instruction コンポーネントの正規化名。
+///
+/// 各ターゲットは固有のファイル名（`AGENTS.md` / `copilot-instructions.md` / `GEMINI.md`）
+/// を持つが、`PlacedRef` のマッチングキーとしてはターゲット横断で同一に扱う必要がある。
+/// そのため `PlacedRef` では常にこの定数を name として使用する。
+pub(crate) const INSTRUCTION_CANONICAL_NAME: &str = "instruction";
+
 use crate::error::{PlmError, Result};
 use std::path::{Path, PathBuf};
 

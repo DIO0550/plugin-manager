@@ -7,7 +7,9 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use super::super::model::{PlacedComponent, PlacedRef, SyncOptions, SyncableKind};
+use super::super::model::{
+    PlacedComponent, PlacedRef, SyncOptions, SyncableKind, INSTRUCTION_CANONICAL_NAME,
+};
 use super::parse_component_name;
 use crate::component::{
     CommandFormat, ComponentKind, ComponentRef, PlacementContext, PlacementScope, ProjectContext,
@@ -91,7 +93,16 @@ impl TargetBinding {
                 let placed = self.target.list_placed(kind, *scope, &self.project_root)?;
 
                 for name in placed {
-                    let placed_ref = PlacedRef::new(kind, name.clone(), *scope);
+                    // Instruction は各ターゲット固有のファイル名（AGENTS.md 等）を返すが、
+                    // sync マッチングキーとしてはターゲット横断で同一視する必要がある。
+                    // placement_location は name を無視して自ターゲットのファイル名を解決するため、
+                    // PlacedRef の name を正規化しても path 解決には影響しない。
+                    let ref_name = if kind == ComponentKind::Instruction {
+                        INSTRUCTION_CANONICAL_NAME.to_string()
+                    } else {
+                        name.clone()
+                    };
+                    let placed_ref = PlacedRef::new(kind, ref_name.clone(), *scope);
 
                     if !seen_refs.insert(placed_ref.clone()) {
                         return Err(PlmError::InvalidArgument(format!(
@@ -101,7 +112,7 @@ impl TargetBinding {
                     }
 
                     let path = self.resolve_path(kind, &name, *scope)?;
-                    components.push(PlacedComponent::new(kind, name, *scope, path));
+                    components.push(PlacedComponent::new(kind, ref_name, *scope, path));
                 }
             }
         }

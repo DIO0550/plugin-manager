@@ -13,5 +13,6 @@ mod result;
 
 pub use self::action::SyncAction;
 pub use self::options::{SyncOptions, SyncableKind};
+pub(crate) use self::placed::INSTRUCTION_CANONICAL_NAME;
 pub use self::placed::{PlacedComponent, PlacedRef};
 pub use self::result::{SyncFailure, SyncOutcome};
